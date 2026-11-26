@@ -58,14 +58,11 @@ func TestSchemaExtendsM1Customers(t *testing.T) {
 
 	// customers_v: 4 cột của M1 ở vị trí 1–4 cùng kiểu, rồi 11 cột M2.
 	after := testkit.Columns(t, owner, "customer", "customers_v")
-	if len(before) != 4 || len(after) != 15 {
-		t.Fatalf("customers_v trước %v, sau %v", before, after)
+	// Mốc sau nối cột sau version (R3; 0403 của Task 152 có test riêng): chỉ xét 15 cột đầu.
+	if len(before) != 4 || len(after) < 15 {
+		t.Fatalf("customers_v trước 0201 %v, sau %v", before, after)
 	}
-	for i := range before {
-		if before[i] != after[i] {
-			t.Errorf("cột %d của customers_v đổi: %v → %v", i+1, before[i], after[i])
-		}
-	}
+	expectColumnsAppended(t, before, after[:15], 11)
 	checkM1CreateAfter(t, app, tenant, codes)
 }
 
@@ -349,7 +346,7 @@ func TestSchemaViewsAndRules(t *testing.T) {
 	owner := e.staff.Owner
 	want := map[string]string{
 		"customers_v": "id, root_id, full_name, created_at, tenant_id, code, lifecycle, birthday, order_count, " +
-			"delivered_count, returned_count, total_spent, last_order_at, updated_at, version",
+			"delivered_count, returned_count, total_spent, last_order_at, updated_at, version, do_not_contact, name_source",
 		"customer_identities_v": "tenant_id, id, customer_id, kind, scope, value, verified_at, source, created_at",
 		"customer_addresses_v": "tenant_id, id, customer_id, recipient_name, phone, province_code, ward_code, street, " +
 			"is_default",
@@ -436,5 +433,19 @@ func TestSchemaChecks(t *testing.T) {
 	})
 	if pgCode(err) != "23514" {
 		t.Errorf("màu ngoài danh sách: %v, mong 23514", err)
+	}
+}
+
+// expectColumnsAppended: cột của customers_v trước migration là tiền tố đúng thứ tự, cùng kiểu của cột sau; sau có
+// đúng added cột mới ở cuối (R3).
+func expectColumnsAppended(t *testing.T, before, after []testkit.Column, added int) {
+	t.Helper()
+	if len(after) != len(before)+added {
+		t.Fatalf("customers_v trước %v, sau %v", before, after)
+	}
+	for i := range before {
+		if before[i] != after[i] {
+			t.Errorf("cột %d của customers_v đổi: %v → %v", i+1, before[i], after[i])
+		}
 	}
 }

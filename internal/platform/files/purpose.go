@@ -46,6 +46,9 @@ type Purpose struct {
 	// Preset (Task 453): bộ kích thước riêng của mục đích (≥ purposePresetBase, ví dụ PresetBannerV1); 0 = bộ chung
 	// IMAGE_PRESET_VERSION như mọi mục đích có sẵn. Tạo lại kích thước bộ chung bỏ qua tệp của mục đích có bộ riêng.
 	Preset int
+	// AnyType (M4 Task 155): nhận mọi loại tệp (AllowedTypes phải rỗng); chỉ cho tệp máy chủ ghi, không tải lên, không
+	// phải ảnh (tệp khách gửi trong hộp chat: loại do máy chủ nhận dạng theo nội dung, chỉ cho tải về).
+	AnyType bool
 	// MinWidth > 0 (Task 453): ảnh hẹp hơn bị rejected too_small (imager kiểm trước khi giải mã, files kiểm lại kết
 	// quả); 0 = không kiểm.
 	MinWidth int
@@ -74,7 +77,9 @@ func (p Purpose) mode() string {
 	return "standard"
 }
 
-func (p Purpose) allows(contentType string) bool { return slices.Contains(p.AllowedTypes, contentType) }
+func (p Purpose) allows(contentType string) bool {
+	return p.AnyType || slices.Contains(p.AllowedTypes, contentType)
+}
 
 func (p Purpose) validate() error {
 	switch {
@@ -82,7 +87,9 @@ func (p Purpose) validate() error {
 		return fmt.Errorf("khóa %q sai dạng", p.Key)
 	case !p.Bucket.valid():
 		return fmt.Errorf("%s: bucket %q lạ", p.Key, p.Bucket)
-	case len(p.AllowedTypes) == 0:
+	case p.AnyType && (len(p.AllowedTypes) > 0 || p.Upload || p.Image):
+		return fmt.Errorf("%s: AnyType chỉ cho tệp máy chủ ghi, không kèm danh sách loại", p.Key)
+	case len(p.AllowedTypes) == 0 && !p.AnyType:
 		return fmt.Errorf("%s: không có loại tệp nào", p.Key)
 	case p.MaxBytes <= 0:
 		return fmt.Errorf("%s: MaxBytes phải > 0", p.Key)
@@ -99,7 +106,7 @@ func (p Purpose) validate() error {
 func samePurpose(a, b Purpose) bool {
 	return a.Key == b.Key && a.Bucket == b.Bucket && slices.Equal(a.AllowedTypes, b.AllowedTypes) &&
 		a.MaxBytes == b.MaxBytes && a.Image == b.Image && a.Upload == b.Upload && a.Private == b.Private &&
-		a.Preset == b.Preset && a.MinWidth == b.MinWidth
+		a.Preset == b.Preset && a.MinWidth == b.MinWidth && a.AnyType == b.AnyType
 }
 
 // Registry là sổ mục đích tệp. Dùng sổ mặc định qua RegisterPurpose, PurposeOf; NewRegistry chỉ để test so một tập
@@ -118,7 +125,8 @@ func NewRegistry(ps ...Purpose) *Registry {
 	return r
 }
 
-// Register thêm p. Sai luật (khóa, bucket, loại, MaxBytes, Private ngoài bucket private hay không phải ảnh) hoặc khai
+// Register thêm p. Sai luật (khóa, bucket, loại, MaxBytes, Private ngoài bucket private hay không phải ảnh, AnyType kèm
+// loại, tải lên hay ảnh) hoặc khai
 // lại cùng khóa khác nội dung → panic (lỗi lập trình, gọi lúc khởi động). Khai lại đúng như cũ thì không làm gì.
 func (r *Registry) Register(p Purpose) {
 	if err := p.validate(); err != nil {

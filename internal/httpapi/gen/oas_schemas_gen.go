@@ -5,6 +5,7 @@ package gen
 import (
 	"io"
 	"net/netip"
+	"net/url"
 	"time"
 
 	"github.com/go-faster/errors"
@@ -64,6 +65,26 @@ func (s *AddAttributeValueRequest) SetValue(val ClassName) {
 func (s *AddAttributeValueRequest) SetPosition(val OptPosition) {
 	s.Position = val
 }
+
+// Ref: #/components/schemas/AddConversationNoteRequest
+type AddConversationNoteRequest struct {
+	Text string `json:"text"`
+}
+
+// GetText returns the value of Text.
+func (s *AddConversationNoteRequest) GetText() string {
+	return s.Text
+}
+
+// SetText sets the value of Text.
+func (s *AddConversationNoteRequest) SetText(val string) {
+	s.Text = val
+}
+
+// AddConversationTagNoContent is response for AddConversationTag operation.
+type AddConversationTagNoContent struct{}
+
+func (*AddConversationTagNoContent) addConversationTagRes() {}
 
 // Ref: #/components/schemas/AddCustomerIdentityRequest
 type AddCustomerIdentityRequest struct {
@@ -1243,6 +1264,80 @@ func (s *ArticleBlockType) UnmarshalText(data []byte) error {
 
 type ArticleInput []jx.Raw
 
+// Ref: #/components/schemas/AskAddressResult
+type AskAddressResult struct {
+	Status AskAddressResultStatus `json:"status"`
+	Reason OptString              `json:"reason"`
+}
+
+// GetStatus returns the value of Status.
+func (s *AskAddressResult) GetStatus() AskAddressResultStatus {
+	return s.Status
+}
+
+// GetReason returns the value of Reason.
+func (s *AskAddressResult) GetReason() OptString {
+	return s.Reason
+}
+
+// SetStatus sets the value of Status.
+func (s *AskAddressResult) SetStatus(val AskAddressResultStatus) {
+	s.Status = val
+}
+
+// SetReason sets the value of Reason.
+func (s *AskAddressResult) SetReason(val OptString) {
+	s.Reason = val
+}
+
+type AskAddressResultStatus string
+
+const (
+	AskAddressResultStatusQueued        AskAddressResultStatus = "queued"
+	AskAddressResultStatusSkippedPolicy AskAddressResultStatus = "skipped_policy"
+	AskAddressResultStatusNotRequested  AskAddressResultStatus = "not_requested"
+)
+
+// AllValues returns all AskAddressResultStatus values.
+func (AskAddressResultStatus) AllValues() []AskAddressResultStatus {
+	return []AskAddressResultStatus{
+		AskAddressResultStatusQueued,
+		AskAddressResultStatusSkippedPolicy,
+		AskAddressResultStatusNotRequested,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AskAddressResultStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case AskAddressResultStatusQueued:
+		return []byte(s), nil
+	case AskAddressResultStatusSkippedPolicy:
+		return []byte(s), nil
+	case AskAddressResultStatusNotRequested:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AskAddressResultStatus) UnmarshalText(data []byte) error {
+	switch AskAddressResultStatus(data) {
+	case AskAddressResultStatusQueued:
+		*s = AskAddressResultStatusQueued
+		return nil
+	case AskAddressResultStatusSkippedPolicy:
+		*s = AskAddressResultStatusSkippedPolicy
+		return nil
+	case AskAddressResultStatusNotRequested:
+		*s = AskAddressResultStatusNotRequested
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/AssignCallbackTaskRequest
 type AssignCallbackTaskRequest struct {
 	AssigneeId uuid.UUID `json:"assigneeId"`
@@ -1269,6 +1364,76 @@ func (s *AssignCallbackTaskRequest) SetAssigneeId(val uuid.UUID) {
 func (s *AssignCallbackTaskRequest) SetVersion(val OptInt64) {
 	s.Version = val
 }
+
+// Ref: #/components/schemas/AssignConversationRequest
+type AssignConversationRequest struct {
+	// Null = bỏ giao.
+	UserId          NilUUID `json:"userId"`
+	ExpectedVersion int32   `json:"expectedVersion"`
+}
+
+// GetUserId returns the value of UserId.
+func (s *AssignConversationRequest) GetUserId() NilUUID {
+	return s.UserId
+}
+
+// GetExpectedVersion returns the value of ExpectedVersion.
+func (s *AssignConversationRequest) GetExpectedVersion() int32 {
+	return s.ExpectedVersion
+}
+
+// SetUserId sets the value of UserId.
+func (s *AssignConversationRequest) SetUserId(val NilUUID) {
+	s.UserId = val
+}
+
+// SetExpectedVersion sets the value of ExpectedVersion.
+func (s *AssignConversationRequest) SetExpectedVersion(val int32) {
+	s.ExpectedVersion = val
+}
+
+// Ref: #/components/schemas/AssignableUser
+type AssignableUser struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+// GetID returns the value of ID.
+func (s *AssignableUser) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *AssignableUser) GetName() string {
+	return s.Name
+}
+
+// SetID sets the value of ID.
+func (s *AssignableUser) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *AssignableUser) SetName(val string) {
+	s.Name = val
+}
+
+// Ref: #/components/schemas/AssignableUserList
+type AssignableUserList struct {
+	Items []AssignableUser `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *AssignableUserList) GetItems() []AssignableUser {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *AssignableUserList) SetItems(val []AssignableUser) {
+	s.Items = val
+}
+
+func (*AssignableUserList) listAssignableUsersRes() {}
 
 // Ref: #/components/schemas/AttachProductImageRequest
 type AttachProductImageRequest struct {
@@ -1306,6 +1471,34 @@ func (s *AttachProductImageRequest) SetFileId(val uuid.UUID) {
 func (s *AttachProductImageRequest) SetColor(val OptString) {
 	s.Color = val
 }
+
+// Ref: #/components/schemas/AttachmentUrl
+type AttachmentUrl struct {
+	URL       url.URL   `json:"url"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+// GetURL returns the value of URL.
+func (s *AttachmentUrl) GetURL() url.URL {
+	return s.URL
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *AttachmentUrl) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// SetURL sets the value of URL.
+func (s *AttachmentUrl) SetURL(val url.URL) {
+	s.URL = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *AttachmentUrl) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+func (*AttachmentUrl) getAttachmentUrlRes() {}
 
 // Ref: #/components/schemas/Attribute
 type Attribute struct {
@@ -1740,6 +1933,528 @@ func (s *AuditLogPage) SetNextCursor(val OptString) {
 }
 
 func (*AuditLogPage) listAuditLogsRes() {}
+
+// Ref: #/components/schemas/AutoHideConfig
+type AutoHideConfig struct {
+	Kind          AutoHideConfigKind `json:"kind"`
+	Mode          AutoHideConfigMode `json:"mode"`
+	ExceptPostIds []string           `json:"exceptPostIds"`
+}
+
+// GetKind returns the value of Kind.
+func (s *AutoHideConfig) GetKind() AutoHideConfigKind {
+	return s.Kind
+}
+
+// GetMode returns the value of Mode.
+func (s *AutoHideConfig) GetMode() AutoHideConfigMode {
+	return s.Mode
+}
+
+// GetExceptPostIds returns the value of ExceptPostIds.
+func (s *AutoHideConfig) GetExceptPostIds() []string {
+	return s.ExceptPostIds
+}
+
+// SetKind sets the value of Kind.
+func (s *AutoHideConfig) SetKind(val AutoHideConfigKind) {
+	s.Kind = val
+}
+
+// SetMode sets the value of Mode.
+func (s *AutoHideConfig) SetMode(val AutoHideConfigMode) {
+	s.Mode = val
+}
+
+// SetExceptPostIds sets the value of ExceptPostIds.
+func (s *AutoHideConfig) SetExceptPostIds(val []string) {
+	s.ExceptPostIds = val
+}
+
+type AutoHideConfigKind string
+
+const (
+	AutoHideConfigKindAutoHide AutoHideConfigKind = "auto_hide"
+)
+
+// AllValues returns all AutoHideConfigKind values.
+func (AutoHideConfigKind) AllValues() []AutoHideConfigKind {
+	return []AutoHideConfigKind{
+		AutoHideConfigKindAutoHide,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AutoHideConfigKind) MarshalText() ([]byte, error) {
+	switch s {
+	case AutoHideConfigKindAutoHide:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AutoHideConfigKind) UnmarshalText(data []byte) error {
+	switch AutoHideConfigKind(data) {
+	case AutoHideConfigKindAutoHide:
+		*s = AutoHideConfigKindAutoHide
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type AutoHideConfigMode string
+
+const (
+	AutoHideConfigModeOff       AutoHideConfigMode = "off"
+	AutoHideConfigModePhoneOnly AutoHideConfigMode = "phone_only"
+	AutoHideConfigModeAll       AutoHideConfigMode = "all"
+)
+
+// AllValues returns all AutoHideConfigMode values.
+func (AutoHideConfigMode) AllValues() []AutoHideConfigMode {
+	return []AutoHideConfigMode{
+		AutoHideConfigModeOff,
+		AutoHideConfigModePhoneOnly,
+		AutoHideConfigModeAll,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AutoHideConfigMode) MarshalText() ([]byte, error) {
+	switch s {
+	case AutoHideConfigModeOff:
+		return []byte(s), nil
+	case AutoHideConfigModePhoneOnly:
+		return []byte(s), nil
+	case AutoHideConfigModeAll:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AutoHideConfigMode) UnmarshalText(data []byte) error {
+	switch AutoHideConfigMode(data) {
+	case AutoHideConfigModeOff:
+		*s = AutoHideConfigModeOff
+		return nil
+	case AutoHideConfigModePhoneOnly:
+		*s = AutoHideConfigModePhoneOnly
+		return nil
+	case AutoHideConfigModeAll:
+		*s = AutoHideConfigModeAll
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/AutoReplyCommentConfig
+type AutoReplyCommentConfig struct {
+	Kind           AutoReplyCommentConfigKind `json:"kind"`
+	Replies        []string                   `json:"replies"`
+	PrivateMessage OptAutoReplyPrivateMessage `json:"privateMessage"`
+	// Rỗng = mọi bài.
+	PostIds             []string `json:"postIds"`
+	ExceptPostIds       []string `json:"exceptPostIds"`
+	IncludeLive         bool     `json:"includeLive"`
+	PerUserPerPostHours int32    `json:"perUserPerPostHours"`
+}
+
+// GetKind returns the value of Kind.
+func (s *AutoReplyCommentConfig) GetKind() AutoReplyCommentConfigKind {
+	return s.Kind
+}
+
+// GetReplies returns the value of Replies.
+func (s *AutoReplyCommentConfig) GetReplies() []string {
+	return s.Replies
+}
+
+// GetPrivateMessage returns the value of PrivateMessage.
+func (s *AutoReplyCommentConfig) GetPrivateMessage() OptAutoReplyPrivateMessage {
+	return s.PrivateMessage
+}
+
+// GetPostIds returns the value of PostIds.
+func (s *AutoReplyCommentConfig) GetPostIds() []string {
+	return s.PostIds
+}
+
+// GetExceptPostIds returns the value of ExceptPostIds.
+func (s *AutoReplyCommentConfig) GetExceptPostIds() []string {
+	return s.ExceptPostIds
+}
+
+// GetIncludeLive returns the value of IncludeLive.
+func (s *AutoReplyCommentConfig) GetIncludeLive() bool {
+	return s.IncludeLive
+}
+
+// GetPerUserPerPostHours returns the value of PerUserPerPostHours.
+func (s *AutoReplyCommentConfig) GetPerUserPerPostHours() int32 {
+	return s.PerUserPerPostHours
+}
+
+// SetKind sets the value of Kind.
+func (s *AutoReplyCommentConfig) SetKind(val AutoReplyCommentConfigKind) {
+	s.Kind = val
+}
+
+// SetReplies sets the value of Replies.
+func (s *AutoReplyCommentConfig) SetReplies(val []string) {
+	s.Replies = val
+}
+
+// SetPrivateMessage sets the value of PrivateMessage.
+func (s *AutoReplyCommentConfig) SetPrivateMessage(val OptAutoReplyPrivateMessage) {
+	s.PrivateMessage = val
+}
+
+// SetPostIds sets the value of PostIds.
+func (s *AutoReplyCommentConfig) SetPostIds(val []string) {
+	s.PostIds = val
+}
+
+// SetExceptPostIds sets the value of ExceptPostIds.
+func (s *AutoReplyCommentConfig) SetExceptPostIds(val []string) {
+	s.ExceptPostIds = val
+}
+
+// SetIncludeLive sets the value of IncludeLive.
+func (s *AutoReplyCommentConfig) SetIncludeLive(val bool) {
+	s.IncludeLive = val
+}
+
+// SetPerUserPerPostHours sets the value of PerUserPerPostHours.
+func (s *AutoReplyCommentConfig) SetPerUserPerPostHours(val int32) {
+	s.PerUserPerPostHours = val
+}
+
+type AutoReplyCommentConfigKind string
+
+const (
+	AutoReplyCommentConfigKindAutoReplyComment AutoReplyCommentConfigKind = "auto_reply_comment"
+)
+
+// AllValues returns all AutoReplyCommentConfigKind values.
+func (AutoReplyCommentConfigKind) AllValues() []AutoReplyCommentConfigKind {
+	return []AutoReplyCommentConfigKind{
+		AutoReplyCommentConfigKindAutoReplyComment,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AutoReplyCommentConfigKind) MarshalText() ([]byte, error) {
+	switch s {
+	case AutoReplyCommentConfigKindAutoReplyComment:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AutoReplyCommentConfigKind) UnmarshalText(data []byte) error {
+	switch AutoReplyCommentConfigKind(data) {
+	case AutoReplyCommentConfigKindAutoReplyComment:
+		*s = AutoReplyCommentConfigKindAutoReplyComment
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/AutoReplyPrivateMessage
+type AutoReplyPrivateMessage struct {
+	TemplateId OptUUID   `json:"templateId"`
+	Text       OptString `json:"text"`
+}
+
+// GetTemplateId returns the value of TemplateId.
+func (s *AutoReplyPrivateMessage) GetTemplateId() OptUUID {
+	return s.TemplateId
+}
+
+// GetText returns the value of Text.
+func (s *AutoReplyPrivateMessage) GetText() OptString {
+	return s.Text
+}
+
+// SetTemplateId sets the value of TemplateId.
+func (s *AutoReplyPrivateMessage) SetTemplateId(val OptUUID) {
+	s.TemplateId = val
+}
+
+// SetText sets the value of Text.
+func (s *AutoReplyPrivateMessage) SetText(val OptString) {
+	s.Text = val
+}
+
+// Ref: #/components/schemas/AutomationRule
+type AutomationRule struct {
+	Kind    AutomationRuleKind   `json:"kind"`
+	Enabled bool                 `json:"enabled"`
+	Config  AutomationRuleConfig `json:"config"`
+	// 0 khi Page chưa có dòng cấu hình cho loại này (trả mặc định).
+	Version   int32       `json:"version"`
+	UpdatedAt OptDateTime `json:"updatedAt"`
+}
+
+// GetKind returns the value of Kind.
+func (s *AutomationRule) GetKind() AutomationRuleKind {
+	return s.Kind
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *AutomationRule) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetConfig returns the value of Config.
+func (s *AutomationRule) GetConfig() AutomationRuleConfig {
+	return s.Config
+}
+
+// GetVersion returns the value of Version.
+func (s *AutomationRule) GetVersion() int32 {
+	return s.Version
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *AutomationRule) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
+// SetKind sets the value of Kind.
+func (s *AutomationRule) SetKind(val AutomationRuleKind) {
+	s.Kind = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *AutomationRule) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetConfig sets the value of Config.
+func (s *AutomationRule) SetConfig(val AutomationRuleConfig) {
+	s.Config = val
+}
+
+// SetVersion sets the value of Version.
+func (s *AutomationRule) SetVersion(val int32) {
+	s.Version = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *AutomationRule) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
+func (*AutomationRule) updateAutomationRuleRes() {}
+
+// Ref: #/components/schemas/AutomationRuleConfig
+// AutomationRuleConfig represents sum type.
+type AutomationRuleConfig struct {
+	// Type selects the active sum variant, switch on this field.
+	Type                   AutomationRuleConfigType
+	AutoHideConfig         AutoHideConfig
+	AutoReplyCommentConfig AutoReplyCommentConfig
+	GreetingConfig         GreetingConfig
+	FollowUpConfig         FollowUpConfig
+}
+
+// AutomationRuleConfigType is oneOf type of AutomationRuleConfig.
+type AutomationRuleConfigType string
+
+// Possible values for AutomationRuleConfigType.
+const (
+	AutoHideConfigAutomationRuleConfig         AutomationRuleConfigType = "auto_hide"
+	AutoReplyCommentConfigAutomationRuleConfig AutomationRuleConfigType = "auto_reply_comment"
+	GreetingConfigAutomationRuleConfig         AutomationRuleConfigType = "greeting"
+	FollowUpConfigAutomationRuleConfig         AutomationRuleConfigType = "follow_up"
+)
+
+// IsAutoHideConfig reports whether AutomationRuleConfig is AutoHideConfig.
+func (s AutomationRuleConfig) IsAutoHideConfig() bool {
+	return s.Type == AutoHideConfigAutomationRuleConfig
+}
+
+// IsAutoReplyCommentConfig reports whether AutomationRuleConfig is AutoReplyCommentConfig.
+func (s AutomationRuleConfig) IsAutoReplyCommentConfig() bool {
+	return s.Type == AutoReplyCommentConfigAutomationRuleConfig
+}
+
+// IsGreetingConfig reports whether AutomationRuleConfig is GreetingConfig.
+func (s AutomationRuleConfig) IsGreetingConfig() bool {
+	return s.Type == GreetingConfigAutomationRuleConfig
+}
+
+// IsFollowUpConfig reports whether AutomationRuleConfig is FollowUpConfig.
+func (s AutomationRuleConfig) IsFollowUpConfig() bool {
+	return s.Type == FollowUpConfigAutomationRuleConfig
+}
+
+// SetAutoHideConfig sets AutomationRuleConfig to AutoHideConfig.
+func (s *AutomationRuleConfig) SetAutoHideConfig(v AutoHideConfig) {
+	s.Type = AutoHideConfigAutomationRuleConfig
+	s.AutoHideConfig = v
+}
+
+// GetAutoHideConfig returns AutoHideConfig and true boolean if AutomationRuleConfig is AutoHideConfig.
+func (s AutomationRuleConfig) GetAutoHideConfig() (v AutoHideConfig, ok bool) {
+	if !s.IsAutoHideConfig() {
+		return v, false
+	}
+	return s.AutoHideConfig, true
+}
+
+// NewAutoHideConfigAutomationRuleConfig returns new AutomationRuleConfig from AutoHideConfig.
+func NewAutoHideConfigAutomationRuleConfig(v AutoHideConfig) AutomationRuleConfig {
+	var s AutomationRuleConfig
+	s.SetAutoHideConfig(v)
+	return s
+}
+
+// SetAutoReplyCommentConfig sets AutomationRuleConfig to AutoReplyCommentConfig.
+func (s *AutomationRuleConfig) SetAutoReplyCommentConfig(v AutoReplyCommentConfig) {
+	s.Type = AutoReplyCommentConfigAutomationRuleConfig
+	s.AutoReplyCommentConfig = v
+}
+
+// GetAutoReplyCommentConfig returns AutoReplyCommentConfig and true boolean if AutomationRuleConfig is AutoReplyCommentConfig.
+func (s AutomationRuleConfig) GetAutoReplyCommentConfig() (v AutoReplyCommentConfig, ok bool) {
+	if !s.IsAutoReplyCommentConfig() {
+		return v, false
+	}
+	return s.AutoReplyCommentConfig, true
+}
+
+// NewAutoReplyCommentConfigAutomationRuleConfig returns new AutomationRuleConfig from AutoReplyCommentConfig.
+func NewAutoReplyCommentConfigAutomationRuleConfig(v AutoReplyCommentConfig) AutomationRuleConfig {
+	var s AutomationRuleConfig
+	s.SetAutoReplyCommentConfig(v)
+	return s
+}
+
+// SetGreetingConfig sets AutomationRuleConfig to GreetingConfig.
+func (s *AutomationRuleConfig) SetGreetingConfig(v GreetingConfig) {
+	s.Type = GreetingConfigAutomationRuleConfig
+	s.GreetingConfig = v
+}
+
+// GetGreetingConfig returns GreetingConfig and true boolean if AutomationRuleConfig is GreetingConfig.
+func (s AutomationRuleConfig) GetGreetingConfig() (v GreetingConfig, ok bool) {
+	if !s.IsGreetingConfig() {
+		return v, false
+	}
+	return s.GreetingConfig, true
+}
+
+// NewGreetingConfigAutomationRuleConfig returns new AutomationRuleConfig from GreetingConfig.
+func NewGreetingConfigAutomationRuleConfig(v GreetingConfig) AutomationRuleConfig {
+	var s AutomationRuleConfig
+	s.SetGreetingConfig(v)
+	return s
+}
+
+// SetFollowUpConfig sets AutomationRuleConfig to FollowUpConfig.
+func (s *AutomationRuleConfig) SetFollowUpConfig(v FollowUpConfig) {
+	s.Type = FollowUpConfigAutomationRuleConfig
+	s.FollowUpConfig = v
+}
+
+// GetFollowUpConfig returns FollowUpConfig and true boolean if AutomationRuleConfig is FollowUpConfig.
+func (s AutomationRuleConfig) GetFollowUpConfig() (v FollowUpConfig, ok bool) {
+	if !s.IsFollowUpConfig() {
+		return v, false
+	}
+	return s.FollowUpConfig, true
+}
+
+// NewFollowUpConfigAutomationRuleConfig returns new AutomationRuleConfig from FollowUpConfig.
+func NewFollowUpConfigAutomationRuleConfig(v FollowUpConfig) AutomationRuleConfig {
+	var s AutomationRuleConfig
+	s.SetFollowUpConfig(v)
+	return s
+}
+
+// Ref: #/components/schemas/AutomationRuleKind
+type AutomationRuleKind string
+
+const (
+	AutomationRuleKindAutoHide         AutomationRuleKind = "auto_hide"
+	AutomationRuleKindAutoReplyComment AutomationRuleKind = "auto_reply_comment"
+	AutomationRuleKindGreeting         AutomationRuleKind = "greeting"
+	AutomationRuleKindFollowUp         AutomationRuleKind = "follow_up"
+)
+
+// AllValues returns all AutomationRuleKind values.
+func (AutomationRuleKind) AllValues() []AutomationRuleKind {
+	return []AutomationRuleKind{
+		AutomationRuleKindAutoHide,
+		AutomationRuleKindAutoReplyComment,
+		AutomationRuleKindGreeting,
+		AutomationRuleKindFollowUp,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AutomationRuleKind) MarshalText() ([]byte, error) {
+	switch s {
+	case AutomationRuleKindAutoHide:
+		return []byte(s), nil
+	case AutomationRuleKindAutoReplyComment:
+		return []byte(s), nil
+	case AutomationRuleKindGreeting:
+		return []byte(s), nil
+	case AutomationRuleKindFollowUp:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AutomationRuleKind) UnmarshalText(data []byte) error {
+	switch AutomationRuleKind(data) {
+	case AutomationRuleKindAutoHide:
+		*s = AutomationRuleKindAutoHide
+		return nil
+	case AutomationRuleKindAutoReplyComment:
+		*s = AutomationRuleKindAutoReplyComment
+		return nil
+	case AutomationRuleKindGreeting:
+		*s = AutomationRuleKindGreeting
+		return nil
+	case AutomationRuleKindFollowUp:
+		*s = AutomationRuleKindFollowUp
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/AutomationRuleList
+type AutomationRuleList struct {
+	Items []AutomationRule `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *AutomationRuleList) GetItems() []AutomationRule {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *AutomationRuleList) SetItems(val []AutomationRule) {
+	s.Items = val
+}
+
+func (*AutomationRuleList) listAutomationRulesRes() {}
 
 // Ref: #/components/schemas/BackupHealth
 type BackupHealth struct {
@@ -3089,6 +3804,209 @@ func (s *BirthdayYearGifts) SetIssued(val int32) {
 // SetUsed sets the value of Used.
 func (s *BirthdayYearGifts) SetUsed(val int32) {
 	s.Used = val
+}
+
+// Ref: #/components/schemas/CallLog
+type CallLog struct {
+	ID             uuid.UUID   `json:"id"`
+	CustomerId     uuid.UUID   `json:"customerId"`
+	ConversationId OptUUID     `json:"conversationId"`
+	OrderId        OptUUID     `json:"orderId"`
+	Outcome        CallOutcome `json:"outcome"`
+	Note           OptString   `json:"note"`
+	CallbackAt     OptDateTime `json:"callbackAt"`
+	CreatedBy      Actor       `json:"createdBy"`
+	CreatedAt      time.Time   `json:"createdAt"`
+}
+
+// GetID returns the value of ID.
+func (s *CallLog) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCustomerId returns the value of CustomerId.
+func (s *CallLog) GetCustomerId() uuid.UUID {
+	return s.CustomerId
+}
+
+// GetConversationId returns the value of ConversationId.
+func (s *CallLog) GetConversationId() OptUUID {
+	return s.ConversationId
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *CallLog) GetOrderId() OptUUID {
+	return s.OrderId
+}
+
+// GetOutcome returns the value of Outcome.
+func (s *CallLog) GetOutcome() CallOutcome {
+	return s.Outcome
+}
+
+// GetNote returns the value of Note.
+func (s *CallLog) GetNote() OptString {
+	return s.Note
+}
+
+// GetCallbackAt returns the value of CallbackAt.
+func (s *CallLog) GetCallbackAt() OptDateTime {
+	return s.CallbackAt
+}
+
+// GetCreatedBy returns the value of CreatedBy.
+func (s *CallLog) GetCreatedBy() Actor {
+	return s.CreatedBy
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *CallLog) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetID sets the value of ID.
+func (s *CallLog) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCustomerId sets the value of CustomerId.
+func (s *CallLog) SetCustomerId(val uuid.UUID) {
+	s.CustomerId = val
+}
+
+// SetConversationId sets the value of ConversationId.
+func (s *CallLog) SetConversationId(val OptUUID) {
+	s.ConversationId = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *CallLog) SetOrderId(val OptUUID) {
+	s.OrderId = val
+}
+
+// SetOutcome sets the value of Outcome.
+func (s *CallLog) SetOutcome(val CallOutcome) {
+	s.Outcome = val
+}
+
+// SetNote sets the value of Note.
+func (s *CallLog) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetCallbackAt sets the value of CallbackAt.
+func (s *CallLog) SetCallbackAt(val OptDateTime) {
+	s.CallbackAt = val
+}
+
+// SetCreatedBy sets the value of CreatedBy.
+func (s *CallLog) SetCreatedBy(val Actor) {
+	s.CreatedBy = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *CallLog) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+func (*CallLog) createCallLogRes() {}
+
+// Ref: #/components/schemas/CallLogPage
+type CallLogPage struct {
+	Items      []CallLog `json:"items"`
+	NextCursor OptString `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *CallLogPage) GetItems() []CallLog {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *CallLogPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *CallLogPage) SetItems(val []CallLog) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *CallLogPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*CallLogPage) listCustomerCallsRes() {}
+
+// Ref: #/components/schemas/CallOutcome
+type CallOutcome string
+
+const (
+	CallOutcomeClosed      CallOutcome = "closed"
+	CallOutcomeNoAnswer    CallOutcome = "no_answer"
+	CallOutcomeCallback    CallOutcome = "callback"
+	CallOutcomeWrongNumber CallOutcome = "wrong_number"
+	CallOutcomeDeclined    CallOutcome = "declined"
+	CallOutcomeOther       CallOutcome = "other"
+)
+
+// AllValues returns all CallOutcome values.
+func (CallOutcome) AllValues() []CallOutcome {
+	return []CallOutcome{
+		CallOutcomeClosed,
+		CallOutcomeNoAnswer,
+		CallOutcomeCallback,
+		CallOutcomeWrongNumber,
+		CallOutcomeDeclined,
+		CallOutcomeOther,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CallOutcome) MarshalText() ([]byte, error) {
+	switch s {
+	case CallOutcomeClosed:
+		return []byte(s), nil
+	case CallOutcomeNoAnswer:
+		return []byte(s), nil
+	case CallOutcomeCallback:
+		return []byte(s), nil
+	case CallOutcomeWrongNumber:
+		return []byte(s), nil
+	case CallOutcomeDeclined:
+		return []byte(s), nil
+	case CallOutcomeOther:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CallOutcome) UnmarshalText(data []byte) error {
+	switch CallOutcome(data) {
+	case CallOutcomeClosed:
+		*s = CallOutcomeClosed
+		return nil
+	case CallOutcomeNoAnswer:
+		*s = CallOutcomeNoAnswer
+		return nil
+	case CallOutcomeCallback:
+		*s = CallOutcomeCallback
+		return nil
+	case CallOutcomeWrongNumber:
+		*s = CallOutcomeWrongNumber
+		return nil
+	case CallOutcomeDeclined:
+		*s = CallOutcomeDeclined
+		return nil
+	case CallOutcomeOther:
+		*s = CallOutcomeOther
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/CallbackTask
@@ -4800,6 +5718,1257 @@ func (s *CategoryStatus) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/ChannelAccount
+type ChannelAccount struct {
+	ID uuid.UUID `json:"id"`
+	// Khóa adapter của kênh (facebook).
+	Channel string `json:"channel"`
+	// Mã Page trên Meta (công khai).
+	ExternalId        string               `json:"externalId"`
+	Name              string               `json:"name"`
+	Status            ChannelAccountStatus `json:"status"`
+	StatusReason      OptString            `json:"statusReason"`
+	SendMode          ChannelSendMode      `json:"sendMode"`
+	HumanAgentEnabled bool                 `json:"humanAgentEnabled"`
+	SubscribedFields  []string             `json:"subscribedFields"`
+	TokenCheckedAt    OptDateTime          `json:"tokenCheckedAt"`
+	Version           int32                `json:"version"`
+	Features          OptChannelFeatures   `json:"features"`
+}
+
+// GetID returns the value of ID.
+func (s *ChannelAccount) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetChannel returns the value of Channel.
+func (s *ChannelAccount) GetChannel() string {
+	return s.Channel
+}
+
+// GetExternalId returns the value of ExternalId.
+func (s *ChannelAccount) GetExternalId() string {
+	return s.ExternalId
+}
+
+// GetName returns the value of Name.
+func (s *ChannelAccount) GetName() string {
+	return s.Name
+}
+
+// GetStatus returns the value of Status.
+func (s *ChannelAccount) GetStatus() ChannelAccountStatus {
+	return s.Status
+}
+
+// GetStatusReason returns the value of StatusReason.
+func (s *ChannelAccount) GetStatusReason() OptString {
+	return s.StatusReason
+}
+
+// GetSendMode returns the value of SendMode.
+func (s *ChannelAccount) GetSendMode() ChannelSendMode {
+	return s.SendMode
+}
+
+// GetHumanAgentEnabled returns the value of HumanAgentEnabled.
+func (s *ChannelAccount) GetHumanAgentEnabled() bool {
+	return s.HumanAgentEnabled
+}
+
+// GetSubscribedFields returns the value of SubscribedFields.
+func (s *ChannelAccount) GetSubscribedFields() []string {
+	return s.SubscribedFields
+}
+
+// GetTokenCheckedAt returns the value of TokenCheckedAt.
+func (s *ChannelAccount) GetTokenCheckedAt() OptDateTime {
+	return s.TokenCheckedAt
+}
+
+// GetVersion returns the value of Version.
+func (s *ChannelAccount) GetVersion() int32 {
+	return s.Version
+}
+
+// GetFeatures returns the value of Features.
+func (s *ChannelAccount) GetFeatures() OptChannelFeatures {
+	return s.Features
+}
+
+// SetID sets the value of ID.
+func (s *ChannelAccount) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetChannel sets the value of Channel.
+func (s *ChannelAccount) SetChannel(val string) {
+	s.Channel = val
+}
+
+// SetExternalId sets the value of ExternalId.
+func (s *ChannelAccount) SetExternalId(val string) {
+	s.ExternalId = val
+}
+
+// SetName sets the value of Name.
+func (s *ChannelAccount) SetName(val string) {
+	s.Name = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ChannelAccount) SetStatus(val ChannelAccountStatus) {
+	s.Status = val
+}
+
+// SetStatusReason sets the value of StatusReason.
+func (s *ChannelAccount) SetStatusReason(val OptString) {
+	s.StatusReason = val
+}
+
+// SetSendMode sets the value of SendMode.
+func (s *ChannelAccount) SetSendMode(val ChannelSendMode) {
+	s.SendMode = val
+}
+
+// SetHumanAgentEnabled sets the value of HumanAgentEnabled.
+func (s *ChannelAccount) SetHumanAgentEnabled(val bool) {
+	s.HumanAgentEnabled = val
+}
+
+// SetSubscribedFields sets the value of SubscribedFields.
+func (s *ChannelAccount) SetSubscribedFields(val []string) {
+	s.SubscribedFields = val
+}
+
+// SetTokenCheckedAt sets the value of TokenCheckedAt.
+func (s *ChannelAccount) SetTokenCheckedAt(val OptDateTime) {
+	s.TokenCheckedAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ChannelAccount) SetVersion(val int32) {
+	s.Version = val
+}
+
+// SetFeatures sets the value of Features.
+func (s *ChannelAccount) SetFeatures(val OptChannelFeatures) {
+	s.Features = val
+}
+
+func (*ChannelAccount) connectFacebookPageRes()   {}
+func (*ChannelAccount) disconnectChannelRes()     {}
+func (*ChannelAccount) runChannelHealthCheckRes() {}
+func (*ChannelAccount) setChannelHumanAgentRes()  {}
+func (*ChannelAccount) setChannelSendModeRes()    {}
+
+// Ref: #/components/schemas/ChannelAccountList
+type ChannelAccountList struct {
+	Items []ChannelAccount `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *ChannelAccountList) GetItems() []ChannelAccount {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *ChannelAccountList) SetItems(val []ChannelAccount) {
+	s.Items = val
+}
+
+func (*ChannelAccountList) listChannelAccountsRes() {}
+
+// Ref: #/components/schemas/ChannelAccountStatus
+type ChannelAccountStatus string
+
+const (
+	ChannelAccountStatusActive       ChannelAccountStatus = "active"
+	ChannelAccountStatusDegraded     ChannelAccountStatus = "degraded"
+	ChannelAccountStatusDisconnected ChannelAccountStatus = "disconnected"
+)
+
+// AllValues returns all ChannelAccountStatus values.
+func (ChannelAccountStatus) AllValues() []ChannelAccountStatus {
+	return []ChannelAccountStatus{
+		ChannelAccountStatusActive,
+		ChannelAccountStatusDegraded,
+		ChannelAccountStatusDisconnected,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ChannelAccountStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ChannelAccountStatusActive:
+		return []byte(s), nil
+	case ChannelAccountStatusDegraded:
+		return []byte(s), nil
+	case ChannelAccountStatusDisconnected:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ChannelAccountStatus) UnmarshalText(data []byte) error {
+	switch ChannelAccountStatus(data) {
+	case ChannelAccountStatusActive:
+		*s = ChannelAccountStatusActive
+		return nil
+	case ChannelAccountStatusDegraded:
+		*s = ChannelAccountStatusDegraded
+		return nil
+	case ChannelAccountStatusDisconnected:
+		*s = ChannelAccountStatusDisconnected
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Tính năng kênh hỗ trợ (theo adapter của kênh; chủ shop 26/11): màn hình ẩn phần
+// kênh không có.
+// Ref: #/components/schemas/ChannelFeatures
+type ChannelFeatures struct {
+	// Tin nhắn hộp thư.
+	Messages     bool `json:"messages"`
+	Comments     bool `json:"comments"`
+	LiveComments bool `json:"liveComments"`
+	// Nhắn riêng người comment.
+	PrivateReply bool `json:"privateReply"`
+	HideComment  bool `json:"hideComment"`
+	// Nút trả lời nhanh.
+	QuickReplies bool `json:"quickReplies"`
+	// Thẻ nhân viên (Human Agent).
+	HumanAgent bool `json:"humanAgent"`
+}
+
+// GetMessages returns the value of Messages.
+func (s *ChannelFeatures) GetMessages() bool {
+	return s.Messages
+}
+
+// GetComments returns the value of Comments.
+func (s *ChannelFeatures) GetComments() bool {
+	return s.Comments
+}
+
+// GetLiveComments returns the value of LiveComments.
+func (s *ChannelFeatures) GetLiveComments() bool {
+	return s.LiveComments
+}
+
+// GetPrivateReply returns the value of PrivateReply.
+func (s *ChannelFeatures) GetPrivateReply() bool {
+	return s.PrivateReply
+}
+
+// GetHideComment returns the value of HideComment.
+func (s *ChannelFeatures) GetHideComment() bool {
+	return s.HideComment
+}
+
+// GetQuickReplies returns the value of QuickReplies.
+func (s *ChannelFeatures) GetQuickReplies() bool {
+	return s.QuickReplies
+}
+
+// GetHumanAgent returns the value of HumanAgent.
+func (s *ChannelFeatures) GetHumanAgent() bool {
+	return s.HumanAgent
+}
+
+// SetMessages sets the value of Messages.
+func (s *ChannelFeatures) SetMessages(val bool) {
+	s.Messages = val
+}
+
+// SetComments sets the value of Comments.
+func (s *ChannelFeatures) SetComments(val bool) {
+	s.Comments = val
+}
+
+// SetLiveComments sets the value of LiveComments.
+func (s *ChannelFeatures) SetLiveComments(val bool) {
+	s.LiveComments = val
+}
+
+// SetPrivateReply sets the value of PrivateReply.
+func (s *ChannelFeatures) SetPrivateReply(val bool) {
+	s.PrivateReply = val
+}
+
+// SetHideComment sets the value of HideComment.
+func (s *ChannelFeatures) SetHideComment(val bool) {
+	s.HideComment = val
+}
+
+// SetQuickReplies sets the value of QuickReplies.
+func (s *ChannelFeatures) SetQuickReplies(val bool) {
+	s.QuickReplies = val
+}
+
+// SetHumanAgent sets the value of HumanAgent.
+func (s *ChannelFeatures) SetHumanAgent(val bool) {
+	s.HumanAgent = val
+}
+
+// Read_only = chỉ xem (mặc định khi kết nối, mọi thao tác ra ngoài bị từ chối),
+// enabled = gửi thật.
+// Ref: #/components/schemas/ChannelSendMode
+type ChannelSendMode string
+
+const (
+	ChannelSendModeReadOnly ChannelSendMode = "read_only"
+	ChannelSendModeEnabled  ChannelSendMode = "enabled"
+)
+
+// AllValues returns all ChannelSendMode values.
+func (ChannelSendMode) AllValues() []ChannelSendMode {
+	return []ChannelSendMode{
+		ChannelSendModeReadOnly,
+		ChannelSendModeEnabled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ChannelSendMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ChannelSendModeReadOnly:
+		return []byte(s), nil
+	case ChannelSendModeEnabled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ChannelSendMode) UnmarshalText(data []byte) error {
+	switch ChannelSendMode(data) {
+	case ChannelSendModeReadOnly:
+		*s = ChannelSendModeReadOnly
+		return nil
+	case ChannelSendModeEnabled:
+		*s = ChannelSendModeEnabled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ChatAttachment
+type ChatAttachment struct {
+	FileId OptUUID `json:"fileId"`
+	// Image, video, audio, file, sticker, fallback.
+	Type string `json:"type"`
+	// Trạng thái tệp ở CRM (đường dẫn lấy bằng getAttachmentUrl).
+	Status string    `json:"status"`
+	Name   OptString `json:"name"`
+}
+
+// GetFileId returns the value of FileId.
+func (s *ChatAttachment) GetFileId() OptUUID {
+	return s.FileId
+}
+
+// GetType returns the value of Type.
+func (s *ChatAttachment) GetType() string {
+	return s.Type
+}
+
+// GetStatus returns the value of Status.
+func (s *ChatAttachment) GetStatus() string {
+	return s.Status
+}
+
+// GetName returns the value of Name.
+func (s *ChatAttachment) GetName() OptString {
+	return s.Name
+}
+
+// SetFileId sets the value of FileId.
+func (s *ChatAttachment) SetFileId(val OptUUID) {
+	s.FileId = val
+}
+
+// SetType sets the value of Type.
+func (s *ChatAttachment) SetType(val string) {
+	s.Type = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ChatAttachment) SetStatus(val string) {
+	s.Status = val
+}
+
+// SetName sets the value of Name.
+func (s *ChatAttachment) SetName(val OptString) {
+	s.Name = val
+}
+
+// Ref: #/components/schemas/ChatCustomerCardInfo
+type ChatCustomerCardInfo struct {
+	ID     uuid.UUID `json:"id"`
+	RootId uuid.UUID `json:"rootId"`
+	Name   string    `json:"name"`
+	// Nguồn tên (tạm từ kênh hay nhân viên đã sửa, Q26).
+	NameSource   string `json:"nameSource"`
+	DoNotContact bool   `json:"doNotContact"`
+	// Chỉ có khi người gọi có customer.read.
+	Phones         []string `json:"phones"`
+	OrderCount     int32    `json:"orderCount"`
+	DeliveredCount int32    `json:"deliveredCount"`
+	ReturnedCount  int32    `json:"returnedCount"`
+	// Nguyên Stats.ReturnRateBP của M2 (không tính lại).
+	ReturnRateBp int32       `json:"returnRateBp"`
+	TotalSpent   Money       `json:"totalSpent"`
+	LastOrderAt  OptDateTime `json:"lastOrderAt"`
+}
+
+// GetID returns the value of ID.
+func (s *ChatCustomerCardInfo) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetRootId returns the value of RootId.
+func (s *ChatCustomerCardInfo) GetRootId() uuid.UUID {
+	return s.RootId
+}
+
+// GetName returns the value of Name.
+func (s *ChatCustomerCardInfo) GetName() string {
+	return s.Name
+}
+
+// GetNameSource returns the value of NameSource.
+func (s *ChatCustomerCardInfo) GetNameSource() string {
+	return s.NameSource
+}
+
+// GetDoNotContact returns the value of DoNotContact.
+func (s *ChatCustomerCardInfo) GetDoNotContact() bool {
+	return s.DoNotContact
+}
+
+// GetPhones returns the value of Phones.
+func (s *ChatCustomerCardInfo) GetPhones() []string {
+	return s.Phones
+}
+
+// GetOrderCount returns the value of OrderCount.
+func (s *ChatCustomerCardInfo) GetOrderCount() int32 {
+	return s.OrderCount
+}
+
+// GetDeliveredCount returns the value of DeliveredCount.
+func (s *ChatCustomerCardInfo) GetDeliveredCount() int32 {
+	return s.DeliveredCount
+}
+
+// GetReturnedCount returns the value of ReturnedCount.
+func (s *ChatCustomerCardInfo) GetReturnedCount() int32 {
+	return s.ReturnedCount
+}
+
+// GetReturnRateBp returns the value of ReturnRateBp.
+func (s *ChatCustomerCardInfo) GetReturnRateBp() int32 {
+	return s.ReturnRateBp
+}
+
+// GetTotalSpent returns the value of TotalSpent.
+func (s *ChatCustomerCardInfo) GetTotalSpent() Money {
+	return s.TotalSpent
+}
+
+// GetLastOrderAt returns the value of LastOrderAt.
+func (s *ChatCustomerCardInfo) GetLastOrderAt() OptDateTime {
+	return s.LastOrderAt
+}
+
+// SetID sets the value of ID.
+func (s *ChatCustomerCardInfo) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetRootId sets the value of RootId.
+func (s *ChatCustomerCardInfo) SetRootId(val uuid.UUID) {
+	s.RootId = val
+}
+
+// SetName sets the value of Name.
+func (s *ChatCustomerCardInfo) SetName(val string) {
+	s.Name = val
+}
+
+// SetNameSource sets the value of NameSource.
+func (s *ChatCustomerCardInfo) SetNameSource(val string) {
+	s.NameSource = val
+}
+
+// SetDoNotContact sets the value of DoNotContact.
+func (s *ChatCustomerCardInfo) SetDoNotContact(val bool) {
+	s.DoNotContact = val
+}
+
+// SetPhones sets the value of Phones.
+func (s *ChatCustomerCardInfo) SetPhones(val []string) {
+	s.Phones = val
+}
+
+// SetOrderCount sets the value of OrderCount.
+func (s *ChatCustomerCardInfo) SetOrderCount(val int32) {
+	s.OrderCount = val
+}
+
+// SetDeliveredCount sets the value of DeliveredCount.
+func (s *ChatCustomerCardInfo) SetDeliveredCount(val int32) {
+	s.DeliveredCount = val
+}
+
+// SetReturnedCount sets the value of ReturnedCount.
+func (s *ChatCustomerCardInfo) SetReturnedCount(val int32) {
+	s.ReturnedCount = val
+}
+
+// SetReturnRateBp sets the value of ReturnRateBp.
+func (s *ChatCustomerCardInfo) SetReturnRateBp(val int32) {
+	s.ReturnRateBp = val
+}
+
+// SetTotalSpent sets the value of TotalSpent.
+func (s *ChatCustomerCardInfo) SetTotalSpent(val Money) {
+	s.TotalSpent = val
+}
+
+// SetLastOrderAt sets the value of LastOrderAt.
+func (s *ChatCustomerCardInfo) SetLastOrderAt(val OptDateTime) {
+	s.LastOrderAt = val
+}
+
+// Ref: #/components/schemas/ChatCustomerRef
+type ChatCustomerRef struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	AvatarUrl OptURI    `json:"avatarUrl"`
+}
+
+// GetID returns the value of ID.
+func (s *ChatCustomerRef) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ChatCustomerRef) GetName() string {
+	return s.Name
+}
+
+// GetAvatarUrl returns the value of AvatarUrl.
+func (s *ChatCustomerRef) GetAvatarUrl() OptURI {
+	return s.AvatarUrl
+}
+
+// SetID sets the value of ID.
+func (s *ChatCustomerRef) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ChatCustomerRef) SetName(val string) {
+	s.Name = val
+}
+
+// SetAvatarUrl sets the value of AvatarUrl.
+func (s *ChatCustomerRef) SetAvatarUrl(val OptURI) {
+	s.AvatarUrl = val
+}
+
+// Ref: #/components/schemas/ChatMessage
+type ChatMessage struct {
+	ID             uuid.UUID            `json:"id"`
+	ConversationId uuid.UUID            `json:"conversationId"`
+	Direction      MessageDirection     `json:"direction"`
+	Kind           MessageKind          `json:"kind"`
+	Origin         MessageOrigin        `json:"origin"`
+	Body           OptString            `json:"body"`
+	Attachments    []ChatAttachment     `json:"attachments"`
+	QuickReplies   []QuickReply         `json:"quickReplies"`
+	Sender         OptActor             `json:"sender"`
+	SenderName     OptString            `json:"senderName"`
+	SendStatus     OptMessageSendStatus `json:"sendStatus"`
+	FailReason     OptString            `json:"failReason"`
+	IsHidden       bool                 `json:"isHidden"`
+	// Chỉ khi isHidden (Task 501): ai ẩn lần gần nhất — tự ẩn vì có SĐT (auto_phone),
+	// tự ẩn mọi comment (auto_all), tự ẩn không rõ chế độ (automation, comment ẩn
+	// trước Task 501), nhân viên trong CRM (staff), ẩn trên Facebook ngoài CRM (page_external).
+	// Không có: chưa rõ (ẩn sẵn khi CRM đọc về).
+	HiddenReason    OptChatMessageHiddenReason `json:"hiddenReason"`
+	Removed         bool                       `json:"removed"`
+	EditedCount     int32                      `json:"editedCount"`
+	PrivateReply    OptChatPrivateReplyRef     `json:"privateReply"`
+	ParentMessageId OptUUID                    `json:"parentMessageId"`
+	SentAt          time.Time                  `json:"sentAt"`
+	DeliveredAt     OptDateTime                `json:"deliveredAt"`
+	ReadAt          OptDateTime                `json:"readAt"`
+}
+
+// GetID returns the value of ID.
+func (s *ChatMessage) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetConversationId returns the value of ConversationId.
+func (s *ChatMessage) GetConversationId() uuid.UUID {
+	return s.ConversationId
+}
+
+// GetDirection returns the value of Direction.
+func (s *ChatMessage) GetDirection() MessageDirection {
+	return s.Direction
+}
+
+// GetKind returns the value of Kind.
+func (s *ChatMessage) GetKind() MessageKind {
+	return s.Kind
+}
+
+// GetOrigin returns the value of Origin.
+func (s *ChatMessage) GetOrigin() MessageOrigin {
+	return s.Origin
+}
+
+// GetBody returns the value of Body.
+func (s *ChatMessage) GetBody() OptString {
+	return s.Body
+}
+
+// GetAttachments returns the value of Attachments.
+func (s *ChatMessage) GetAttachments() []ChatAttachment {
+	return s.Attachments
+}
+
+// GetQuickReplies returns the value of QuickReplies.
+func (s *ChatMessage) GetQuickReplies() []QuickReply {
+	return s.QuickReplies
+}
+
+// GetSender returns the value of Sender.
+func (s *ChatMessage) GetSender() OptActor {
+	return s.Sender
+}
+
+// GetSenderName returns the value of SenderName.
+func (s *ChatMessage) GetSenderName() OptString {
+	return s.SenderName
+}
+
+// GetSendStatus returns the value of SendStatus.
+func (s *ChatMessage) GetSendStatus() OptMessageSendStatus {
+	return s.SendStatus
+}
+
+// GetFailReason returns the value of FailReason.
+func (s *ChatMessage) GetFailReason() OptString {
+	return s.FailReason
+}
+
+// GetIsHidden returns the value of IsHidden.
+func (s *ChatMessage) GetIsHidden() bool {
+	return s.IsHidden
+}
+
+// GetHiddenReason returns the value of HiddenReason.
+func (s *ChatMessage) GetHiddenReason() OptChatMessageHiddenReason {
+	return s.HiddenReason
+}
+
+// GetRemoved returns the value of Removed.
+func (s *ChatMessage) GetRemoved() bool {
+	return s.Removed
+}
+
+// GetEditedCount returns the value of EditedCount.
+func (s *ChatMessage) GetEditedCount() int32 {
+	return s.EditedCount
+}
+
+// GetPrivateReply returns the value of PrivateReply.
+func (s *ChatMessage) GetPrivateReply() OptChatPrivateReplyRef {
+	return s.PrivateReply
+}
+
+// GetParentMessageId returns the value of ParentMessageId.
+func (s *ChatMessage) GetParentMessageId() OptUUID {
+	return s.ParentMessageId
+}
+
+// GetSentAt returns the value of SentAt.
+func (s *ChatMessage) GetSentAt() time.Time {
+	return s.SentAt
+}
+
+// GetDeliveredAt returns the value of DeliveredAt.
+func (s *ChatMessage) GetDeliveredAt() OptDateTime {
+	return s.DeliveredAt
+}
+
+// GetReadAt returns the value of ReadAt.
+func (s *ChatMessage) GetReadAt() OptDateTime {
+	return s.ReadAt
+}
+
+// SetID sets the value of ID.
+func (s *ChatMessage) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetConversationId sets the value of ConversationId.
+func (s *ChatMessage) SetConversationId(val uuid.UUID) {
+	s.ConversationId = val
+}
+
+// SetDirection sets the value of Direction.
+func (s *ChatMessage) SetDirection(val MessageDirection) {
+	s.Direction = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ChatMessage) SetKind(val MessageKind) {
+	s.Kind = val
+}
+
+// SetOrigin sets the value of Origin.
+func (s *ChatMessage) SetOrigin(val MessageOrigin) {
+	s.Origin = val
+}
+
+// SetBody sets the value of Body.
+func (s *ChatMessage) SetBody(val OptString) {
+	s.Body = val
+}
+
+// SetAttachments sets the value of Attachments.
+func (s *ChatMessage) SetAttachments(val []ChatAttachment) {
+	s.Attachments = val
+}
+
+// SetQuickReplies sets the value of QuickReplies.
+func (s *ChatMessage) SetQuickReplies(val []QuickReply) {
+	s.QuickReplies = val
+}
+
+// SetSender sets the value of Sender.
+func (s *ChatMessage) SetSender(val OptActor) {
+	s.Sender = val
+}
+
+// SetSenderName sets the value of SenderName.
+func (s *ChatMessage) SetSenderName(val OptString) {
+	s.SenderName = val
+}
+
+// SetSendStatus sets the value of SendStatus.
+func (s *ChatMessage) SetSendStatus(val OptMessageSendStatus) {
+	s.SendStatus = val
+}
+
+// SetFailReason sets the value of FailReason.
+func (s *ChatMessage) SetFailReason(val OptString) {
+	s.FailReason = val
+}
+
+// SetIsHidden sets the value of IsHidden.
+func (s *ChatMessage) SetIsHidden(val bool) {
+	s.IsHidden = val
+}
+
+// SetHiddenReason sets the value of HiddenReason.
+func (s *ChatMessage) SetHiddenReason(val OptChatMessageHiddenReason) {
+	s.HiddenReason = val
+}
+
+// SetRemoved sets the value of Removed.
+func (s *ChatMessage) SetRemoved(val bool) {
+	s.Removed = val
+}
+
+// SetEditedCount sets the value of EditedCount.
+func (s *ChatMessage) SetEditedCount(val int32) {
+	s.EditedCount = val
+}
+
+// SetPrivateReply sets the value of PrivateReply.
+func (s *ChatMessage) SetPrivateReply(val OptChatPrivateReplyRef) {
+	s.PrivateReply = val
+}
+
+// SetParentMessageId sets the value of ParentMessageId.
+func (s *ChatMessage) SetParentMessageId(val OptUUID) {
+	s.ParentMessageId = val
+}
+
+// SetSentAt sets the value of SentAt.
+func (s *ChatMessage) SetSentAt(val time.Time) {
+	s.SentAt = val
+}
+
+// SetDeliveredAt sets the value of DeliveredAt.
+func (s *ChatMessage) SetDeliveredAt(val OptDateTime) {
+	s.DeliveredAt = val
+}
+
+// SetReadAt sets the value of ReadAt.
+func (s *ChatMessage) SetReadAt(val OptDateTime) {
+	s.ReadAt = val
+}
+
+func (*ChatMessage) addConversationNoteRes() {}
+func (*ChatMessage) discardMessageRes()      {}
+func (*ChatMessage) hideCommentRes()         {}
+func (*ChatMessage) replyToCommentRes()      {}
+func (*ChatMessage) sendMessageRes()         {}
+func (*ChatMessage) sendPrivateReplyRes()    {}
+func (*ChatMessage) unhideCommentRes()       {}
+
+// Chỉ khi isHidden (Task 501): ai ẩn lần gần nhất — tự ẩn vì có SĐT (auto_phone),
+// tự ẩn mọi comment (auto_all), tự ẩn không rõ chế độ (automation, comment ẩn
+// trước Task 501), nhân viên trong CRM (staff), ẩn trên Facebook ngoài CRM (page_external).
+// Không có: chưa rõ (ẩn sẵn khi CRM đọc về).
+type ChatMessageHiddenReason string
+
+const (
+	ChatMessageHiddenReasonAutoPhone    ChatMessageHiddenReason = "auto_phone"
+	ChatMessageHiddenReasonAutoAll      ChatMessageHiddenReason = "auto_all"
+	ChatMessageHiddenReasonAutomation   ChatMessageHiddenReason = "automation"
+	ChatMessageHiddenReasonStaff        ChatMessageHiddenReason = "staff"
+	ChatMessageHiddenReasonPageExternal ChatMessageHiddenReason = "page_external"
+)
+
+// AllValues returns all ChatMessageHiddenReason values.
+func (ChatMessageHiddenReason) AllValues() []ChatMessageHiddenReason {
+	return []ChatMessageHiddenReason{
+		ChatMessageHiddenReasonAutoPhone,
+		ChatMessageHiddenReasonAutoAll,
+		ChatMessageHiddenReasonAutomation,
+		ChatMessageHiddenReasonStaff,
+		ChatMessageHiddenReasonPageExternal,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ChatMessageHiddenReason) MarshalText() ([]byte, error) {
+	switch s {
+	case ChatMessageHiddenReasonAutoPhone:
+		return []byte(s), nil
+	case ChatMessageHiddenReasonAutoAll:
+		return []byte(s), nil
+	case ChatMessageHiddenReasonAutomation:
+		return []byte(s), nil
+	case ChatMessageHiddenReasonStaff:
+		return []byte(s), nil
+	case ChatMessageHiddenReasonPageExternal:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ChatMessageHiddenReason) UnmarshalText(data []byte) error {
+	switch ChatMessageHiddenReason(data) {
+	case ChatMessageHiddenReasonAutoPhone:
+		*s = ChatMessageHiddenReasonAutoPhone
+		return nil
+	case ChatMessageHiddenReasonAutoAll:
+		*s = ChatMessageHiddenReasonAutoAll
+		return nil
+	case ChatMessageHiddenReasonAutomation:
+		*s = ChatMessageHiddenReasonAutomation
+		return nil
+	case ChatMessageHiddenReasonStaff:
+		*s = ChatMessageHiddenReasonStaff
+		return nil
+	case ChatMessageHiddenReasonPageExternal:
+		*s = ChatMessageHiddenReasonPageExternal
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ChatOrderRef
+type ChatOrderRef struct {
+	ID             uuid.UUID   `json:"id"`
+	Code           string      `json:"code"`
+	Status         string      `json:"status"`
+	GrandTotal     Money       `json:"grandTotal"`
+	CreatedAt      time.Time   `json:"createdAt"`
+	DraftExpiresAt OptDateTime `json:"draftExpiresAt"`
+	Version        int64       `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *ChatOrderRef) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCode returns the value of Code.
+func (s *ChatOrderRef) GetCode() string {
+	return s.Code
+}
+
+// GetStatus returns the value of Status.
+func (s *ChatOrderRef) GetStatus() string {
+	return s.Status
+}
+
+// GetGrandTotal returns the value of GrandTotal.
+func (s *ChatOrderRef) GetGrandTotal() Money {
+	return s.GrandTotal
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ChatOrderRef) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetDraftExpiresAt returns the value of DraftExpiresAt.
+func (s *ChatOrderRef) GetDraftExpiresAt() OptDateTime {
+	return s.DraftExpiresAt
+}
+
+// GetVersion returns the value of Version.
+func (s *ChatOrderRef) GetVersion() int64 {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *ChatOrderRef) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCode sets the value of Code.
+func (s *ChatOrderRef) SetCode(val string) {
+	s.Code = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ChatOrderRef) SetStatus(val string) {
+	s.Status = val
+}
+
+// SetGrandTotal sets the value of GrandTotal.
+func (s *ChatOrderRef) SetGrandTotal(val Money) {
+	s.GrandTotal = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ChatOrderRef) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetDraftExpiresAt sets the value of DraftExpiresAt.
+func (s *ChatOrderRef) SetDraftExpiresAt(val OptDateTime) {
+	s.DraftExpiresAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ChatOrderRef) SetVersion(val int64) {
+	s.Version = val
+}
+
+// Ref: #/components/schemas/ChatPostRef
+type ChatPostRef struct {
+	ID      uuid.UUID `json:"id"`
+	Snippet OptString `json:"snippet"`
+	// Giờ đăng bài trên kênh (chưa đọc được bài → không có).
+	PostedAt OptDateTime `json:"postedAt"`
+	// Đường dẫn bài trên kênh ("Mở bài").
+	Permalink OptURI `json:"permalink"`
+	// Ảnh bài đã chép về CRM (Task 501); đường dẫn 5 phút lấy bằng getAttachmentUrl
+	// của hội thoại comment trên bài.
+	ImageFileId OptUUID `json:"imageFileId"`
+}
+
+// GetID returns the value of ID.
+func (s *ChatPostRef) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetSnippet returns the value of Snippet.
+func (s *ChatPostRef) GetSnippet() OptString {
+	return s.Snippet
+}
+
+// GetPostedAt returns the value of PostedAt.
+func (s *ChatPostRef) GetPostedAt() OptDateTime {
+	return s.PostedAt
+}
+
+// GetPermalink returns the value of Permalink.
+func (s *ChatPostRef) GetPermalink() OptURI {
+	return s.Permalink
+}
+
+// GetImageFileId returns the value of ImageFileId.
+func (s *ChatPostRef) GetImageFileId() OptUUID {
+	return s.ImageFileId
+}
+
+// SetID sets the value of ID.
+func (s *ChatPostRef) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetSnippet sets the value of Snippet.
+func (s *ChatPostRef) SetSnippet(val OptString) {
+	s.Snippet = val
+}
+
+// SetPostedAt sets the value of PostedAt.
+func (s *ChatPostRef) SetPostedAt(val OptDateTime) {
+	s.PostedAt = val
+}
+
+// SetPermalink sets the value of Permalink.
+func (s *ChatPostRef) SetPermalink(val OptURI) {
+	s.Permalink = val
+}
+
+// SetImageFileId sets the value of ImageFileId.
+func (s *ChatPostRef) SetImageFileId(val OptUUID) {
+	s.ImageFileId = val
+}
+
+// Ref: #/components/schemas/ChatPrivateReplyRef
+type ChatPrivateReplyRef struct {
+	// None hoặc send_status của tin riêng.
+	State     string  `json:"state"`
+	MessageId OptUUID `json:"messageId"`
+}
+
+// GetState returns the value of State.
+func (s *ChatPrivateReplyRef) GetState() string {
+	return s.State
+}
+
+// GetMessageId returns the value of MessageId.
+func (s *ChatPrivateReplyRef) GetMessageId() OptUUID {
+	return s.MessageId
+}
+
+// SetState sets the value of State.
+func (s *ChatPrivateReplyRef) SetState(val string) {
+	s.State = val
+}
+
+// SetMessageId sets the value of MessageId.
+func (s *ChatPrivateReplyRef) SetMessageId(val OptUUID) {
+	s.MessageId = val
+}
+
+// Ref: #/components/schemas/ClaimLiveCommentItem
+type ClaimLiveCommentItem struct {
+	VariantId uuid.UUID `json:"variantId"`
+	Qty       int32     `json:"qty"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *ClaimLiveCommentItem) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetQty returns the value of Qty.
+func (s *ClaimLiveCommentItem) GetQty() int32 {
+	return s.Qty
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *ClaimLiveCommentItem) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetQty sets the value of Qty.
+func (s *ClaimLiveCommentItem) SetQty(val int32) {
+	s.Qty = val
+}
+
+// Ref: #/components/schemas/ClaimLiveCommentRequest
+type ClaimLiveCommentRequest struct {
+	Items []ClaimLiveCommentItem      `json:"items"`
+	Mode  ClaimLiveCommentRequestMode `json:"mode"`
+	// Bắt buộc khi mode = add_to_draft.
+	OrderId OptUUID `json:"orderId"`
+	// Version của đơn nháp khi mode = add_to_draft.
+	ExpectedVersion OptInt64 `json:"expectedVersion"`
+	ForceNew        OptBool  `json:"forceNew"`
+	AskAddress      OptBool  `json:"askAddress"`
+	TemplateId      OptUUID  `json:"templateId"`
+}
+
+// GetItems returns the value of Items.
+func (s *ClaimLiveCommentRequest) GetItems() []ClaimLiveCommentItem {
+	return s.Items
+}
+
+// GetMode returns the value of Mode.
+func (s *ClaimLiveCommentRequest) GetMode() ClaimLiveCommentRequestMode {
+	return s.Mode
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *ClaimLiveCommentRequest) GetOrderId() OptUUID {
+	return s.OrderId
+}
+
+// GetExpectedVersion returns the value of ExpectedVersion.
+func (s *ClaimLiveCommentRequest) GetExpectedVersion() OptInt64 {
+	return s.ExpectedVersion
+}
+
+// GetForceNew returns the value of ForceNew.
+func (s *ClaimLiveCommentRequest) GetForceNew() OptBool {
+	return s.ForceNew
+}
+
+// GetAskAddress returns the value of AskAddress.
+func (s *ClaimLiveCommentRequest) GetAskAddress() OptBool {
+	return s.AskAddress
+}
+
+// GetTemplateId returns the value of TemplateId.
+func (s *ClaimLiveCommentRequest) GetTemplateId() OptUUID {
+	return s.TemplateId
+}
+
+// SetItems sets the value of Items.
+func (s *ClaimLiveCommentRequest) SetItems(val []ClaimLiveCommentItem) {
+	s.Items = val
+}
+
+// SetMode sets the value of Mode.
+func (s *ClaimLiveCommentRequest) SetMode(val ClaimLiveCommentRequestMode) {
+	s.Mode = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *ClaimLiveCommentRequest) SetOrderId(val OptUUID) {
+	s.OrderId = val
+}
+
+// SetExpectedVersion sets the value of ExpectedVersion.
+func (s *ClaimLiveCommentRequest) SetExpectedVersion(val OptInt64) {
+	s.ExpectedVersion = val
+}
+
+// SetForceNew sets the value of ForceNew.
+func (s *ClaimLiveCommentRequest) SetForceNew(val OptBool) {
+	s.ForceNew = val
+}
+
+// SetAskAddress sets the value of AskAddress.
+func (s *ClaimLiveCommentRequest) SetAskAddress(val OptBool) {
+	s.AskAddress = val
+}
+
+// SetTemplateId sets the value of TemplateId.
+func (s *ClaimLiveCommentRequest) SetTemplateId(val OptUUID) {
+	s.TemplateId = val
+}
+
+type ClaimLiveCommentRequestMode string
+
+const (
+	ClaimLiveCommentRequestModeNew        ClaimLiveCommentRequestMode = "new"
+	ClaimLiveCommentRequestModeAddToDraft ClaimLiveCommentRequestMode = "add_to_draft"
+)
+
+// AllValues returns all ClaimLiveCommentRequestMode values.
+func (ClaimLiveCommentRequestMode) AllValues() []ClaimLiveCommentRequestMode {
+	return []ClaimLiveCommentRequestMode{
+		ClaimLiveCommentRequestModeNew,
+		ClaimLiveCommentRequestModeAddToDraft,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ClaimLiveCommentRequestMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ClaimLiveCommentRequestModeNew:
+		return []byte(s), nil
+	case ClaimLiveCommentRequestModeAddToDraft:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ClaimLiveCommentRequestMode) UnmarshalText(data []byte) error {
+	switch ClaimLiveCommentRequestMode(data) {
+	case ClaimLiveCommentRequestModeNew:
+		*s = ClaimLiveCommentRequestModeNew
+		return nil
+	case ClaimLiveCommentRequestModeAddToDraft:
+		*s = ClaimLiveCommentRequestModeAddToDraft
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ClaimLiveCommentResult
+type ClaimLiveCommentResult struct {
+	OrderId   uuid.UUID           `json:"orderId"`
+	OrderCode string              `json:"orderCode"`
+	Claim     LiveCommentClaimRef `json:"claim"`
+	Ask       AskAddressResult    `json:"ask"`
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *ClaimLiveCommentResult) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetOrderCode returns the value of OrderCode.
+func (s *ClaimLiveCommentResult) GetOrderCode() string {
+	return s.OrderCode
+}
+
+// GetClaim returns the value of Claim.
+func (s *ClaimLiveCommentResult) GetClaim() LiveCommentClaimRef {
+	return s.Claim
+}
+
+// GetAsk returns the value of Ask.
+func (s *ClaimLiveCommentResult) GetAsk() AskAddressResult {
+	return s.Ask
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *ClaimLiveCommentResult) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetOrderCode sets the value of OrderCode.
+func (s *ClaimLiveCommentResult) SetOrderCode(val string) {
+	s.OrderCode = val
+}
+
+// SetClaim sets the value of Claim.
+func (s *ClaimLiveCommentResult) SetClaim(val LiveCommentClaimRef) {
+	s.Claim = val
+}
+
+// SetAsk sets the value of Ask.
+func (s *ClaimLiveCommentResult) SetAsk(val AskAddressResult) {
+	s.Ask = val
+}
+
+func (*ClaimLiveCommentResult) claimLiveCommentRes() {}
+
 type ClassCode string
 
 type ClassName string
@@ -6347,6 +8516,865 @@ func (s *CodTransferKind) UnmarshalText(data []byte) error {
 
 type ColorHex string
 
+// Ref: #/components/schemas/CommentPollMode
+type CommentPollMode string
+
+const (
+	CommentPollModeAuto CommentPollMode = "auto"
+	CommentPollModeOn   CommentPollMode = "on"
+	CommentPollModeOff  CommentPollMode = "off"
+)
+
+// AllValues returns all CommentPollMode values.
+func (CommentPollMode) AllValues() []CommentPollMode {
+	return []CommentPollMode{
+		CommentPollModeAuto,
+		CommentPollModeOn,
+		CommentPollModeOff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CommentPollMode) MarshalText() ([]byte, error) {
+	switch s {
+	case CommentPollModeAuto:
+		return []byte(s), nil
+	case CommentPollModeOn:
+		return []byte(s), nil
+	case CommentPollModeOff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CommentPollMode) UnmarshalText(data []byte) error {
+	switch CommentPollMode(data) {
+	case CommentPollModeAuto:
+		*s = CommentPollModeAuto
+		return nil
+	case CommentPollModeOn:
+		*s = CommentPollModeOn
+		return nil
+	case CommentPollModeOff:
+		*s = CommentPollModeOff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Đúng một trong sessionId, systemUserToken (handler kiểm; sai → 422 invalid_input).
+// Ref: #/components/schemas/ConnectFacebookPageRequest
+type ConnectFacebookPageRequest struct {
+	PageId          string    `json:"pageId"`
+	SessionId       OptUUID   `json:"sessionId"`
+	SystemUserToken OptString `json:"systemUserToken"`
+}
+
+// GetPageId returns the value of PageId.
+func (s *ConnectFacebookPageRequest) GetPageId() string {
+	return s.PageId
+}
+
+// GetSessionId returns the value of SessionId.
+func (s *ConnectFacebookPageRequest) GetSessionId() OptUUID {
+	return s.SessionId
+}
+
+// GetSystemUserToken returns the value of SystemUserToken.
+func (s *ConnectFacebookPageRequest) GetSystemUserToken() OptString {
+	return s.SystemUserToken
+}
+
+// SetPageId sets the value of PageId.
+func (s *ConnectFacebookPageRequest) SetPageId(val string) {
+	s.PageId = val
+}
+
+// SetSessionId sets the value of SessionId.
+func (s *ConnectFacebookPageRequest) SetSessionId(val OptUUID) {
+	s.SessionId = val
+}
+
+// SetSystemUserToken sets the value of SystemUserToken.
+func (s *ConnectFacebookPageRequest) SetSystemUserToken(val OptString) {
+	s.SystemUserToken = val
+}
+
+// Ref: #/components/schemas/ConversationAssignment
+type ConversationAssignment struct {
+	ID        uuid.UUID                    `json:"id"`
+	From      OptActor                     `json:"from"`
+	To        OptActor                     `json:"to"`
+	Actor     OptActor                     `json:"actor"`
+	Reason    ConversationAssignmentReason `json:"reason"`
+	CreatedAt time.Time                    `json:"createdAt"`
+}
+
+// GetID returns the value of ID.
+func (s *ConversationAssignment) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetFrom returns the value of From.
+func (s *ConversationAssignment) GetFrom() OptActor {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *ConversationAssignment) GetTo() OptActor {
+	return s.To
+}
+
+// GetActor returns the value of Actor.
+func (s *ConversationAssignment) GetActor() OptActor {
+	return s.Actor
+}
+
+// GetReason returns the value of Reason.
+func (s *ConversationAssignment) GetReason() ConversationAssignmentReason {
+	return s.Reason
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ConversationAssignment) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetID sets the value of ID.
+func (s *ConversationAssignment) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetFrom sets the value of From.
+func (s *ConversationAssignment) SetFrom(val OptActor) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *ConversationAssignment) SetTo(val OptActor) {
+	s.To = val
+}
+
+// SetActor sets the value of Actor.
+func (s *ConversationAssignment) SetActor(val OptActor) {
+	s.Actor = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ConversationAssignment) SetReason(val ConversationAssignmentReason) {
+	s.Reason = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ConversationAssignment) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// Ref: #/components/schemas/ConversationAssignmentList
+type ConversationAssignmentList struct {
+	Items []ConversationAssignment `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *ConversationAssignmentList) GetItems() []ConversationAssignment {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *ConversationAssignmentList) SetItems(val []ConversationAssignment) {
+	s.Items = val
+}
+
+func (*ConversationAssignmentList) listConversationAssignmentsRes() {}
+
+type ConversationAssignmentReason string
+
+const (
+	ConversationAssignmentReasonSelf       ConversationAssignmentReason = "self"
+	ConversationAssignmentReasonManager    ConversationAssignmentReason = "manager"
+	ConversationAssignmentReasonRoundRobin ConversationAssignmentReason = "round_robin"
+	ConversationAssignmentReasonUnassign   ConversationAssignmentReason = "unassign"
+)
+
+// AllValues returns all ConversationAssignmentReason values.
+func (ConversationAssignmentReason) AllValues() []ConversationAssignmentReason {
+	return []ConversationAssignmentReason{
+		ConversationAssignmentReasonSelf,
+		ConversationAssignmentReasonManager,
+		ConversationAssignmentReasonRoundRobin,
+		ConversationAssignmentReasonUnassign,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ConversationAssignmentReason) MarshalText() ([]byte, error) {
+	switch s {
+	case ConversationAssignmentReasonSelf:
+		return []byte(s), nil
+	case ConversationAssignmentReasonManager:
+		return []byte(s), nil
+	case ConversationAssignmentReasonRoundRobin:
+		return []byte(s), nil
+	case ConversationAssignmentReasonUnassign:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ConversationAssignmentReason) UnmarshalText(data []byte) error {
+	switch ConversationAssignmentReason(data) {
+	case ConversationAssignmentReasonSelf:
+		*s = ConversationAssignmentReasonSelf
+		return nil
+	case ConversationAssignmentReasonManager:
+		*s = ConversationAssignmentReasonManager
+		return nil
+	case ConversationAssignmentReasonRoundRobin:
+		*s = ConversationAssignmentReasonRoundRobin
+		return nil
+	case ConversationAssignmentReasonUnassign:
+		*s = ConversationAssignmentReasonUnassign
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ConversationCounts
+type ConversationCounts struct {
+	ByPage     []ConversationPageCount `json:"byPage"`
+	Mine       int32                   `json:"mine"`
+	Unassigned int32                   `json:"unassigned"`
+}
+
+// GetByPage returns the value of ByPage.
+func (s *ConversationCounts) GetByPage() []ConversationPageCount {
+	return s.ByPage
+}
+
+// GetMine returns the value of Mine.
+func (s *ConversationCounts) GetMine() int32 {
+	return s.Mine
+}
+
+// GetUnassigned returns the value of Unassigned.
+func (s *ConversationCounts) GetUnassigned() int32 {
+	return s.Unassigned
+}
+
+// SetByPage sets the value of ByPage.
+func (s *ConversationCounts) SetByPage(val []ConversationPageCount) {
+	s.ByPage = val
+}
+
+// SetMine sets the value of Mine.
+func (s *ConversationCounts) SetMine(val int32) {
+	s.Mine = val
+}
+
+// SetUnassigned sets the value of Unassigned.
+func (s *ConversationCounts) SetUnassigned(val int32) {
+	s.Unassigned = val
+}
+
+func (*ConversationCounts) countConversationsRes() {}
+
+// Ref: #/components/schemas/ConversationCustomerCard
+type ConversationCustomerCard struct {
+	Customer                  ChatCustomerCardInfo `json:"customer"`
+	RecentOrders              []ChatOrderRef       `json:"recentOrders"`
+	OpenDrafts                []ChatOrderRef       `json:"openDrafts"`
+	MergeSuggestionCustomerId OptUUID              `json:"mergeSuggestionCustomerId"`
+}
+
+// GetCustomer returns the value of Customer.
+func (s *ConversationCustomerCard) GetCustomer() ChatCustomerCardInfo {
+	return s.Customer
+}
+
+// GetRecentOrders returns the value of RecentOrders.
+func (s *ConversationCustomerCard) GetRecentOrders() []ChatOrderRef {
+	return s.RecentOrders
+}
+
+// GetOpenDrafts returns the value of OpenDrafts.
+func (s *ConversationCustomerCard) GetOpenDrafts() []ChatOrderRef {
+	return s.OpenDrafts
+}
+
+// GetMergeSuggestionCustomerId returns the value of MergeSuggestionCustomerId.
+func (s *ConversationCustomerCard) GetMergeSuggestionCustomerId() OptUUID {
+	return s.MergeSuggestionCustomerId
+}
+
+// SetCustomer sets the value of Customer.
+func (s *ConversationCustomerCard) SetCustomer(val ChatCustomerCardInfo) {
+	s.Customer = val
+}
+
+// SetRecentOrders sets the value of RecentOrders.
+func (s *ConversationCustomerCard) SetRecentOrders(val []ChatOrderRef) {
+	s.RecentOrders = val
+}
+
+// SetOpenDrafts sets the value of OpenDrafts.
+func (s *ConversationCustomerCard) SetOpenDrafts(val []ChatOrderRef) {
+	s.OpenDrafts = val
+}
+
+// SetMergeSuggestionCustomerId sets the value of MergeSuggestionCustomerId.
+func (s *ConversationCustomerCard) SetMergeSuggestionCustomerId(val OptUUID) {
+	s.MergeSuggestionCustomerId = val
+}
+
+func (*ConversationCustomerCard) getConversationCustomerCardRes() {}
+
+// Ref: #/components/schemas/ConversationDetail
+type ConversationDetail struct {
+	Conversation        ConversationSummary `json:"conversation"`
+	Page                ChannelAccount      `json:"page"`
+	SendPolicy          SendPolicy          `json:"sendPolicy"`
+	HumanAgentAvailable bool                `json:"humanAgentAvailable"`
+	BlockedByUser       bool                `json:"blockedByUser"`
+	DoNotContact        bool                `json:"doNotContact"`
+}
+
+// GetConversation returns the value of Conversation.
+func (s *ConversationDetail) GetConversation() ConversationSummary {
+	return s.Conversation
+}
+
+// GetPage returns the value of Page.
+func (s *ConversationDetail) GetPage() ChannelAccount {
+	return s.Page
+}
+
+// GetSendPolicy returns the value of SendPolicy.
+func (s *ConversationDetail) GetSendPolicy() SendPolicy {
+	return s.SendPolicy
+}
+
+// GetHumanAgentAvailable returns the value of HumanAgentAvailable.
+func (s *ConversationDetail) GetHumanAgentAvailable() bool {
+	return s.HumanAgentAvailable
+}
+
+// GetBlockedByUser returns the value of BlockedByUser.
+func (s *ConversationDetail) GetBlockedByUser() bool {
+	return s.BlockedByUser
+}
+
+// GetDoNotContact returns the value of DoNotContact.
+func (s *ConversationDetail) GetDoNotContact() bool {
+	return s.DoNotContact
+}
+
+// SetConversation sets the value of Conversation.
+func (s *ConversationDetail) SetConversation(val ConversationSummary) {
+	s.Conversation = val
+}
+
+// SetPage sets the value of Page.
+func (s *ConversationDetail) SetPage(val ChannelAccount) {
+	s.Page = val
+}
+
+// SetSendPolicy sets the value of SendPolicy.
+func (s *ConversationDetail) SetSendPolicy(val SendPolicy) {
+	s.SendPolicy = val
+}
+
+// SetHumanAgentAvailable sets the value of HumanAgentAvailable.
+func (s *ConversationDetail) SetHumanAgentAvailable(val bool) {
+	s.HumanAgentAvailable = val
+}
+
+// SetBlockedByUser sets the value of BlockedByUser.
+func (s *ConversationDetail) SetBlockedByUser(val bool) {
+	s.BlockedByUser = val
+}
+
+// SetDoNotContact sets the value of DoNotContact.
+func (s *ConversationDetail) SetDoNotContact(val bool) {
+	s.DoNotContact = val
+}
+
+func (*ConversationDetail) assignConversationRes()    {}
+func (*ConversationDetail) claimConversationRes()     {}
+func (*ConversationDetail) getConversationRes()       {}
+func (*ConversationDetail) setConversationStatusRes() {}
+
+// Ref: #/components/schemas/ConversationKind
+type ConversationKind string
+
+const (
+	ConversationKindInbox   ConversationKind = "inbox"
+	ConversationKindComment ConversationKind = "comment"
+)
+
+// AllValues returns all ConversationKind values.
+func (ConversationKind) AllValues() []ConversationKind {
+	return []ConversationKind{
+		ConversationKindInbox,
+		ConversationKindComment,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ConversationKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ConversationKindInbox:
+		return []byte(s), nil
+	case ConversationKindComment:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ConversationKind) UnmarshalText(data []byte) error {
+	switch ConversationKind(data) {
+	case ConversationKindInbox:
+		*s = ConversationKindInbox
+		return nil
+	case ConversationKindComment:
+		*s = ConversationKindComment
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ConversationOrderContext
+type ConversationOrderContext struct {
+	ChannelAccountId uuid.UUID  `json:"channelAccountId"`
+	ConversationId   uuid.UUID  `json:"conversationId"`
+	CustomerId       OptUUID    `json:"customerId"`
+	SellerId         uuid.UUID  `json:"sellerId"`
+	TrafficSourceId  OptNilUUID `json:"trafficSourceId"`
+}
+
+// GetChannelAccountId returns the value of ChannelAccountId.
+func (s *ConversationOrderContext) GetChannelAccountId() uuid.UUID {
+	return s.ChannelAccountId
+}
+
+// GetConversationId returns the value of ConversationId.
+func (s *ConversationOrderContext) GetConversationId() uuid.UUID {
+	return s.ConversationId
+}
+
+// GetCustomerId returns the value of CustomerId.
+func (s *ConversationOrderContext) GetCustomerId() OptUUID {
+	return s.CustomerId
+}
+
+// GetSellerId returns the value of SellerId.
+func (s *ConversationOrderContext) GetSellerId() uuid.UUID {
+	return s.SellerId
+}
+
+// GetTrafficSourceId returns the value of TrafficSourceId.
+func (s *ConversationOrderContext) GetTrafficSourceId() OptNilUUID {
+	return s.TrafficSourceId
+}
+
+// SetChannelAccountId sets the value of ChannelAccountId.
+func (s *ConversationOrderContext) SetChannelAccountId(val uuid.UUID) {
+	s.ChannelAccountId = val
+}
+
+// SetConversationId sets the value of ConversationId.
+func (s *ConversationOrderContext) SetConversationId(val uuid.UUID) {
+	s.ConversationId = val
+}
+
+// SetCustomerId sets the value of CustomerId.
+func (s *ConversationOrderContext) SetCustomerId(val OptUUID) {
+	s.CustomerId = val
+}
+
+// SetSellerId sets the value of SellerId.
+func (s *ConversationOrderContext) SetSellerId(val uuid.UUID) {
+	s.SellerId = val
+}
+
+// SetTrafficSourceId sets the value of TrafficSourceId.
+func (s *ConversationOrderContext) SetTrafficSourceId(val OptNilUUID) {
+	s.TrafficSourceId = val
+}
+
+func (*ConversationOrderContext) getConversationOrderContextRes() {}
+
+// Ref: #/components/schemas/ConversationPage
+type ConversationPage struct {
+	Items      []ConversationSummary `json:"items"`
+	NextCursor OptString             `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *ConversationPage) GetItems() []ConversationSummary {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *ConversationPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *ConversationPage) SetItems(val []ConversationSummary) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *ConversationPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*ConversationPage) listConversationsRes()         {}
+func (*ConversationPage) listCustomerConversationsRes() {}
+
+// Ref: #/components/schemas/ConversationPageCount
+type ConversationPageCount struct {
+	PageId uuid.UUID `json:"pageId"`
+	Unread int32     `json:"unread"`
+	Open   int32     `json:"open"`
+}
+
+// GetPageId returns the value of PageId.
+func (s *ConversationPageCount) GetPageId() uuid.UUID {
+	return s.PageId
+}
+
+// GetUnread returns the value of Unread.
+func (s *ConversationPageCount) GetUnread() int32 {
+	return s.Unread
+}
+
+// GetOpen returns the value of Open.
+func (s *ConversationPageCount) GetOpen() int32 {
+	return s.Open
+}
+
+// SetPageId sets the value of PageId.
+func (s *ConversationPageCount) SetPageId(val uuid.UUID) {
+	s.PageId = val
+}
+
+// SetUnread sets the value of Unread.
+func (s *ConversationPageCount) SetUnread(val int32) {
+	s.Unread = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ConversationPageCount) SetOpen(val int32) {
+	s.Open = val
+}
+
+// Ref: #/components/schemas/ConversationStatus
+type ConversationStatus string
+
+const (
+	ConversationStatusOpen    ConversationStatus = "open"
+	ConversationStatusPending ConversationStatus = "pending"
+	ConversationStatusDone    ConversationStatus = "done"
+	ConversationStatusSpam    ConversationStatus = "spam"
+)
+
+// AllValues returns all ConversationStatus values.
+func (ConversationStatus) AllValues() []ConversationStatus {
+	return []ConversationStatus{
+		ConversationStatusOpen,
+		ConversationStatusPending,
+		ConversationStatusDone,
+		ConversationStatusSpam,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ConversationStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ConversationStatusOpen:
+		return []byte(s), nil
+	case ConversationStatusPending:
+		return []byte(s), nil
+	case ConversationStatusDone:
+		return []byte(s), nil
+	case ConversationStatusSpam:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ConversationStatus) UnmarshalText(data []byte) error {
+	switch ConversationStatus(data) {
+	case ConversationStatusOpen:
+		*s = ConversationStatusOpen
+		return nil
+	case ConversationStatusPending:
+		*s = ConversationStatusPending
+		return nil
+	case ConversationStatusDone:
+		*s = ConversationStatusDone
+		return nil
+	case ConversationStatusSpam:
+		*s = ConversationStatusSpam
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ConversationSummary
+type ConversationSummary struct {
+	ID            uuid.UUID          `json:"id"`
+	PageId        uuid.UUID          `json:"pageId"`
+	Kind          ConversationKind   `json:"kind"`
+	Status        ConversationStatus `json:"status"`
+	Customer      ChatCustomerRef    `json:"customer"`
+	Assignee      OptActor           `json:"assignee"`
+	Tags          []ConversationTag  `json:"tags"`
+	UnreadCount   int32              `json:"unreadCount"`
+	LastMessageAt time.Time          `json:"lastMessageAt"`
+	LastSnippet   OptString          `json:"lastSnippet"`
+	Post          OptChatPostRef     `json:"post"`
+	HasOpenDraft  bool               `json:"hasOpenDraft"`
+	// Khách tiềm năng mới (CH08, Task 501): hồ sơ khách được tạo tự động từ chính
+	// hội thoại này (người lạ nhắn, comment lần đầu), chưa gộp vào hồ sơ khác và
+	// chưa có đơn nào (kể cả đơn nháp).
+	NewLead OptBool `json:"newLead"`
+	Version int32   `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *ConversationSummary) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetPageId returns the value of PageId.
+func (s *ConversationSummary) GetPageId() uuid.UUID {
+	return s.PageId
+}
+
+// GetKind returns the value of Kind.
+func (s *ConversationSummary) GetKind() ConversationKind {
+	return s.Kind
+}
+
+// GetStatus returns the value of Status.
+func (s *ConversationSummary) GetStatus() ConversationStatus {
+	return s.Status
+}
+
+// GetCustomer returns the value of Customer.
+func (s *ConversationSummary) GetCustomer() ChatCustomerRef {
+	return s.Customer
+}
+
+// GetAssignee returns the value of Assignee.
+func (s *ConversationSummary) GetAssignee() OptActor {
+	return s.Assignee
+}
+
+// GetTags returns the value of Tags.
+func (s *ConversationSummary) GetTags() []ConversationTag {
+	return s.Tags
+}
+
+// GetUnreadCount returns the value of UnreadCount.
+func (s *ConversationSummary) GetUnreadCount() int32 {
+	return s.UnreadCount
+}
+
+// GetLastMessageAt returns the value of LastMessageAt.
+func (s *ConversationSummary) GetLastMessageAt() time.Time {
+	return s.LastMessageAt
+}
+
+// GetLastSnippet returns the value of LastSnippet.
+func (s *ConversationSummary) GetLastSnippet() OptString {
+	return s.LastSnippet
+}
+
+// GetPost returns the value of Post.
+func (s *ConversationSummary) GetPost() OptChatPostRef {
+	return s.Post
+}
+
+// GetHasOpenDraft returns the value of HasOpenDraft.
+func (s *ConversationSummary) GetHasOpenDraft() bool {
+	return s.HasOpenDraft
+}
+
+// GetNewLead returns the value of NewLead.
+func (s *ConversationSummary) GetNewLead() OptBool {
+	return s.NewLead
+}
+
+// GetVersion returns the value of Version.
+func (s *ConversationSummary) GetVersion() int32 {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *ConversationSummary) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetPageId sets the value of PageId.
+func (s *ConversationSummary) SetPageId(val uuid.UUID) {
+	s.PageId = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ConversationSummary) SetKind(val ConversationKind) {
+	s.Kind = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ConversationSummary) SetStatus(val ConversationStatus) {
+	s.Status = val
+}
+
+// SetCustomer sets the value of Customer.
+func (s *ConversationSummary) SetCustomer(val ChatCustomerRef) {
+	s.Customer = val
+}
+
+// SetAssignee sets the value of Assignee.
+func (s *ConversationSummary) SetAssignee(val OptActor) {
+	s.Assignee = val
+}
+
+// SetTags sets the value of Tags.
+func (s *ConversationSummary) SetTags(val []ConversationTag) {
+	s.Tags = val
+}
+
+// SetUnreadCount sets the value of UnreadCount.
+func (s *ConversationSummary) SetUnreadCount(val int32) {
+	s.UnreadCount = val
+}
+
+// SetLastMessageAt sets the value of LastMessageAt.
+func (s *ConversationSummary) SetLastMessageAt(val time.Time) {
+	s.LastMessageAt = val
+}
+
+// SetLastSnippet sets the value of LastSnippet.
+func (s *ConversationSummary) SetLastSnippet(val OptString) {
+	s.LastSnippet = val
+}
+
+// SetPost sets the value of Post.
+func (s *ConversationSummary) SetPost(val OptChatPostRef) {
+	s.Post = val
+}
+
+// SetHasOpenDraft sets the value of HasOpenDraft.
+func (s *ConversationSummary) SetHasOpenDraft(val bool) {
+	s.HasOpenDraft = val
+}
+
+// SetNewLead sets the value of NewLead.
+func (s *ConversationSummary) SetNewLead(val OptBool) {
+	s.NewLead = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ConversationSummary) SetVersion(val int32) {
+	s.Version = val
+}
+
+// Ref: #/components/schemas/ConversationTag
+type ConversationTag struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+	// Tên token màu của hệ thiết kế.
+	Color   string `json:"color"`
+	Sort    int32  `json:"sort"`
+	Version int32  `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *ConversationTag) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ConversationTag) GetName() string {
+	return s.Name
+}
+
+// GetColor returns the value of Color.
+func (s *ConversationTag) GetColor() string {
+	return s.Color
+}
+
+// GetSort returns the value of Sort.
+func (s *ConversationTag) GetSort() int32 {
+	return s.Sort
+}
+
+// GetVersion returns the value of Version.
+func (s *ConversationTag) GetVersion() int32 {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *ConversationTag) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ConversationTag) SetName(val string) {
+	s.Name = val
+}
+
+// SetColor sets the value of Color.
+func (s *ConversationTag) SetColor(val string) {
+	s.Color = val
+}
+
+// SetSort sets the value of Sort.
+func (s *ConversationTag) SetSort(val int32) {
+	s.Sort = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ConversationTag) SetVersion(val int32) {
+	s.Version = val
+}
+
+func (*ConversationTag) createConversationTagRes() {}
+func (*ConversationTag) updateConversationTagRes() {}
+
+// Ref: #/components/schemas/ConversationTagList
+type ConversationTagList struct {
+	Items []ConversationTag `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *ConversationTagList) GetItems() []ConversationTag {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *ConversationTagList) SetItems(val []ConversationTag) {
+	s.Items = val
+}
+
+func (*ConversationTagList) listConversationTagsRes() {}
+
 // Ref: #/components/schemas/Coupon
 type Coupon struct {
 	// Lúc website trao mã cho khách (Task 197).
@@ -7333,6 +10361,66 @@ func (s *CreateAttributeRequest) SetPosition(val OptPosition) {
 	s.Position = val
 }
 
+// CallbackAt bắt buộc khi và chỉ khi outcome = callback.
+// Ref: #/components/schemas/CreateCallLogRequest
+type CreateCallLogRequest struct {
+	ConversationId OptUUID     `json:"conversationId"`
+	OrderId        OptUUID     `json:"orderId"`
+	Outcome        CallOutcome `json:"outcome"`
+	Note           OptString   `json:"note"`
+	CallbackAt     OptDateTime `json:"callbackAt"`
+}
+
+// GetConversationId returns the value of ConversationId.
+func (s *CreateCallLogRequest) GetConversationId() OptUUID {
+	return s.ConversationId
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *CreateCallLogRequest) GetOrderId() OptUUID {
+	return s.OrderId
+}
+
+// GetOutcome returns the value of Outcome.
+func (s *CreateCallLogRequest) GetOutcome() CallOutcome {
+	return s.Outcome
+}
+
+// GetNote returns the value of Note.
+func (s *CreateCallLogRequest) GetNote() OptString {
+	return s.Note
+}
+
+// GetCallbackAt returns the value of CallbackAt.
+func (s *CreateCallLogRequest) GetCallbackAt() OptDateTime {
+	return s.CallbackAt
+}
+
+// SetConversationId sets the value of ConversationId.
+func (s *CreateCallLogRequest) SetConversationId(val OptUUID) {
+	s.ConversationId = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *CreateCallLogRequest) SetOrderId(val OptUUID) {
+	s.OrderId = val
+}
+
+// SetOutcome sets the value of Outcome.
+func (s *CreateCallLogRequest) SetOutcome(val CallOutcome) {
+	s.Outcome = val
+}
+
+// SetNote sets the value of Note.
+func (s *CreateCallLogRequest) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetCallbackAt sets the value of CallbackAt.
+func (s *CreateCallLogRequest) SetCallbackAt(val OptDateTime) {
+	s.CallbackAt = val
+}
+
 // Ref: #/components/schemas/CreateCarrierAccountRequest
 type CreateCarrierAccountRequest struct {
 	CarrierKey  string                                    `json:"carrierKey"`
@@ -7721,6 +10809,43 @@ func (s *CreateCodAdjustmentRequestMode) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/CreateConversationTagRequest
+type CreateConversationTagRequest struct {
+	Name  string   `json:"name"`
+	Color string   `json:"color"`
+	Sort  OptInt32 `json:"sort"`
+}
+
+// GetName returns the value of Name.
+func (s *CreateConversationTagRequest) GetName() string {
+	return s.Name
+}
+
+// GetColor returns the value of Color.
+func (s *CreateConversationTagRequest) GetColor() string {
+	return s.Color
+}
+
+// GetSort returns the value of Sort.
+func (s *CreateConversationTagRequest) GetSort() OptInt32 {
+	return s.Sort
+}
+
+// SetName sets the value of Name.
+func (s *CreateConversationTagRequest) SetName(val string) {
+	s.Name = val
+}
+
+// SetColor sets the value of Color.
+func (s *CreateConversationTagRequest) SetColor(val string) {
+	s.Color = val
+}
+
+// SetSort sets the value of Sort.
+func (s *CreateConversationTagRequest) SetSort(val OptInt32) {
+	s.Sort = val
+}
+
 // Ref: #/components/schemas/CreateCouponBatchRequest
 type CreateCouponBatchRequest struct {
 	Name   string    `json:"name"`
@@ -8059,9 +11184,16 @@ type CreateOrderRequest struct {
 	// Ghi chú cho hãng vận chuyển (ghi chú nội bộ là addOrderNote).
 	CarrierNote OptString `json:"carrierNote"`
 	// Nhân viên phụ trách.
-	CareBy      OptUUID         `json:"careBy"`
-	Channel     OptOrderChannel `json:"channel"`
-	ExternalRef OptString       `json:"externalRef"`
+	CareBy OptUUID `json:"careBy"`
+	// Lên đơn trong khung chat (M4, Task 176): đơn lưu hội thoại này; máy chủ tự lấy
+	// Page của hội thoại, người bán của Page (áp làm người bán của đơn, ADR-29) và
+	// kênh facebook (thay channel đã gửi). Cần conversation.read trên Page của hội thoại,
+	// không thì 404 not_found. Khách của đơn phải là customerId cùng nhóm hồ sơ với
+	// khách của hội thoại (Task 501); gửi customer (khách mới, tìm theo SĐT) hay customerId
+	// nhóm khác → 422 conversation_customer_mismatch.
+	ConversationId OptUUID         `json:"conversationId"`
+	Channel        OptOrderChannel `json:"channel"`
+	ExternalRef    OptString       `json:"externalRef"`
 	// Dấu giới thiệu (affiliate, P2); chỉ chuỗi.
 	ReferralRef OptCreateOrderRequestReferralRef `json:"referralRef"`
 }
@@ -8124,6 +11256,11 @@ func (s *CreateOrderRequest) GetCarrierNote() OptString {
 // GetCareBy returns the value of CareBy.
 func (s *CreateOrderRequest) GetCareBy() OptUUID {
 	return s.CareBy
+}
+
+// GetConversationId returns the value of ConversationId.
+func (s *CreateOrderRequest) GetConversationId() OptUUID {
+	return s.ConversationId
 }
 
 // GetChannel returns the value of Channel.
@@ -8199,6 +11336,11 @@ func (s *CreateOrderRequest) SetCarrierNote(val OptString) {
 // SetCareBy sets the value of CareBy.
 func (s *CreateOrderRequest) SetCareBy(val OptUUID) {
 	s.CareBy = val
+}
+
+// SetConversationId sets the value of ConversationId.
+func (s *CreateOrderRequest) SetConversationId(val OptUUID) {
+	s.ConversationId = val
 }
 
 // SetChannel sets the value of Channel.
@@ -8418,6 +11560,115 @@ func (s *CreateProductRequest) SetStatus(val OptProductStatus) {
 // SetVariants sets the value of Variants.
 func (s *CreateProductRequest) SetVariants(val []VariantInput) {
 	s.Variants = val
+}
+
+// Ref: #/components/schemas/CreateReminderRequest
+type CreateReminderRequest struct {
+	// Trong tương lai, tối đa 90 ngày.
+	RemindAt time.Time `json:"remindAt"`
+	Note     OptString `json:"note"`
+	// Giao cho người khác (cần conversation.assign); không có = chính người gọi.
+	UserId OptUUID `json:"userId"`
+}
+
+// GetRemindAt returns the value of RemindAt.
+func (s *CreateReminderRequest) GetRemindAt() time.Time {
+	return s.RemindAt
+}
+
+// GetNote returns the value of Note.
+func (s *CreateReminderRequest) GetNote() OptString {
+	return s.Note
+}
+
+// GetUserId returns the value of UserId.
+func (s *CreateReminderRequest) GetUserId() OptUUID {
+	return s.UserId
+}
+
+// SetRemindAt sets the value of RemindAt.
+func (s *CreateReminderRequest) SetRemindAt(val time.Time) {
+	s.RemindAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *CreateReminderRequest) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetUserId sets the value of UserId.
+func (s *CreateReminderRequest) SetUserId(val OptUUID) {
+	s.UserId = val
+}
+
+// Ref: #/components/schemas/CreateReplyTemplateRequest
+type CreateReplyTemplateRequest struct {
+	PageId           OptUUID      `json:"pageId"`
+	Shortcut         string       `json:"shortcut"`
+	Title            string       `json:"title"`
+	Body             string       `json:"body"`
+	AttachmentFileId OptUUID      `json:"attachmentFileId"`
+	QuickReplies     []QuickReply `json:"quickReplies"`
+}
+
+// GetPageId returns the value of PageId.
+func (s *CreateReplyTemplateRequest) GetPageId() OptUUID {
+	return s.PageId
+}
+
+// GetShortcut returns the value of Shortcut.
+func (s *CreateReplyTemplateRequest) GetShortcut() string {
+	return s.Shortcut
+}
+
+// GetTitle returns the value of Title.
+func (s *CreateReplyTemplateRequest) GetTitle() string {
+	return s.Title
+}
+
+// GetBody returns the value of Body.
+func (s *CreateReplyTemplateRequest) GetBody() string {
+	return s.Body
+}
+
+// GetAttachmentFileId returns the value of AttachmentFileId.
+func (s *CreateReplyTemplateRequest) GetAttachmentFileId() OptUUID {
+	return s.AttachmentFileId
+}
+
+// GetQuickReplies returns the value of QuickReplies.
+func (s *CreateReplyTemplateRequest) GetQuickReplies() []QuickReply {
+	return s.QuickReplies
+}
+
+// SetPageId sets the value of PageId.
+func (s *CreateReplyTemplateRequest) SetPageId(val OptUUID) {
+	s.PageId = val
+}
+
+// SetShortcut sets the value of Shortcut.
+func (s *CreateReplyTemplateRequest) SetShortcut(val string) {
+	s.Shortcut = val
+}
+
+// SetTitle sets the value of Title.
+func (s *CreateReplyTemplateRequest) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetBody sets the value of Body.
+func (s *CreateReplyTemplateRequest) SetBody(val string) {
+	s.Body = val
+}
+
+// SetAttachmentFileId sets the value of AttachmentFileId.
+func (s *CreateReplyTemplateRequest) SetAttachmentFileId(val OptUUID) {
+	s.AttachmentFileId = val
+}
+
+// SetQuickReplies sets the value of QuickReplies.
+func (s *CreateReplyTemplateRequest) SetQuickReplies(val []QuickReply) {
+	s.QuickReplies = val
 }
 
 // Ref: #/components/schemas/CreateReturnRequest
@@ -10457,6 +13708,16 @@ func (s *DeepHealth) SetLastFileSyncAgeM(val OptInt64) {
 	s.LastFileSyncAgeM = val
 }
 
+// DeleteConversationTagNoContent is response for DeleteConversationTag operation.
+type DeleteConversationTagNoContent struct{}
+
+func (*DeleteConversationTagNoContent) deleteConversationTagRes() {}
+
+// DeleteReplyTemplateNoContent is response for DeleteReplyTemplate operation.
+type DeleteReplyTemplateNoContent struct{}
+
+func (*DeleteReplyTemplateNoContent) deleteReplyTemplateRes() {}
+
 // Ref: #/components/schemas/DeleteWebCampaignRequest
 type DeleteWebCampaignRequest struct {
 	Revision int32  `json:"revision"`
@@ -10804,8 +14065,24 @@ type Error struct {
 	StatementId OptUUID     `json:"statementId"`
 	Quote       OptWebQuote `json:"quote"`
 	// Chỉ có ở item_unavailable — biến thể không bán được trên web, theo thứ tự
-	// gửi (Task 194).
-	VariantIds []uuid.UUID `json:"variantIds"`
+	// gửi (Task 194); ở out_of_stock — đúng một phần tử, biến thể của variantId
+	// (chốt comment live đọc mảng, Task 172).
+	VariantIds []uuid.UUID       `json:"variantIds"`
+	DenyReason OptSendDenyReason `json:"denyReason"`
+	// Chỉ có ở send_not_allowed — lúc cửa sổ gửi đóng (M4).
+	Until OptDateTime `json:"until"`
+	// Chỉ có ở comment_claimed — tên hiển thị của nhân viên đã chốt comment (M4, Task
+	// 172).
+	ClaimedBy OptString `json:"claimedBy"`
+	// Chỉ có ở comment_claimed — đơn nháp của comment (M4, Task 172).
+	OrderId OptUUID `json:"orderId"`
+	// Chỉ có ở comment_claimed — mã đơn nháp của comment (M4, Task 172).
+	OrderCode OptString `json:"orderCode"`
+	// Chỉ có ở open_draft_exists — đơn nháp khách đang có trong phiên live (M4, Task 172).
+	Drafts []LiveDraftRef `json:"drafts"`
+	// Chỉ có ở template_variable_missing — tên biến thiếu giá trị (M4, Task 161).
+	Name     OptString `json:"name"`
+	Assignee OptActor  `json:"assignee"`
 }
 
 // GetError returns the value of Error.
@@ -10863,6 +14140,46 @@ func (s *Error) GetVariantIds() []uuid.UUID {
 	return s.VariantIds
 }
 
+// GetDenyReason returns the value of DenyReason.
+func (s *Error) GetDenyReason() OptSendDenyReason {
+	return s.DenyReason
+}
+
+// GetUntil returns the value of Until.
+func (s *Error) GetUntil() OptDateTime {
+	return s.Until
+}
+
+// GetClaimedBy returns the value of ClaimedBy.
+func (s *Error) GetClaimedBy() OptString {
+	return s.ClaimedBy
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *Error) GetOrderId() OptUUID {
+	return s.OrderId
+}
+
+// GetOrderCode returns the value of OrderCode.
+func (s *Error) GetOrderCode() OptString {
+	return s.OrderCode
+}
+
+// GetDrafts returns the value of Drafts.
+func (s *Error) GetDrafts() []LiveDraftRef {
+	return s.Drafts
+}
+
+// GetName returns the value of Name.
+func (s *Error) GetName() OptString {
+	return s.Name
+}
+
+// GetAssignee returns the value of Assignee.
+func (s *Error) GetAssignee() OptActor {
+	return s.Assignee
+}
+
 // SetError sets the value of Error.
 func (s *Error) SetError(val string) {
 	s.Error = val
@@ -10916,6 +14233,46 @@ func (s *Error) SetQuote(val OptWebQuote) {
 // SetVariantIds sets the value of VariantIds.
 func (s *Error) SetVariantIds(val []uuid.UUID) {
 	s.VariantIds = val
+}
+
+// SetDenyReason sets the value of DenyReason.
+func (s *Error) SetDenyReason(val OptSendDenyReason) {
+	s.DenyReason = val
+}
+
+// SetUntil sets the value of Until.
+func (s *Error) SetUntil(val OptDateTime) {
+	s.Until = val
+}
+
+// SetClaimedBy sets the value of ClaimedBy.
+func (s *Error) SetClaimedBy(val OptString) {
+	s.ClaimedBy = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *Error) SetOrderId(val OptUUID) {
+	s.OrderId = val
+}
+
+// SetOrderCode sets the value of OrderCode.
+func (s *Error) SetOrderCode(val OptString) {
+	s.OrderCode = val
+}
+
+// SetDrafts sets the value of Drafts.
+func (s *Error) SetDrafts(val []LiveDraftRef) {
+	s.Drafts = val
+}
+
+// SetName sets the value of Name.
+func (s *Error) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetAssignee sets the value of Assignee.
+func (s *Error) SetAssignee(val OptActor) {
+	s.Assignee = val
 }
 
 // Chỉ có ở setting_out_of_range — tên trường cài đặt đơn ngoài khoảng (Task M2-15).
@@ -11002,6 +14359,8 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 
 func (*ErrorStatusCode) abandonJobRes()                  {}
 func (*ErrorStatusCode) addAttributeValueRes()           {}
+func (*ErrorStatusCode) addConversationNoteRes()         {}
+func (*ErrorStatusCode) addConversationTagRes()          {}
 func (*ErrorStatusCode) addCustomerAddressRes()          {}
 func (*ErrorStatusCode) addCustomerIdentityRes()         {}
 func (*ErrorStatusCode) addCustomerNoteRes()             {}
@@ -11015,8 +14374,10 @@ func (*ErrorStatusCode) approveOrderDiscountRes()        {}
 func (*ErrorStatusCode) archiveCategoryRes()             {}
 func (*ErrorStatusCode) archiveRoleRes()                 {}
 func (*ErrorStatusCode) assignCallbackTaskRes()          {}
+func (*ErrorStatusCode) assignConversationRes()          {}
 func (*ErrorStatusCode) attachProductImageRes()          {}
 func (*ErrorStatusCode) cancelOrderRes()                 {}
+func (*ErrorStatusCode) cancelReminderRes()              {}
 func (*ErrorStatusCode) cancelReturnRes()                {}
 func (*ErrorStatusCode) cancelShipmentRes()              {}
 func (*ErrorStatusCode) cancelStockDocumentRes()         {}
@@ -11024,17 +14385,24 @@ func (*ErrorStatusCode) cancelStocktakeRes()             {}
 func (*ErrorStatusCode) checkCarrierAccountRes()         {}
 func (*ErrorStatusCode) checkCouponRes()                 {}
 func (*ErrorStatusCode) checkOrderDuplicatesRes()        {}
+func (*ErrorStatusCode) claimConversationRes()           {}
+func (*ErrorStatusCode) claimLiveCommentRes()            {}
 func (*ErrorStatusCode) closeReturnRes()                 {}
+func (*ErrorStatusCode) completeReminderRes()            {}
 func (*ErrorStatusCode) completeUploadRes()              {}
 func (*ErrorStatusCode) confirmCodStatementRes()         {}
 func (*ErrorStatusCode) confirmOrderRes()                {}
+func (*ErrorStatusCode) connectFacebookPageRes()         {}
+func (*ErrorStatusCode) countConversationsRes()          {}
 func (*ErrorStatusCode) countFeedbackRes()               {}
 func (*ErrorStatusCode) countOrderRequestsRes()          {}
 func (*ErrorStatusCode) createAttributeRes()             {}
+func (*ErrorStatusCode) createCallLogRes()               {}
 func (*ErrorStatusCode) createCarrierAccountRes()        {}
 func (*ErrorStatusCode) createCatalogImportRes()         {}
 func (*ErrorStatusCode) createCategoryRes()              {}
 func (*ErrorStatusCode) createCodAdjustmentRes()         {}
+func (*ErrorStatusCode) createConversationTagRes()       {}
 func (*ErrorStatusCode) createCouponBatchRes()           {}
 func (*ErrorStatusCode) createCouponRes()                {}
 func (*ErrorStatusCode) createCustomerRes()              {}
@@ -11042,6 +14410,8 @@ func (*ErrorStatusCode) createCustomerTagRes()           {}
 func (*ErrorStatusCode) createLabelBatchRes()            {}
 func (*ErrorStatusCode) createOrderRes()                 {}
 func (*ErrorStatusCode) createProductRes()               {}
+func (*ErrorStatusCode) createReminderRes()              {}
+func (*ErrorStatusCode) createReplyTemplateRes()         {}
 func (*ErrorStatusCode) createReturnRes()                {}
 func (*ErrorStatusCode) createRoleRes()                  {}
 func (*ErrorStatusCode) createServiceKeyRes()            {}
@@ -11053,15 +14423,25 @@ func (*ErrorStatusCode) createTagRes()                   {}
 func (*ErrorStatusCode) createTrafficSourceRes()         {}
 func (*ErrorStatusCode) createUploadRes()                {}
 func (*ErrorStatusCode) createWebCampaignRes()           {}
+func (*ErrorStatusCode) deleteConversationTagRes()       {}
 func (*ErrorStatusCode) deleteCustomerAddressRes()       {}
 func (*ErrorStatusCode) deleteProductImageRes()          {}
+func (*ErrorStatusCode) deleteReplyTemplateRes()         {}
 func (*ErrorStatusCode) deleteWebCampaignRes()           {}
+func (*ErrorStatusCode) discardMessageRes()              {}
+func (*ErrorStatusCode) disconnectChannelRes()           {}
+func (*ErrorStatusCode) endLiveSessionManuallyRes()      {}
+func (*ErrorStatusCode) exchangeFacebookOAuthRes()       {}
 func (*ErrorStatusCode) exportBirthdayCustomersRes()     {}
+func (*ErrorStatusCode) getAttachmentUrlRes()            {}
 func (*ErrorStatusCode) getBannersRes()                  {}
 func (*ErrorStatusCode) getBirthdaySettingsRes()         {}
 func (*ErrorStatusCode) getCatalogImportRes()            {}
 func (*ErrorStatusCode) getCatalogImportTemplateRes()    {}
 func (*ErrorStatusCode) getCodStatementRes()             {}
+func (*ErrorStatusCode) getConversationCustomerCardRes() {}
+func (*ErrorStatusCode) getConversationOrderContextRes() {}
+func (*ErrorStatusCode) getConversationRes()             {}
 func (*ErrorStatusCode) getCouponBatchRes()              {}
 func (*ErrorStatusCode) getCouponRes()                   {}
 func (*ErrorStatusCode) getCustomerDeliveryStatsRes()    {}
@@ -11073,6 +14453,7 @@ func (*ErrorStatusCode) getCustomerTimelineRes()         {}
 func (*ErrorStatusCode) getFileRes()                     {}
 func (*ErrorStatusCode) getFulfillmentSettingsRes()      {}
 func (*ErrorStatusCode) getLabelBatchRes()               {}
+func (*ErrorStatusCode) getLiveCommentContextRes()       {}
 func (*ErrorStatusCode) getLooksRes()                    {}
 func (*ErrorStatusCode) getMeRes()                       {}
 func (*ErrorStatusCode) getOrderRequestRes()             {}
@@ -11080,8 +14461,10 @@ func (*ErrorStatusCode) getOrderRes()                    {}
 func (*ErrorStatusCode) getOrderSettingsRes()            {}
 func (*ErrorStatusCode) getOrderTimelineRes()            {}
 func (*ErrorStatusCode) getOriginalImageURLRes()         {}
+func (*ErrorStatusCode) getPageSettingsRes()             {}
 func (*ErrorStatusCode) getPickingListRes()              {}
 func (*ErrorStatusCode) getPlatformHealthRes()           {}
+func (*ErrorStatusCode) getPresenceRes()                 {}
 func (*ErrorStatusCode) getProductClassificationRes()    {}
 func (*ErrorStatusCode) getProductRes()                  {}
 func (*ErrorStatusCode) getReturnRes()                   {}
@@ -11095,12 +14478,15 @@ func (*ErrorStatusCode) getWebCampaignSettingsRes()      {}
 func (*ErrorStatusCode) getWebCarrierSettingsRes()       {}
 func (*ErrorStatusCode) getWebIntakeRes()                {}
 func (*ErrorStatusCode) healthDeepRes()                  {}
+func (*ErrorStatusCode) hideCommentRes()                 {}
 func (*ErrorStatusCode) importCodStatementRes()          {}
 func (*ErrorStatusCode) listAdminUnitsRes()              {}
 func (*ErrorStatusCode) listAgedReservationsRes()        {}
+func (*ErrorStatusCode) listAssignableUsersRes()         {}
 func (*ErrorStatusCode) listAttributesRes()              {}
 func (*ErrorStatusCode) listAuditActorsRes()             {}
 func (*ErrorStatusCode) listAuditLogsRes()               {}
+func (*ErrorStatusCode) listAutomationRulesRes()         {}
 func (*ErrorStatusCode) listBalancesRes()                {}
 func (*ErrorStatusCode) listBirthdayCustomersRes()       {}
 func (*ErrorStatusCode) listBirthdayTodoRes()            {}
@@ -11108,28 +14494,43 @@ func (*ErrorStatusCode) listCallbackTasksRes()           {}
 func (*ErrorStatusCode) listCampaignTargetsRes()         {}
 func (*ErrorStatusCode) listCarrierAccountsRes()         {}
 func (*ErrorStatusCode) listCategoriesRes()              {}
+func (*ErrorStatusCode) listChannelAccountsRes()         {}
 func (*ErrorStatusCode) listCodDiscrepanciesRes()        {}
 func (*ErrorStatusCode) listCodOverdueRes()              {}
 func (*ErrorStatusCode) listCodStatementsRes()           {}
+func (*ErrorStatusCode) listConversationAssignmentsRes() {}
+func (*ErrorStatusCode) listConversationTagsRes()        {}
+func (*ErrorStatusCode) listConversationsRes()           {}
 func (*ErrorStatusCode) listCouponBatchesRes()           {}
 func (*ErrorStatusCode) listCouponRedemptionsRes()       {}
 func (*ErrorStatusCode) listCouponsRes()                 {}
+func (*ErrorStatusCode) listCustomerCallsRes()           {}
+func (*ErrorStatusCode) listCustomerConversationsRes()   {}
 func (*ErrorStatusCode) listCustomerMergeCandidatesRes() {}
 func (*ErrorStatusCode) listCustomerTagsRes()            {}
 func (*ErrorStatusCode) listCustomersRes()               {}
 func (*ErrorStatusCode) listFeedbackRes()                {}
+func (*ErrorStatusCode) listFollowUpsRes()               {}
 func (*ErrorStatusCode) listJobsRes()                    {}
+func (*ErrorStatusCode) listLiveCommentsRes()            {}
+func (*ErrorStatusCode) listLiveSessionsRes()            {}
 func (*ErrorStatusCode) listLostFilesRes()               {}
+func (*ErrorStatusCode) listMessageRevisionsRes()        {}
+func (*ErrorStatusCode) listMessagesRes()                {}
+func (*ErrorStatusCode) listMyRemindersRes()             {}
 func (*ErrorStatusCode) listOrderDuplicatesRes()         {}
 func (*ErrorStatusCode) listOrderPaymentsRes()           {}
 func (*ErrorStatusCode) listOrderRequestsRes()           {}
 func (*ErrorStatusCode) listOrderShipmentsRes()          {}
 func (*ErrorStatusCode) listOrderShippingAccountsRes()   {}
 func (*ErrorStatusCode) listOrdersRes()                  {}
+func (*ErrorStatusCode) listPagePostsRes()               {}
+func (*ErrorStatusCode) listPendingDraftsRes()           {}
 func (*ErrorStatusCode) listPermissionsRes()             {}
 func (*ErrorStatusCode) listProductsRes()                {}
 func (*ErrorStatusCode) listReconcileFindingsRes()       {}
 func (*ErrorStatusCode) listRefundObligationsRes()       {}
+func (*ErrorStatusCode) listReplyTemplatesRes()          {}
 func (*ErrorStatusCode) listReturnsRes()                 {}
 func (*ErrorStatusCode) listRolesRes()                   {}
 func (*ErrorStatusCode) listRolesToManageRes()           {}
@@ -11149,6 +14550,7 @@ func (*ErrorStatusCode) listWarehousesRes()              {}
 func (*ErrorStatusCode) listWebCampaignsRes()            {}
 func (*ErrorStatusCode) lockStaffRes()                   {}
 func (*ErrorStatusCode) markBirthdayMessagedRes()        {}
+func (*ErrorStatusCode) markConversationReadRes()        {}
 func (*ErrorStatusCode) mergeCustomerRes()               {}
 func (*ErrorStatusCode) payRefundObligationRes()         {}
 func (*ErrorStatusCode) postStockDocumentRes()           {}
@@ -11165,15 +14567,20 @@ func (*ErrorStatusCode) recordPartialDeliveryRes()       {}
 func (*ErrorStatusCode) recordPaymentRes()               {}
 func (*ErrorStatusCode) recordStocktakeCountRes()        {}
 func (*ErrorStatusCode) regenerateImagesRes()            {}
+func (*ErrorStatusCode) remindPendingDraftsRes()         {}
+func (*ErrorStatusCode) removeConversationTagRes()       {}
 func (*ErrorStatusCode) removeCustomerIdentityRes()      {}
 func (*ErrorStatusCode) removeCustomerTagRes()           {}
+func (*ErrorStatusCode) renderReplyTemplateRes()         {}
 func (*ErrorStatusCode) reorderProductImagesRes()        {}
 func (*ErrorStatusCode) reorderWebCarriersRes()          {}
 func (*ErrorStatusCode) replaceStaffGrantsRes()          {}
 func (*ErrorStatusCode) replaceStockDocumentLinesRes()   {}
 func (*ErrorStatusCode) replyOrderRequestRes()           {}
+func (*ErrorStatusCode) replyToCommentRes()              {}
 func (*ErrorStatusCode) requestAddressChangeRes()        {}
 func (*ErrorStatusCode) requestShippingQuotesRes()       {}
+func (*ErrorStatusCode) resendMessageRes()               {}
 func (*ErrorStatusCode) resendShipmentRes()              {}
 func (*ErrorStatusCode) resolveAddressChangeRes()        {}
 func (*ErrorStatusCode) resolveOrderDuplicateRes()       {}
@@ -11183,16 +14590,24 @@ func (*ErrorStatusCode) restoreProductImageRes()         {}
 func (*ErrorStatusCode) retryJobRes()                    {}
 func (*ErrorStatusCode) revokeServiceKeyRes()            {}
 func (*ErrorStatusCode) runBirthdayGiftsRes()            {}
+func (*ErrorStatusCode) runChannelHealthCheckRes()       {}
 func (*ErrorStatusCode) saveBannersRes()                 {}
 func (*ErrorStatusCode) saveBirthdaySettingsRes()        {}
 func (*ErrorStatusCode) saveLooksRes()                   {}
 func (*ErrorStatusCode) saveWebCampaignRes()             {}
 func (*ErrorStatusCode) saveWebCarrierSettingsRes()      {}
 func (*ErrorStatusCode) searchVariantsRes()              {}
+func (*ErrorStatusCode) sendMessageRes()                 {}
+func (*ErrorStatusCode) sendPrivateReplyRes()            {}
 func (*ErrorStatusCode) setCarrierAccountStatusRes()     {}
+func (*ErrorStatusCode) setChannelHumanAgentRes()        {}
+func (*ErrorStatusCode) setChannelSendModeRes()          {}
+func (*ErrorStatusCode) setConversationStatusRes()       {}
+func (*ErrorStatusCode) setCustomerDoNotContactRes()     {}
 func (*ErrorStatusCode) setOrderPendingRes()             {}
 func (*ErrorStatusCode) setOrderRequestStatusRes()       {}
 func (*ErrorStatusCode) setPackingStatusRes()            {}
+func (*ErrorStatusCode) setPresenceRes()                 {}
 func (*ErrorStatusCode) setProductClassificationRes()    {}
 func (*ErrorStatusCode) setProductImageColorRes()        {}
 func (*ErrorStatusCode) setShipmentManualStatusRes()     {}
@@ -11200,14 +14615,19 @@ func (*ErrorStatusCode) setWarehousePickupRes()          {}
 func (*ErrorStatusCode) setWebCampaignStateRes()         {}
 func (*ErrorStatusCode) setWebIntakeRes()                {}
 func (*ErrorStatusCode) startCustomerImportRes()         {}
+func (*ErrorStatusCode) startFacebookOAuthRes()          {}
+func (*ErrorStatusCode) startLiveSessionManuallyRes()    {}
 func (*ErrorStatusCode) startStocktakeRes()              {}
 func (*ErrorStatusCode) streamRes()                      {}
 func (*ErrorStatusCode) syncCarrierLocationsRes()        {}
 func (*ErrorStatusCode) syncShipmentRes()                {}
 func (*ErrorStatusCode) undoCustomerMergeRes()           {}
+func (*ErrorStatusCode) unhideCommentRes()               {}
 func (*ErrorStatusCode) unlockStaffRes()                 {}
+func (*ErrorStatusCode) updateAutomationRuleRes()        {}
 func (*ErrorStatusCode) updateCarrierAccountRes()        {}
 func (*ErrorStatusCode) updateCategoryRes()              {}
+func (*ErrorStatusCode) updateConversationTagRes()       {}
 func (*ErrorStatusCode) updateCouponRes()                {}
 func (*ErrorStatusCode) updateCustomerAddressRes()       {}
 func (*ErrorStatusCode) updateCustomerRes()              {}
@@ -11216,7 +14636,9 @@ func (*ErrorStatusCode) updateFeedbackRes()              {}
 func (*ErrorStatusCode) updateFulfillmentSettingsRes()   {}
 func (*ErrorStatusCode) updateOrderRes()                 {}
 func (*ErrorStatusCode) updateOrderSettingsRes()         {}
+func (*ErrorStatusCode) updatePageSettingsRes()          {}
 func (*ErrorStatusCode) updateProductRes()               {}
+func (*ErrorStatusCode) updateReplyTemplateRes()         {}
 func (*ErrorStatusCode) updateRoleRes()                  {}
 func (*ErrorStatusCode) updateSupplierRes()              {}
 func (*ErrorStatusCode) updateTrafficSourceRes()         {}
@@ -11339,6 +14761,125 @@ func (s *ErrorSummary) SetFirstSeenAt(val time.Time) {
 // SetLastSeenAt sets the value of LastSeenAt.
 func (s *ErrorSummary) SetLastSeenAt(val time.Time) {
 	s.LastSeenAt = val
+}
+
+// Ref: #/components/schemas/ExchangeFacebookOAuthRequest
+type ExchangeFacebookOAuthRequest struct {
+	Code  string `json:"code"`
+	State string `json:"state"`
+}
+
+// GetCode returns the value of Code.
+func (s *ExchangeFacebookOAuthRequest) GetCode() string {
+	return s.Code
+}
+
+// GetState returns the value of State.
+func (s *ExchangeFacebookOAuthRequest) GetState() string {
+	return s.State
+}
+
+// SetCode sets the value of Code.
+func (s *ExchangeFacebookOAuthRequest) SetCode(val string) {
+	s.Code = val
+}
+
+// SetState sets the value of State.
+func (s *ExchangeFacebookOAuthRequest) SetState(val string) {
+	s.State = val
+}
+
+// Ref: #/components/schemas/FacebookOAuthPages
+type FacebookOAuthPages struct {
+	SessionId uuid.UUID            `json:"sessionId"`
+	Pages     []FacebookPageOption `json:"pages"`
+}
+
+// GetSessionId returns the value of SessionId.
+func (s *FacebookOAuthPages) GetSessionId() uuid.UUID {
+	return s.SessionId
+}
+
+// GetPages returns the value of Pages.
+func (s *FacebookOAuthPages) GetPages() []FacebookPageOption {
+	return s.Pages
+}
+
+// SetSessionId sets the value of SessionId.
+func (s *FacebookOAuthPages) SetSessionId(val uuid.UUID) {
+	s.SessionId = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FacebookOAuthPages) SetPages(val []FacebookPageOption) {
+	s.Pages = val
+}
+
+func (*FacebookOAuthPages) exchangeFacebookOAuthRes() {}
+
+// Ref: #/components/schemas/FacebookOAuthStart
+type FacebookOAuthStart struct {
+	AuthorizeUrl url.URL `json:"authorizeUrl"`
+}
+
+// GetAuthorizeUrl returns the value of AuthorizeUrl.
+func (s *FacebookOAuthStart) GetAuthorizeUrl() url.URL {
+	return s.AuthorizeUrl
+}
+
+// SetAuthorizeUrl sets the value of AuthorizeUrl.
+func (s *FacebookOAuthStart) SetAuthorizeUrl(val url.URL) {
+	s.AuthorizeUrl = val
+}
+
+func (*FacebookOAuthStart) startFacebookOAuthRes() {}
+
+// Ref: #/components/schemas/FacebookPageOption
+type FacebookPageOption struct {
+	PageId      string `json:"pageId"`
+	Name        string `json:"name"`
+	CanMessage  bool   `json:"canMessage"`
+	CanModerate bool   `json:"canModerate"`
+}
+
+// GetPageId returns the value of PageId.
+func (s *FacebookPageOption) GetPageId() string {
+	return s.PageId
+}
+
+// GetName returns the value of Name.
+func (s *FacebookPageOption) GetName() string {
+	return s.Name
+}
+
+// GetCanMessage returns the value of CanMessage.
+func (s *FacebookPageOption) GetCanMessage() bool {
+	return s.CanMessage
+}
+
+// GetCanModerate returns the value of CanModerate.
+func (s *FacebookPageOption) GetCanModerate() bool {
+	return s.CanModerate
+}
+
+// SetPageId sets the value of PageId.
+func (s *FacebookPageOption) SetPageId(val string) {
+	s.PageId = val
+}
+
+// SetName sets the value of Name.
+func (s *FacebookPageOption) SetName(val string) {
+	s.Name = val
+}
+
+// SetCanMessage sets the value of CanMessage.
+func (s *FacebookPageOption) SetCanMessage(val bool) {
+	s.CanMessage = val
+}
+
+// SetCanModerate sets the value of CanModerate.
+func (s *FacebookPageOption) SetCanModerate(val bool) {
+	s.CanModerate = val
 }
 
 // Ref: #/components/schemas/Feedback
@@ -11980,6 +15521,166 @@ func (s *FileVariantFormat) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/FollowUpConfig
+type FollowUpConfig struct {
+	Kind       FollowUpConfigKind `json:"kind"`
+	AfterHours int32              `json:"afterHours"`
+	TemplateId uuid.UUID          `json:"templateId"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FollowUpConfig) GetKind() FollowUpConfigKind {
+	return s.Kind
+}
+
+// GetAfterHours returns the value of AfterHours.
+func (s *FollowUpConfig) GetAfterHours() int32 {
+	return s.AfterHours
+}
+
+// GetTemplateId returns the value of TemplateId.
+func (s *FollowUpConfig) GetTemplateId() uuid.UUID {
+	return s.TemplateId
+}
+
+// SetKind sets the value of Kind.
+func (s *FollowUpConfig) SetKind(val FollowUpConfigKind) {
+	s.Kind = val
+}
+
+// SetAfterHours sets the value of AfterHours.
+func (s *FollowUpConfig) SetAfterHours(val int32) {
+	s.AfterHours = val
+}
+
+// SetTemplateId sets the value of TemplateId.
+func (s *FollowUpConfig) SetTemplateId(val uuid.UUID) {
+	s.TemplateId = val
+}
+
+type FollowUpConfigKind string
+
+const (
+	FollowUpConfigKindFollowUp FollowUpConfigKind = "follow_up"
+)
+
+// AllValues returns all FollowUpConfigKind values.
+func (FollowUpConfigKind) AllValues() []FollowUpConfigKind {
+	return []FollowUpConfigKind{
+		FollowUpConfigKindFollowUp,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FollowUpConfigKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FollowUpConfigKindFollowUp:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FollowUpConfigKind) UnmarshalText(data []byte) error {
+	switch FollowUpConfigKind(data) {
+	case FollowUpConfigKindFollowUp:
+		*s = FollowUpConfigKindFollowUp
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/FollowUpItem
+type FollowUpItem struct {
+	ConversationId     uuid.UUID       `json:"conversationId"`
+	PageId             uuid.UUID       `json:"pageId"`
+	Customer           ChatCustomerRef `json:"customer"`
+	LastStaffMessageAt time.Time       `json:"lastStaffMessageAt"`
+	// Đoạn đầu (tối đa 120 ký tự) tin người thật cuối của Page, hiện là Bạn: …
+	// (Task 501); tin ảnh → không có.
+	LastStaffSnippet OptString `json:"lastStaffSnippet"`
+	WindowEndsAt     time.Time `json:"windowEndsAt"`
+}
+
+// GetConversationId returns the value of ConversationId.
+func (s *FollowUpItem) GetConversationId() uuid.UUID {
+	return s.ConversationId
+}
+
+// GetPageId returns the value of PageId.
+func (s *FollowUpItem) GetPageId() uuid.UUID {
+	return s.PageId
+}
+
+// GetCustomer returns the value of Customer.
+func (s *FollowUpItem) GetCustomer() ChatCustomerRef {
+	return s.Customer
+}
+
+// GetLastStaffMessageAt returns the value of LastStaffMessageAt.
+func (s *FollowUpItem) GetLastStaffMessageAt() time.Time {
+	return s.LastStaffMessageAt
+}
+
+// GetLastStaffSnippet returns the value of LastStaffSnippet.
+func (s *FollowUpItem) GetLastStaffSnippet() OptString {
+	return s.LastStaffSnippet
+}
+
+// GetWindowEndsAt returns the value of WindowEndsAt.
+func (s *FollowUpItem) GetWindowEndsAt() time.Time {
+	return s.WindowEndsAt
+}
+
+// SetConversationId sets the value of ConversationId.
+func (s *FollowUpItem) SetConversationId(val uuid.UUID) {
+	s.ConversationId = val
+}
+
+// SetPageId sets the value of PageId.
+func (s *FollowUpItem) SetPageId(val uuid.UUID) {
+	s.PageId = val
+}
+
+// SetCustomer sets the value of Customer.
+func (s *FollowUpItem) SetCustomer(val ChatCustomerRef) {
+	s.Customer = val
+}
+
+// SetLastStaffMessageAt sets the value of LastStaffMessageAt.
+func (s *FollowUpItem) SetLastStaffMessageAt(val time.Time) {
+	s.LastStaffMessageAt = val
+}
+
+// SetLastStaffSnippet sets the value of LastStaffSnippet.
+func (s *FollowUpItem) SetLastStaffSnippet(val OptString) {
+	s.LastStaffSnippet = val
+}
+
+// SetWindowEndsAt sets the value of WindowEndsAt.
+func (s *FollowUpItem) SetWindowEndsAt(val time.Time) {
+	s.WindowEndsAt = val
+}
+
+// Ref: #/components/schemas/FollowUpList
+type FollowUpList struct {
+	Items []FollowUpItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *FollowUpList) GetItems() []FollowUpItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *FollowUpList) SetItems(val []FollowUpItem) {
+	s.Items = val
+}
+
+func (*FollowUpList) listFollowUpsRes() {}
+
 // Ref: #/components/schemas/FulfillmentSettings
 type FulfillmentSettings struct {
 	// Số giờ không cập nhật thì coi là kẹt, theo trạng thái vận đơn.
@@ -12221,6 +15922,77 @@ func (s *Grant) SetPermission(val string) {
 // SetScope sets the value of Scope.
 func (s *Grant) SetScope(val Scope) {
 	s.Scope = val
+}
+
+// Ref: #/components/schemas/GreetingConfig
+type GreetingConfig struct {
+	Kind         GreetingConfigKind `json:"kind"`
+	Text         string             `json:"text"`
+	QuickReplies []QuickReply       `json:"quickReplies"`
+}
+
+// GetKind returns the value of Kind.
+func (s *GreetingConfig) GetKind() GreetingConfigKind {
+	return s.Kind
+}
+
+// GetText returns the value of Text.
+func (s *GreetingConfig) GetText() string {
+	return s.Text
+}
+
+// GetQuickReplies returns the value of QuickReplies.
+func (s *GreetingConfig) GetQuickReplies() []QuickReply {
+	return s.QuickReplies
+}
+
+// SetKind sets the value of Kind.
+func (s *GreetingConfig) SetKind(val GreetingConfigKind) {
+	s.Kind = val
+}
+
+// SetText sets the value of Text.
+func (s *GreetingConfig) SetText(val string) {
+	s.Text = val
+}
+
+// SetQuickReplies sets the value of QuickReplies.
+func (s *GreetingConfig) SetQuickReplies(val []QuickReply) {
+	s.QuickReplies = val
+}
+
+type GreetingConfigKind string
+
+const (
+	GreetingConfigKindGreeting GreetingConfigKind = "greeting"
+)
+
+// AllValues returns all GreetingConfigKind values.
+func (GreetingConfigKind) AllValues() []GreetingConfigKind {
+	return []GreetingConfigKind{
+		GreetingConfigKindGreeting,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s GreetingConfigKind) MarshalText() ([]byte, error) {
+	switch s {
+	case GreetingConfigKindGreeting:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *GreetingConfigKind) UnmarshalText(data []byte) error {
+	switch GreetingConfigKind(data) {
+	case GreetingConfigKindGreeting:
+		*s = GreetingConfigKindGreeting
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type HealthDeepOK DeepHealth
@@ -13938,6 +17710,47 @@ func (s *ListJobsStatus) UnmarshalText(data []byte) error {
 	}
 }
 
+type ListMyRemindersStatus string
+
+const (
+	ListMyRemindersStatusPending ListMyRemindersStatus = "pending"
+	ListMyRemindersStatusFired   ListMyRemindersStatus = "fired"
+)
+
+// AllValues returns all ListMyRemindersStatus values.
+func (ListMyRemindersStatus) AllValues() []ListMyRemindersStatus {
+	return []ListMyRemindersStatus{
+		ListMyRemindersStatusPending,
+		ListMyRemindersStatusFired,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListMyRemindersStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ListMyRemindersStatusPending:
+		return []byte(s), nil
+	case ListMyRemindersStatusFired:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListMyRemindersStatus) UnmarshalText(data []byte) error {
+	switch ListMyRemindersStatus(data) {
+	case ListMyRemindersStatusPending:
+		*s = ListMyRemindersStatusPending
+		return nil
+	case ListMyRemindersStatusFired:
+		*s = ListMyRemindersStatusFired
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ListOrdersCodState string
 
 const (
@@ -14161,6 +17974,649 @@ func (s *ListUnmappedLocationsLevel) UnmarshalText(data []byte) error {
 type ListWarehousesOKApplicationJSON []Warehouse
 
 func (*ListWarehousesOKApplicationJSON) listWarehousesRes() {}
+
+// Ref: #/components/schemas/LiveComment
+type LiveComment struct {
+	MessageId            uuid.UUID              `json:"messageId"`
+	ConversationId       uuid.UUID              `json:"conversationId"`
+	Customer             ChatCustomerRef        `json:"customer"`
+	Text                 string                 `json:"text"`
+	SentAt               time.Time              `json:"sentAt"`
+	HasPhone             bool                   `json:"hasPhone"`
+	IsHidden             bool                   `json:"isHidden"`
+	Claim                OptLiveCommentClaimRef `json:"claim"`
+	PrivateReply         ChatPrivateReplyRef    `json:"privateReply"`
+	CustomerHasOpenDraft bool                   `json:"customerHasOpenDraft"`
+}
+
+// GetMessageId returns the value of MessageId.
+func (s *LiveComment) GetMessageId() uuid.UUID {
+	return s.MessageId
+}
+
+// GetConversationId returns the value of ConversationId.
+func (s *LiveComment) GetConversationId() uuid.UUID {
+	return s.ConversationId
+}
+
+// GetCustomer returns the value of Customer.
+func (s *LiveComment) GetCustomer() ChatCustomerRef {
+	return s.Customer
+}
+
+// GetText returns the value of Text.
+func (s *LiveComment) GetText() string {
+	return s.Text
+}
+
+// GetSentAt returns the value of SentAt.
+func (s *LiveComment) GetSentAt() time.Time {
+	return s.SentAt
+}
+
+// GetHasPhone returns the value of HasPhone.
+func (s *LiveComment) GetHasPhone() bool {
+	return s.HasPhone
+}
+
+// GetIsHidden returns the value of IsHidden.
+func (s *LiveComment) GetIsHidden() bool {
+	return s.IsHidden
+}
+
+// GetClaim returns the value of Claim.
+func (s *LiveComment) GetClaim() OptLiveCommentClaimRef {
+	return s.Claim
+}
+
+// GetPrivateReply returns the value of PrivateReply.
+func (s *LiveComment) GetPrivateReply() ChatPrivateReplyRef {
+	return s.PrivateReply
+}
+
+// GetCustomerHasOpenDraft returns the value of CustomerHasOpenDraft.
+func (s *LiveComment) GetCustomerHasOpenDraft() bool {
+	return s.CustomerHasOpenDraft
+}
+
+// SetMessageId sets the value of MessageId.
+func (s *LiveComment) SetMessageId(val uuid.UUID) {
+	s.MessageId = val
+}
+
+// SetConversationId sets the value of ConversationId.
+func (s *LiveComment) SetConversationId(val uuid.UUID) {
+	s.ConversationId = val
+}
+
+// SetCustomer sets the value of Customer.
+func (s *LiveComment) SetCustomer(val ChatCustomerRef) {
+	s.Customer = val
+}
+
+// SetText sets the value of Text.
+func (s *LiveComment) SetText(val string) {
+	s.Text = val
+}
+
+// SetSentAt sets the value of SentAt.
+func (s *LiveComment) SetSentAt(val time.Time) {
+	s.SentAt = val
+}
+
+// SetHasPhone sets the value of HasPhone.
+func (s *LiveComment) SetHasPhone(val bool) {
+	s.HasPhone = val
+}
+
+// SetIsHidden sets the value of IsHidden.
+func (s *LiveComment) SetIsHidden(val bool) {
+	s.IsHidden = val
+}
+
+// SetClaim sets the value of Claim.
+func (s *LiveComment) SetClaim(val OptLiveCommentClaimRef) {
+	s.Claim = val
+}
+
+// SetPrivateReply sets the value of PrivateReply.
+func (s *LiveComment) SetPrivateReply(val ChatPrivateReplyRef) {
+	s.PrivateReply = val
+}
+
+// SetCustomerHasOpenDraft sets the value of CustomerHasOpenDraft.
+func (s *LiveComment) SetCustomerHasOpenDraft(val bool) {
+	s.CustomerHasOpenDraft = val
+}
+
+// Ref: #/components/schemas/LiveCommentClaimRef
+type LiveCommentClaimRef struct {
+	By        Actor     `json:"by"`
+	OrderId   uuid.UUID `json:"orderId"`
+	OrderCode string    `json:"orderCode"`
+}
+
+// GetBy returns the value of By.
+func (s *LiveCommentClaimRef) GetBy() Actor {
+	return s.By
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *LiveCommentClaimRef) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetOrderCode returns the value of OrderCode.
+func (s *LiveCommentClaimRef) GetOrderCode() string {
+	return s.OrderCode
+}
+
+// SetBy sets the value of By.
+func (s *LiveCommentClaimRef) SetBy(val Actor) {
+	s.By = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *LiveCommentClaimRef) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetOrderCode sets the value of OrderCode.
+func (s *LiveCommentClaimRef) SetOrderCode(val string) {
+	s.OrderCode = val
+}
+
+// Ref: #/components/schemas/LiveCommentContext
+type LiveCommentContext struct {
+	Customer   ChatCustomerCardInfo `json:"customer"`
+	OpenDrafts []LiveDraftRef       `json:"openDrafts"`
+	// SĐT tách từ comment (dạng 0xxxxxxxxx).
+	Phones   []string  `json:"phones"`
+	SellerId uuid.UUID `json:"sellerId"`
+}
+
+// GetCustomer returns the value of Customer.
+func (s *LiveCommentContext) GetCustomer() ChatCustomerCardInfo {
+	return s.Customer
+}
+
+// GetOpenDrafts returns the value of OpenDrafts.
+func (s *LiveCommentContext) GetOpenDrafts() []LiveDraftRef {
+	return s.OpenDrafts
+}
+
+// GetPhones returns the value of Phones.
+func (s *LiveCommentContext) GetPhones() []string {
+	return s.Phones
+}
+
+// GetSellerId returns the value of SellerId.
+func (s *LiveCommentContext) GetSellerId() uuid.UUID {
+	return s.SellerId
+}
+
+// SetCustomer sets the value of Customer.
+func (s *LiveCommentContext) SetCustomer(val ChatCustomerCardInfo) {
+	s.Customer = val
+}
+
+// SetOpenDrafts sets the value of OpenDrafts.
+func (s *LiveCommentContext) SetOpenDrafts(val []LiveDraftRef) {
+	s.OpenDrafts = val
+}
+
+// SetPhones sets the value of Phones.
+func (s *LiveCommentContext) SetPhones(val []string) {
+	s.Phones = val
+}
+
+// SetSellerId sets the value of SellerId.
+func (s *LiveCommentContext) SetSellerId(val uuid.UUID) {
+	s.SellerId = val
+}
+
+func (*LiveCommentContext) getLiveCommentContextRes() {}
+
+// Ref: #/components/schemas/LiveCommentPage
+type LiveCommentPage struct {
+	Items      []LiveComment `json:"items"`
+	NextCursor OptString     `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *LiveCommentPage) GetItems() []LiveComment {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *LiveCommentPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *LiveCommentPage) SetItems(val []LiveComment) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *LiveCommentPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*LiveCommentPage) listLiveCommentsRes() {}
+
+// Ref: #/components/schemas/LiveDraftItem
+type LiveDraftItem struct {
+	VariantId uuid.UUID `json:"variantId"`
+	Name      string    `json:"name"`
+	Quantity  int32     `json:"quantity"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *LiveDraftItem) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetName returns the value of Name.
+func (s *LiveDraftItem) GetName() string {
+	return s.Name
+}
+
+// GetQuantity returns the value of Quantity.
+func (s *LiveDraftItem) GetQuantity() int32 {
+	return s.Quantity
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *LiveDraftItem) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetName sets the value of Name.
+func (s *LiveDraftItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetQuantity sets the value of Quantity.
+func (s *LiveDraftItem) SetQuantity(val int32) {
+	s.Quantity = val
+}
+
+// Ref: #/components/schemas/LiveDraftRef
+type LiveDraftRef struct {
+	OrderId    uuid.UUID       `json:"orderId"`
+	Code       string          `json:"code"`
+	Items      []LiveDraftItem `json:"items"`
+	GrandTotal Money           `json:"grandTotal"`
+	Version    int64           `json:"version"`
+	ExpiresAt  OptDateTime     `json:"expiresAt"`
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *LiveDraftRef) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetCode returns the value of Code.
+func (s *LiveDraftRef) GetCode() string {
+	return s.Code
+}
+
+// GetItems returns the value of Items.
+func (s *LiveDraftRef) GetItems() []LiveDraftItem {
+	return s.Items
+}
+
+// GetGrandTotal returns the value of GrandTotal.
+func (s *LiveDraftRef) GetGrandTotal() Money {
+	return s.GrandTotal
+}
+
+// GetVersion returns the value of Version.
+func (s *LiveDraftRef) GetVersion() int64 {
+	return s.Version
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *LiveDraftRef) GetExpiresAt() OptDateTime {
+	return s.ExpiresAt
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *LiveDraftRef) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetCode sets the value of Code.
+func (s *LiveDraftRef) SetCode(val string) {
+	s.Code = val
+}
+
+// SetItems sets the value of Items.
+func (s *LiveDraftRef) SetItems(val []LiveDraftItem) {
+	s.Items = val
+}
+
+// SetGrandTotal sets the value of GrandTotal.
+func (s *LiveDraftRef) SetGrandTotal(val Money) {
+	s.GrandTotal = val
+}
+
+// SetVersion sets the value of Version.
+func (s *LiveDraftRef) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *LiveDraftRef) SetExpiresAt(val OptDateTime) {
+	s.ExpiresAt = val
+}
+
+// Ref: #/components/schemas/LiveSession
+type LiveSession struct {
+	ID               uuid.UUID             `json:"id"`
+	PageId           uuid.UUID             `json:"pageId"`
+	LiveVideoId      string                `json:"liveVideoId"`
+	VideoId          OptString             `json:"videoId"`
+	Title            OptString             `json:"title"`
+	Status           LiveSessionStatus     `json:"status"`
+	StartedAt        time.Time             `json:"startedAt"`
+	EndedAt          OptDateTime           `json:"endedAt"`
+	DetectedBy       LiveSessionDetectedBy `json:"detectedBy"`
+	ReceivedCount    int32                 `json:"receivedCount"`
+	MetaCommentCount OptInt32              `json:"metaCommentCount"`
+	// Nguồn comment đang đọc (sse, poll).
+	ActiveSource  OptString   `json:"activeSource"`
+	LastCommentAt OptDateTime `json:"lastCommentAt"`
+	Version       int32       `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *LiveSession) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetPageId returns the value of PageId.
+func (s *LiveSession) GetPageId() uuid.UUID {
+	return s.PageId
+}
+
+// GetLiveVideoId returns the value of LiveVideoId.
+func (s *LiveSession) GetLiveVideoId() string {
+	return s.LiveVideoId
+}
+
+// GetVideoId returns the value of VideoId.
+func (s *LiveSession) GetVideoId() OptString {
+	return s.VideoId
+}
+
+// GetTitle returns the value of Title.
+func (s *LiveSession) GetTitle() OptString {
+	return s.Title
+}
+
+// GetStatus returns the value of Status.
+func (s *LiveSession) GetStatus() LiveSessionStatus {
+	return s.Status
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *LiveSession) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *LiveSession) GetEndedAt() OptDateTime {
+	return s.EndedAt
+}
+
+// GetDetectedBy returns the value of DetectedBy.
+func (s *LiveSession) GetDetectedBy() LiveSessionDetectedBy {
+	return s.DetectedBy
+}
+
+// GetReceivedCount returns the value of ReceivedCount.
+func (s *LiveSession) GetReceivedCount() int32 {
+	return s.ReceivedCount
+}
+
+// GetMetaCommentCount returns the value of MetaCommentCount.
+func (s *LiveSession) GetMetaCommentCount() OptInt32 {
+	return s.MetaCommentCount
+}
+
+// GetActiveSource returns the value of ActiveSource.
+func (s *LiveSession) GetActiveSource() OptString {
+	return s.ActiveSource
+}
+
+// GetLastCommentAt returns the value of LastCommentAt.
+func (s *LiveSession) GetLastCommentAt() OptDateTime {
+	return s.LastCommentAt
+}
+
+// GetVersion returns the value of Version.
+func (s *LiveSession) GetVersion() int32 {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *LiveSession) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetPageId sets the value of PageId.
+func (s *LiveSession) SetPageId(val uuid.UUID) {
+	s.PageId = val
+}
+
+// SetLiveVideoId sets the value of LiveVideoId.
+func (s *LiveSession) SetLiveVideoId(val string) {
+	s.LiveVideoId = val
+}
+
+// SetVideoId sets the value of VideoId.
+func (s *LiveSession) SetVideoId(val OptString) {
+	s.VideoId = val
+}
+
+// SetTitle sets the value of Title.
+func (s *LiveSession) SetTitle(val OptString) {
+	s.Title = val
+}
+
+// SetStatus sets the value of Status.
+func (s *LiveSession) SetStatus(val LiveSessionStatus) {
+	s.Status = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *LiveSession) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *LiveSession) SetEndedAt(val OptDateTime) {
+	s.EndedAt = val
+}
+
+// SetDetectedBy sets the value of DetectedBy.
+func (s *LiveSession) SetDetectedBy(val LiveSessionDetectedBy) {
+	s.DetectedBy = val
+}
+
+// SetReceivedCount sets the value of ReceivedCount.
+func (s *LiveSession) SetReceivedCount(val int32) {
+	s.ReceivedCount = val
+}
+
+// SetMetaCommentCount sets the value of MetaCommentCount.
+func (s *LiveSession) SetMetaCommentCount(val OptInt32) {
+	s.MetaCommentCount = val
+}
+
+// SetActiveSource sets the value of ActiveSource.
+func (s *LiveSession) SetActiveSource(val OptString) {
+	s.ActiveSource = val
+}
+
+// SetLastCommentAt sets the value of LastCommentAt.
+func (s *LiveSession) SetLastCommentAt(val OptDateTime) {
+	s.LastCommentAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *LiveSession) SetVersion(val int32) {
+	s.Version = val
+}
+
+func (*LiveSession) endLiveSessionManuallyRes()   {}
+func (*LiveSession) startLiveSessionManuallyRes() {}
+
+type LiveSessionDetectedBy string
+
+const (
+	LiveSessionDetectedByWebhook LiveSessionDetectedBy = "webhook"
+	LiveSessionDetectedByPoll    LiveSessionDetectedBy = "poll"
+	LiveSessionDetectedByManual  LiveSessionDetectedBy = "manual"
+)
+
+// AllValues returns all LiveSessionDetectedBy values.
+func (LiveSessionDetectedBy) AllValues() []LiveSessionDetectedBy {
+	return []LiveSessionDetectedBy{
+		LiveSessionDetectedByWebhook,
+		LiveSessionDetectedByPoll,
+		LiveSessionDetectedByManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LiveSessionDetectedBy) MarshalText() ([]byte, error) {
+	switch s {
+	case LiveSessionDetectedByWebhook:
+		return []byte(s), nil
+	case LiveSessionDetectedByPoll:
+		return []byte(s), nil
+	case LiveSessionDetectedByManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LiveSessionDetectedBy) UnmarshalText(data []byte) error {
+	switch LiveSessionDetectedBy(data) {
+	case LiveSessionDetectedByWebhook:
+		*s = LiveSessionDetectedByWebhook
+		return nil
+	case LiveSessionDetectedByPoll:
+		*s = LiveSessionDetectedByPoll
+		return nil
+	case LiveSessionDetectedByManual:
+		*s = LiveSessionDetectedByManual
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/LiveSessionList
+type LiveSessionList struct {
+	Items []LiveSession `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *LiveSessionList) GetItems() []LiveSession {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *LiveSessionList) SetItems(val []LiveSession) {
+	s.Items = val
+}
+
+func (*LiveSessionList) listLiveSessionsRes() {}
+
+// Ref: #/components/schemas/LiveSessionStatus
+type LiveSessionStatus string
+
+const (
+	LiveSessionStatusLive  LiveSessionStatus = "live"
+	LiveSessionStatusEnded LiveSessionStatus = "ended"
+)
+
+// AllValues returns all LiveSessionStatus values.
+func (LiveSessionStatus) AllValues() []LiveSessionStatus {
+	return []LiveSessionStatus{
+		LiveSessionStatusLive,
+		LiveSessionStatusEnded,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LiveSessionStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case LiveSessionStatusLive:
+		return []byte(s), nil
+	case LiveSessionStatusEnded:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LiveSessionStatus) UnmarshalText(data []byte) error {
+	switch LiveSessionStatus(data) {
+	case LiveSessionStatusLive:
+		*s = LiveSessionStatusLive
+		return nil
+	case LiveSessionStatusEnded:
+		*s = LiveSessionStatusEnded
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/LiveSlot
+type LiveSlot struct {
+	From            string    `json:"from"`
+	To              string    `json:"to"`
+	TrafficSourceId uuid.UUID `json:"trafficSourceId"`
+}
+
+// GetFrom returns the value of From.
+func (s *LiveSlot) GetFrom() string {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *LiveSlot) GetTo() string {
+	return s.To
+}
+
+// GetTrafficSourceId returns the value of TrafficSourceId.
+func (s *LiveSlot) GetTrafficSourceId() uuid.UUID {
+	return s.TrafficSourceId
+}
+
+// SetFrom sets the value of From.
+func (s *LiveSlot) SetFrom(val string) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *LiveSlot) SetTo(val string) {
+	s.To = val
+}
+
+// SetTrafficSourceId sets the value of TrafficSourceId.
+func (s *LiveSlot) SetTrafficSourceId(val uuid.UUID) {
+	s.TrafficSourceId = val
+}
 
 // Một bộ phối (Task 454). onHome: hiện trên trang chủ (≤ 6); bộ nào cũng mở
 // được bằng link. title rỗng = tên các món; headline, story rỗng = không hiện.
@@ -15045,6 +19501,26 @@ func (s *LostFilePage) SetNextCursor(val OptString) {
 
 func (*LostFilePage) listLostFilesRes() {}
 
+// MarkConversationReadNoContent is response for MarkConversationRead operation.
+type MarkConversationReadNoContent struct{}
+
+func (*MarkConversationReadNoContent) markConversationReadRes() {}
+
+// Ref: #/components/schemas/MarkConversationReadRequest
+type MarkConversationReadRequest struct {
+	UpToMessageId uuid.UUID `json:"upToMessageId"`
+}
+
+// GetUpToMessageId returns the value of UpToMessageId.
+func (s *MarkConversationReadRequest) GetUpToMessageId() uuid.UUID {
+	return s.UpToMessageId
+}
+
+// SetUpToMessageId sets the value of UpToMessageId.
+func (s *MarkConversationReadRequest) SetUpToMessageId(val uuid.UUID) {
+	s.UpToMessageId = val
+}
+
 // Ref: #/components/schemas/Me
 type Me struct {
 	UserId uuid.UUID `json:"userId"`
@@ -15240,7 +19716,481 @@ func (s *MergeCustomerRequestMatchedBy) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/MessageDirection
+type MessageDirection string
+
+const (
+	MessageDirectionIn  MessageDirection = "in"
+	MessageDirectionOut MessageDirection = "out"
+)
+
+// AllValues returns all MessageDirection values.
+func (MessageDirection) AllValues() []MessageDirection {
+	return []MessageDirection{
+		MessageDirectionIn,
+		MessageDirectionOut,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s MessageDirection) MarshalText() ([]byte, error) {
+	switch s {
+	case MessageDirectionIn:
+		return []byte(s), nil
+	case MessageDirectionOut:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *MessageDirection) UnmarshalText(data []byte) error {
+	switch MessageDirection(data) {
+	case MessageDirectionIn:
+		*s = MessageDirectionIn
+		return nil
+	case MessageDirectionOut:
+		*s = MessageDirectionOut
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/MessageKind
+type MessageKind string
+
+const (
+	MessageKindMessage      MessageKind = "message"
+	MessageKindComment      MessageKind = "comment"
+	MessageKindPrivateReply MessageKind = "private_reply"
+	MessageKindNote         MessageKind = "note"
+	MessageKindSystem       MessageKind = "system"
+)
+
+// AllValues returns all MessageKind values.
+func (MessageKind) AllValues() []MessageKind {
+	return []MessageKind{
+		MessageKindMessage,
+		MessageKindComment,
+		MessageKindPrivateReply,
+		MessageKindNote,
+		MessageKindSystem,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s MessageKind) MarshalText() ([]byte, error) {
+	switch s {
+	case MessageKindMessage:
+		return []byte(s), nil
+	case MessageKindComment:
+		return []byte(s), nil
+	case MessageKindPrivateReply:
+		return []byte(s), nil
+	case MessageKindNote:
+		return []byte(s), nil
+	case MessageKindSystem:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *MessageKind) UnmarshalText(data []byte) error {
+	switch MessageKind(data) {
+	case MessageKindMessage:
+		*s = MessageKindMessage
+		return nil
+	case MessageKindComment:
+		*s = MessageKindComment
+		return nil
+	case MessageKindPrivateReply:
+		*s = MessageKindPrivateReply
+		return nil
+	case MessageKindNote:
+		*s = MessageKindNote
+		return nil
+	case MessageKindSystem:
+		*s = MessageKindSystem
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/MessageOrigin
+type MessageOrigin string
+
+const (
+	MessageOriginCustomer         MessageOrigin = "customer"
+	MessageOriginStaff            MessageOrigin = "staff"
+	MessageOriginAutomation       MessageOrigin = "automation"
+	MessageOriginPageExternal     MessageOrigin = "page_external"
+	MessageOriginOwnEchoUnmatched MessageOrigin = "own_echo_unmatched"
+	MessageOriginHistory          MessageOrigin = "history"
+	MessageOriginSystem           MessageOrigin = "system"
+)
+
+// AllValues returns all MessageOrigin values.
+func (MessageOrigin) AllValues() []MessageOrigin {
+	return []MessageOrigin{
+		MessageOriginCustomer,
+		MessageOriginStaff,
+		MessageOriginAutomation,
+		MessageOriginPageExternal,
+		MessageOriginOwnEchoUnmatched,
+		MessageOriginHistory,
+		MessageOriginSystem,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s MessageOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case MessageOriginCustomer:
+		return []byte(s), nil
+	case MessageOriginStaff:
+		return []byte(s), nil
+	case MessageOriginAutomation:
+		return []byte(s), nil
+	case MessageOriginPageExternal:
+		return []byte(s), nil
+	case MessageOriginOwnEchoUnmatched:
+		return []byte(s), nil
+	case MessageOriginHistory:
+		return []byte(s), nil
+	case MessageOriginSystem:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *MessageOrigin) UnmarshalText(data []byte) error {
+	switch MessageOrigin(data) {
+	case MessageOriginCustomer:
+		*s = MessageOriginCustomer
+		return nil
+	case MessageOriginStaff:
+		*s = MessageOriginStaff
+		return nil
+	case MessageOriginAutomation:
+		*s = MessageOriginAutomation
+		return nil
+	case MessageOriginPageExternal:
+		*s = MessageOriginPageExternal
+		return nil
+	case MessageOriginOwnEchoUnmatched:
+		*s = MessageOriginOwnEchoUnmatched
+		return nil
+	case MessageOriginHistory:
+		*s = MessageOriginHistory
+		return nil
+	case MessageOriginSystem:
+		*s = MessageOriginSystem
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/MessagePage
+type MessagePage struct {
+	Items       []ChatMessage `json:"items"`
+	OlderCursor OptString     `json:"olderCursor"`
+	NewerCursor OptString     `json:"newerCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *MessagePage) GetItems() []ChatMessage {
+	return s.Items
+}
+
+// GetOlderCursor returns the value of OlderCursor.
+func (s *MessagePage) GetOlderCursor() OptString {
+	return s.OlderCursor
+}
+
+// GetNewerCursor returns the value of NewerCursor.
+func (s *MessagePage) GetNewerCursor() OptString {
+	return s.NewerCursor
+}
+
+// SetItems sets the value of Items.
+func (s *MessagePage) SetItems(val []ChatMessage) {
+	s.Items = val
+}
+
+// SetOlderCursor sets the value of OlderCursor.
+func (s *MessagePage) SetOlderCursor(val OptString) {
+	s.OlderCursor = val
+}
+
+// SetNewerCursor sets the value of NewerCursor.
+func (s *MessagePage) SetNewerCursor(val OptString) {
+	s.NewerCursor = val
+}
+
+func (*MessagePage) listMessagesRes() {}
+
+// Ref: #/components/schemas/MessageRevision
+type MessageRevision struct {
+	Body       OptString             `json:"body"`
+	IsHidden   bool                  `json:"isHidden"`
+	Removed    bool                  `json:"removed"`
+	Source     MessageRevisionSource `json:"source"`
+	RecordedAt time.Time             `json:"recordedAt"`
+}
+
+// GetBody returns the value of Body.
+func (s *MessageRevision) GetBody() OptString {
+	return s.Body
+}
+
+// GetIsHidden returns the value of IsHidden.
+func (s *MessageRevision) GetIsHidden() bool {
+	return s.IsHidden
+}
+
+// GetRemoved returns the value of Removed.
+func (s *MessageRevision) GetRemoved() bool {
+	return s.Removed
+}
+
+// GetSource returns the value of Source.
+func (s *MessageRevision) GetSource() MessageRevisionSource {
+	return s.Source
+}
+
+// GetRecordedAt returns the value of RecordedAt.
+func (s *MessageRevision) GetRecordedAt() time.Time {
+	return s.RecordedAt
+}
+
+// SetBody sets the value of Body.
+func (s *MessageRevision) SetBody(val OptString) {
+	s.Body = val
+}
+
+// SetIsHidden sets the value of IsHidden.
+func (s *MessageRevision) SetIsHidden(val bool) {
+	s.IsHidden = val
+}
+
+// SetRemoved sets the value of Removed.
+func (s *MessageRevision) SetRemoved(val bool) {
+	s.Removed = val
+}
+
+// SetSource sets the value of Source.
+func (s *MessageRevision) SetSource(val MessageRevisionSource) {
+	s.Source = val
+}
+
+// SetRecordedAt sets the value of RecordedAt.
+func (s *MessageRevision) SetRecordedAt(val time.Time) {
+	s.RecordedAt = val
+}
+
+// Ref: #/components/schemas/MessageRevisionList
+type MessageRevisionList struct {
+	Items []MessageRevision `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *MessageRevisionList) GetItems() []MessageRevision {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *MessageRevisionList) SetItems(val []MessageRevision) {
+	s.Items = val
+}
+
+func (*MessageRevisionList) listMessageRevisionsRes() {}
+
+type MessageRevisionSource string
+
+const (
+	MessageRevisionSourceCustomer     MessageRevisionSource = "customer"
+	MessageRevisionSourceStaff        MessageRevisionSource = "staff"
+	MessageRevisionSourcePageExternal MessageRevisionSource = "page_external"
+	MessageRevisionSourceAutomation   MessageRevisionSource = "automation"
+)
+
+// AllValues returns all MessageRevisionSource values.
+func (MessageRevisionSource) AllValues() []MessageRevisionSource {
+	return []MessageRevisionSource{
+		MessageRevisionSourceCustomer,
+		MessageRevisionSourceStaff,
+		MessageRevisionSourcePageExternal,
+		MessageRevisionSourceAutomation,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s MessageRevisionSource) MarshalText() ([]byte, error) {
+	switch s {
+	case MessageRevisionSourceCustomer:
+		return []byte(s), nil
+	case MessageRevisionSourceStaff:
+		return []byte(s), nil
+	case MessageRevisionSourcePageExternal:
+		return []byte(s), nil
+	case MessageRevisionSourceAutomation:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *MessageRevisionSource) UnmarshalText(data []byte) error {
+	switch MessageRevisionSource(data) {
+	case MessageRevisionSourceCustomer:
+		*s = MessageRevisionSourceCustomer
+		return nil
+	case MessageRevisionSourceStaff:
+		*s = MessageRevisionSourceStaff
+		return nil
+	case MessageRevisionSourcePageExternal:
+		*s = MessageRevisionSourcePageExternal
+		return nil
+	case MessageRevisionSourceAutomation:
+		*s = MessageRevisionSourceAutomation
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/MessageSendStatus
+type MessageSendStatus string
+
+const (
+	MessageSendStatusQueued    MessageSendStatus = "queued"
+	MessageSendStatusSent      MessageSendStatus = "sent"
+	MessageSendStatusFailed    MessageSendStatus = "failed"
+	MessageSendStatusChecking  MessageSendStatus = "checking"
+	MessageSendStatusInDoubt   MessageSendStatus = "in_doubt"
+	MessageSendStatusExpired   MessageSendStatus = "expired"
+	MessageSendStatusDiscarded MessageSendStatus = "discarded"
+)
+
+// AllValues returns all MessageSendStatus values.
+func (MessageSendStatus) AllValues() []MessageSendStatus {
+	return []MessageSendStatus{
+		MessageSendStatusQueued,
+		MessageSendStatusSent,
+		MessageSendStatusFailed,
+		MessageSendStatusChecking,
+		MessageSendStatusInDoubt,
+		MessageSendStatusExpired,
+		MessageSendStatusDiscarded,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s MessageSendStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case MessageSendStatusQueued:
+		return []byte(s), nil
+	case MessageSendStatusSent:
+		return []byte(s), nil
+	case MessageSendStatusFailed:
+		return []byte(s), nil
+	case MessageSendStatusChecking:
+		return []byte(s), nil
+	case MessageSendStatusInDoubt:
+		return []byte(s), nil
+	case MessageSendStatusExpired:
+		return []byte(s), nil
+	case MessageSendStatusDiscarded:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *MessageSendStatus) UnmarshalText(data []byte) error {
+	switch MessageSendStatus(data) {
+	case MessageSendStatusQueued:
+		*s = MessageSendStatusQueued
+		return nil
+	case MessageSendStatusSent:
+		*s = MessageSendStatusSent
+		return nil
+	case MessageSendStatusFailed:
+		*s = MessageSendStatusFailed
+		return nil
+	case MessageSendStatusChecking:
+		*s = MessageSendStatusChecking
+		return nil
+	case MessageSendStatusInDoubt:
+		*s = MessageSendStatusInDoubt
+		return nil
+	case MessageSendStatusExpired:
+		*s = MessageSendStatusExpired
+		return nil
+	case MessageSendStatusDiscarded:
+		*s = MessageSendStatusDiscarded
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type Money int64
+
+// NewNilUUID returns new NilUUID with value set to v.
+func NewNilUUID(v uuid.UUID) NilUUID {
+	return NilUUID{
+		Value: v,
+	}
+}
+
+// NilUUID is nullable uuid.UUID.
+type NilUUID struct {
+	Value uuid.UUID
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilUUID) SetTo(v uuid.UUID) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilUUID) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilUUID) SetToNull() {
+	o.Null = true
+	var v uuid.UUID
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilUUID) Get() (v uuid.UUID, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilUUID) Or(d uuid.UUID) uuid.UUID {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
 
 // Ref: #/components/schemas/Note
 type Note struct {
@@ -15471,6 +20421,52 @@ func (o OptArticleBlockLevel) Get() (v ArticleBlockLevel, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptArticleBlockLevel) Or(d ArticleBlockLevel) ArticleBlockLevel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptAutoReplyPrivateMessage returns new OptAutoReplyPrivateMessage with value set to v.
+func NewOptAutoReplyPrivateMessage(v AutoReplyPrivateMessage) OptAutoReplyPrivateMessage {
+	return OptAutoReplyPrivateMessage{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAutoReplyPrivateMessage is optional AutoReplyPrivateMessage.
+type OptAutoReplyPrivateMessage struct {
+	Value AutoReplyPrivateMessage
+	Set   bool
+}
+
+// IsSet returns true if OptAutoReplyPrivateMessage was set.
+func (o OptAutoReplyPrivateMessage) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAutoReplyPrivateMessage) Reset() {
+	var v AutoReplyPrivateMessage
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAutoReplyPrivateMessage) SetTo(v AutoReplyPrivateMessage) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAutoReplyPrivateMessage) Get() (v AutoReplyPrivateMessage, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAutoReplyPrivateMessage) Or(d AutoReplyPrivateMessage) AutoReplyPrivateMessage {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -16029,6 +21025,190 @@ func (o OptCategorySlug) Or(d CategorySlug) CategorySlug {
 	return d
 }
 
+// NewOptChannelFeatures returns new OptChannelFeatures with value set to v.
+func NewOptChannelFeatures(v ChannelFeatures) OptChannelFeatures {
+	return OptChannelFeatures{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptChannelFeatures is optional ChannelFeatures.
+type OptChannelFeatures struct {
+	Value ChannelFeatures
+	Set   bool
+}
+
+// IsSet returns true if OptChannelFeatures was set.
+func (o OptChannelFeatures) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptChannelFeatures) Reset() {
+	var v ChannelFeatures
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptChannelFeatures) SetTo(v ChannelFeatures) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptChannelFeatures) Get() (v ChannelFeatures, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptChannelFeatures) Or(d ChannelFeatures) ChannelFeatures {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptChatMessageHiddenReason returns new OptChatMessageHiddenReason with value set to v.
+func NewOptChatMessageHiddenReason(v ChatMessageHiddenReason) OptChatMessageHiddenReason {
+	return OptChatMessageHiddenReason{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptChatMessageHiddenReason is optional ChatMessageHiddenReason.
+type OptChatMessageHiddenReason struct {
+	Value ChatMessageHiddenReason
+	Set   bool
+}
+
+// IsSet returns true if OptChatMessageHiddenReason was set.
+func (o OptChatMessageHiddenReason) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptChatMessageHiddenReason) Reset() {
+	var v ChatMessageHiddenReason
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptChatMessageHiddenReason) SetTo(v ChatMessageHiddenReason) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptChatMessageHiddenReason) Get() (v ChatMessageHiddenReason, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptChatMessageHiddenReason) Or(d ChatMessageHiddenReason) ChatMessageHiddenReason {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptChatPostRef returns new OptChatPostRef with value set to v.
+func NewOptChatPostRef(v ChatPostRef) OptChatPostRef {
+	return OptChatPostRef{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptChatPostRef is optional ChatPostRef.
+type OptChatPostRef struct {
+	Value ChatPostRef
+	Set   bool
+}
+
+// IsSet returns true if OptChatPostRef was set.
+func (o OptChatPostRef) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptChatPostRef) Reset() {
+	var v ChatPostRef
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptChatPostRef) SetTo(v ChatPostRef) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptChatPostRef) Get() (v ChatPostRef, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptChatPostRef) Or(d ChatPostRef) ChatPostRef {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptChatPrivateReplyRef returns new OptChatPrivateReplyRef with value set to v.
+func NewOptChatPrivateReplyRef(v ChatPrivateReplyRef) OptChatPrivateReplyRef {
+	return OptChatPrivateReplyRef{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptChatPrivateReplyRef is optional ChatPrivateReplyRef.
+type OptChatPrivateReplyRef struct {
+	Value ChatPrivateReplyRef
+	Set   bool
+}
+
+// IsSet returns true if OptChatPrivateReplyRef was set.
+func (o OptChatPrivateReplyRef) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptChatPrivateReplyRef) Reset() {
+	var v ChatPrivateReplyRef
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptChatPrivateReplyRef) SetTo(v ChatPrivateReplyRef) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptChatPrivateReplyRef) Get() (v ChatPrivateReplyRef, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptChatPrivateReplyRef) Or(d ChatPrivateReplyRef) ChatPrivateReplyRef {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptClassName returns new OptClassName with value set to v.
 func NewOptClassName(v ClassName) OptClassName {
 	return OptClassName{
@@ -16299,6 +21479,98 @@ func (o OptColorHex) Get() (v ColorHex, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptColorHex) Or(d ColorHex) ColorHex {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptConversationKind returns new OptConversationKind with value set to v.
+func NewOptConversationKind(v ConversationKind) OptConversationKind {
+	return OptConversationKind{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptConversationKind is optional ConversationKind.
+type OptConversationKind struct {
+	Value ConversationKind
+	Set   bool
+}
+
+// IsSet returns true if OptConversationKind was set.
+func (o OptConversationKind) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptConversationKind) Reset() {
+	var v ConversationKind
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptConversationKind) SetTo(v ConversationKind) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptConversationKind) Get() (v ConversationKind, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptConversationKind) Or(d ConversationKind) ConversationKind {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptConversationStatus returns new OptConversationStatus with value set to v.
+func NewOptConversationStatus(v ConversationStatus) OptConversationStatus {
+	return OptConversationStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptConversationStatus is optional ConversationStatus.
+type OptConversationStatus struct {
+	Value ConversationStatus
+	Set   bool
+}
+
+// IsSet returns true if OptConversationStatus was set.
+func (o OptConversationStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptConversationStatus) Reset() {
+	var v ConversationStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptConversationStatus) SetTo(v ConversationStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptConversationStatus) Get() (v ConversationStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptConversationStatus) Or(d ConversationStatus) ConversationStatus {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -17639,6 +22911,52 @@ func (o OptListJobsStatus) Or(d ListJobsStatus) ListJobsStatus {
 	return d
 }
 
+// NewOptListMyRemindersStatus returns new OptListMyRemindersStatus with value set to v.
+func NewOptListMyRemindersStatus(v ListMyRemindersStatus) OptListMyRemindersStatus {
+	return OptListMyRemindersStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListMyRemindersStatus is optional ListMyRemindersStatus.
+type OptListMyRemindersStatus struct {
+	Value ListMyRemindersStatus
+	Set   bool
+}
+
+// IsSet returns true if OptListMyRemindersStatus was set.
+func (o OptListMyRemindersStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListMyRemindersStatus) Reset() {
+	var v ListMyRemindersStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListMyRemindersStatus) SetTo(v ListMyRemindersStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListMyRemindersStatus) Get() (v ListMyRemindersStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListMyRemindersStatus) Or(d ListMyRemindersStatus) ListMyRemindersStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptListOrdersCodState returns new OptListOrdersCodState with value set to v.
 func NewOptListOrdersCodState(v ListOrdersCodState) OptListOrdersCodState {
 	return OptListOrdersCodState{
@@ -17823,6 +23141,98 @@ func (o OptListUnmappedLocationsLevel) Or(d ListUnmappedLocationsLevel) ListUnma
 	return d
 }
 
+// NewOptLiveCommentClaimRef returns new OptLiveCommentClaimRef with value set to v.
+func NewOptLiveCommentClaimRef(v LiveCommentClaimRef) OptLiveCommentClaimRef {
+	return OptLiveCommentClaimRef{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptLiveCommentClaimRef is optional LiveCommentClaimRef.
+type OptLiveCommentClaimRef struct {
+	Value LiveCommentClaimRef
+	Set   bool
+}
+
+// IsSet returns true if OptLiveCommentClaimRef was set.
+func (o OptLiveCommentClaimRef) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptLiveCommentClaimRef) Reset() {
+	var v LiveCommentClaimRef
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptLiveCommentClaimRef) SetTo(v LiveCommentClaimRef) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptLiveCommentClaimRef) Get() (v LiveCommentClaimRef, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptLiveCommentClaimRef) Or(d LiveCommentClaimRef) LiveCommentClaimRef {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptLiveSessionStatus returns new OptLiveSessionStatus with value set to v.
+func NewOptLiveSessionStatus(v LiveSessionStatus) OptLiveSessionStatus {
+	return OptLiveSessionStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptLiveSessionStatus is optional LiveSessionStatus.
+type OptLiveSessionStatus struct {
+	Value LiveSessionStatus
+	Set   bool
+}
+
+// IsSet returns true if OptLiveSessionStatus was set.
+func (o OptLiveSessionStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptLiveSessionStatus) Reset() {
+	var v LiveSessionStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptLiveSessionStatus) SetTo(v LiveSessionStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptLiveSessionStatus) Get() (v LiveSessionStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptLiveSessionStatus) Or(d LiveSessionStatus) LiveSessionStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptLookHidden returns new OptLookHidden with value set to v.
 func NewOptLookHidden(v LookHidden) OptLookHidden {
 	return OptLookHidden{
@@ -17863,6 +23273,52 @@ func (o OptLookHidden) Get() (v LookHidden, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptLookHidden) Or(d LookHidden) LookHidden {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptMessageSendStatus returns new OptMessageSendStatus with value set to v.
+func NewOptMessageSendStatus(v MessageSendStatus) OptMessageSendStatus {
+	return OptMessageSendStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptMessageSendStatus is optional MessageSendStatus.
+type OptMessageSendStatus struct {
+	Value MessageSendStatus
+	Set   bool
+}
+
+// IsSet returns true if OptMessageSendStatus was set.
+func (o OptMessageSendStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptMessageSendStatus) Reset() {
+	var v MessageSendStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptMessageSendStatus) SetTo(v MessageSendStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptMessageSendStatus) Get() (v MessageSendStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptMessageSendStatus) Or(d MessageSendStatus) MessageSendStatus {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -19407,6 +24863,98 @@ func (o OptReturnStatus) Or(d ReturnStatus) ReturnStatus {
 	return d
 }
 
+// NewOptSendDenyReason returns new OptSendDenyReason with value set to v.
+func NewOptSendDenyReason(v SendDenyReason) OptSendDenyReason {
+	return OptSendDenyReason{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSendDenyReason is optional SendDenyReason.
+type OptSendDenyReason struct {
+	Value SendDenyReason
+	Set   bool
+}
+
+// IsSet returns true if OptSendDenyReason was set.
+func (o OptSendDenyReason) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSendDenyReason) Reset() {
+	var v SendDenyReason
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSendDenyReason) SetTo(v SendDenyReason) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSendDenyReason) Get() (v SendDenyReason, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSendDenyReason) Or(d SendDenyReason) SendDenyReason {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptSendMode returns new OptSendMode with value set to v.
+func NewOptSendMode(v SendMode) OptSendMode {
+	return OptSendMode{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSendMode is optional SendMode.
+type OptSendMode struct {
+	Value SendMode
+	Set   bool
+}
+
+// IsSet returns true if OptSendMode was set.
+func (o OptSendMode) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSendMode) Reset() {
+	var v SendMode
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSendMode) SetTo(v SendMode) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSendMode) Get() (v SendMode, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSendMode) Or(d SendMode) SendMode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptSetOrderPendingRequestReason returns new OptSetOrderPendingRequestReason with value set to v.
 func NewOptSetOrderPendingRequestReason(v SetOrderPendingRequestReason) OptSetOrderPendingRequestReason {
 	return OptSetOrderPendingRequestReason{
@@ -20045,6 +25593,52 @@ func (o OptTimelineItemSummary) Get() (v TimelineItemSummary, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptTimelineItemSummary) Or(d TimelineItemSummary) TimelineItemSummary {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptURI returns new OptURI with value set to v.
+func NewOptURI(v url.URL) OptURI {
+	return OptURI{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptURI is optional url.URL.
+type OptURI struct {
+	Value url.URL
+	Set   bool
+}
+
+// IsSet returns true if OptURI was set.
+func (o OptURI) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptURI) Reset() {
+	var v url.URL
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptURI) SetTo(v url.URL) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptURI) Get() (v url.URL, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptURI) Or(d url.URL) url.URL {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -24156,6 +29750,277 @@ func (s *PackingResultResult) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/PagePost
+type PagePost struct {
+	ID uuid.UUID `json:"id"`
+	// Mã bài trên kênh (giá trị của exceptPostIds, postIds trong quy tắc tự động).
+	ExternalId string       `json:"externalId"`
+	Kind       PagePostKind `json:"kind"`
+	Snippet    OptString    `json:"snippet"`
+	PostedAt   OptDateTime  `json:"postedAt"`
+	Permalink  OptURI       `json:"permalink"`
+}
+
+// GetID returns the value of ID.
+func (s *PagePost) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetExternalId returns the value of ExternalId.
+func (s *PagePost) GetExternalId() string {
+	return s.ExternalId
+}
+
+// GetKind returns the value of Kind.
+func (s *PagePost) GetKind() PagePostKind {
+	return s.Kind
+}
+
+// GetSnippet returns the value of Snippet.
+func (s *PagePost) GetSnippet() OptString {
+	return s.Snippet
+}
+
+// GetPostedAt returns the value of PostedAt.
+func (s *PagePost) GetPostedAt() OptDateTime {
+	return s.PostedAt
+}
+
+// GetPermalink returns the value of Permalink.
+func (s *PagePost) GetPermalink() OptURI {
+	return s.Permalink
+}
+
+// SetID sets the value of ID.
+func (s *PagePost) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetExternalId sets the value of ExternalId.
+func (s *PagePost) SetExternalId(val string) {
+	s.ExternalId = val
+}
+
+// SetKind sets the value of Kind.
+func (s *PagePost) SetKind(val PagePostKind) {
+	s.Kind = val
+}
+
+// SetSnippet sets the value of Snippet.
+func (s *PagePost) SetSnippet(val OptString) {
+	s.Snippet = val
+}
+
+// SetPostedAt sets the value of PostedAt.
+func (s *PagePost) SetPostedAt(val OptDateTime) {
+	s.PostedAt = val
+}
+
+// SetPermalink sets the value of Permalink.
+func (s *PagePost) SetPermalink(val OptURI) {
+	s.Permalink = val
+}
+
+type PagePostKind string
+
+const (
+	PagePostKindPost    PagePostKind = "post"
+	PagePostKindLive    PagePostKind = "live"
+	PagePostKindAd      PagePostKind = "ad"
+	PagePostKindUnknown PagePostKind = "unknown"
+)
+
+// AllValues returns all PagePostKind values.
+func (PagePostKind) AllValues() []PagePostKind {
+	return []PagePostKind{
+		PagePostKindPost,
+		PagePostKindLive,
+		PagePostKindAd,
+		PagePostKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PagePostKind) MarshalText() ([]byte, error) {
+	switch s {
+	case PagePostKindPost:
+		return []byte(s), nil
+	case PagePostKindLive:
+		return []byte(s), nil
+	case PagePostKindAd:
+		return []byte(s), nil
+	case PagePostKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PagePostKind) UnmarshalText(data []byte) error {
+	switch PagePostKind(data) {
+	case PagePostKindPost:
+		*s = PagePostKindPost
+		return nil
+	case PagePostKindLive:
+		*s = PagePostKindLive
+		return nil
+	case PagePostKindAd:
+		*s = PagePostKindAd
+		return nil
+	case PagePostKindUnknown:
+		*s = PagePostKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/PagePostPage
+type PagePostPage struct {
+	Items      []PagePost `json:"items"`
+	NextCursor OptString  `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *PagePostPage) GetItems() []PagePost {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *PagePostPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *PagePostPage) SetItems(val []PagePost) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *PagePostPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*PagePostPage) listPagePostsRes() {}
+
+// Ref: #/components/schemas/PageSettings
+type PageSettings struct {
+	ChannelAccountId        uuid.UUID       `json:"channelAccountId"`
+	RoundRobinEnabled       bool            `json:"roundRobinEnabled"`
+	RoundRobinUserIds       []uuid.UUID     `json:"roundRobinUserIds"`
+	AskAddressTemplateId    OptUUID         `json:"askAddressTemplateId"`
+	InboxTrafficSourceId    OptUUID         `json:"inboxTrafficSourceId"`
+	CommentTrafficSourceId  OptUUID         `json:"commentTrafficSourceId"`
+	LiveSlots               []LiveSlot      `json:"liveSlots"`
+	CommentPollMode         CommentPollMode `json:"commentPollMode"`
+	AutomationMaxAgeMinutes int32           `json:"automationMaxAgeMinutes"`
+	Version                 int32           `json:"version"`
+}
+
+// GetChannelAccountId returns the value of ChannelAccountId.
+func (s *PageSettings) GetChannelAccountId() uuid.UUID {
+	return s.ChannelAccountId
+}
+
+// GetRoundRobinEnabled returns the value of RoundRobinEnabled.
+func (s *PageSettings) GetRoundRobinEnabled() bool {
+	return s.RoundRobinEnabled
+}
+
+// GetRoundRobinUserIds returns the value of RoundRobinUserIds.
+func (s *PageSettings) GetRoundRobinUserIds() []uuid.UUID {
+	return s.RoundRobinUserIds
+}
+
+// GetAskAddressTemplateId returns the value of AskAddressTemplateId.
+func (s *PageSettings) GetAskAddressTemplateId() OptUUID {
+	return s.AskAddressTemplateId
+}
+
+// GetInboxTrafficSourceId returns the value of InboxTrafficSourceId.
+func (s *PageSettings) GetInboxTrafficSourceId() OptUUID {
+	return s.InboxTrafficSourceId
+}
+
+// GetCommentTrafficSourceId returns the value of CommentTrafficSourceId.
+func (s *PageSettings) GetCommentTrafficSourceId() OptUUID {
+	return s.CommentTrafficSourceId
+}
+
+// GetLiveSlots returns the value of LiveSlots.
+func (s *PageSettings) GetLiveSlots() []LiveSlot {
+	return s.LiveSlots
+}
+
+// GetCommentPollMode returns the value of CommentPollMode.
+func (s *PageSettings) GetCommentPollMode() CommentPollMode {
+	return s.CommentPollMode
+}
+
+// GetAutomationMaxAgeMinutes returns the value of AutomationMaxAgeMinutes.
+func (s *PageSettings) GetAutomationMaxAgeMinutes() int32 {
+	return s.AutomationMaxAgeMinutes
+}
+
+// GetVersion returns the value of Version.
+func (s *PageSettings) GetVersion() int32 {
+	return s.Version
+}
+
+// SetChannelAccountId sets the value of ChannelAccountId.
+func (s *PageSettings) SetChannelAccountId(val uuid.UUID) {
+	s.ChannelAccountId = val
+}
+
+// SetRoundRobinEnabled sets the value of RoundRobinEnabled.
+func (s *PageSettings) SetRoundRobinEnabled(val bool) {
+	s.RoundRobinEnabled = val
+}
+
+// SetRoundRobinUserIds sets the value of RoundRobinUserIds.
+func (s *PageSettings) SetRoundRobinUserIds(val []uuid.UUID) {
+	s.RoundRobinUserIds = val
+}
+
+// SetAskAddressTemplateId sets the value of AskAddressTemplateId.
+func (s *PageSettings) SetAskAddressTemplateId(val OptUUID) {
+	s.AskAddressTemplateId = val
+}
+
+// SetInboxTrafficSourceId sets the value of InboxTrafficSourceId.
+func (s *PageSettings) SetInboxTrafficSourceId(val OptUUID) {
+	s.InboxTrafficSourceId = val
+}
+
+// SetCommentTrafficSourceId sets the value of CommentTrafficSourceId.
+func (s *PageSettings) SetCommentTrafficSourceId(val OptUUID) {
+	s.CommentTrafficSourceId = val
+}
+
+// SetLiveSlots sets the value of LiveSlots.
+func (s *PageSettings) SetLiveSlots(val []LiveSlot) {
+	s.LiveSlots = val
+}
+
+// SetCommentPollMode sets the value of CommentPollMode.
+func (s *PageSettings) SetCommentPollMode(val CommentPollMode) {
+	s.CommentPollMode = val
+}
+
+// SetAutomationMaxAgeMinutes sets the value of AutomationMaxAgeMinutes.
+func (s *PageSettings) SetAutomationMaxAgeMinutes(val int32) {
+	s.AutomationMaxAgeMinutes = val
+}
+
+// SetVersion sets the value of Version.
+func (s *PageSettings) SetVersion(val int32) {
+	s.Version = val
+}
+
+func (*PageSettings) getPageSettingsRes()    {}
+func (*PageSettings) updatePageSettingsRes() {}
+
 // Ref: #/components/schemas/PayRefundObligationRequest
 type PayRefundObligationRequest struct {
 	Amount    Money     `json:"amount"`
@@ -24376,6 +30241,195 @@ func (s *PaymentPage) SetNextCursor(val OptString) {
 }
 
 func (*PaymentPage) listOrderPaymentsRes() {}
+
+// Ref: #/components/schemas/PendingDraft
+type PendingDraft struct {
+	OrderId uuid.UUID `json:"orderId"`
+	// Hội thoại comment chứa comment được chốt (Task 501).
+	ConversationId uuid.UUID `json:"conversationId"`
+	// Hộp thư của khách trên Page của phiên (nơi tin xin địa chỉ được gửi, khách
+	// trả địa chỉ); chưa có → không có (màn mở conversationId).
+	InboxConversationId     OptUUID          `json:"inboxConversationId"`
+	OrderCode               string           `json:"orderCode"`
+	Customer                ChatCustomerRef  `json:"customer"`
+	Items                   []LiveDraftItem  `json:"items"`
+	GrandTotal              Money            `json:"grandTotal"`
+	ExpiresAt               OptDateTime      `json:"expiresAt"`
+	ClaimedBy               Actor            `json:"claimedBy"`
+	ClaimedAt               time.Time        `json:"claimedAt"`
+	Ask                     AskAddressResult `json:"ask"`
+	CustomerRepliedAfterAsk bool             `json:"customerRepliedAfterAsk"`
+	CanRemind               RemindAllowed    `json:"canRemind"`
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *PendingDraft) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetConversationId returns the value of ConversationId.
+func (s *PendingDraft) GetConversationId() uuid.UUID {
+	return s.ConversationId
+}
+
+// GetInboxConversationId returns the value of InboxConversationId.
+func (s *PendingDraft) GetInboxConversationId() OptUUID {
+	return s.InboxConversationId
+}
+
+// GetOrderCode returns the value of OrderCode.
+func (s *PendingDraft) GetOrderCode() string {
+	return s.OrderCode
+}
+
+// GetCustomer returns the value of Customer.
+func (s *PendingDraft) GetCustomer() ChatCustomerRef {
+	return s.Customer
+}
+
+// GetItems returns the value of Items.
+func (s *PendingDraft) GetItems() []LiveDraftItem {
+	return s.Items
+}
+
+// GetGrandTotal returns the value of GrandTotal.
+func (s *PendingDraft) GetGrandTotal() Money {
+	return s.GrandTotal
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *PendingDraft) GetExpiresAt() OptDateTime {
+	return s.ExpiresAt
+}
+
+// GetClaimedBy returns the value of ClaimedBy.
+func (s *PendingDraft) GetClaimedBy() Actor {
+	return s.ClaimedBy
+}
+
+// GetClaimedAt returns the value of ClaimedAt.
+func (s *PendingDraft) GetClaimedAt() time.Time {
+	return s.ClaimedAt
+}
+
+// GetAsk returns the value of Ask.
+func (s *PendingDraft) GetAsk() AskAddressResult {
+	return s.Ask
+}
+
+// GetCustomerRepliedAfterAsk returns the value of CustomerRepliedAfterAsk.
+func (s *PendingDraft) GetCustomerRepliedAfterAsk() bool {
+	return s.CustomerRepliedAfterAsk
+}
+
+// GetCanRemind returns the value of CanRemind.
+func (s *PendingDraft) GetCanRemind() RemindAllowed {
+	return s.CanRemind
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *PendingDraft) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetConversationId sets the value of ConversationId.
+func (s *PendingDraft) SetConversationId(val uuid.UUID) {
+	s.ConversationId = val
+}
+
+// SetInboxConversationId sets the value of InboxConversationId.
+func (s *PendingDraft) SetInboxConversationId(val OptUUID) {
+	s.InboxConversationId = val
+}
+
+// SetOrderCode sets the value of OrderCode.
+func (s *PendingDraft) SetOrderCode(val string) {
+	s.OrderCode = val
+}
+
+// SetCustomer sets the value of Customer.
+func (s *PendingDraft) SetCustomer(val ChatCustomerRef) {
+	s.Customer = val
+}
+
+// SetItems sets the value of Items.
+func (s *PendingDraft) SetItems(val []LiveDraftItem) {
+	s.Items = val
+}
+
+// SetGrandTotal sets the value of GrandTotal.
+func (s *PendingDraft) SetGrandTotal(val Money) {
+	s.GrandTotal = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *PendingDraft) SetExpiresAt(val OptDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetClaimedBy sets the value of ClaimedBy.
+func (s *PendingDraft) SetClaimedBy(val Actor) {
+	s.ClaimedBy = val
+}
+
+// SetClaimedAt sets the value of ClaimedAt.
+func (s *PendingDraft) SetClaimedAt(val time.Time) {
+	s.ClaimedAt = val
+}
+
+// SetAsk sets the value of Ask.
+func (s *PendingDraft) SetAsk(val AskAddressResult) {
+	s.Ask = val
+}
+
+// SetCustomerRepliedAfterAsk sets the value of CustomerRepliedAfterAsk.
+func (s *PendingDraft) SetCustomerRepliedAfterAsk(val bool) {
+	s.CustomerRepliedAfterAsk = val
+}
+
+// SetCanRemind sets the value of CanRemind.
+func (s *PendingDraft) SetCanRemind(val RemindAllowed) {
+	s.CanRemind = val
+}
+
+// Ref: #/components/schemas/PendingDraftList
+type PendingDraftList struct {
+	Items          []PendingDraft `json:"items"`
+	ExpiredCount   int32          `json:"expiredCount"`
+	ConfirmedCount int32          `json:"confirmedCount"`
+}
+
+// GetItems returns the value of Items.
+func (s *PendingDraftList) GetItems() []PendingDraft {
+	return s.Items
+}
+
+// GetExpiredCount returns the value of ExpiredCount.
+func (s *PendingDraftList) GetExpiredCount() int32 {
+	return s.ExpiredCount
+}
+
+// GetConfirmedCount returns the value of ConfirmedCount.
+func (s *PendingDraftList) GetConfirmedCount() int32 {
+	return s.ConfirmedCount
+}
+
+// SetItems sets the value of Items.
+func (s *PendingDraftList) SetItems(val []PendingDraft) {
+	s.Items = val
+}
+
+// SetExpiredCount sets the value of ExpiredCount.
+func (s *PendingDraftList) SetExpiredCount(val int32) {
+	s.ExpiredCount = val
+}
+
+// SetConfirmedCount sets the value of ConfirmedCount.
+func (s *PendingDraftList) SetConfirmedCount(val int32) {
+	s.ConfirmedCount = val
+}
+
+func (*PendingDraftList) listPendingDraftsRes() {}
 
 // Lý do đơn mới còn chờ; không có trường này nghĩa là không chờ.
 // Ref: #/components/schemas/PendingReason
@@ -24766,6 +30820,109 @@ func (s *PlatformHealth) SetAlerts(val []AlertSummary) {
 func (*PlatformHealth) getPlatformHealthRes() {}
 
 type Position int32
+
+// Ref: #/components/schemas/PresenceEntry
+type PresenceEntry struct {
+	UserId      uuid.UUID     `json:"userId"`
+	DisplayName string        `json:"displayName"`
+	State       PresenceState `json:"state"`
+}
+
+// GetUserId returns the value of UserId.
+func (s *PresenceEntry) GetUserId() uuid.UUID {
+	return s.UserId
+}
+
+// GetDisplayName returns the value of DisplayName.
+func (s *PresenceEntry) GetDisplayName() string {
+	return s.DisplayName
+}
+
+// GetState returns the value of State.
+func (s *PresenceEntry) GetState() PresenceState {
+	return s.State
+}
+
+// SetUserId sets the value of UserId.
+func (s *PresenceEntry) SetUserId(val uuid.UUID) {
+	s.UserId = val
+}
+
+// SetDisplayName sets the value of DisplayName.
+func (s *PresenceEntry) SetDisplayName(val string) {
+	s.DisplayName = val
+}
+
+// SetState sets the value of State.
+func (s *PresenceEntry) SetState(val PresenceState) {
+	s.State = val
+}
+
+// Ref: #/components/schemas/PresenceList
+type PresenceList struct {
+	Items []PresenceEntry `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *PresenceList) GetItems() []PresenceEntry {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *PresenceList) SetItems(val []PresenceEntry) {
+	s.Items = val
+}
+
+func (*PresenceList) getPresenceRes() {}
+
+// Ref: #/components/schemas/PresenceState
+type PresenceState string
+
+const (
+	PresenceStateViewing       PresenceState = "viewing"
+	PresenceStateTyping        PresenceState = "typing"
+	PresenceStateDraftingOrder PresenceState = "drafting_order"
+)
+
+// AllValues returns all PresenceState values.
+func (PresenceState) AllValues() []PresenceState {
+	return []PresenceState{
+		PresenceStateViewing,
+		PresenceStateTyping,
+		PresenceStateDraftingOrder,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PresenceState) MarshalText() ([]byte, error) {
+	switch s {
+	case PresenceStateViewing:
+		return []byte(s), nil
+	case PresenceStateTyping:
+		return []byte(s), nil
+	case PresenceStateDraftingOrder:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PresenceState) UnmarshalText(data []byte) error {
+	switch PresenceState(data) {
+	case PresenceStateViewing:
+		*s = PresenceStateViewing
+		return nil
+	case PresenceStateTyping:
+		*s = PresenceStateTyping
+		return nil
+	case PresenceStateDraftingOrder:
+		*s = PresenceStateDraftingOrder
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 // Ref: #/components/schemas/PreviewBannersRequest
 type PreviewBannersRequest struct {
@@ -25526,6 +31683,32 @@ func (s *QueueHealth) SetDead(val int64) {
 // SetInDoubt sets the value of InDoubt.
 func (s *QueueHealth) SetInDoubt(val int64) {
 	s.InDoubt = val
+}
+
+// Ref: #/components/schemas/QuickReply
+type QuickReply struct {
+	Title   string `json:"title"`
+	Payload string `json:"payload"`
+}
+
+// GetTitle returns the value of Title.
+func (s *QuickReply) GetTitle() string {
+	return s.Title
+}
+
+// GetPayload returns the value of Payload.
+func (s *QuickReply) GetPayload() string {
+	return s.Payload
+}
+
+// SetTitle sets the value of Title.
+func (s *QuickReply) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetPayload sets the value of Payload.
+func (s *QuickReply) SetPayload(val string) {
+	s.Payload = val
 }
 
 // Ref: #/components/schemas/ReceiveReturnRequest
@@ -26401,6 +32584,456 @@ func (s *RegenerateImagesResult) SetEnqueued(val int32) {
 
 func (*RegenerateImagesResult) regenerateImagesRes() {}
 
+// Ref: #/components/schemas/RemindAllowed
+type RemindAllowed struct {
+	Allowed bool      `json:"allowed"`
+	Reason  OptString `json:"reason"`
+}
+
+// GetAllowed returns the value of Allowed.
+func (s *RemindAllowed) GetAllowed() bool {
+	return s.Allowed
+}
+
+// GetReason returns the value of Reason.
+func (s *RemindAllowed) GetReason() OptString {
+	return s.Reason
+}
+
+// SetAllowed sets the value of Allowed.
+func (s *RemindAllowed) SetAllowed(val bool) {
+	s.Allowed = val
+}
+
+// SetReason sets the value of Reason.
+func (s *RemindAllowed) SetReason(val OptString) {
+	s.Reason = val
+}
+
+// Ref: #/components/schemas/RemindOutcome
+type RemindOutcome struct {
+	OrderId uuid.UUID            `json:"orderId"`
+	Outcome RemindOutcomeOutcome `json:"outcome"`
+	Reason  OptString            `json:"reason"`
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *RemindOutcome) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetOutcome returns the value of Outcome.
+func (s *RemindOutcome) GetOutcome() RemindOutcomeOutcome {
+	return s.Outcome
+}
+
+// GetReason returns the value of Reason.
+func (s *RemindOutcome) GetReason() OptString {
+	return s.Reason
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *RemindOutcome) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetOutcome sets the value of Outcome.
+func (s *RemindOutcome) SetOutcome(val RemindOutcomeOutcome) {
+	s.Outcome = val
+}
+
+// SetReason sets the value of Reason.
+func (s *RemindOutcome) SetReason(val OptString) {
+	s.Reason = val
+}
+
+type RemindOutcomeOutcome string
+
+const (
+	RemindOutcomeOutcomeQueued  RemindOutcomeOutcome = "queued"
+	RemindOutcomeOutcomeSkipped RemindOutcomeOutcome = "skipped"
+)
+
+// AllValues returns all RemindOutcomeOutcome values.
+func (RemindOutcomeOutcome) AllValues() []RemindOutcomeOutcome {
+	return []RemindOutcomeOutcome{
+		RemindOutcomeOutcomeQueued,
+		RemindOutcomeOutcomeSkipped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s RemindOutcomeOutcome) MarshalText() ([]byte, error) {
+	switch s {
+	case RemindOutcomeOutcomeQueued:
+		return []byte(s), nil
+	case RemindOutcomeOutcomeSkipped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *RemindOutcomeOutcome) UnmarshalText(data []byte) error {
+	switch RemindOutcomeOutcome(data) {
+	case RemindOutcomeOutcomeQueued:
+		*s = RemindOutcomeOutcomeQueued
+		return nil
+	case RemindOutcomeOutcomeSkipped:
+		*s = RemindOutcomeOutcomeSkipped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/RemindPendingDraftsRequest
+type RemindPendingDraftsRequest struct {
+	// Rỗng hoặc không có = mọi đơn còn nháp của phiên.
+	OrderIds   []uuid.UUID `json:"orderIds"`
+	TemplateId uuid.UUID   `json:"templateId"`
+}
+
+// GetOrderIds returns the value of OrderIds.
+func (s *RemindPendingDraftsRequest) GetOrderIds() []uuid.UUID {
+	return s.OrderIds
+}
+
+// GetTemplateId returns the value of TemplateId.
+func (s *RemindPendingDraftsRequest) GetTemplateId() uuid.UUID {
+	return s.TemplateId
+}
+
+// SetOrderIds sets the value of OrderIds.
+func (s *RemindPendingDraftsRequest) SetOrderIds(val []uuid.UUID) {
+	s.OrderIds = val
+}
+
+// SetTemplateId sets the value of TemplateId.
+func (s *RemindPendingDraftsRequest) SetTemplateId(val uuid.UUID) {
+	s.TemplateId = val
+}
+
+// Ref: #/components/schemas/RemindPendingDraftsResult
+type RemindPendingDraftsResult struct {
+	Results []RemindOutcome `json:"results"`
+}
+
+// GetResults returns the value of Results.
+func (s *RemindPendingDraftsResult) GetResults() []RemindOutcome {
+	return s.Results
+}
+
+// SetResults sets the value of Results.
+func (s *RemindPendingDraftsResult) SetResults(val []RemindOutcome) {
+	s.Results = val
+}
+
+func (*RemindPendingDraftsResult) remindPendingDraftsRes() {}
+
+// Ref: #/components/schemas/Reminder
+type Reminder struct {
+	ID             uuid.UUID      `json:"id"`
+	ConversationId uuid.UUID      `json:"conversationId"`
+	UserId         uuid.UUID      `json:"userId"`
+	RemindAt       time.Time      `json:"remindAt"`
+	Note           OptString      `json:"note"`
+	Status         ReminderStatus `json:"status"`
+	Source         ReminderSource `json:"source"`
+	FiredAt        OptDateTime    `json:"firedAt"`
+	Version        int32          `json:"version"`
+	CreatedAt      time.Time      `json:"createdAt"`
+}
+
+// GetID returns the value of ID.
+func (s *Reminder) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetConversationId returns the value of ConversationId.
+func (s *Reminder) GetConversationId() uuid.UUID {
+	return s.ConversationId
+}
+
+// GetUserId returns the value of UserId.
+func (s *Reminder) GetUserId() uuid.UUID {
+	return s.UserId
+}
+
+// GetRemindAt returns the value of RemindAt.
+func (s *Reminder) GetRemindAt() time.Time {
+	return s.RemindAt
+}
+
+// GetNote returns the value of Note.
+func (s *Reminder) GetNote() OptString {
+	return s.Note
+}
+
+// GetStatus returns the value of Status.
+func (s *Reminder) GetStatus() ReminderStatus {
+	return s.Status
+}
+
+// GetSource returns the value of Source.
+func (s *Reminder) GetSource() ReminderSource {
+	return s.Source
+}
+
+// GetFiredAt returns the value of FiredAt.
+func (s *Reminder) GetFiredAt() OptDateTime {
+	return s.FiredAt
+}
+
+// GetVersion returns the value of Version.
+func (s *Reminder) GetVersion() int32 {
+	return s.Version
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *Reminder) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetID sets the value of ID.
+func (s *Reminder) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetConversationId sets the value of ConversationId.
+func (s *Reminder) SetConversationId(val uuid.UUID) {
+	s.ConversationId = val
+}
+
+// SetUserId sets the value of UserId.
+func (s *Reminder) SetUserId(val uuid.UUID) {
+	s.UserId = val
+}
+
+// SetRemindAt sets the value of RemindAt.
+func (s *Reminder) SetRemindAt(val time.Time) {
+	s.RemindAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *Reminder) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetStatus sets the value of Status.
+func (s *Reminder) SetStatus(val ReminderStatus) {
+	s.Status = val
+}
+
+// SetSource sets the value of Source.
+func (s *Reminder) SetSource(val ReminderSource) {
+	s.Source = val
+}
+
+// SetFiredAt sets the value of FiredAt.
+func (s *Reminder) SetFiredAt(val OptDateTime) {
+	s.FiredAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *Reminder) SetVersion(val int32) {
+	s.Version = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *Reminder) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+func (*Reminder) cancelReminderRes()   {}
+func (*Reminder) completeReminderRes() {}
+func (*Reminder) createReminderRes()   {}
+
+// Ref: #/components/schemas/ReminderList
+type ReminderList struct {
+	Items []Reminder `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *ReminderList) GetItems() []Reminder {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *ReminderList) SetItems(val []Reminder) {
+	s.Items = val
+}
+
+func (*ReminderList) listMyRemindersRes() {}
+
+type ReminderSource string
+
+const (
+	ReminderSourceManual       ReminderSource = "manual"
+	ReminderSourceCallCallback ReminderSource = "call_callback"
+)
+
+// AllValues returns all ReminderSource values.
+func (ReminderSource) AllValues() []ReminderSource {
+	return []ReminderSource{
+		ReminderSourceManual,
+		ReminderSourceCallCallback,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReminderSource) MarshalText() ([]byte, error) {
+	switch s {
+	case ReminderSourceManual:
+		return []byte(s), nil
+	case ReminderSourceCallCallback:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReminderSource) UnmarshalText(data []byte) error {
+	switch ReminderSource(data) {
+	case ReminderSourceManual:
+		*s = ReminderSourceManual
+		return nil
+	case ReminderSourceCallCallback:
+		*s = ReminderSourceCallCallback
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ReminderStatus
+type ReminderStatus string
+
+const (
+	ReminderStatusPending   ReminderStatus = "pending"
+	ReminderStatusFired     ReminderStatus = "fired"
+	ReminderStatusDone      ReminderStatus = "done"
+	ReminderStatusCancelled ReminderStatus = "cancelled"
+)
+
+// AllValues returns all ReminderStatus values.
+func (ReminderStatus) AllValues() []ReminderStatus {
+	return []ReminderStatus{
+		ReminderStatusPending,
+		ReminderStatusFired,
+		ReminderStatusDone,
+		ReminderStatusCancelled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReminderStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReminderStatusPending:
+		return []byte(s), nil
+	case ReminderStatusFired:
+		return []byte(s), nil
+	case ReminderStatusDone:
+		return []byte(s), nil
+	case ReminderStatusCancelled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReminderStatus) UnmarshalText(data []byte) error {
+	switch ReminderStatus(data) {
+	case ReminderStatusPending:
+		*s = ReminderStatusPending
+		return nil
+	case ReminderStatusFired:
+		*s = ReminderStatusFired
+		return nil
+	case ReminderStatusDone:
+		*s = ReminderStatusDone
+		return nil
+	case ReminderStatusCancelled:
+		*s = ReminderStatusCancelled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// RemoveConversationTagNoContent is response for RemoveConversationTag operation.
+type RemoveConversationTagNoContent struct{}
+
+func (*RemoveConversationTagNoContent) removeConversationTagRes() {}
+
+// Ref: #/components/schemas/RenderReplyTemplateRequest
+type RenderReplyTemplateRequest struct {
+	ConversationId uuid.UUID `json:"conversationId"`
+	OrderId        OptUUID   `json:"orderId"`
+}
+
+// GetConversationId returns the value of ConversationId.
+func (s *RenderReplyTemplateRequest) GetConversationId() uuid.UUID {
+	return s.ConversationId
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *RenderReplyTemplateRequest) GetOrderId() OptUUID {
+	return s.OrderId
+}
+
+// SetConversationId sets the value of ConversationId.
+func (s *RenderReplyTemplateRequest) SetConversationId(val uuid.UUID) {
+	s.ConversationId = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *RenderReplyTemplateRequest) SetOrderId(val OptUUID) {
+	s.OrderId = val
+}
+
+// Ref: #/components/schemas/RenderedReplyTemplate
+type RenderedReplyTemplate struct {
+	Text             string       `json:"text"`
+	AttachmentFileId OptUUID      `json:"attachmentFileId"`
+	QuickReplies     []QuickReply `json:"quickReplies"`
+}
+
+// GetText returns the value of Text.
+func (s *RenderedReplyTemplate) GetText() string {
+	return s.Text
+}
+
+// GetAttachmentFileId returns the value of AttachmentFileId.
+func (s *RenderedReplyTemplate) GetAttachmentFileId() OptUUID {
+	return s.AttachmentFileId
+}
+
+// GetQuickReplies returns the value of QuickReplies.
+func (s *RenderedReplyTemplate) GetQuickReplies() []QuickReply {
+	return s.QuickReplies
+}
+
+// SetText sets the value of Text.
+func (s *RenderedReplyTemplate) SetText(val string) {
+	s.Text = val
+}
+
+// SetAttachmentFileId sets the value of AttachmentFileId.
+func (s *RenderedReplyTemplate) SetAttachmentFileId(val OptUUID) {
+	s.AttachmentFileId = val
+}
+
+// SetQuickReplies sets the value of QuickReplies.
+func (s *RenderedReplyTemplate) SetQuickReplies(val []QuickReply) {
+	s.QuickReplies = val
+}
+
+func (*RenderedReplyTemplate) renderReplyTemplateRes() {}
+
 // Ref: #/components/schemas/ReorderProductImagesRequest
 type ReorderProductImagesRequest struct {
 	ProductVersion int64       `json:"productVersion"`
@@ -26532,6 +33165,156 @@ func (s *ReplyOrderRequestRequest) SetVisibleToCustomer(val bool) {
 	s.VisibleToCustomer = val
 }
 
+// Ref: #/components/schemas/ReplyTemplate
+type ReplyTemplate struct {
+	ID uuid.UUID `json:"id"`
+	// Không có = mẫu dùng chung mọi Page.
+	PageId           OptUUID      `json:"pageId"`
+	Shortcut         string       `json:"shortcut"`
+	Title            string       `json:"title"`
+	Body             string       `json:"body"`
+	AttachmentFileId OptUUID      `json:"attachmentFileId"`
+	QuickReplies     []QuickReply `json:"quickReplies"`
+	Version          int32        `json:"version"`
+	CreatedAt        time.Time    `json:"createdAt"`
+}
+
+// GetID returns the value of ID.
+func (s *ReplyTemplate) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetPageId returns the value of PageId.
+func (s *ReplyTemplate) GetPageId() OptUUID {
+	return s.PageId
+}
+
+// GetShortcut returns the value of Shortcut.
+func (s *ReplyTemplate) GetShortcut() string {
+	return s.Shortcut
+}
+
+// GetTitle returns the value of Title.
+func (s *ReplyTemplate) GetTitle() string {
+	return s.Title
+}
+
+// GetBody returns the value of Body.
+func (s *ReplyTemplate) GetBody() string {
+	return s.Body
+}
+
+// GetAttachmentFileId returns the value of AttachmentFileId.
+func (s *ReplyTemplate) GetAttachmentFileId() OptUUID {
+	return s.AttachmentFileId
+}
+
+// GetQuickReplies returns the value of QuickReplies.
+func (s *ReplyTemplate) GetQuickReplies() []QuickReply {
+	return s.QuickReplies
+}
+
+// GetVersion returns the value of Version.
+func (s *ReplyTemplate) GetVersion() int32 {
+	return s.Version
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ReplyTemplate) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetID sets the value of ID.
+func (s *ReplyTemplate) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetPageId sets the value of PageId.
+func (s *ReplyTemplate) SetPageId(val OptUUID) {
+	s.PageId = val
+}
+
+// SetShortcut sets the value of Shortcut.
+func (s *ReplyTemplate) SetShortcut(val string) {
+	s.Shortcut = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ReplyTemplate) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetBody sets the value of Body.
+func (s *ReplyTemplate) SetBody(val string) {
+	s.Body = val
+}
+
+// SetAttachmentFileId sets the value of AttachmentFileId.
+func (s *ReplyTemplate) SetAttachmentFileId(val OptUUID) {
+	s.AttachmentFileId = val
+}
+
+// SetQuickReplies sets the value of QuickReplies.
+func (s *ReplyTemplate) SetQuickReplies(val []QuickReply) {
+	s.QuickReplies = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReplyTemplate) SetVersion(val int32) {
+	s.Version = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ReplyTemplate) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+func (*ReplyTemplate) createReplyTemplateRes() {}
+func (*ReplyTemplate) updateReplyTemplateRes() {}
+
+// Ref: #/components/schemas/ReplyTemplateList
+type ReplyTemplateList struct {
+	Items []ReplyTemplate `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *ReplyTemplateList) GetItems() []ReplyTemplate {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *ReplyTemplateList) SetItems(val []ReplyTemplate) {
+	s.Items = val
+}
+
+func (*ReplyTemplateList) listReplyTemplatesRes() {}
+
+// Ref: #/components/schemas/ReplyToCommentRequest
+type ReplyToCommentRequest struct {
+	CommentMessageId uuid.UUID `json:"commentMessageId"`
+	Text             string    `json:"text"`
+}
+
+// GetCommentMessageId returns the value of CommentMessageId.
+func (s *ReplyToCommentRequest) GetCommentMessageId() uuid.UUID {
+	return s.CommentMessageId
+}
+
+// GetText returns the value of Text.
+func (s *ReplyToCommentRequest) GetText() string {
+	return s.Text
+}
+
+// SetCommentMessageId sets the value of CommentMessageId.
+func (s *ReplyToCommentRequest) SetCommentMessageId(val uuid.UUID) {
+	s.CommentMessageId = val
+}
+
+// SetText sets the value of Text.
+func (s *ReplyToCommentRequest) SetText(val string) {
+	s.Text = val
+}
+
 // Ref: #/components/schemas/RequestAddressChangeRequest
 type RequestAddressChangeRequest struct {
 	Address AddressInput `json:"address"`
@@ -26607,6 +33390,35 @@ func (s *RequestShippingQuotesRequest) SetOptions(val OptCarrierOptions) {
 func (s *RequestShippingQuotesRequest) SetCarrierAccountIds(val []uuid.UUID) {
 	s.CarrierAccountIds = val
 }
+
+// Ref: #/components/schemas/ResendMessageResult
+type ResendMessageResult struct {
+	Message ChatMessage `json:"message"`
+	// True khi tin cũ "không rõ đã gửi" (khách có thể nhận hai lần).
+	MayDuplicate bool `json:"mayDuplicate"`
+}
+
+// GetMessage returns the value of Message.
+func (s *ResendMessageResult) GetMessage() ChatMessage {
+	return s.Message
+}
+
+// GetMayDuplicate returns the value of MayDuplicate.
+func (s *ResendMessageResult) GetMayDuplicate() bool {
+	return s.MayDuplicate
+}
+
+// SetMessage sets the value of Message.
+func (s *ResendMessageResult) SetMessage(val ChatMessage) {
+	s.Message = val
+}
+
+// SetMayDuplicate sets the value of MayDuplicate.
+func (s *ResendMessageResult) SetMayDuplicate(val bool) {
+	s.MayDuplicate = val
+}
+
+func (*ResendMessageResult) resendMessageRes() {}
 
 // Ref: #/components/schemas/ResolveAddressChangeRequest
 type ResolveAddressChangeRequest struct {
@@ -28007,6 +34819,271 @@ type SearchVariantsOKApplicationJSON []VariantSearchHit
 
 func (*SearchVariantsOKApplicationJSON) searchVariantsRes() {}
 
+// Lý do chính sách gửi của kênh không cho gửi (SendPolicy của adapter, 04 mục 4).
+// Ref: #/components/schemas/SendDenyReason
+type SendDenyReason string
+
+const (
+	SendDenyReasonWindowClosed        SendDenyReason = "window_closed"
+	SendDenyReasonPrivateReplyUsed    SendDenyReason = "private_reply_used"
+	SendDenyReasonPrivateReplyExpired SendDenyReason = "private_reply_expired"
+	SendDenyReasonBlockedByUser       SendDenyReason = "blocked_by_user"
+	SendDenyReasonNoPermission        SendDenyReason = "no_permission"
+	SendDenyReasonReadOnly            SendDenyReason = "read_only"
+	SendDenyReasonCommentRemoved      SendDenyReason = "comment_removed"
+)
+
+// AllValues returns all SendDenyReason values.
+func (SendDenyReason) AllValues() []SendDenyReason {
+	return []SendDenyReason{
+		SendDenyReasonWindowClosed,
+		SendDenyReasonPrivateReplyUsed,
+		SendDenyReasonPrivateReplyExpired,
+		SendDenyReasonBlockedByUser,
+		SendDenyReasonNoPermission,
+		SendDenyReasonReadOnly,
+		SendDenyReasonCommentRemoved,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SendDenyReason) MarshalText() ([]byte, error) {
+	switch s {
+	case SendDenyReasonWindowClosed:
+		return []byte(s), nil
+	case SendDenyReasonPrivateReplyUsed:
+		return []byte(s), nil
+	case SendDenyReasonPrivateReplyExpired:
+		return []byte(s), nil
+	case SendDenyReasonBlockedByUser:
+		return []byte(s), nil
+	case SendDenyReasonNoPermission:
+		return []byte(s), nil
+	case SendDenyReasonReadOnly:
+		return []byte(s), nil
+	case SendDenyReasonCommentRemoved:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SendDenyReason) UnmarshalText(data []byte) error {
+	switch SendDenyReason(data) {
+	case SendDenyReasonWindowClosed:
+		*s = SendDenyReasonWindowClosed
+		return nil
+	case SendDenyReasonPrivateReplyUsed:
+		*s = SendDenyReasonPrivateReplyUsed
+		return nil
+	case SendDenyReasonPrivateReplyExpired:
+		*s = SendDenyReasonPrivateReplyExpired
+		return nil
+	case SendDenyReasonBlockedByUser:
+		*s = SendDenyReasonBlockedByUser
+		return nil
+	case SendDenyReasonNoPermission:
+		*s = SendDenyReasonNoPermission
+		return nil
+	case SendDenyReasonReadOnly:
+		*s = SendDenyReasonReadOnly
+		return nil
+	case SendDenyReasonCommentRemoved:
+		*s = SendDenyReasonCommentRemoved
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Đúng một trong text, attachmentFileId (ảnh mục đích chat_outgoing đã sẵn sàng).
+// Ref: #/components/schemas/SendMessageRequest
+type SendMessageRequest struct {
+	Text             OptString `json:"text"`
+	AttachmentFileId OptUUID   `json:"attachmentFileId"`
+	HumanAgent       OptBool   `json:"humanAgent"`
+}
+
+// GetText returns the value of Text.
+func (s *SendMessageRequest) GetText() OptString {
+	return s.Text
+}
+
+// GetAttachmentFileId returns the value of AttachmentFileId.
+func (s *SendMessageRequest) GetAttachmentFileId() OptUUID {
+	return s.AttachmentFileId
+}
+
+// GetHumanAgent returns the value of HumanAgent.
+func (s *SendMessageRequest) GetHumanAgent() OptBool {
+	return s.HumanAgent
+}
+
+// SetText sets the value of Text.
+func (s *SendMessageRequest) SetText(val OptString) {
+	s.Text = val
+}
+
+// SetAttachmentFileId sets the value of AttachmentFileId.
+func (s *SendMessageRequest) SetAttachmentFileId(val OptUUID) {
+	s.AttachmentFileId = val
+}
+
+// SetHumanAgent sets the value of HumanAgent.
+func (s *SendMessageRequest) SetHumanAgent(val OptBool) {
+	s.HumanAgent = val
+}
+
+// Ref: #/components/schemas/SendMode
+type SendMode string
+
+const (
+	SendModeStandard        SendMode = "standard"
+	SendModeHumanAgent      SendMode = "human_agent"
+	SendModePrivateReply    SendMode = "private_reply"
+	SendModeCommentReply    SendMode = "comment_reply"
+	SendModeUtilityTemplate SendMode = "utility_template"
+)
+
+// AllValues returns all SendMode values.
+func (SendMode) AllValues() []SendMode {
+	return []SendMode{
+		SendModeStandard,
+		SendModeHumanAgent,
+		SendModePrivateReply,
+		SendModeCommentReply,
+		SendModeUtilityTemplate,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SendMode) MarshalText() ([]byte, error) {
+	switch s {
+	case SendModeStandard:
+		return []byte(s), nil
+	case SendModeHumanAgent:
+		return []byte(s), nil
+	case SendModePrivateReply:
+		return []byte(s), nil
+	case SendModeCommentReply:
+		return []byte(s), nil
+	case SendModeUtilityTemplate:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SendMode) UnmarshalText(data []byte) error {
+	switch SendMode(data) {
+	case SendModeStandard:
+		*s = SendModeStandard
+		return nil
+	case SendModeHumanAgent:
+		*s = SendModeHumanAgent
+		return nil
+	case SendModePrivateReply:
+		*s = SendModePrivateReply
+		return nil
+	case SendModeCommentReply:
+		*s = SendModeCommentReply
+		return nil
+	case SendModeUtilityTemplate:
+		*s = SendModeUtilityTemplate
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/SendPolicy
+type SendPolicy struct {
+	Allowed bool        `json:"allowed"`
+	Mode    OptSendMode `json:"mode"`
+	// Hết hạn cửa sổ gửi hiện tại.
+	Until     OptDateTime       `json:"until"`
+	Remaining OptInt32          `json:"remaining"`
+	Reason    OptSendDenyReason `json:"reason"`
+}
+
+// GetAllowed returns the value of Allowed.
+func (s *SendPolicy) GetAllowed() bool {
+	return s.Allowed
+}
+
+// GetMode returns the value of Mode.
+func (s *SendPolicy) GetMode() OptSendMode {
+	return s.Mode
+}
+
+// GetUntil returns the value of Until.
+func (s *SendPolicy) GetUntil() OptDateTime {
+	return s.Until
+}
+
+// GetRemaining returns the value of Remaining.
+func (s *SendPolicy) GetRemaining() OptInt32 {
+	return s.Remaining
+}
+
+// GetReason returns the value of Reason.
+func (s *SendPolicy) GetReason() OptSendDenyReason {
+	return s.Reason
+}
+
+// SetAllowed sets the value of Allowed.
+func (s *SendPolicy) SetAllowed(val bool) {
+	s.Allowed = val
+}
+
+// SetMode sets the value of Mode.
+func (s *SendPolicy) SetMode(val OptSendMode) {
+	s.Mode = val
+}
+
+// SetUntil sets the value of Until.
+func (s *SendPolicy) SetUntil(val OptDateTime) {
+	s.Until = val
+}
+
+// SetRemaining sets the value of Remaining.
+func (s *SendPolicy) SetRemaining(val OptInt32) {
+	s.Remaining = val
+}
+
+// SetReason sets the value of Reason.
+func (s *SendPolicy) SetReason(val OptSendDenyReason) {
+	s.Reason = val
+}
+
+// Ref: #/components/schemas/SendPrivateReplyRequest
+type SendPrivateReplyRequest struct {
+	CommentMessageId uuid.UUID `json:"commentMessageId"`
+	Text             string    `json:"text"`
+}
+
+// GetCommentMessageId returns the value of CommentMessageId.
+func (s *SendPrivateReplyRequest) GetCommentMessageId() uuid.UUID {
+	return s.CommentMessageId
+}
+
+// GetText returns the value of Text.
+func (s *SendPrivateReplyRequest) GetText() string {
+	return s.Text
+}
+
+// SetCommentMessageId sets the value of CommentMessageId.
+func (s *SendPrivateReplyRequest) SetCommentMessageId(val uuid.UUID) {
+	s.CommentMessageId = val
+}
+
+// SetText sets the value of Text.
+func (s *SendPrivateReplyRequest) SetText(val string) {
+	s.Text = val
+}
+
 // Ref: #/components/schemas/ServiceKey
 type ServiceKey struct {
 	ID   uuid.UUID `json:"id"`
@@ -28191,6 +35268,58 @@ func (s *SetCarrierAccountStatusRequestStatus) UnmarshalText(data []byte) error 
 	}
 }
 
+// Ref: #/components/schemas/SetChannelHumanAgentRequest
+type SetChannelHumanAgentRequest struct {
+	Enabled         bool  `json:"enabled"`
+	ExpectedVersion int32 `json:"expectedVersion"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *SetChannelHumanAgentRequest) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetExpectedVersion returns the value of ExpectedVersion.
+func (s *SetChannelHumanAgentRequest) GetExpectedVersion() int32 {
+	return s.ExpectedVersion
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *SetChannelHumanAgentRequest) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetExpectedVersion sets the value of ExpectedVersion.
+func (s *SetChannelHumanAgentRequest) SetExpectedVersion(val int32) {
+	s.ExpectedVersion = val
+}
+
+// Ref: #/components/schemas/SetChannelSendModeRequest
+type SetChannelSendModeRequest struct {
+	Mode            ChannelSendMode `json:"mode"`
+	ExpectedVersion int32           `json:"expectedVersion"`
+}
+
+// GetMode returns the value of Mode.
+func (s *SetChannelSendModeRequest) GetMode() ChannelSendMode {
+	return s.Mode
+}
+
+// GetExpectedVersion returns the value of ExpectedVersion.
+func (s *SetChannelSendModeRequest) GetExpectedVersion() int32 {
+	return s.ExpectedVersion
+}
+
+// SetMode sets the value of Mode.
+func (s *SetChannelSendModeRequest) SetMode(val ChannelSendMode) {
+	s.Mode = val
+}
+
+// SetExpectedVersion sets the value of ExpectedVersion.
+func (s *SetChannelSendModeRequest) SetExpectedVersion(val int32) {
+	s.ExpectedVersion = val
+}
+
 // Ref: #/components/schemas/SetClassificationRequest
 type SetClassificationRequest struct {
 	// Version hiện tại của mẫu.
@@ -28239,6 +35368,52 @@ func (s *SetClassificationRequest) SetAttributeValueIds(val []uuid.UUID) {
 // SetTagIds sets the value of TagIds.
 func (s *SetClassificationRequest) SetTagIds(val []uuid.UUID) {
 	s.TagIds = val
+}
+
+// Ref: #/components/schemas/SetConversationStatusRequest
+type SetConversationStatusRequest struct {
+	Status          ConversationStatus `json:"status"`
+	ExpectedVersion int32              `json:"expectedVersion"`
+}
+
+// GetStatus returns the value of Status.
+func (s *SetConversationStatusRequest) GetStatus() ConversationStatus {
+	return s.Status
+}
+
+// GetExpectedVersion returns the value of ExpectedVersion.
+func (s *SetConversationStatusRequest) GetExpectedVersion() int32 {
+	return s.ExpectedVersion
+}
+
+// SetStatus sets the value of Status.
+func (s *SetConversationStatusRequest) SetStatus(val ConversationStatus) {
+	s.Status = val
+}
+
+// SetExpectedVersion sets the value of ExpectedVersion.
+func (s *SetConversationStatusRequest) SetExpectedVersion(val int32) {
+	s.ExpectedVersion = val
+}
+
+// SetCustomerDoNotContactNoContent is response for SetCustomerDoNotContact operation.
+type SetCustomerDoNotContactNoContent struct{}
+
+func (*SetCustomerDoNotContactNoContent) setCustomerDoNotContactRes() {}
+
+// Ref: #/components/schemas/SetCustomerDoNotContactRequest
+type SetCustomerDoNotContactRequest struct {
+	On bool `json:"on"`
+}
+
+// GetOn returns the value of On.
+func (s *SetCustomerDoNotContactRequest) GetOn() bool {
+	return s.On
+}
+
+// SetOn sets the value of On.
+func (s *SetCustomerDoNotContactRequest) SetOn(val bool) {
+	s.On = val
 }
 
 // Ref: #/components/schemas/SetOrderPendingRequest
@@ -28471,6 +35646,26 @@ func (s *SetPackingStatusRequestTo) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// SetPresenceNoContent is response for SetPresence operation.
+type SetPresenceNoContent struct{}
+
+func (*SetPresenceNoContent) setPresenceRes() {}
+
+// Ref: #/components/schemas/SetPresenceRequest
+type SetPresenceRequest struct {
+	State PresenceState `json:"state"`
+}
+
+// GetState returns the value of State.
+func (s *SetPresenceRequest) GetState() PresenceState {
+	return s.State
+}
+
+// SetState sets the value of State.
+func (s *SetPresenceRequest) SetState(val PresenceState) {
+	s.State = val
 }
 
 // Ref: #/components/schemas/SetProductImageColorRequest
@@ -30768,6 +37963,21 @@ func (s *StartCustomerImportResult) SetImportId(val uuid.UUID) {
 
 func (*StartCustomerImportResult) startCustomerImportRes() {}
 
+// Ref: #/components/schemas/StartLiveSessionRequest
+type StartLiveSessionRequest struct {
+	VideoIdOrUrl string `json:"videoIdOrUrl"`
+}
+
+// GetVideoIdOrUrl returns the value of VideoIdOrUrl.
+func (s *StartLiveSessionRequest) GetVideoIdOrUrl() string {
+	return s.VideoIdOrUrl
+}
+
+// SetVideoIdOrUrl sets the value of VideoIdOrUrl.
+func (s *StartLiveSessionRequest) SetVideoIdOrUrl(val string) {
+	s.VideoIdOrUrl = val
+}
+
 // Ref: #/components/schemas/StartStocktakeRequest
 type StartStocktakeRequest struct {
 	WarehouseId uuid.UUID `json:"warehouseId"`
@@ -32022,8 +39232,9 @@ func (s *TagConditionOp) UnmarshalText(data []byte) error {
 // Ref: #/components/schemas/TimelineItem
 type TimelineItem struct {
 	At time.Time `json:"at"`
-	// Chuỗi mở, không phải enum (M4 thêm conversation, C7). Khách: order_created, order_status,
-	// note, merge, merge_undone, tag. Đơn: status, edit, note; M3 thêm shipment, payment, return.
+	// Chuỗi mở, không phải enum (M4 thêm conversation, call; C7, Task 169). Khách: order_created,
+	// order_status, note, merge, merge_undone, tag. Đơn: status, edit, note; M3 thêm shipment, payment,
+	// return.
 	Kind  string    `json:"kind"`
 	RefId uuid.UUID `json:"refId"`
 	Actor OptActor  `json:"actor"`
@@ -32421,6 +39632,43 @@ func (s *UnmappedLocationPage) SetNextCursor(val OptString) {
 
 func (*UnmappedLocationPage) listUnmappedLocationsRes() {}
 
+// Ref: #/components/schemas/UpdateAutomationRuleRequest
+type UpdateAutomationRuleRequest struct {
+	Enabled         bool                 `json:"enabled"`
+	Config          AutomationRuleConfig `json:"config"`
+	ExpectedVersion int32                `json:"expectedVersion"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *UpdateAutomationRuleRequest) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetConfig returns the value of Config.
+func (s *UpdateAutomationRuleRequest) GetConfig() AutomationRuleConfig {
+	return s.Config
+}
+
+// GetExpectedVersion returns the value of ExpectedVersion.
+func (s *UpdateAutomationRuleRequest) GetExpectedVersion() int32 {
+	return s.ExpectedVersion
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *UpdateAutomationRuleRequest) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetConfig sets the value of Config.
+func (s *UpdateAutomationRuleRequest) SetConfig(val AutomationRuleConfig) {
+	s.Config = val
+}
+
+// SetExpectedVersion sets the value of ExpectedVersion.
+func (s *UpdateAutomationRuleRequest) SetExpectedVersion(val int32) {
+	s.ExpectedVersion = val
+}
+
 // Chỉ gửi trường người dùng đổi.
 // Ref: #/components/schemas/UpdateCarrierAccountRequest
 type UpdateCarrierAccountRequest struct {
@@ -32635,6 +39883,54 @@ func (s *UpdateCategoryRequest) SetPosition(val OptPosition) {
 // SetParentId sets the value of ParentId.
 func (s *UpdateCategoryRequest) SetParentId(val OptNilUUID) {
 	s.ParentId = val
+}
+
+// Ref: #/components/schemas/UpdateConversationTagRequest
+type UpdateConversationTagRequest struct {
+	Name            OptString `json:"name"`
+	Color           OptString `json:"color"`
+	Sort            OptInt32  `json:"sort"`
+	ExpectedVersion int32     `json:"expectedVersion"`
+}
+
+// GetName returns the value of Name.
+func (s *UpdateConversationTagRequest) GetName() OptString {
+	return s.Name
+}
+
+// GetColor returns the value of Color.
+func (s *UpdateConversationTagRequest) GetColor() OptString {
+	return s.Color
+}
+
+// GetSort returns the value of Sort.
+func (s *UpdateConversationTagRequest) GetSort() OptInt32 {
+	return s.Sort
+}
+
+// GetExpectedVersion returns the value of ExpectedVersion.
+func (s *UpdateConversationTagRequest) GetExpectedVersion() int32 {
+	return s.ExpectedVersion
+}
+
+// SetName sets the value of Name.
+func (s *UpdateConversationTagRequest) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetColor sets the value of Color.
+func (s *UpdateConversationTagRequest) SetColor(val OptString) {
+	s.Color = val
+}
+
+// SetSort sets the value of Sort.
+func (s *UpdateConversationTagRequest) SetSort(val OptInt32) {
+	s.Sort = val
+}
+
+// SetExpectedVersion sets the value of ExpectedVersion.
+func (s *UpdateConversationTagRequest) SetExpectedVersion(val int32) {
+	s.ExpectedVersion = val
 }
 
 // Mã đã có lượt dùng chỉ đổi được name, validTo, maxUses, status.
@@ -33239,6 +40535,110 @@ func (s *UpdateOrderSettingsRequest) SetReturnWarningDays(val OptInt32) {
 	s.ReturnWarningDays = val
 }
 
+// Ref: #/components/schemas/UpdatePageSettingsRequest
+type UpdatePageSettingsRequest struct {
+	RoundRobinEnabled       bool            `json:"roundRobinEnabled"`
+	RoundRobinUserIds       []uuid.UUID     `json:"roundRobinUserIds"`
+	AskAddressTemplateId    OptNilUUID      `json:"askAddressTemplateId"`
+	InboxTrafficSourceId    OptNilUUID      `json:"inboxTrafficSourceId"`
+	CommentTrafficSourceId  OptNilUUID      `json:"commentTrafficSourceId"`
+	LiveSlots               []LiveSlot      `json:"liveSlots"`
+	CommentPollMode         CommentPollMode `json:"commentPollMode"`
+	AutomationMaxAgeMinutes int32           `json:"automationMaxAgeMinutes"`
+	// Version đang đọc (0 khi Page chưa có dòng cài đặt).
+	ExpectedVersion int32 `json:"expectedVersion"`
+}
+
+// GetRoundRobinEnabled returns the value of RoundRobinEnabled.
+func (s *UpdatePageSettingsRequest) GetRoundRobinEnabled() bool {
+	return s.RoundRobinEnabled
+}
+
+// GetRoundRobinUserIds returns the value of RoundRobinUserIds.
+func (s *UpdatePageSettingsRequest) GetRoundRobinUserIds() []uuid.UUID {
+	return s.RoundRobinUserIds
+}
+
+// GetAskAddressTemplateId returns the value of AskAddressTemplateId.
+func (s *UpdatePageSettingsRequest) GetAskAddressTemplateId() OptNilUUID {
+	return s.AskAddressTemplateId
+}
+
+// GetInboxTrafficSourceId returns the value of InboxTrafficSourceId.
+func (s *UpdatePageSettingsRequest) GetInboxTrafficSourceId() OptNilUUID {
+	return s.InboxTrafficSourceId
+}
+
+// GetCommentTrafficSourceId returns the value of CommentTrafficSourceId.
+func (s *UpdatePageSettingsRequest) GetCommentTrafficSourceId() OptNilUUID {
+	return s.CommentTrafficSourceId
+}
+
+// GetLiveSlots returns the value of LiveSlots.
+func (s *UpdatePageSettingsRequest) GetLiveSlots() []LiveSlot {
+	return s.LiveSlots
+}
+
+// GetCommentPollMode returns the value of CommentPollMode.
+func (s *UpdatePageSettingsRequest) GetCommentPollMode() CommentPollMode {
+	return s.CommentPollMode
+}
+
+// GetAutomationMaxAgeMinutes returns the value of AutomationMaxAgeMinutes.
+func (s *UpdatePageSettingsRequest) GetAutomationMaxAgeMinutes() int32 {
+	return s.AutomationMaxAgeMinutes
+}
+
+// GetExpectedVersion returns the value of ExpectedVersion.
+func (s *UpdatePageSettingsRequest) GetExpectedVersion() int32 {
+	return s.ExpectedVersion
+}
+
+// SetRoundRobinEnabled sets the value of RoundRobinEnabled.
+func (s *UpdatePageSettingsRequest) SetRoundRobinEnabled(val bool) {
+	s.RoundRobinEnabled = val
+}
+
+// SetRoundRobinUserIds sets the value of RoundRobinUserIds.
+func (s *UpdatePageSettingsRequest) SetRoundRobinUserIds(val []uuid.UUID) {
+	s.RoundRobinUserIds = val
+}
+
+// SetAskAddressTemplateId sets the value of AskAddressTemplateId.
+func (s *UpdatePageSettingsRequest) SetAskAddressTemplateId(val OptNilUUID) {
+	s.AskAddressTemplateId = val
+}
+
+// SetInboxTrafficSourceId sets the value of InboxTrafficSourceId.
+func (s *UpdatePageSettingsRequest) SetInboxTrafficSourceId(val OptNilUUID) {
+	s.InboxTrafficSourceId = val
+}
+
+// SetCommentTrafficSourceId sets the value of CommentTrafficSourceId.
+func (s *UpdatePageSettingsRequest) SetCommentTrafficSourceId(val OptNilUUID) {
+	s.CommentTrafficSourceId = val
+}
+
+// SetLiveSlots sets the value of LiveSlots.
+func (s *UpdatePageSettingsRequest) SetLiveSlots(val []LiveSlot) {
+	s.LiveSlots = val
+}
+
+// SetCommentPollMode sets the value of CommentPollMode.
+func (s *UpdatePageSettingsRequest) SetCommentPollMode(val CommentPollMode) {
+	s.CommentPollMode = val
+}
+
+// SetAutomationMaxAgeMinutes sets the value of AutomationMaxAgeMinutes.
+func (s *UpdatePageSettingsRequest) SetAutomationMaxAgeMinutes(val int32) {
+	s.AutomationMaxAgeMinutes = val
+}
+
+// SetExpectedVersion sets the value of ExpectedVersion.
+func (s *UpdatePageSettingsRequest) SetExpectedVersion(val int32) {
+	s.ExpectedVersion = val
+}
+
 // Ref: #/components/schemas/UpdateProductRequest
 type UpdateProductRequest struct {
 	Version     int64            `json:"version"`
@@ -33296,6 +40696,87 @@ func (s *UpdateProductRequest) SetArticle(val ArticleInput) {
 // SetStatus sets the value of Status.
 func (s *UpdateProductRequest) SetStatus(val OptProductStatus) {
 	s.Status = val
+}
+
+// Ref: #/components/schemas/UpdateReplyTemplateRequest
+type UpdateReplyTemplateRequest struct {
+	PageId           OptNilUUID   `json:"pageId"`
+	Shortcut         OptString    `json:"shortcut"`
+	Title            OptString    `json:"title"`
+	Body             OptString    `json:"body"`
+	AttachmentFileId OptNilUUID   `json:"attachmentFileId"`
+	QuickReplies     []QuickReply `json:"quickReplies"`
+	ExpectedVersion  int32        `json:"expectedVersion"`
+}
+
+// GetPageId returns the value of PageId.
+func (s *UpdateReplyTemplateRequest) GetPageId() OptNilUUID {
+	return s.PageId
+}
+
+// GetShortcut returns the value of Shortcut.
+func (s *UpdateReplyTemplateRequest) GetShortcut() OptString {
+	return s.Shortcut
+}
+
+// GetTitle returns the value of Title.
+func (s *UpdateReplyTemplateRequest) GetTitle() OptString {
+	return s.Title
+}
+
+// GetBody returns the value of Body.
+func (s *UpdateReplyTemplateRequest) GetBody() OptString {
+	return s.Body
+}
+
+// GetAttachmentFileId returns the value of AttachmentFileId.
+func (s *UpdateReplyTemplateRequest) GetAttachmentFileId() OptNilUUID {
+	return s.AttachmentFileId
+}
+
+// GetQuickReplies returns the value of QuickReplies.
+func (s *UpdateReplyTemplateRequest) GetQuickReplies() []QuickReply {
+	return s.QuickReplies
+}
+
+// GetExpectedVersion returns the value of ExpectedVersion.
+func (s *UpdateReplyTemplateRequest) GetExpectedVersion() int32 {
+	return s.ExpectedVersion
+}
+
+// SetPageId sets the value of PageId.
+func (s *UpdateReplyTemplateRequest) SetPageId(val OptNilUUID) {
+	s.PageId = val
+}
+
+// SetShortcut sets the value of Shortcut.
+func (s *UpdateReplyTemplateRequest) SetShortcut(val OptString) {
+	s.Shortcut = val
+}
+
+// SetTitle sets the value of Title.
+func (s *UpdateReplyTemplateRequest) SetTitle(val OptString) {
+	s.Title = val
+}
+
+// SetBody sets the value of Body.
+func (s *UpdateReplyTemplateRequest) SetBody(val OptString) {
+	s.Body = val
+}
+
+// SetAttachmentFileId sets the value of AttachmentFileId.
+func (s *UpdateReplyTemplateRequest) SetAttachmentFileId(val OptNilUUID) {
+	s.AttachmentFileId = val
+}
+
+// SetQuickReplies sets the value of QuickReplies.
+func (s *UpdateReplyTemplateRequest) SetQuickReplies(val []QuickReply) {
+	s.QuickReplies = val
+}
+
+// SetExpectedVersion sets the value of ExpectedVersion.
+func (s *UpdateReplyTemplateRequest) SetExpectedVersion(val int32) {
+	s.ExpectedVersion = val
 }
 
 // Ref: #/components/schemas/UpdateRoleRequest

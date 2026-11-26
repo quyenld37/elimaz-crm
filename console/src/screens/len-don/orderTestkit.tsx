@@ -130,8 +130,8 @@ export const HITS: VariantSearchHit[] = [
   hit(V3, "TUI0090-NAU", "Túi hộp da mini", "Nâu", "", 290000),
 ];
 
-// Số dư của kho mặc định cho một biến thể (chỉ các trường màn đọc có giá trị thật).
-function balance(h: VariantSearchHit, available: number): Balance {
+// Số dư của kho mặc định cho một biến thể (chỉ các trường màn đọc có giá trị thật). Màn Live (Task 177) dùng lại.
+export function balance(h: VariantSearchHit, available: number): Balance {
   const { variantId, sku, barcode, productCode, productName, color, size } = h;
   const zero = { held: 0, inTransit: 0, damaged: 0 };
   return {

@@ -1,0 +1,319 @@
+/* Màn Kênh kết nối và Cài đặt hộp chat (Task 178). Lớp chép từ mockup đã chốt docs/mockups/m4/m4.css, cai-dat.html
+   (style riêng của trang), m1.css (.tabs), m2.css (.kv, .act, .radios); chỉ dùng biến có sẵn của console (không màu,
+   cỡ chữ, bo góc mới). Bọc trong .chat-set để không đè lớp cùng tên của màn khác. */
+.chat-set .cfg {
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  align-items: start;
+}
+@media (max-width: 759px) {
+  .chat-set .cfg {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.chat-set .cfg > .card,
+.chat-set .card > .stack-sm {
+  min-width: 0;
+}
+.chat-set .card > .stack-sm {
+  margin-top: var(--space-sm);
+}
+.chat-set .card-f {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--rule);
+}
+.chat-set .unsaved {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--buy);
+}
+
+/* Thẻ (m1.css .tabs) */
+.chat-set .tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border-bottom: 1px solid var(--rule);
+}
+.chat-set .tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--field);
+  padding: 0 var(--space-md);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font: 600 14px/1 var(--font-body);
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: none;
+}
+.chat-set .tab[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--buy);
+}
+
+/* Nhóm nút chọn một (m4.css .seg) */
+.chat-set .seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  overflow: hidden;
+  justify-self: start;
+}
+.chat-set .seg .tab {
+  min-height: var(--field);
+  border-bottom: 0;
+  border-right: 1px solid var(--rule);
+}
+.chat-set .seg .tab:last-child {
+  border-right: 0;
+}
+.chat-set .seg .tab[aria-checked="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* Dòng tài khoản kênh (m4.css .chrow, .ch-ic, .feats) */
+.chat-set .ch-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-box);
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  color: var(--title);
+  font: 700 12px/1 var(--font-body);
+  flex: none;
+  letter-spacing: 0.02em;
+}
+.chat-set .chrow {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: var(--space-sm) var(--space-md);
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--rule);
+  align-items: start;
+  min-width: 0;
+}
+.chat-set .chrow:last-child {
+  border-bottom: 0;
+}
+.chat-set .chrow > * {
+  min-width: 0;
+}
+.chat-set .c-end {
+  justify-items: start;
+}
+@media (max-width: 759px) {
+  .chat-set .chrow {
+    grid-template-columns: 40px minmax(0, 1fr);
+    padding: var(--space-md) var(--space-sm);
+  }
+  .chat-set .chrow > .c-end {
+    grid-column: 1 / -1;
+  }
+}
+.chat-set .feats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+/* m2.css .kv, .act, .radios */
+.chat-set .kv {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 4px 12px;
+  font-size: 14px;
+  margin: 0;
+}
+.chat-set .kv > dt {
+  color: var(--muted);
+  font-size: 13px;
+}
+.chat-set .kv > dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.chat-set .act,
+.dlg .act {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+  max-width: 260px;
+}
+.chat-set .act .reason {
+  font-size: 12px;
+}
+.chat-set .radios,
+.dlg .radios {
+  display: grid;
+  gap: 0;
+}
+
+/* Đếm ký tự, nút trả lời nhanh, danh sách câu, khung giờ (m4.css) */
+.chat-set .cnt {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+}
+.chat-set .cnt.is-over {
+  color: var(--buy);
+  font-weight: 600;
+}
+.chat-set .qrs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chat-set .qr {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 0 0 10px;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  font-size: 13px;
+  background: var(--paper);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.chat-set .qr .ibtn {
+  border: 0;
+  background: transparent;
+  width: var(--tap);
+  height: var(--tap);
+}
+.chat-set .qr.is-err {
+  border-color: var(--buy);
+  background: var(--soft-sale);
+}
+.chat-set .lines-f {
+  display: grid;
+  gap: var(--space-sm);
+}
+.chat-set .line-f {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  align-items: start;
+}
+.chat-set .slots {
+  display: grid;
+  gap: var(--space-sm);
+}
+.chat-set .slot {
+  display: grid;
+  grid-template-columns: 96px 96px minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  align-items: center;
+}
+@media (max-width: 759px) {
+  .chat-set .slot {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .chat-set .slot > .select-wrap {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Nhãn (m4.css .lb, .lbs) */
+.chat-set .lbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chat-set .lb {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: var(--r);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: 1px solid transparent;
+}
+.chat-set .lb-btn {
+  min-height: var(--tap);
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+.chat-set .lb-1 {
+  background: var(--soft);
+  color: var(--title);
+}
+.chat-set .lb-2 {
+  background: var(--surface);
+  color: var(--label);
+}
+.chat-set .lb-3 {
+  background: var(--paper);
+  color: var(--success);
+  border-color: var(--success);
+}
+.chat-set .lb-4 {
+  background: var(--paper);
+  color: var(--ink);
+  border-color: var(--edge);
+}
+
+/* Danh sách mẫu (m4.css .olines) */
+.chat-set .olines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+.chat-set .olines li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 var(--space-sm);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
+  align-items: center;
+}
+.chat-set .olines li:last-child {
+  border-bottom: 0;
+}
+.chat-set .olines-b {
+  justify-content: flex-start;
+  text-align: left;
+  padding: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Chọn bài của quy tắc tự động (Task 501) */
+.chat-set .post-pick {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.chat-set .post-pick li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  align-items: center;
+}

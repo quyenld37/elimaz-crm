@@ -175,6 +175,23 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   request_not_allowed: "Đơn hay yêu cầu không ở trạng thái cho việc này",
   // Khách hủy đơn web (Task 196)
   cannot_cancel: "Đơn đã giao, đã hoàn hay đã hủy nên khách không hủy được",
+  // Hộp chat, Live (M4, Task 143)
+  already_assigned: "Hội thoại đã có người khác nhận. Tải lại để xem ai đang phụ trách",
+  assignee_not_allowed: "Nhân viên này không còn hoạt động hoặc không được xem Page này",
+  attachment_not_ready: "Ảnh đang được xử lý, chờ vài giây rồi thử lại",
+  attachment_rejected: "Tệp không dùng được: không phải ảnh hợp lệ hoặc quá lớn",
+  channel_read_only: "Page đang ở chế độ chỉ xem, chưa gửi được. Quản lý bật gửi thật ở màn Kênh kết nối",
+  comment_claimed: "Comment này đã được lên đơn. Tải lại để xem đơn",
+  oauth_state_invalid: "Phiên đăng nhập Facebook đã hết hạn hoặc đã dùng. Bấm Kết nối Page lại từ đầu",
+  open_draft_exists: "Khách đã có đơn nháp trong phiên live này. Thêm vào đơn đó, hoặc chọn tạo đơn mới",
+  page_connected_elsewhere: "Page này đang nối với một cửa hàng khác",
+  page_not_accessible: "Tài khoản chưa có quyền nhắn tin và kiểm duyệt trên Page này",
+  private_reply_used: "Comment này đã được nhắn riêng một lần, không nhắn riêng thêm được",
+  seller_mismatch: "Sản phẩm không thuộc người bán của Page này",
+  conversation_customer_mismatch:
+    "Khách của đơn không phải khách của hội thoại này. Lên đơn cho khách của hội thoại, hoặc gộp hồ sơ trước",
+  send_not_allowed: "Không gửi được lúc này: đã quá thời hạn trả lời của Facebook hoặc khách đã chặn Page",
+  template_variable_missing: "Mẫu trả lời thiếu thông tin để điền. Kiểm tra khách, đơn rồi thử lại",
 };
 
 /** Câu cho từng lý do từ chối mã giảm giá (CouponRejectReason: checkCoupon.reason, thân lỗi coupon_rejected.reason). */

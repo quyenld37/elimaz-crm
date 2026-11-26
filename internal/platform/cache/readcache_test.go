@@ -395,23 +395,27 @@ func TestReadCache_FallbackBusy(t *testing.T) {
 	}
 }
 
-// Năm lời gọi đồng thời, load chậm 200 ms, FallbackConcurrency 2: đúng 2 thành công, 3 ErrBusy (ca của kế hoạch).
+// Năm lời gọi đồng thời, FallbackConcurrency 2: đúng 2 thành công, 3 ErrBusy (ca của kế hoạch). Không dựa vào giờ
+// thật (Task 496): hai lần tải đầu giữ chỗ tới khi ba lời gọi kia đã nhận ErrBusy (ErrBusy trả ngay khi hết chỗ), rồi
+// mới được thả; hangGuard chỉ là chốt chống treo.
 func TestReadCache_FallbackBusyConcurrent(t *testing.T) {
+	const hangGuard = 30 * time.Second
 	rc := cache.NewReadCache(nil, cache.ReadCacheOptions{FallbackConcurrency: 2})
 	tenant := uuid.New()
+	release := make(chan struct{})
+	var loading atomic.Int64
 	slow := func(ctx context.Context) ([]byte, error) {
+		loading.Add(1)
 		select {
-		case <-time.After(200 * time.Millisecond):
+		case <-release:
 		case <-ctx.Done():
 		}
 		return []byte("v"), nil
 	}
 	var ok, busy atomic.Int64
 	var wg sync.WaitGroup
-	start := make(chan struct{})
 	for i := range 5 {
 		wg.Go(func() {
-			<-start
 			_, _, err := rc.GetOrLoad(t.Context(), tenant, cache.SpaceProduct, fmt.Sprintf("p%d", i), time.Minute, slow)
 			switch {
 			case err == nil:
@@ -423,14 +427,18 @@ func TestReadCache_FallbackBusyConcurrent(t *testing.T) {
 			}
 		})
 	}
-	close(start)
-	wg.Wait()
-	// Goroutine tới khi hai lần tải đầu đã xong (máy rất bận) có thể giành chỗ trống; trần 200 ms chỉ để thường thì
-	// cả năm cùng chạy. Quy luật luôn đúng: không bao giờ quá 2 lần tải cùng lúc, tổng là 5.
-	if ok.Load()+busy.Load() != 5 || ok.Load() < 2 {
-		t.Fatalf("thành công %d, bận %d", ok.Load(), busy.Load())
+	deadline := time.Now().Add(hangGuard)
+	for loading.Load() < 2 || busy.Load() < 3 {
+		if time.Now().After(deadline) {
+			close(release)
+			wg.Wait()
+			t.Fatalf("sau %s: đang tải %d, bận %d; muốn 2 đang tải, 3 bận", hangGuard, loading.Load(), busy.Load())
+		}
+		time.Sleep(time.Millisecond)
 	}
-	if ok.Load() == 2 && busy.Load() != 3 {
-		t.Fatalf("thành công 2 mà bận %d", busy.Load())
+	close(release)
+	wg.Wait()
+	if ok.Load() != 2 || busy.Load() != 3 || loading.Load() != 2 {
+		t.Fatalf("thành công %d, bận %d, số lần tải %d; muốn 2, 3, 2", ok.Load(), busy.Load(), loading.Load())
 	}
 }

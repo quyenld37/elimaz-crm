@@ -259,6 +259,10 @@ func TestInvalidator_QueueOverflowResyncs(t *testing.T) {
 	waitFullResync(t, rc, t1)
 }
 
+// valkeyTestOpTimeout là hạn mỗi lệnh Valkey của test (Task 496): hạn mặc định 50 ms của mã chạy thật hết khi máy chạy
+// test đang tải, lệnh coi như Valkey ngừng và test đếm nguồn, lượt gọi hãng đỏ dù mã đúng.
+const valkeyTestOpTimeout = 2 * time.Second
+
 // Từ đầu tới cuối (PostgreSQL, Valkey thật): P nằm trong bộ đệm; Emit price.changed P; worker chạy consumer; api nhận
 // báo hiệu và xóa khóa → GetOrLoad(product, P) gọi lại load.
 func TestEndToEnd_PriceChangedInvalidatesProduct(t *testing.T) {
@@ -266,7 +270,7 @@ func TestEndToEnd_PriceChangedInvalidatesProduct(t *testing.T) {
 	ctx := t.Context()
 	tenant := e.staff.Tenant(t, "A")
 	vk := testkit.StartValkey(t)
-	conn, err := cache.Dial(ctx, vk.URL("crm_cache"), cache.DialOptions{Name: "cache"})
+	conn, err := cache.Dial(ctx, vk.URL("crm_cache"), cache.DialOptions{Name: "cache", OpTimeout: valkeyTestOpTimeout})
 	if err != nil {
 		t.Fatal(err)
 	}

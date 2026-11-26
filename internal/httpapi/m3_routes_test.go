@@ -3,8 +3,6 @@ package httpapi
 import (
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -100,17 +98,7 @@ func TestM3Routes_Forbidden(t *testing.T) {
 // thích). Task của operation xóa dòng khi làm xong; Task M3-48 đòi tệp rỗng.
 func m3Pending(t *testing.T) map[string]bool {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join("..", "..", "tests", "arch", "testdata", "m3_pending.txt"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	out := map[string]bool{}
-	for line := range strings.SplitSeq(string(b), "\n") {
-		if line = strings.TrimSpace(line); line != "" && !strings.HasPrefix(line, "#") {
-			out[line] = true
-		}
-	}
-	return out
+	return pendingOps(t, "m3_pending.txt")
 }
 
 // Mọi route (trừ công khai) gọi bằng thẻ owner, mã đường là uuid ngẫu nhiên, thân {}: trả 501 not_implemented thì
@@ -121,6 +109,7 @@ func TestM3Routes_PendingList(t *testing.T) {
 	t.Parallel()
 	e := newM3Env(t)
 	pending := m3Pending(t)
+	m4 := pendingOps(t, "m4_pending.txt") // operation M4 chờ hiện thực (Task 143); 501 của chúng kiểm ở test M4
 	param := regexp.MustCompile(`\{[^}]+\}`)
 	stub := 0
 	for _, r := range Routes {
@@ -141,8 +130,10 @@ func TestM3Routes_PendingList(t *testing.T) {
 		rec := serveAs(e.srv, e.keys, r.Method, path, m3Owner, key, body)
 		code, b := rec.Code, rec.Body.String()
 		switch {
-		case code == http.StatusNotImplemented && !pending[r.OperationID]:
-			t.Errorf("%s trả 501 mà không có trong m3_pending.txt", r.OperationID)
+		case code == http.StatusNotImplemented && !pending[r.OperationID] && !m4[r.OperationID]:
+			t.Errorf("%s trả 501 mà không có trong m3_pending.txt, m4_pending.txt", r.OperationID)
+		case m4[r.OperationID] && code != http.StatusNotImplemented && code != http.StatusBadRequest:
+			t.Errorf("%s có trong m4_pending.txt mà trả %d %s: đã làm thì xóa dòng", r.OperationID, code, b)
 		case code == http.StatusNotImplemented:
 			stub++
 		case pending[r.OperationID] && code != http.StatusBadRequest:

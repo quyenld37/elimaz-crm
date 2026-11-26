@@ -30,9 +30,9 @@ func moduleCalls() map[string][]string {
 		"promotion":    {"catalog", "customer", "inventory"},
 		"content":      {"catalog", "promotion"}, // M5 Task 453: chỉ đọc view, không nhập order
 		"channel":      {"identity"},
-		"conversation": {"channel", "customer"},
-		"affiliate":    nil, // chỉ nghe sự kiện order.*
-		"reporting":    nil, // chỉ đọc view
+		"conversation": {"channel", "customer", "order", "identity"}, // M4 Q1: conversation điều phối chốt live
+		"affiliate":    nil,                                          // chỉ nghe sự kiện order.*
+		"reporting":    nil,                                          // chỉ đọc view
 	}
 }
 
@@ -119,6 +119,9 @@ func readerViolation(pkg, imp string) string {
 	if v := wiringViolation(pkg, imp); v != "" {
 		return v
 	}
+	if v := messagingAdapterViolation(pkg, imp); v != "" {
+		return v
+	}
 	switch {
 	case strings.HasPrefix(pkg, "internal/modules/") && hasPathPrefix(imp, modPrefix+"internal/platform/cache"):
 		// Luật (l) của M5 (Task 184, ADR-39): Valkey không quyết định nghiệp vụ nào; module không chạm lớp nối Valkey.
@@ -164,6 +167,27 @@ func carrierViolation(pkg, imp string) string {
 		return "(j) adapter hãng chỉ nhập phần công khai của fulfillment, platform/{logging,telemetry,config,webhooks}, thư viện chuẩn"
 	}
 	return ""
+}
+
+// messagingAdapterViolation: luật (n) của M4 (Task 143; kế hoạch ghi "(f)", chữ đó đã là luật của internal/queries):
+// adapter kênh nhắn tin (mọi gói internal/adapters/** trừ adapter hãng carrier/** của luật (j) và cfaccess của
+// identity) chỉ nhập thư viện chuẩn, thư viện ngoài, internal/platform/**, phần công khai internal/modules/channel và
+// gói trong chính adapter đó. Mọi kiểu dữ liệu của Meta ở lại trong adapter; adapter không biết module nào khác.
+func messagingAdapterViolation(pkg, imp string) string {
+	rest, ok := strings.CutPrefix(pkg, "internal/adapters/")
+	if !ok || hasPathPrefix(pkg, "internal/adapters/carrier") || hasPathPrefix(pkg, "internal/adapters/cfaccess") {
+		return ""
+	}
+	rel, internal := strings.CutPrefix(imp, modPrefix)
+	if !internal {
+		return ""
+	}
+	name, _, _ := strings.Cut(rest, "/")
+	if rel == "internal/modules/channel" || hasPathPrefix(rel, "internal/platform") ||
+		hasPathPrefix(rel, "internal/adapters/"+name) {
+		return ""
+	}
+	return "(n) adapter nhắn tin chỉ nhập internal/platform/**, phần công khai internal/modules/channel và gói của chính nó"
 }
 
 // wiringViolation: luật (m) của M5 (Task 185; kế hoạch ghi "(g)", chữ đó đã là luật của imager): gói nối
@@ -402,6 +426,57 @@ func TestBoundariesM3Rules(t *testing.T) {
 		{"internal/modules/order/internal/x", modPrefix + "internal/adapters/carrier/fake", "(k)"},
 		{"internal/modules/identity", modPrefix + "internal/adapters/cfaccess", "(k)"},
 		{"cmd/crm", modPrefix + "internal/adapters/carrier", ""},
+	}
+	checkCases(t, cases)
+}
+
+// Mẫu M4 (Task 143): adapter nhắn tin nhập module conversation (n), module nhập adapter facebook (k), order nhập
+// conversation (a) — đúng ba vi phạm; adapter facebook nhập channel, conversation nhập channel không báo.
+func TestBoundariesTestdataM4(t *testing.T) {
+	t.Parallel()
+	got := checkBoundaries(t, filepath.Join("testdata", "boundaries_m4"))
+	want := []string{
+		"internal/adapters/badchat nhập elimaz.com.vn/crm/internal/modules/conversation: (n)",
+		"internal/modules/customer nhập elimaz.com.vn/crm/internal/adapters/facebook: (k)",
+		"internal/modules/order nhập elimaz.com.vn/crm/internal/modules/conversation: (a)",
+	}
+	checkViolations(t, got, want)
+}
+
+// Luật M4 (kế hoạch Task 143; tệp task 143 Quyết định 4): (n) adapter nhắn tin chỉ nhập internal/platform/**, phần
+// công khai channel, gói trong chính adapter đó và thư viện ngoài; (a) conversation gọi channel, customer, order,
+// identity (Q1), channel gọi identity, order không gọi conversation.
+func TestBoundariesM4Rules(t *testing.T) {
+	cases := []boundaryCase{
+		{"internal/adapters/facebook", modPrefix + "internal/modules/channel", ""},
+		{"internal/adapters/facebook", modPrefix + "internal/platform/webhooks", ""},
+		{"internal/adapters/facebook", modPrefix + "internal/platform/logging", ""},
+		{"internal/adapters/facebook/graph", modPrefix + "internal/adapters/facebook", ""},
+		{"internal/adapters/facebook", "github.com/google/uuid", ""},
+		{"internal/adapters/facebook", "net/http", ""},
+		{"internal/adapters/fake", modPrefix + "internal/modules/channel", ""},
+		{"internal/adapters/facebook", modPrefix + "internal/modules/conversation", "(n)"},
+		{"internal/adapters/facebook", modPrefix + "internal/modules/channel/internal/store", "(n)"},
+		{"internal/adapters/facebook", modPrefix + "internal/modules/identity", "(n)"},
+		{"internal/adapters/facebook", modPrefix + "internal/adapters/fake", "(n)"},
+		{"internal/adapters/facebook", modPrefix + "internal/httpapi", "(n)"},
+		{"internal/adapters/fake", modPrefix + "internal/testkit", "(n)"},
+		// Adapter có trước giữ luật của mình: hãng (j), cfaccess nhập identity.
+		{"internal/adapters/cfaccess", modPrefix + "internal/modules/identity", ""},
+		{"internal/adapters/carrier/vtp", modPrefix + "internal/modules/fulfillment", ""},
+		// (a) theo Q1 và bảng 04 mục 3.
+		{"internal/modules/conversation", modPrefix + "internal/modules/channel", ""},
+		{"internal/modules/conversation", modPrefix + "internal/modules/customer", ""},
+		{"internal/modules/conversation/internal/live", modPrefix + "internal/modules/order", ""},
+		{"internal/modules/conversation", modPrefix + "internal/modules/identity", ""},
+		{"internal/modules/conversation", modPrefix + "internal/modules/inventory", "(a)"},
+		{"internal/modules/conversation", modPrefix + "internal/modules/channel/internal/store", "(a)"},
+		{"internal/modules/channel", modPrefix + "internal/modules/identity", ""},
+		{"internal/modules/channel", modPrefix + "internal/modules/conversation", "(a)"},
+		{"internal/modules/order", modPrefix + "internal/modules/conversation", "(a)"},
+		{"internal/modules/channel", "net/http", "(b)"},
+		{"internal/modules/conversation", modPrefix + "internal/adapters/facebook", "(k)"},
+		{"cmd/crm", modPrefix + "internal/adapters/facebook", ""},
 	}
 	checkCases(t, cases)
 }

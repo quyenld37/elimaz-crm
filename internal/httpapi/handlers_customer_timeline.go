@@ -1,10 +1,13 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +17,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/queries"
 )
 
 // AddCustomerNote (POST /api/v1/customers/{id}/notes, customer.write): thêm ghi chú (chỉ ghi thêm) cho gốc của khách
@@ -33,10 +37,16 @@ func (h *handler) AddCustomerNote(ctx context.Context, req *gen.AddCustomerNoteR
 }
 
 // GetCustomerTimeline (GET /api/v1/customers/{id}/timeline, customer.read): dòng thời gian của cả nhóm khách, mới
-// nhất trước, trang theo nextCursor; con trỏ hỏng → 400 invalid_input; khách không có hay của tenant khác → 404.
+// nhất trước, trang theo nextCursor; con trỏ hỏng → 400 invalid_input; khách không có hay của tenant khác → 404. Gộp
+// thêm hội thoại và cuộc gọi (C7, Task 169) trên các Page người xem có conversation.read: lấy tối đa limit mục từ
+// customer.Timeline và từ queries.ChatTimeline sau cùng con trỏ, gộp theo (at, kind, ref_id) giảm dần, cắt limit.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) GetCustomerTimeline(ctx context.Context, params gen.GetCustomerTimelineParams) (gen.GetCustomerTimelineRes, error) {
+	u, ok := authUser(ctx)
+	if !ok {
+		return nil, errNoAuthUser
+	}
 	var after *customer.TimelineCursor
 	if s, ok := params.Cursor.Get(); ok {
 		c, err := customer.ParseTimelineCursor(s)
@@ -45,34 +55,109 @@ func (h *handler) GetCustomerTimeline(ctx context.Context, params gen.GetCustome
 		}
 		after = &c
 	}
+	limit := int(params.Limit.Or(0))
+	if limit <= 0 {
+		limit = customerTimelineLimit
+	}
+	limit = min(limit, customer.MaxListLimit)
 	var (
-		items []customer.TimelineItem
-		next  *customer.TimelineCursor
-		names map[uuid.UUID]string
+		entries []timelineEntry
+		more    bool
+		names   map[uuid.UUID]string
 	)
 	err := h.catalogRead(ctx, func(tx pgx.Tx) error {
-		var err error
-		items, next, err = customer.Timeline(ctx, tx, params.ID, after, int(params.Limit.Or(0)))
+		items, next, err := customer.Timeline(ctx, tx, params.ID, after, limit)
 		if err != nil {
 			return err //nolint:wrapcheck // lỗi của customer đã bọc
 		}
-		names, err = actorNamesOf(ctx, tx, items, func(it customer.TimelineItem) *uuid.UUID { return it.ActorID })
+		chat, err := chatTimeline(ctx, tx, u, params.ID, after, limit+1)
+		if err != nil {
+			return err
+		}
+		entries, more = mergeTimeline(items, chat, limit)
+		more = more || next != nil
+		names, err = actorNamesOf(ctx, tx, entries, func(e timelineEntry) *uuid.UUID { return e.ActorID })
 		return err
 	})
 	if err != nil {
 		return nil, fmt.Errorf("dòng thời gian của khách: %w", err)
 	}
-	out := &gen.TimelinePage{Items: make([]gen.TimelineItem, 0, len(items))}
-	for _, it := range items {
-		out.Items = append(out.Items, timelineItemOut(timelineEntry{
-			At: it.At, Kind: it.Kind, RefID: it.RefID, ActorID: it.ActorID, Summary: it.Summary,
-			Note: string(it.Note), IsNote: it.Kind == customer.TimelineNote,
-		}, names))
+	out := &gen.TimelinePage{Items: make([]gen.TimelineItem, 0, len(entries))}
+	for _, e := range entries {
+		out.Items = append(out.Items, timelineItemOut(e, names))
 	}
-	if next != nil {
-		out.NextCursor = gen.NewOptString(next.String())
+	if more && len(entries) > 0 {
+		last := entries[len(entries)-1]
+		out.NextCursor = gen.NewOptString(customer.TimelineCursor{At: last.At, Kind: last.Kind, RefID: last.RefID}.String())
 	}
 	return out, nil
+}
+
+// customerTimelineLimit khớp mặc định của tham số limit trong openapi.yaml (cùng số với customer.Timeline).
+const customerTimelineLimit = 50
+
+// chatTimeline đọc tối đa limit mục hội thoại, cuộc gọi của cả nhóm khách id sau con trỏ after, chỉ trên các Page u có
+// conversation.read (ScopesFor); không có quyền đó ở Page nào thì không có mục nào.
+func chatTimeline(ctx context.Context, tx pgx.Tx, u identity.AuthUser, id uuid.UUID, after *customer.TimelineCursor,
+	limit int,
+) ([]queries.ChatTimelineRow, error) {
+	root, err := customer.RootOf(ctx, tx, id)
+	if err != nil {
+		return nil, fmt.Errorf("đọc gốc khách: %w", err)
+	}
+	members, err := customer.GroupMembers(ctx, tx, root)
+	if err != nil {
+		return nil, fmt.Errorf("đọc nhóm khách: %w", err)
+	}
+	var pages []uuid.UUID
+	if all, ids := identity.ScopesFor(u, "conversation.read"); !all {
+		if len(ids) == 0 {
+			return nil, nil // không đọc hội thoại ở Page nào: không mục hội thoại, cuộc gọi (như GET …/calls)
+		}
+		pages = make([]uuid.UUID, 0, len(ids))
+		for _, s := range ids {
+			if p, err := uuid.Parse(s); err == nil {
+				pages = append(pages, p)
+			}
+		}
+	}
+	var key *queries.TimelineKey
+	if after != nil {
+		key = &queries.TimelineKey{At: after.At, Kind: after.Kind, RefID: after.RefID}
+	}
+	rows, err := queries.ChatTimeline(ctx, tx, members, pages, key, limit)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // đã bọc ở queries
+	}
+	return rows, nil
+}
+
+// mergeTimeline gộp hai danh sách đã sắp (at, kind, ref_id) giảm dần, trả limit mục đầu và có còn mục sau không (một
+// trong hai danh sách có hơn số mục được lấy).
+func mergeTimeline(items []customer.TimelineItem, chat []queries.ChatTimelineRow, limit int) ([]timelineEntry, bool) {
+	out := make([]timelineEntry, 0, len(items)+len(chat))
+	for _, it := range items {
+		out = append(out, timelineEntry{
+			At: it.At, Kind: it.Kind, RefID: it.RefID, ActorID: it.ActorID, Summary: it.Summary,
+			Note: string(it.Note), IsNote: it.Kind == customer.TimelineNote,
+		})
+	}
+	for _, c := range chat {
+		out = append(out, timelineEntry{At: c.At, Kind: c.Kind, RefID: c.RefID, ActorID: c.ActorID, Summary: c.Summary})
+	}
+	slices.SortFunc(out, func(a, b timelineEntry) int {
+		if c := b.At.Compare(a.At); c != 0 {
+			return c
+		}
+		if c := strings.Compare(b.Kind, a.Kind); c != 0 {
+			return c
+		}
+		return bytes.Compare(b.RefID[:], a.RefID[:])
+	})
+	if len(out) > limit {
+		return out[:limit], true
+	}
+	return out, false
 }
 
 // staffNames đọc tên hiển thị của từng nhân viên trong ids (mỗi mã một lần); nhân viên không còn → tên rỗng.

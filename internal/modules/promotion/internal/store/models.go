@@ -414,6 +414,75 @@ type CatalogVariantsV struct {
 	WeightGrams   pgtype.Int4
 }
 
+type ChannelChannelAccount struct {
+	ID                uuid.UUID
+	TenantID          uuid.UUID
+	SellerID          uuid.UUID
+	Channel           string
+	ExternalID        string
+	Name              string
+	CredentialEnc     []byte
+	CredentialKid     pgtype.Text
+	TokenKind         pgtype.Text
+	Status            string
+	StatusReason      pgtype.Text
+	SendMode          string
+	HumanAgentEnabled bool
+	SubscribedFields  []string
+	TokenCheckedAt    pgtype.Timestamptz
+	LastWebhookAt     pgtype.Timestamptz
+	LastFeedAt        pgtype.Timestamptz
+	BlockedUntil      pgtype.Timestamptz
+	Version           int32
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type ChannelChannelAccountsV struct {
+	ID                uuid.UUID
+	TenantID          uuid.UUID
+	SellerID          uuid.UUID
+	Channel           string
+	ExternalID        string
+	Name              string
+	TokenKind         pgtype.Text
+	Status            string
+	StatusReason      pgtype.Text
+	SendMode          string
+	HumanAgentEnabled bool
+	SubscribedFields  []string
+	TokenCheckedAt    pgtype.Timestamptz
+	LastWebhookAt     pgtype.Timestamptz
+	LastFeedAt        pgtype.Timestamptz
+	BlockedUntil      pgtype.Timestamptz
+	Version           int32
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type ChannelOauthSession struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	UserID        uuid.UUID
+	StateHash     []byte
+	UserTokenEnc  []byte
+	UserTokenKid  pgtype.Text
+	Pages         []byte
+	ExpiresAt     time.Time
+	UsedAt        pgtype.Timestamptz
+	CreatedAt     time.Time
+	FbUserRefHash pgtype.Text
+}
+
+type ChannelSendBucket struct {
+	TenantID         uuid.UUID
+	ChannelAccountID uuid.UUID
+	Tokens           float64
+	Capacity         int32
+	RefillPerSec     float64
+	UpdatedAt        time.Time
+}
+
 type ContentHomeBanner struct {
 	ID           uuid.UUID
 	TenantID     uuid.UUID
@@ -475,6 +544,301 @@ type ContentLookSet struct {
 	Revision  int32
 	UpdatedBy *uuid.UUID
 	UpdatedAt pgtype.Timestamptz
+}
+
+type ConversationAutomationRule struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	ChannelAccountID uuid.UUID
+	Kind             string
+	Config           []byte
+	Enabled          bool
+	Version          int32
+	UpdatedBy        *uuid.UUID
+	UpdatedAt        time.Time
+}
+
+type ConversationAutomationRulesV struct {
+	TenantID         uuid.UUID
+	ID               uuid.UUID
+	ChannelAccountID uuid.UUID
+	Kind             string
+	Enabled          bool
+	UpdatedAt        time.Time
+	Version          int32
+}
+
+type ConversationAutomationRun struct {
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	RuleID       uuid.UUID
+	ExternalRef  string
+	SubjectRef   pgtype.Text
+	Outcome      string
+	CommandJobID *uuid.UUID
+	CreatedAt    time.Time
+}
+
+type ConversationCallLog struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	CustomerID     uuid.UUID
+	ConversationID *uuid.UUID
+	OrderID        *uuid.UUID
+	Outcome        string
+	Note           pgtype.Text
+	CallbackAt     pgtype.Timestamptz
+	CreatedBy      uuid.UUID
+	CreatedAt      time.Time
+}
+
+type ConversationCallLogsV struct {
+	TenantID       uuid.UUID
+	ID             uuid.UUID
+	CustomerID     uuid.UUID
+	ConversationID *uuid.UUID
+	OrderID        *uuid.UUID
+	Outcome        string
+	CallbackAt     pgtype.Timestamptz
+	CreatedBy      uuid.UUID
+	CreatedAt      time.Time
+}
+
+type ConversationConversation struct {
+	ID                    uuid.UUID
+	TenantID              uuid.UUID
+	ChannelAccountID      uuid.UUID
+	CustomerID            uuid.UUID
+	Kind                  string
+	ExternalThreadRef     string
+	PostID                *uuid.UUID
+	Status                string
+	AssigneeID            *uuid.UUID
+	AvatarFileID          *uuid.UUID
+	LastMessageAt         time.Time
+	LastCustomerMessageAt pgtype.Timestamptz
+	LastStaffMessageAt    pgtype.Timestamptz
+	UnreadCount           int32
+	LastSnippet           pgtype.Text
+	BlockedByUser         bool
+	Version               int32
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+	CreatedCustomer       bool
+}
+
+type ConversationConversationAssignment struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	ConversationID uuid.UUID
+	FromUserID     *uuid.UUID
+	ToUserID       *uuid.UUID
+	ActorID        *uuid.UUID
+	Reason         string
+	CreatedAt      time.Time
+}
+
+type ConversationConversationTagLink struct {
+	TenantID       uuid.UUID
+	ConversationID uuid.UUID
+	TagID          uuid.UUID
+	CreatedBy      *uuid.UUID
+	CreatedAt      time.Time
+}
+
+type ConversationConversationsV struct {
+	TenantID              uuid.UUID
+	ID                    uuid.UUID
+	ChannelAccountID      uuid.UUID
+	CustomerID            uuid.UUID
+	Kind                  string
+	Status                string
+	AssigneeID            *uuid.UUID
+	PostID                *uuid.UUID
+	LastMessageAt         time.Time
+	LastCustomerMessageAt pgtype.Timestamptz
+	CreatedAt             time.Time
+}
+
+type ConversationLiveCommentClaim struct {
+	TenantID       uuid.UUID
+	MessageID      uuid.UUID
+	LiveSessionID  uuid.UUID
+	ConversationID uuid.UUID
+	OrderID        uuid.UUID
+	ClaimedBy      uuid.UUID
+	ClaimedAt      time.Time
+	AskMessageID   *uuid.UUID
+	AskStatus      string
+	AskReason      pgtype.Text
+	RemindCount    int32
+	LastRemindedAt pgtype.Timestamptz
+}
+
+type ConversationLiveSession struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	ChannelAccountID uuid.UUID
+	PostID           *uuid.UUID
+	LiveVideoID      string
+	VideoID          pgtype.Text
+	PostExternalID   pgtype.Text
+	Status           string
+	Title            pgtype.Text
+	StartedAt        time.Time
+	EndedAt          pgtype.Timestamptz
+	LeaseOwner       pgtype.Text
+	LeaseUntil       pgtype.Timestamptz
+	LastCommentAt    pgtype.Timestamptz
+	ReceivedCount    int32
+	MetaCommentCount pgtype.Int4
+	ReconciledAt     pgtype.Timestamptz
+	SourceMode       string
+	ActiveSource     pgtype.Text
+	DetectedBy       string
+	Version          int32
+	CreatedAt        time.Time
+}
+
+type ConversationMessage struct {
+	ID                uuid.UUID
+	TenantID          uuid.UUID
+	ConversationID    uuid.UUID
+	ChannelAccountID  uuid.UUID
+	ExternalID        pgtype.Text
+	ClientRef         *uuid.UUID
+	Direction         string
+	Kind              string
+	Origin            string
+	ParentExternalID  pgtype.Text
+	PostID            *uuid.UUID
+	Body              pgtype.Text
+	Attachments       []byte
+	QuickReplies      []byte
+	QuickReplyPayload pgtype.Text
+	SenderStaffID     *uuid.UUID
+	SenderName        pgtype.Text
+	SendStatus        pgtype.Text
+	FailReason        pgtype.Text
+	CommandJobID      *uuid.UUID
+	SendCheckingSince pgtype.Timestamptz
+	IsHidden          bool
+	RemovedAt         pgtype.Timestamptz
+	EditedAt          pgtype.Timestamptz
+	IsLive            bool
+	DeliveredAt       pgtype.Timestamptz
+	ReadAt            pgtype.Timestamptz
+	Reactions         []byte
+	SentAt            time.Time
+	CreatedAt         time.Time
+}
+
+type ConversationMessageRevision struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	MessageID  uuid.UUID
+	Body       pgtype.Text
+	IsHidden   pgtype.Bool
+	Removed    pgtype.Bool
+	Source     string
+	RecordedAt time.Time
+	Reason     pgtype.Text
+}
+
+type ConversationPageSetting struct {
+	TenantID                uuid.UUID
+	ChannelAccountID        uuid.UUID
+	RoundRobinEnabled       bool
+	RoundRobinUserIds       []uuid.UUID
+	RoundRobinLastUserID    *uuid.UUID
+	AskAddressTemplateID    *uuid.UUID
+	InboxTrafficSourceID    *uuid.UUID
+	CommentTrafficSourceID  *uuid.UUID
+	LiveSlots               []byte
+	CommentPollMode         string
+	AutomationMaxAgeMinutes int32
+	Version                 int32
+	UpdatedAt               time.Time
+}
+
+type ConversationPost struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	ChannelAccountID uuid.UUID
+	ExternalID       string
+	Kind             string
+	Permalink        pgtype.Text
+	Snippet          pgtype.Text
+	CreatedTime      pgtype.Timestamptz
+	FetchedAt        pgtype.Timestamptz
+	ImageFileID      *uuid.UUID
+}
+
+type ConversationPresence struct {
+	TenantID       uuid.UUID
+	ConversationID uuid.UUID
+	UserID         uuid.UUID
+	State          string
+	ExpiresAt      time.Time
+}
+
+type ConversationReminder struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	ConversationID uuid.UUID
+	UserID         uuid.UUID
+	RemindAt       time.Time
+	Note           pgtype.Text
+	Status         string
+	Source         string
+	CreatedBy      uuid.UUID
+	FiredAt        pgtype.Timestamptz
+	Version        int32
+	CreatedAt      time.Time
+}
+
+type ConversationReplyTemplate struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	ChannelAccountID *uuid.UUID
+	Shortcut         string
+	Title            string
+	Body             string
+	AttachmentFileID *uuid.UUID
+	QuickReplies     []byte
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	CreatedBy        *uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type ConversationReplyTemplatesV struct {
+	TenantID         uuid.UUID
+	ID               uuid.UUID
+	ChannelAccountID *uuid.UUID
+	Shortcut         string
+	Title            string
+	CreatedAt        time.Time
+}
+
+type ConversationTag struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Name      string
+	Color     string
+	Sort      int32
+	DeletedAt pgtype.Timestamptz
+	Version   int32
+	CreatedAt time.Time
+}
+
+type ConversationTagsV struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	Name     string
+	Color    string
+	Sort     int32
 }
 
 type CustomerAdminUnit struct {
@@ -550,6 +914,9 @@ type CustomerCustomer struct {
 	LastOrderAt    pgtype.Timestamptz
 	StatsUpdatedAt pgtype.Timestamptz
 	CreatedBy      *uuid.UUID
+	DoNotContact   bool
+	DoNotContactAt pgtype.Timestamptz
+	NameSource     string
 }
 
 type CustomerCustomerAddress struct {
@@ -701,6 +1068,8 @@ type CustomerCustomersV struct {
 	LastOrderAt    pgtype.Timestamptz
 	UpdatedAt      time.Time
 	Version        int64
+	DoNotContact   bool
+	NameSource     string
 }
 
 type CustomerFeedback struct {
@@ -1630,6 +1999,14 @@ type PlatformBackupRun struct {
 	FinishedAt      time.Time
 	DurationSeconds pgtype.Int4
 	Detail          pgtype.Text
+}
+
+type PlatformDataDeletionRequest struct {
+	Code        string
+	Source      string
+	UserRefHash string
+	ReceivedAt  time.Time
+	CompletedAt pgtype.Timestamptz
 }
 
 type PlatformDomainEvent struct {

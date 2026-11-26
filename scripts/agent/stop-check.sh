@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Hook Stop: không cho agent báo xong khi cổng kiểm của phần vừa đổi chưa qua.
+# Hook Stop: không cho agent báo xong khi phần vừa đổi chưa build, vet được (kiểm đủ ở ci-task, chạy từ xa).
 # Thoát 2 thì Claude Code đưa stderr cho agent và agent phải làm tiếp.
 set -u
 cd "${CLAUDE_PROJECT_DIR:-$(pwd)}" || exit 0
@@ -33,70 +33,33 @@ need() {  # need <công cụ> <vì sao>
 }
 has() { printf '%s\n' "$changed" | grep -E -q "$1"; }
 
-# Phần Go: khi có go.mod và có tệp Go, go.mod/go.sum đổi — hay tệp dữ liệu mà test đọc (Task 478: openapi.yaml, testdata,
-# tệp go:embed, tài liệu test đọc theo đường dẫn; affected.py tự chọn gói). Tệp task (docs/tasks/) đổi mỗi lượt: bỏ qua.
+# Chủ shop 26/11 ("sao test chưa chạy trong bể, mà vẫn chạy trên máy t à, thấy vẫn lag lắm" → chọn "Đổi ngay cả hai"):
+# máy Mac chỉ xử lý task; hook Stop chỉ còn build + vet nhanh trên máy. Lint, test, mã sinh, dò trùng, màn hình do
+# scripts/agent/ci-task.sh kiểm đủ — mặc định chạy từ xa (Task 493). Trước đây hook chạy lint + test gói đổi sau mỗi
+# lượt, không xếp hàng, làm máy lag khi nhiều phiên song song.
+# Phần Go: khi có go.mod và có tệp đổi (tệp task docs/tasks/ đổi mỗi lượt: bỏ qua).
 if [ -f go.mod ] && { has '(\.go|go\.mod|go\.sum)$' || printf '%s\n' "$changed" | grep -v '^docs/tasks/' | grep -q .; }; then
-  if need go "build và test"; then
+  if need go "build và vet"; then
     run "go build ./..." go build ./...
-    # --split (Task 473): vet, lint trên mọi gói bị ảnh hưởng; -race chỉ gói sửa trực tiếp, gói chỉ dùng tới test thường.
-    # Không --base: migration do ci-task xét (hook chạy mỗi lần báo xong, giữ nhẹ).
     split=$(printf '%s\n' "$changed" | python3 scripts/agent/affected.py --split)
     if [ $? -eq 3 ]; then
       fail="${fail}== go list lỗi, không tính được gói bị ảnh hưởng ==
 "
     fi
-    # Chủ shop 24/11: tests/e2e chưa chạy cho tới khi xong toàn bộ task (vẫn biên dịch, vet, lint).
-    race=$(printf '%s\n' "$split" | sed -n 's/^race //p' | grep -v '/tests/e2e$')
-    plain=$(printf '%s\n' "$split" | sed -n 's/^plain //p' | grep -v '/tests/e2e$')
-    pkgs="$race $plain"
+    pkgs=$(printf '%s\n' "$split" | sed -E -n 's/^(race|plain) //p' | tr '\n' ' ')
     if [ -n "${pkgs// /}" ]; then
       # shellcheck disable=SC2086
       run "go vet (gói bị ảnh hưởng)" go vet $pkgs
-      if [ -f .golangci.yml ] && need golangci-lint "lint"; then
-        # shellcheck disable=SC2086
-        # golangci-lint cần đường dẫn thư mục, không nhận tên gói dạng elimaz.com.vn/... (Task 4 phát hiện).
-        lintdirs=$(go list -f '{{.Dir}}' $pkgs 2>/dev/null | sed "s#^$(pwd)/#./#")
-        # shellcheck disable=SC2086
-        run "golangci-lint (gói bị ảnh hưởng)" golangci-lint run $lintdirs
-      fi
-      if [ -n "$race" ]; then
-        # shellcheck disable=SC2086
-        run "go test -race (gói sửa trực tiếp, vùng cao)" go test -race -count=1 $race
-      fi
-      if [ -n "$plain" ]; then
-        # shellcheck disable=SC2086
-        run "go test (gói chỉ dùng tới phần đổi, không -race)" go test -count=1 $plain
-      fi
     fi
   fi
 fi
 
-# Module Go riêng trong spikes/ (go.mod riêng, ngoài ./... của module gốc): build, vet, test module có tệp đổi.
+# Module Go riêng trong spikes/ (go.mod riêng, ngoài ./... của module gốc): vet module có tệp đổi.
 for mod in $(printf '%s\n' "$changed" | sed -n 's#^\(spikes/[^/]*\)/.*#\1#p' | sort -u); do
-  if [ -f "$mod/go.mod" ] && need go "build và test $mod"; then
+  if [ -f "$mod/go.mod" ] && need go "vet $mod"; then
     run "go vet ($mod)" sh -c "cd '$mod' && go vet ./..."
-    run "go test -race ($mod)" sh -c "cd '$mod' && go test -race -count=1 ./..."
   fi
 done
-
-# Mã sinh không được lệch nguồn.
-if has '^(openapi/|queries/|sqlc\.yaml)' && [ -f Makefile ] && grep -q '^gen:' Makefile; then
-  run "make gen" make gen
-  run "mã sinh khác bản trong repo sau make gen" git diff --exit-code -- internal/httpapi/gen internal/httpapi/routes_gen.go console/src/api
-fi
-
-# Màn hình.
-if has '^console/' && [ -f console/package.json ]; then
-  run "tsc --noEmit (console)" npx --prefix console tsc -p console --noEmit
-  run "eslint (console)" npx --prefix console eslint console
-fi
-
-# Đoạn trùng mới trên tệp vừa đổi.
-if [ -f .jscpd.json ] && need jscpd "dò code trùng"; then
-  files=$(printf '%s\n' "$changed" | grep -E '\.(go|ts|tsx)$' | while read -r f; do [ -f "$f" ] && printf '%s ' "$f"; done)
-  # shellcheck disable=SC2086
-  [ -n "$files" ] && run "jscpd (tệp vừa đổi)" jscpd --config .jscpd.json $files
-fi
 
 # Test không được lặng lẽ biến mất.
 run "test-guard (so với HEAD)" scripts/agent/test-guard.sh HEAD

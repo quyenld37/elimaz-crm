@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M4 — Cài đặt hộp chat</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="m4.css">
+<style>
+.cfg { display: grid; gap: var(--space-md); grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); align-items: start; }
+@media (max-width: 759px) { .cfg { grid-template-columns: minmax(0, 1fr); } }
+.card-f { display: flex; gap: var(--space-sm); justify-content: flex-end; flex-wrap: wrap; align-items: center; padding-top: var(--space-md); border-top: 1px solid var(--rule); }
+</style>
+</head>
+<body data-page="cai-dat" data-title="Cài đặt hộp chat">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><p class="crumb"><a href="inbox.html">Hộp chat</a> / Cài đặt</p><h1>Cài đặt hộp chat</h1><p class="sub">Cài đặt theo từng tài khoản kênh (Page) và cài đặt chung cho cả shop (nhãn, mẫu trả lời). Mỗi khối lưu riêng.</p></div>
+</div>
+<div class="tabs" role="tablist" aria-label="Phần cài đặt" data-ca="chon-tai-khoan">
+	<button class="tab" role="tab" aria-selected="true">FB · ELIMAZ</button>
+	<button class="tab" role="tab" aria-selected="false">FB · ELIMAZ Sale</button>
+	<button class="tab" role="tab" aria-selected="false">Nhãn</button>
+	<button class="tab" role="tab" aria-selected="false">Mẫu trả lời</button>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="ch11 ch12 ch16 an-theo-tinh-nang"><p class="xs">TRẠNG THÁI A</p><h2>Cài đặt của Page ELIMAZ: tự ẩn comment, tự trả lời comment, tin chào, nhắn lại khách, xoay vòng, Live, nguồn đơn, đọc comment định kỳ, tuổi tối đa của sự kiện</h2></section>
+
+<p class="mk" data-ca="an-theo-tinh-nang" style="margin-bottom:16px"><b>Mockup: mục hiện theo tính năng của kênh.</b> Mỗi khối chỉ hiện khi adapter của kênh khai báo có tính năng đó (Features). Facebook có đủ nên thấy mọi khối. Tài khoản Zalo OA sau này (không comment, không Live, không ẩn comment) sẽ không thấy Tự ẩn comment, Tự trả lời comment, Live, Đọc comment định kỳ; Tin chào chỉ có nút trả lời nhanh khi kênh hỗ trợ. Ẩn hẳn, không hiện mờ.</p>
+
+<div class="cfg">
+	<section class="card" data-ca="tu-an ch11">
+		<div class="row-between"><h2>Tự ẩn comment</h2><span class="xs muted">Tính năng: Ẩn comment</span></div>
+		<div class="stack-sm">
+			<div class="seg" role="tablist" aria-label="Chế độ tự ẩn"><button class="tab" role="tab" aria-selected="false">Tắt</button><button class="tab" role="tab" aria-selected="true">Chỉ comment có SĐT</button><button class="tab" role="tab" aria-selected="false">Tất cả</button></div>
+			<p class="hint">Comment bị ẩn trên Page (khách khác không thấy SĐT) nhưng vẫn hiện đủ trong Hộp chat. Không bao giờ ẩn comment của chính Page.</p>
+			<div class="field" data-ca="ngoai-le-bai"><span>Trừ các bài (tối đa 200)</span><div class="lbs"><span class="lb lb-4 lb-x">Bài ghim: bảng size<button class="ibtn" aria-label="Bỏ bài Bài ghim: bảng size">×</button></span><span class="lb lb-4 lb-x">Minigame tháng 11<button class="ibtn" aria-label="Bỏ bài Minigame tháng 11">×</button></span></div><button class="btn btn-quiet" style="justify-self:start">+ Chọn bài</button></div>
+			<div class="card-f"><button class="btn btn-dark">Lưu</button></div>
+		</div>
+	</section>
+
+	<section class="card" data-ca="tu-tra-loi ch12">
+		<div class="row-between"><h2>Tự trả lời comment</h2><button class="toggle" aria-pressed="true">Bật</button></div>
+		<div class="stack-sm">
+			<div class="field" data-ca="5-cau"><span>Câu trả lời công khai (CRM chọn xoay vòng) <span class="cnt">3/5 câu</span></span>
+				<div class="lines-f">
+					<div class="line-f"><input class="input" value="Shop đã inbox, bạn check tin nhắn nhé ạ" aria-label="Câu 1"><button class="ibtn" aria-label="Xóa câu 1">×</button></div>
+					<div class="line-f"><input class="input" value="Dạ shop nhắn riêng bạn rồi ạ" aria-label="Câu 2"><button class="ibtn" aria-label="Xóa câu 2">×</button></div>
+					<div class="line-f"><input class="input" value="Bạn xem tin nhắn từ ELIMAZ giúp shop nha" aria-label="Câu 3"><button class="ibtn" aria-label="Xóa câu 3">×</button></div>
+				</div>
+				<button class="btn btn-quiet" style="justify-self:start">+ Thêm câu</button>
+			</div>
+			<label class="field" data-ca="tin-rieng-kem"><span>Tin riêng kèm theo</span><span class="select-wrap"><select><option>Mẫu "Xin SĐT và size"</option><option>Không gửi tin riêng</option><option>Nhập nội dung riêng</option></select></span></label>
+			<div class="radios"><label class="check"><input type="radio" name="ap" checked> Mọi bài</label><label class="check"><input type="radio" name="ap"> Chỉ bài chọn</label></div>
+			<label class="field" data-ca="gioi-han-moi-nguoi"><span>Mỗi người mỗi bài chỉ một lần trong (giờ, 1–72)</span><input class="input num" value="24" inputmode="numeric" style="max-width:120px"></label>
+			<label class="check" data-ca="ap-cho-live"><input type="checkbox"> Áp cho comment trong live</label>
+			<p class="hint">Mỗi comment nhận tối đa một trả lời công khai và một tin riêng tự động, kể cả khi hệ thống xử lý lại. Nhân viên đã nhắn riêng comment đó thì CRM không gửi thêm. Live mặc định không áp (đã có khung chốt).</p>
+			<div class="card-f"><button class="btn btn-dark">Lưu</button></div>
+		</div>
+	</section>
+
+	<section class="card" data-ca="tin-chao ch12">
+		<div class="row-between"><h2>Tin chào</h2><button class="toggle" aria-pressed="true">Bật</button></div>
+		<div class="stack-sm">
+			<label class="field"><span>Nội dung <span class="cnt">75/640</span></span><textarea class="input" style="min-height:72px">Chào bạn, ELIMAZ đây ạ! Bạn cần tư vấn size, xem bảng giá hay địa chỉ shop?</textarea></label>
+			<div class="field" data-ca="13-nut 20-ky-tu"><span>Nút trả lời nhanh <span class="cnt">3/13 nút · mỗi nút tối đa 20 ký tự</span></span>
+				<div class="qrs"><span class="qr">Tư vấn size<button class="ibtn" aria-label="Xóa nút Tư vấn size">×</button></span><span class="qr">Xem bảng giá<button class="ibtn" aria-label="Xóa nút Xem bảng giá">×</button></span><span class="qr">Địa chỉ shop<button class="ibtn" aria-label="Xóa nút Địa chỉ shop">×</button></span></div>
+				<button class="btn btn-quiet" style="justify-self:start">+ Thêm nút</button>
+			</div>
+			<p class="hint">Chỉ gửi một lần cho khách nhắn Page lần đầu. Khách bấm nút thì vào Hộp chat như tin thường.</p>
+			<div class="card-f"><button class="btn btn-dark">Lưu</button></div>
+		</div>
+	</section>
+
+	<section class="card" data-ca="nhan-lai ch16">
+		<div class="row-between"><h2>Nhắn lại khách chưa trả lời</h2><button class="toggle" aria-pressed="false">Tắt</button></div>
+		<div class="stack-sm">
+			<div class="row"><span class="small">Tự gửi sau</span><input class="input num" value="3" aria-label="Số giờ" style="width:72px" inputmode="numeric"><span class="small">giờ khách im lặng (1–23)</span></div>
+			<label class="field"><span>Mẫu</span><span class="select-wrap"><select><option>Mẫu "Nhắc khách"</option><option>Mẫu "Còn size không"</option></select></span></label>
+			<p class="hint">Mặc định tắt. Bật thì mỗi tin của nhân viên được nhắn lại tự động tối đa một lần, chỉ khi còn trong 24 giờ; không gửi cho khách không liên hệ hay đã chặn Page. Gửi tay một chạm vẫn ở Hộp chat → Khách chưa trả lời.</p>
+			<div class="card-f"><a class="btn btn-text" href="inbox.html">Xem khách chưa trả lời</a><button class="btn btn-dark">Lưu</button></div>
+		</div>
+	</section>
+
+	<section class="card" data-ca="xoay-vong">
+		<div class="row-between"><h2>Xoay vòng phân công</h2><button class="toggle" aria-pressed="false">Tắt</button></div>
+		<div class="stack-sm">
+			<div class="radios"><label class="check"><input type="checkbox" checked> Trần Minh An</label><label class="check"><input type="checkbox" checked> Lê Thu Hằng</label><label class="check"><input type="checkbox"> Nguyễn Thị Lan</label></div>
+			<p class="hint">Mặc định tắt. Bật thì hội thoại mới lần lượt giao cho người được chọn; người bị khóa hoặc mất quyền trên Page tự bỏ qua. Hội thoại cũ không đổi người.</p>
+			<div class="card-f"><button class="btn btn-dark">Lưu</button></div>
+		</div>
+	</section>
+
+	<section class="card" data-ca="live-cai-dat khung-gio han-nhap-m2">
+		<div class="row-between"><h2>Live</h2><span class="xs muted">Tính năng: Live</span></div>
+		<div class="stack-sm">
+			<label class="field"><span>Mẫu xin địa chỉ</span><span class="select-wrap"><select><option>Mẫu "Xin địa chỉ live"</option><option>Mẫu "Xin SĐT và size"</option></select></span></label>
+			<div class="field"><span>Khung giờ → nguồn đơn</span>
+				<div class="slots">
+					<div class="slot"><input class="input num" value="11:30" aria-label="Từ"><input class="input num" value="14:00" aria-label="Đến"><span class="select-wrap"><select aria-label="Nguồn đơn"><option>Live ca trưa</option><option>Live tối</option></select></span><button class="ibtn" aria-label="Xóa khung 11:30">×</button></div>
+					<div class="slot"><input class="input num" value="19:00" aria-label="Từ"><input class="input num" value="23:00" aria-label="Đến"><span class="select-wrap"><select aria-label="Nguồn đơn"><option>Live tối</option><option>Live ca trưa</option></select></span><button class="ibtn" aria-label="Xóa khung 19:00">×</button></div>
+				</div>
+				<button class="btn btn-quiet" style="justify-self:start">+ Thêm khung giờ</button>
+			</div>
+			<dl class="kv"><dt>Hạn đơn nháp</dt><dd>24 giờ · đặt ở Cài đặt đơn, dùng chung mọi đơn nháp</dd></dl>
+			<div class="card-f"><a class="btn btn-text" href="../m2/cai-dat-don.html">Mở Cài đặt đơn</a><button class="btn btn-dark">Lưu</button></div>
+		</div>
+	</section>
+
+	<section class="card" data-ca="nguon-don doc-dinh-ky tuoi-su-kien">
+		<h2>Nguồn đơn và nâng cao</h2>
+		<div class="stack-sm">
+			<div class="grid-f" data-ca="nguon-don" style="gap:8px">
+				<label class="field"><span>Nguồn đơn cho tin nhắn</span><span class="select-wrap"><select><option>Facebook inbox</option><option>Facebook comment</option></select></span></label>
+				<label class="field"><span>Nguồn đơn cho comment</span><span class="select-wrap"><select><option>Facebook comment</option><option>Facebook inbox</option></select></span></label>
+			</div>
+			<div class="field" data-ca="doc-dinh-ky"><span>Đọc comment định kỳ</span><div class="seg" role="tablist" aria-label="Đọc comment định kỳ"><button class="tab" role="tab" aria-selected="true">Tự động</button><button class="tab" role="tab" aria-selected="false">Luôn bật</button><button class="tab" role="tab" aria-selected="false">Tắt</button></div><span class="hint">Tự động: khi 10 phút trong giờ bán không có comment mới qua webhook, CRM hỏi Facebook mỗi 30 giây.</span></div>
+			<div class="row" data-ca="tuoi-su-kien"><span class="small">Bỏ qua tự động cho sự kiện cũ hơn</span><input class="input num" value="15" aria-label="Số phút" style="width:72px" inputmode="numeric"><span class="small">phút</span></div>
+			<p class="hint">Ví dụ sau sự cố CRM lấy bù comment cũ: không tự trả lời, không tự ẩn những comment đó.</p>
+			<div class="card-f"><button class="btn btn-dark">Lưu</button></div>
+		</div>
+	</section>
+</div>
+
+<div class="future" style="margin-top:16px" data-ca="an-theo-tinh-nang">
+	<p class="mk"><b>Mockup: trạng thái sau này, không thuộc M4.</b> Tab của tài khoản Zalo OA (OA ID 266922216953909495) chỉ có các khối kênh đó hỗ trợ:</p>
+	<div class="row"><span class="chip chip-line">Tin chào</span><span class="chip chip-line">Nhắn lại khách chưa trả lời</span><span class="chip chip-line">Xoay vòng phân công</span><span class="chip chip-line">Nguồn đơn và nâng cao</span><span class="chip feat-no">Không có Tự ẩn comment</span><span class="chip feat-no">Không có Tự trả lời comment</span><span class="chip feat-no">Không có Live</span><span class="chip feat-no">Không có Đọc comment định kỳ</span></div>
+</div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="xung-dot 13-nut 20-ky-tu 5-cau khong-quyen-sua"><p class="xs">TRẠNG THÁI B</p><h2>Lỗi và giới hạn: có người vừa sửa; nút trả lời nhanh 21 ký tự; đủ 13 nút; đủ 5 câu; người chỉ được xem cài đặt</h2></section>
+
+<div class="dlgs">
+	<div class="card" data-ca="xung-dot">
+		<div class="box box-err small"><b>Có người vừa sửa, tải lại trang.</b> Lê Thu Hằng vừa lưu Tự trả lời comment. Thay đổi của bạn chưa lưu.</div>
+		<div class="row" style="margin-top:8px"><button class="btn btn-dark">Tải lại</button></div>
+	</div>
+	<div class="card" data-ca="20-ky-tu 13-nut">
+		<h3>Tin chào: nút trả lời nhanh <span class="cnt is-over">13/13 nút</span></h3>
+		<div class="stack-sm" style="margin-top:8px">
+			<label class="field"><span>Nút mới <span class="cnt is-over">21/20</span></span><input class="input is-err" value="Tư vấn size áo và váy"><span class="field-err">Tối đa 20 ký tự (đang 21).</span></label>
+			<div class="act"><button class="btn btn-quiet" disabled>+ Thêm nút</button><span class="reason">Đã đủ 13 nút.</span></div>
+		</div>
+	</div>
+	<div class="card" data-ca="5-cau">
+		<h3>Tự trả lời comment <span class="cnt">5/5 câu</span></h3>
+		<div class="act" style="margin-top:8px"><button class="btn btn-quiet" disabled>+ Thêm câu</button><span class="reason">Tối đa 5 câu.</span></div>
+	</div>
+	<div class="card" data-ca="khong-quyen-sua">
+		<div class="box box-info small"><b>Bạn chỉ xem được cài đặt của Page này.</b> Sửa cần quyền "Cài đặt hộp chat" trên Page ELIMAZ.</div>
+		<div class="stack-sm" style="margin-top:8px">
+			<div class="seg" role="tablist" aria-label="Chế độ tự ẩn (chỉ xem)"><button class="tab" role="tab" aria-selected="false" disabled>Tắt</button><button class="tab" role="tab" aria-selected="true" disabled>Chỉ comment có SĐT</button><button class="tab" role="tab" aria-selected="false" disabled>Tất cả</button></div>
+			<div class="act"><button class="btn btn-dark" disabled>Lưu</button><span class="reason">Chưa có quyền sửa.</span></div>
+		</div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" data-ca="nhan mau-tra-loi bien-mau loi-bien"><p class="xs">TRẠNG THÁI C</p><h2>Cài đặt chung: nhãn (14 nhãn, màu từ bốn sắc có sẵn); mẫu trả lời (phím tắt, nội dung, biến, giới hạn Page); biến lạ báo lỗi tại ô</h2></section>
+
+<div class="cfg">
+	<section class="card" data-ca="nhan">
+		<div class="row-between"><h2>Nhãn <span class="small muted">14</span></h2><button class="btn btn-quiet">+ Nhãn</button></div>
+		<div class="lbs"><span class="lb lb-1">Hỏi size</span><span class="lb lb-2">Chờ chuyển khoản</span><span class="lb lb-3">Đã lên đơn</span><span class="lb lb-4">Khách sỉ</span><span class="lb lb-1">Hỏi giá</span><span class="lb lb-2">Chờ hàng về</span><span class="lb lb-3">Đã giao</span><span class="lb lb-4">Đổi trả</span><span class="lb lb-1">Khiếu nại</span><span class="lb lb-2">Hẹn gọi</span><span class="lb lb-3">VIP</span><span class="lb lb-4">Minigame</span><span class="lb lb-1">Live tối</span><span class="lb lb-2">Spam</span></div>
+		<div class="stack-sm" style="margin-top:16px">
+			<label class="field"><span>Tên nhãn</span><input class="input is-err" value="đã lên đơn"><span class="field-err">Nhãn "Đã lên đơn" đã có.</span></label>
+			<div class="radios" aria-label="Màu"><label class="check"><input type="radio" name="mau" checked> <span class="lb lb-1">Hồng</span></label><label class="check"><input type="radio" name="mau"> <span class="lb lb-2">Xám</span></label><label class="check"><input type="radio" name="mau"> <span class="lb lb-3">Xanh</span></label><label class="check"><input type="radio" name="mau"> <span class="lb lb-4">Viền</span></label></div>
+			<p class="hint">Nhãn dùng chung cả shop. Xóa nhãn thì gỡ khỏi mọi hội thoại.</p>
+			<div class="card-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark">Lưu nhãn</button></div>
+		</div>
+	</section>
+
+	<section class="card" data-ca="mau-tra-loi">
+		<div class="row-between"><h2>Mẫu trả lời <span class="small muted">9</span></h2><button class="btn btn-quiet">+ Mẫu</button></div>
+		<ul class="olines">
+			<li><span><b>/chao</b> · Chào khách</span><span class="small muted">Mọi Page</span></li>
+			<li><span><b>/xin-dia-chi</b> · Xin địa chỉ live</span><span class="small muted">Mọi Page</span></li>
+			<li><span><b>/size</b> · Bảng size đầm</span><span class="small muted">ELIMAZ</span></li>
+		</ul>
+		<div class="stack-sm" style="margin-top:16px">
+			<div class="grid-f" style="gap:8px">
+				<label class="field"><span>Phím tắt *</span><input class="input" value="xin-dia-chi"><span class="hint">a–z, 0–9, - và _; tối đa 32</span></label>
+				<label class="field"><span>Áp cho Page</span><span class="select-wrap"><select><option>Mọi Page</option><option>ELIMAZ</option><option>ELIMAZ Sale</option></select></span></label>
+			</div>
+			<label class="field" data-ca="loi-bien"><span>Nội dung * <span class="cnt">116/2000</span></span><textarea class="input is-err">Chào {ten_khach}, shop giữ đơn {ma_don} cho bạn rồi ạ. Bạn gửi giúp shop họ tên, SĐT và địa chỉ nhận hàng nhé. {abc}</textarea><span class="field-err">Biến {abc} không có. Dùng các biến ở bảng dưới.</span></label>
+			<div class="tbl-frame" data-ca="bien-mau">
+				<table class="tbl"><thead><tr><th>Biến</th><th>Thay bằng</th></tr></thead><tbody>
+					<tr><td data-label="Biến"><code>{ten_khach}</code></td><td data-label="Thay bằng">Tên khách ("bạn" khi chưa có tên)</td></tr>
+					<tr><td data-label="Biến"><code>{ten_page}</code></td><td data-label="Thay bằng">Tên Page</td></tr>
+					<tr><td data-label="Biến"><code>{ma_don}</code></td><td data-label="Thay bằng">Mã đơn mới nhất của khách</td></tr>
+					<tr><td data-label="Biến"><code>{nhan_vien}</code></td><td data-label="Thay bằng">Tên người gửi (tin tự động: tên Page)</td></tr>
+					<tr><td data-label="Biến"><code>{ma_van_don}</code></td><td data-label="Thay bằng">Mã vận đơn (sau khi có vận chuyển M3)</td></tr>
+				</tbody></table>
+			</div>
+			<div class="card-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark">Lưu mẫu</button></div>
+		</div>
+	</section>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

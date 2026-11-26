@@ -6,6 +6,14 @@
 //	loadkit stats  -db <chủ bảng> -run R -from T [-to T]         một dòng JSON số đo database
 //	loadkit report -mode M -start T -k6 F -sse F -db F …         chấm ngưỡng, in bảng markdown; có mục KHÔNG ĐẠT thì thoát 1
 //
+// Bộ thử tải M4 (kế hoạch M4 Task 180, loadtest/fb_run.sh):
+//
+//	loadkit fbseed  -db <chủ bảng> -api <gốc> -graph <máy giả> -tokens F -out fb.json   sản phẩm, tồn, Page, phiên live
+//	loadkit sse     -fixture fb.json -db <chủ bảng> …          client SSE đo hội thoại tới màn hình (thay pong selftest)
+//	loadkit fbend   -api <gốc> -graph <máy giả> -tokens F -fixture fb.json             kết thúc phiên live (đối chiếu)
+//	loadkit fbstats -db <chủ bảng> -fixture fb.json -run R -from T [-graph <máy giả>]   một dòng JSON số đo
+//	loadkit fbreport -mode fb|fbchaos -live F -staff F -sse F -series F …   chấm ngưỡng M4; KHÔNG ĐẠT thì thoát 1
+//
 // Chỉ cho máy dev và máy thử: không bao giờ chạy với database production.
 package main
 
@@ -29,9 +37,10 @@ import (
 
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/logging"
+	"elimaz.com.vn/crm/internal/testkit/loadstats"
 )
 
-var errUsage = errors.New("cách dùng: loadkit seed|access|sse|stats|report [cờ]")
+var errUsage = errors.New("cách dùng: loadkit seed|access|sse|stats|report|fbseed|fbend|fbstats|fbreport [cờ]")
 
 // errFailed: report có tiêu chí KHÔNG ĐẠT (thoát 1, bảng vẫn in ra).
 var errFailed = errors.New("có tiêu chí không đạt")
@@ -65,6 +74,14 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		return cmdStats(ctx, fs, args[1:])
 	case "report":
 		return cmdReport(fs, args[1:])
+	case "fbseed":
+		return cmdFBSeed(ctx, fs, args[1:], logger)
+	case "fbend":
+		return cmdFBEnd(ctx, fs, args[1:])
+	case "fbstats":
+		return cmdFBStats(ctx, fs, args[1:])
+	case "fbreport":
+		return cmdFBReport(fs, args[1:])
 	}
 	return errUsage
 }
@@ -149,6 +166,8 @@ func cmdSSE(ctx context.Context, fs *flag.FlagSet, args []string, logger *slog.L
 	clients := fs.Int("clients", 50, "số client SSE (mỗi client một nhân viên)")
 	runID := fs.String("run", "", "mã lượt chạy (phần run của eventId)")
 	out := fs.String("out", "", "tệp kết quả JSON (ghi lại mỗi 10 s và khi dừng)")
+	fixture := fs.String("fixture", "", "bài M4: fb.json của loadkit fbseed (đo conversation.changed thay pong selftest)")
+	dbURL := fs.String("db", "", "bài M4: chuỗi chủ bảng, đọc hội thoại của sự kiện khi dừng")
 	if err := fs.Parse(args); err != nil {
 		return fmt.Errorf("đọc cờ: %w", err)
 	}
@@ -165,6 +184,9 @@ func cmdSSE(ctx context.Context, fs *flag.FlagSet, args []string, logger *slog.L
 	}
 	if len(toks) < *clients {
 		return fmt.Errorf("%w: %d thẻ, cần %d", errUsage, len(toks), *clients)
+	}
+	if *fixture != "" {
+		return runFBSSE(ctx, fbSSEOptions{base: *base, run: *runID, out: *out, fixture: *fixture, db: *dbURL}, toks[:*clients], logger)
 	}
 	col := newCollector(*clients, *runID)
 	var wg sync.WaitGroup
@@ -366,4 +388,87 @@ func readJSONFile(path string, v any) error {
 		return fmt.Errorf("đọc JSON %s: %w", path, err)
 	}
 	return nil
+}
+
+type fbSSEOptions struct {
+	base, run, out, fixture, db string
+}
+
+// runFBSSE giữ một client SSE cho mỗi thẻ tới khi ctx hủy (SIGINT của fb_run.sh), rồi đọc hội thoại của các sự kiện
+// của lượt từ database và ghi kết quả độ trễ (fbSSEResult) ra o.out.
+func runFBSSE(ctx context.Context, o fbSSEOptions, toks []staffToken, logger *slog.Logger) error {
+	f, err := readFixture(o.fixture)
+	if err != nil {
+		return err
+	}
+	owner, err := openOwner(context.WithoutCancel(ctx), o.db)
+	if err != nil {
+		return err
+	}
+	defer owner.Pool.Close()
+	sink := newFBSink(len(toks))
+	var wg sync.WaitGroup
+	for i, t := range toks {
+		wg.Go(func() { runClient(ctx, sseClientOptions{Base: o.base, Token: t.Token, Index: i}, sink) })
+	}
+	logger.Info("client SSE (M4) đang chạy", slog.Int("clients", len(toks)), slog.String("run", o.run))
+	<-ctx.Done()
+	wg.Wait()
+	inbox, comment := fbPrefixes(o.run)
+	events, err := loadstats.Events(context.WithoutCancel(ctx), owner, f.TenantID, inbox, comment)
+	if err != nil {
+		return fmt.Errorf("ghép khung với sự kiện của lượt: %w", err)
+	}
+	return writeJSON(o.out, sink.result(o.run, events))
+}
+
+// fbStatsLine là một dòng của loadkit fbstats.
+type fbStatsLine struct {
+	DB    fbDBStats     `json:"db"`
+	Graph *fbGraphStats `json:"graph,omitempty"`
+}
+
+func cmdFBStats(ctx context.Context, fs *flag.FlagSet, args []string) error {
+	dbURL := fs.String("db", "", "chuỗi kết nối chủ bảng")
+	fixture := fs.String("fixture", "", "fb.json của loadkit fbseed")
+	runID := fs.String("run", "", "mã lượt chạy")
+	fromS := fs.String("from", "", "lúc bắt đầu tải (RFC3339)")
+	graph := fs.String("graph", "", "gốc máy Meta giả (có: đọc thêm lời gọi Send API)")
+	if err := fs.Parse(args); err != nil {
+		return fmt.Errorf("đọc cờ: %w", err)
+	}
+	if *runID == "" || *fromS == "" {
+		return fmt.Errorf("%w: thiếu -run hoặc -from", errUsage)
+	}
+	from, err := parseTime(*fromS)
+	if err != nil {
+		return err
+	}
+	f, err := readFixture(*fixture)
+	if err != nil {
+		return err
+	}
+	owner, err := openOwner(ctx, *dbURL)
+	if err != nil {
+		return err
+	}
+	defer owner.Pool.Close()
+	var line fbStatsLine
+	inbox, comment := fbPrefixes(*runID)
+	if line.DB, err = loadstats.Read(ctx, owner, f.TenantID, inbox, comment, from); err != nil {
+		return fmt.Errorf("số đo database: %w", err)
+	}
+	if *graph != "" {
+		g, err := readGraphStats(ctx, &http.Client{Timeout: 60 * time.Second}, *graph, f, *runID)
+		if err != nil {
+			return err
+		}
+		line.Graph = &g
+	}
+	b, err := json.Marshal(line)
+	if err != nil {
+		return fmt.Errorf("mã hóa số đo: %w", err)
+	}
+	_, err = fmt.Fprintln(os.Stdout, string(b))
+	return err //nolint:wrapcheck // ghi stdout
 }

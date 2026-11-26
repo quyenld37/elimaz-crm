@@ -1,0 +1,323 @@
+# Cổng kiểm và test của một task chạy từ xa (Task 493, chủ shop OK 26/11): nhiều phiên song song không xếp hàng một lượt
+# test của máy dev. Chỉ chạy bằng tay qua scripts/ci/remote-test.sh (đẩy commit tạm lên ci/<worktree> rồi gh workflow
+# run), không chạy theo push. Gói Free 2.000 phút/tháng, runner 2 lõi: chia gói tối đa 6 phần, ít gói thì ít phần; không
+# dựng image chính. Luật của tệp này: tests/deploy/remote_ci_test.go, remote_e2e_test.go.
+# Task 494: input runner chọn máy (scripts/ci/pool.py chọn bể trống): blacksmith (4 vCPU, tối đa 2 phần), github
+# (ubuntu-24.04, tối đa 6 phần), vps (runner tự cài elimaz-vps, một job một lúc, 1 phần; dịch vụ test chạy sẵn trên
+# 127.0.0.1 nên không dựng compose; Go cache và công cụ giữ trên máy nên không khôi phục cache của GitHub).
+# Task 495: ubicloud (ubicloud-standard-2, 2 vCPU, ảnh máy như ubuntu-24.04 của GitHub; dựng dịch vụ bằng compose và
+# khôi phục cache như github; tối đa 4 phần vì chỉ 1.100 phút/tháng — mỗi job tốn ~2 phút dựng).
+# Task 499 (chủ shop 26/11: gộp m4 vào main phải test đủ cả e2e; máy Mac chỉ làm task): input e2e bật job e2e (tests/e2e
+# trên compose dev đủ profile) và job console-e2e (Playwright) ở máy đã chọn; lượt của task (ci-task) không bật.
+name: test-remote
+
+on:
+  # GitHub chỉ cho bấm chạy (workflow_dispatch) workflow đã biết; tệp này chưa có trên main (không push main khi chưa có
+  # OK riêng) nên một lần push nhánh ci/dang-ky làm GitHub biết nó. Lượt push đó bỏ qua mọi job (0 phút). Khi tệp đã lên
+  # main thì bỏ khối push này.
+  push:
+    branches: [ci/dang-ky]
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "sha/ref để so (oasdiff, test-guard, gen-check…); tổ tiên của nhánh chạy"
+        required: true
+        type: string
+      packages:
+        description: "ALL (mọi gói trừ tests/e2e) hoặc danh sách gói/mẫu gói cách bằng khoảng trắng; rỗng: không test"
+        required: false
+        default: ""
+        type: string
+      race_packages:
+        description: "gói chạy -race (ALL hoặc danh sách); còn lại chạy test thường"
+        required: false
+        default: ""
+        type: string
+      static:
+        description: "'true' chạy cổng tĩnh (static-gates.sh)"
+        required: false
+        default: "true"
+        type: string
+      task_file:
+        description: "tệp task cho test-guard (docs/tasks/task-NN.md)"
+        required: false
+        default: ""
+        type: string
+      runner:
+        description: "máy chạy: github (ubuntu-24.04), blacksmith (4 vCPU), ubicloud (ubicloud-standard-2), vps (self-hosted elimaz-vps)"
+        required: false
+        default: github
+        type: choice
+        options: [github, blacksmith, ubicloud, vps]
+      e2e:
+        description: "'true' chạy thêm job e2e (go test -race ./tests/e2e/...) và console-e2e (Playwright); không chạy trên vps"
+        required: false
+        default: "false"
+        type: string
+      loadtest:
+        description: "bài thử tải M4 (Task 180): live | chaos, kèm :<thời lượng> khi chạy khói (vd live:1m); rỗng: không chạy"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-remote-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  COMPOSE_PROJECT: crm-ci
+  GOTOOLCHAIN: local
+  NODE_VERSION: "26"
+  # Cổng dịch vụ test: compose dev dựng trong job (mặc định của Makefile), hay dịch vụ chạy sẵn trên vps.
+  CRM_PG_PORT: ${{ inputs.runner == 'vps' && '5600' || '5442' }}
+  CRM_S3_PORT: ${{ inputs.runner == 'vps' && '20600' || '8333' }}
+  CRM_S3_OFFSITE_PORT: ${{ inputs.runner == 'vps' && '21600' || '8334' }}
+  CRM_OTLP_PORT: ${{ inputs.runner == 'vps' && '4600' || '4318' }}
+  CRM_JAEGER_UI_PORT: ${{ inputs.runner == 'vps' && '17600' || '16686' }}
+
+jobs:
+  static:
+    if: github.event_name == 'workflow_dispatch' && inputs.static == 'true'
+    runs-on: ${{ fromJSON(inputs.runner == 'vps' && '["self-hosted","elimaz-vps"]' || inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || inputs.runner == 'ubicloud' && '"ubicloud-standard-2"' || '"ubuntu-24.04"') }}
+    timeout-minutes: 40
+    env:
+      BASE: ${{ inputs.base }}
+      TASK_FILE: ${{ inputs.task_file }}
+    steps:
+      - name: Lấy mã (cả lịch sử — gitleaks, oasdiff và test-guard so với base)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+          cache: ${{ inputs.runner != 'vps' }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Khóa cache công cụ (băm đúng các lệnh của make ci-tools)
+        id: toolkey
+        run: echo "key=$(make -n --no-print-directory ci-tools | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+      - name: Cache công cụ đã ghim
+        id: tools
+        if: inputs.runner != 'vps'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/bin
+            ~/.npm-global
+          key: ci-tools-${{ runner.os }}-${{ steps.toolkey.outputs.key }}
+      - name: Cache golangci-lint
+        if: inputs.runner != 'vps'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/golangci-lint
+          key: golangci-${{ runner.os }}-${{ hashFiles('go.sum', '.golangci.yml') }}-${{ github.run_id }}
+          restore-keys: golangci-${{ runner.os }}-${{ hashFiles('go.sum', '.golangci.yml') }}-
+      - name: Cài công cụ đã ghim (make ci-tools, bỏ qua khi cache trúng)
+        run: scripts/ci/install-tools.sh "${{ steps.tools.outputs.cache-hit }}" "${{ steps.toolkey.outputs.key }}"
+      - name: PostgreSQL 18, Jaeger, SeaweedFS của compose dev (sqlc-vet, tests/arch); vps có sẵn
+        if: inputs.runner != 'vps'
+        run: make db-up
+      - name: Cổng tĩnh
+        run: |
+          scripts/ci/static-gates.sh "$BASE" 2>&1 | tee static.log
+          ok=${PIPESTATUS[0]}
+          { echo '### Cổng tĩnh'; echo '```'; grep -E '^(== |STATIC )' static.log | grep -v ' giây$' | tail -40; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit "$ok"
+
+  plan:
+    if: github.event_name == 'workflow_dispatch' && inputs.packages != ''
+    runs-on: ${{ fromJSON(inputs.runner == 'vps' && '["self-hosted","elimaz-vps"]' || inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || inputs.runner == 'ubicloud' && '"ubicloud-standard-2"' || '"ubuntu-24.04"') }}
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.split.outputs.matrix }}
+      count: ${{ steps.split.outputs.count }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Chia gói thành phần cân bằng (scripts/ci/test-times.txt; tối đa 2 blacksmith, 4 ubicloud, 1 vps, 6 github)
+        id: split
+        env:
+          MAX_PARTS: ${{ inputs.runner == 'blacksmith' && '2' || inputs.runner == 'ubicloud' && '4' || inputs.runner == 'vps' && '1' || '6' }}
+          PACKAGES: ${{ inputs.packages }}
+          RACE: ${{ inputs.race_packages }}
+          STATIC: ${{ inputs.static }}
+        run: |
+          set -o pipefail
+          # ALL: mọi gói trừ tests/e2e (e2e chỉ chạy khi xong toàn bộ task); tests/arch đã chạy ở job static thì bỏ ở đây.
+          skip='/tests/e2e$'; [ "$STATIC" = true ] && skip='/tests/(e2e|arch)$'
+          expand() { if [ "$1" = ALL ]; then go list ./... | grep -E -v "$skip"; elif [ -n "$1" ]; then go list $1; fi; }
+          pkgs=$(expand "$PACKAGES") || exit 1
+          race=$(expand "$RACE" | tr '\n' ' ') || exit 1
+          m=$(printf '%s\n' "$pkgs" | python3 scripts/ci/split_packages.py --times scripts/ci/test-times.txt \
+            --max-parts "$MAX_PARTS" --min-seconds 120 --race "$race")
+          echo "matrix=$m" >> "$GITHUB_OUTPUT"
+          echo "count=$(printf '%s' "$m" | jq length)" >> "$GITHUB_OUTPUT"
+          printf '%s' "$m" | jq -r '.[] | "phần \(.part): ~\(.seconds) s, race: \(.race | split(" ") | map(select(. != "")) | length) gói, thường: \(.plain | split(" ") | map(select(. != "")) | length) gói"'
+
+  test:
+    needs: plan
+    if: needs.plan.outputs.count != '0'
+    runs-on: ${{ fromJSON(inputs.runner == 'vps' && '["self-hosted","elimaz-vps"]' || inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || inputs.runner == 'ubicloud' && '"ubicloud-standard-2"' || '"ubuntu-24.04"') }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: test (${{ matrix.part }})
+    steps:
+      - name: Lấy mã (cả lịch sử — test của tests/deploy đọc git)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+          cache: ${{ inputs.runner != 'vps' }}
+      # make ci-tools cài jscpd bằng npm: vps không có sẵn Node (lượt 26/11 đỏ "npm: command not found").
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Khóa cache công cụ (băm đúng các lệnh của make ci-tools)
+        id: toolkey
+        run: echo "key=$(make -n --no-print-directory ci-tools | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+      - name: Cache công cụ đã ghim
+        id: tools
+        if: inputs.runner != 'vps'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/bin
+            ~/.npm-global
+          key: ci-tools-${{ runner.os }}-${{ steps.toolkey.outputs.key }}
+      - name: Cài công cụ đã ghim (oasdiff, sqlc… cho test của tools/, tests/; bỏ qua khi cache trúng)
+        run: scripts/ci/install-tools.sh "${{ steps.tools.outputs.cache-hit }}" "${{ steps.toolkey.outputs.key }}"
+      - name: PostgreSQL 18, Jaeger, SeaweedFS của compose dev (vps có sẵn)
+        if: inputs.runner != 'vps'
+        run: make db-up
+      - name: Kéo sẵn image Valkey (chỉ kéo, không dựng container)
+        # testkit.StartValkey lấy mã container từ đầu ra gộp của `docker run -d`: máy chưa có image thì dòng "Pulling…"
+        # lẫn vào và test đầu tiên đỏ "docker port valkey" (lượt ALL 26/11; việc phát hiện thêm của Task 493).
+        run: docker compose -p "$COMPOSE_PROJECT" -f docker/compose.dev.yml --profile valkey pull -q valkey-cache
+      - name: go test (qua make để có đủ biến test như make test)
+        env:
+          RACE: ${{ matrix.race }}
+          PLAIN: ${{ matrix.plain }}
+        run: |
+          make --no-print-directory test-part RACE="$RACE" PLAIN="$PLAIN" 2>&1 | tee test.log
+          rc=${PIPESTATUS[0]}
+          {
+            echo "### Phần ${{ matrix.part }}"
+            if [ "$rc" != 0 ]; then echo '```'; grep -E -- '^(--- FAIL|FAIL|panic:)' test.log | head -80; echo '```'; fi
+            echo '<details><summary>thời gian từng gói</summary>'; echo; echo '```'
+            grep -E '^(ok|FAIL)[[:space:]]' test.log | awk '{print $2, $3}' | sed 's/s$//'; echo '```'; echo '</details>'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
+
+  # Task 180: bài thử tải M4 (loadtest/fb_run.sh) ở máy đã chọn; chủ shop 26/11: máy Mac không chạy tải nặng. Vai trò CRM
+  # chạy như tiến trình trên máy (không dựng image); PostgreSQL, SeaweedFS của compose dev dựng trong job. Không chạy trên
+  # vps: dịch vụ ở đó dùng chung, bài chaos dừng PostgreSQL.
+  loadtest:
+    if: github.event_name == 'workflow_dispatch' && inputs.loadtest != '' && inputs.runner != 'vps'
+    runs-on: ${{ fromJSON(inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || inputs.runner == 'ubicloud' && '"ubicloud-standard-2"' || '"ubuntu-24.04"') }}
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+      - name: PostgreSQL 18, SeaweedFS của compose dev
+        run: make db-up
+      - name: k6 v2.0.0 (ghim, kiểm sha256), psql
+        run: |
+          curl -sSfL -o /tmp/k6.tgz https://github.com/grafana/k6/releases/download/v2.0.0/k6-v2.0.0-linux-amd64.tar.gz
+          echo "2ae87d976f6cdba17185bdd980d8819a3a98e9092c6f0638cd58272ecefc8b90  /tmp/k6.tgz" | sha256sum -c
+          tar -xzf /tmp/k6.tgz -C /tmp && sudo install /tmp/k6-v2.0.0-linux-amd64/k6 /usr/local/bin/k6
+          command -v psql >/dev/null || { sudo apt-get update -q && sudo apt-get install -yq postgresql-client; }
+      - name: Bài thử tải
+        env:
+          SPEC: ${{ inputs.loadtest }}
+        run: |
+          MODE=${SPEC%%:*}
+          case "$SPEC" in *:*) export DURATION=${SPEC#*:} ;; esac
+          set -o pipefail
+          loadtest/fb_run.sh "$MODE" 2>&1 | tee loadtest.log
+          rc=${PIPESTATUS[0]}
+          out=$(ls -d loadtest/out/fb-* | tail -1)
+          { echo "### Thử tải M4: $SPEC"; cat "$out/report.md" 2>/dev/null || tail -60 loadtest.log; } >> "$GITHUB_STEP_SUMMARY"
+          for f in chaos.log chaos.csv live.csv k6-live.txt k6-staff.txt; do [ -f "$out/$f" ] && { echo "== $f"; cat "$out/$f"; }; done
+          if [ "$rc" != 0 ]; then for r in ingest api worker; do echo "== $r.log (đuôi)"; grep -v webcache "$out/$r.log" | tail -30; done; fi
+          exit "$rc"
+
+  # Task 499: e2e của Go (tests/e2e) trên compose dev đủ profile như make dev (PostgreSQL, Jaeger, SeaweedFS hai kho,
+  # Valkey, imager dựng từ docker/imager, fakecarrier, filesync). Vai trò CRM chạy như tiến trình trong test (không dựng
+  # image chính). Không chạy trên vps: dịch vụ ở đó dùng chung, TestFileSync và test dừng database dựng/dừng container.
+  e2e:
+    if: github.event_name == 'workflow_dispatch' && inputs.e2e == 'true' && inputs.runner != 'vps'
+    runs-on: ${{ fromJSON(inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || inputs.runner == 'ubicloud' && '"ubicloud-standard-2"' || '"ubuntu-24.04"') }}
+    timeout-minutes: 50
+    env:
+      # TestFileSync gọi docker compose không có -p; filestest hỏi cổng kho theo dự án này: trùng dự án của make dev
+      # (COMPOSE_PROJECT ở env của workflow; env của job không đọc được ngữ cảnh env nên ghi thẳng).
+      COMPOSE_PROJECT_NAME: crm-ci
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+      - name: Compose dev đủ profile (make dev; dựng image imager, fakecarrier, filesync)
+        run: make dev
+      - name: Kéo sẵn image Valkey (testkit.StartValkey)
+        run: docker compose -p "$COMPOSE_PROJECT" -f docker/compose.dev.yml --profile valkey pull -q valkey-cache
+      - name: go test -race ./tests/e2e/... (qua make để có đủ biến test như make test)
+        run: |
+          make --no-print-directory test-part RACE=./tests/e2e/... 2>&1 | tee e2e.log
+          rc=${PIPESTATUS[0]}
+          {
+            echo '### e2e (tests/e2e)'
+            echo '```'
+            grep -E -- '^(--- FAIL|FAIL|ok|panic:)' e2e.log | head -80
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
+      - name: Log compose khi đỏ
+        if: failure()
+        run: docker compose -p "$COMPOSE_PROJECT" -f docker/compose.dev.yml --profile imager --profile fakecarrier --profile filesync --profile valkey logs --tail 80
+
+  # Task 499: test trình duyệt của màn hình (make console-e2e: Chromium mọi spec, WebKit spec .phone.spec.ts, API giả),
+  # như job console-e2e của ci.yml. Trình duyệt cache theo phiên bản Playwright ghim trong console/package-lock.json;
+  # thư viện hệ thống (apt) cài mỗi lần.
+  console-e2e:
+    if: github.event_name == 'workflow_dispatch' && inputs.e2e == 'true' && inputs.runner != 'vps'
+    runs-on: ${{ fromJSON(inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || inputs.runner == 'ubicloud' && '"ubicloud-standard-2"' || '"ubuntu-24.04"') }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Cache trình duyệt của Playwright
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('console/package-lock.json') }}
+      - name: Thư viện hệ thống cho trình duyệt của Playwright
+        run: cd console && npm ci --no-audit --no-fund && npx playwright install-deps chromium webkit
+      - name: Test trình duyệt của màn hình (API giả)
+        run: |
+          make --no-print-directory console-e2e 2>&1 | tee pw.log
+          rc=${PIPESTATUS[0]}
+          {
+            echo '### console-e2e (Playwright)'
+            echo '```'
+            grep -E -- '[0-9]+\) \[(chromium|webkit)\] ›|^ *[0-9]+ (passed|failed|flaky|skipped)' pw.log | head -80
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"

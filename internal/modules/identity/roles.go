@@ -59,6 +59,8 @@ func defaultRoles() []RoleDef {
 			"fulfillment.quote", "fulfillment.cancel", "fulfillment.callbacks.work", "cash.payments.record",
 			// M5 (Task 195).
 			"order.requests.read", "order.requests.manage",
+			// M4 (Task 143): đọc, trả lời hội thoại, chốt Live trên Page được gán; gửi ảnh cho khách.
+			"conversation.read", "conversation.reply", "live.operate", "files.upload",
 		}},
 		{Key: "warehouse", Name: "Kho", Permissions: []Permission{
 			"catalog.read", "inventory.read", "inventory.documents.create", "inventory.stocktake", "fulfillment.read",
@@ -548,15 +550,21 @@ func permissionLabels() map[Permission][3]string {
 		"cash.refunds.waive":                  {groupShipping, "Đóng khoản hoàn không hoàn tiền", ""},
 		"inventory.aged.read":                 {groupInventory, "Xem hàng giữ quá hạn", ScopeWarehouse},
 		"conversation.read":                   {groupChat, "Xem hội thoại", ScopePage},
-		"files.upload":                        {groupFiles, "Tải tệp lên", ""},
-		"platform.files.manage":               {groupFiles, "Kiểm tệp, tạo lại cỡ ảnh", ""},
-		"realtime.subscribe":                  {groupSystem, "Nhận cập nhật tức thì", ""},
-		"platform.health.read":                {groupSystem, "Xem sức khỏe hệ thống", ""},
-		"platform.jobs.manage":                {groupSystem, "Xử lý việc nền hỏng", ""},
-		"audit.read":                          {groupSystem, "Xem nhật ký thao tác", ""},
-		"identity.users.manage":               {groupAdmin, "Quản lý nhân viên", ""},
-		"identity.roles.manage":               {groupAdmin, "Quản lý vai trò", ""},
-		"identity.service_keys.manage":        {groupAdmin, "Quản lý khóa cho website", ""},
+		// M4 (Task 143).
+		"conversation.reply":           {groupChat, "Trả lời khách, comment, ghi chú, nhắc việc", ScopePage},
+		"conversation.assign":          {groupChat, "Giao hội thoại cho nhân viên", ScopePage},
+		"conversation.settings":        {groupChat, "Cài đặt hộp chat: nhãn, mẫu trả lời, tự động", ScopePage},
+		"live.operate":                 {groupChat, "Chốt đơn từ comment Live", ScopePage},
+		"channel.manage":               {groupChat, "Kết nối Page, bật gửi thật", ""},
+		"files.upload":                 {groupFiles, "Tải tệp lên", ""},
+		"platform.files.manage":        {groupFiles, "Kiểm tệp, tạo lại cỡ ảnh", ""},
+		"realtime.subscribe":           {groupSystem, "Nhận cập nhật tức thì", ""},
+		"platform.health.read":         {groupSystem, "Xem sức khỏe hệ thống", ""},
+		"platform.jobs.manage":         {groupSystem, "Xử lý việc nền hỏng", ""},
+		"audit.read":                   {groupSystem, "Xem nhật ký thao tác", ""},
+		"identity.users.manage":        {groupAdmin, "Quản lý nhân viên", ""},
+		"identity.roles.manage":        {groupAdmin, "Quản lý vai trò", ""},
+		"identity.service_keys.manage": {groupAdmin, "Quản lý khóa cho website", ""},
 	}
 }
 

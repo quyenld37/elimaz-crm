@@ -1,6 +1,6 @@
 # Task 491 — Sinh nhật: outbox phân trang, quà lỗi không chặn, nhập mã dừng nhận tin cũ, nhập mã còn hạn gắn SĐT
 
-Kế hoạch: `../../docs/superpowers/plans/2026-11-15-crm-m0-nen-tang-ban-5.md`. Loại việc (quy trình mục 3): A
+Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m5-website-flash-sale.md` (dòng M5-b6 ở bảng số task toàn cục). Loại việc (quy trình mục 3): A
 
 ## Nguồn việc
 
@@ -35,7 +35,7 @@ Task 468 (QĐ40), Task 197 và việc 467 (nhập dữ liệu website) trong `20
   - `queries/promotion/birthday.sql`: `PendingBirthdayGifts` thêm con trỏ và lọc quà đang chờ thử lại (chỉ outbox);
     mới `LockBirthdayGiftByCode`, `MarkBirthdayGiftFailed`.
   - `queries/promotion/webbatches.sql`: `InsertImportedCoupons` thêm `bound_phones`, `CouponTermsByCodes` trả `bound_phone`.
-  - `queries/customer/birthdays.sql`: mới `ImportBirthdayProfile`, `GetBirthdayProfileForImport` (theo khách), `StopBirthdayProfileOf`.
+  - `queries/customer/birthdays.sql`: mới `ImportBirthdayProfile`, `BirthdayProfileToken` (mã dừng, lúc dừng theo khách), `StopBirthdayProfileOf`.
 - Test sẽ chạy: `internal/modules/promotion` (vùng rủi ro cao: `-race` cả gói ở ci-task), `internal/modules/customer`
   (các test sinh nhật), `internal/httpapi/web` (test sinh nhật, mã), `internal/httpapi` (bảng lỗi, route), `tests/arch`.
 
@@ -93,14 +93,32 @@ cá nhân: audit nhập chỉ tên trường và số đếm; xung đột trả 
 4. **`boundPhone` là một phần điều khoản** của mã nhập: nhập lại cùng mã mà SĐT khác (hay mã có sẵn không gắn SĐT) →
    `conflicts`, không đổi mã có sẵn (giống điều khoản tiền khác).
 
+5. **Tiếp tục sau tạm dừng 25/11 (27/11)**: giữ commit tạm `wip: Task 491` (2d5e97df) trong lịch sử; gộp `main` (M4,
+   CI mới) bằng `git merge` không rebase. Xung đột chỉ ở `openapi.yaml` (giữ đủ khối sinh nhật của task và khối kênh
+   chat M4) và mã sinh (lấy bản main rồi `make gen`). Số migration 0531 chưa bị main dùng (main dừng ở 0530) nên giữ.
+   Merge chưa commit riêng được (cổng commit đòi tệp task đủ mục), nên phần gộp đi chung commit hoàn thiện (commit gộp).
+   Reviewer duyệt toàn bộ phần của task: `git diff main...HEAD` cộng phần đã stage (gồm cả commit wip).
+
 ## Bằng chứng
 
 | Tiêu chí | Test | Lệnh | Kết quả |
 |---|---|---|---|
+| (1) Outbox phân trang con trỏ (lúc phát, mã): đi hết không trùng không sót; con trỏ sai → ErrInvalidInput | `TestBirthdayOutbox_PagesAndFailedGiftDoesNotBlock` (promotion) | `go test -race -count=1 -run '^(TestBirthdayOutbox_PagesAndFailedGiftDoesNotBlock\|TestImportCoupons_BoundPhone)$' ./internal/modules/promotion/` | `--- PASS: TestBirthdayOutbox_PagesAndFailedGiftDoesNotBlock (0.45s)` |
+| (2) Quà lỗi không chặn: lỗi 1, 2 → rời outbox 6 giờ rồi quay lại; lỗi 3 → hết lượt, còn ở "Cần nhắn"; đã trao → không đổi; mã lạ → ErrNotFound | `TestBirthdayOutbox_PagesAndFailedGiftDoesNotBlock` (`failThreeTimes`) | như trên | PASS |
+| (3) Nhập hồ sơ giữ mã dừng cũ; link dừng cũ dừng hồ sơ CRM; hồ sơ có sẵn → conflicts, website đã dừng → CRM dừng; nhập lại → skipped; audit chỉ tên trường | `TestImportBirthdays_KeepsLegacyStopToken` (customer) | `go test -race -count=1 -run '^(TestImportBirthdays_KeepsLegacyStopToken\|TestImportBirthdays_Invalid)$' ./internal/modules/customer/` | `--- PASS: TestImportBirthdays_KeepsLegacyStopToken (0.24s)` |
+| (3) Đầu vào sai (0/501 mục, SĐT, mã dừng trùng/sai mẫu, thiếu lúc đăng ký, ngày sai, email) → lỗi, không ghi | `TestImportBirthdays_Invalid` | như trên | `--- PASS: TestImportBirthdays_Invalid (1.96s)` |
+| (4) Mã nhập gắn SĐT: đúng SĐT áp được, SĐT khác → bound_other; nhập lại cùng SĐT → skipped; SĐT khác/bỏ SĐT → conflicts; SĐT sai → ErrInvalidPhone | `TestImportCoupons_BoundPhone` (promotion), `TestWebImportCoupons_BoundPhone` (httpapi/web) | lệnh promotion ở trên; `go test -race -count=1 -run '^(TestWebBirthday_ImportPagesFailed\|TestWebImportCoupons_BoundPhone)$' ./internal/httpapi/web/` | `--- PASS: TestImportCoupons_BoundPhone (0.42s)`, `--- PASS: TestWebImportCoupons_BoundPhone (0.51s)` |
+| API: webImportBirthdays, webBirthdayOutbox (cursor/nextCursor), webBirthdayGiftFailed; 403 thiếu quyền, 404 mã lạ, gửi lại cùng khóa → câu trả lời cũ; log, audit không SĐT, mã dừng | `TestWebBirthday_ImportPagesFailed` (httpapi/web) | lệnh httpapi/web ở trên | `--- PASS: TestWebBirthday_ImportPagesFailed (0.54s)` |
+| Cổng tĩnh rẻ trước cổng kiểm | jscpd, vet, golangci-lint (promotion, customer, httpapi), tests/arch | `make jscpd`; `golangci-lint run ./internal/modules/promotion/... ./internal/modules/customer/... ./internal/httpapi/...`; `go test -count=1 ./tests/arch/` | `Found 0 clones.`; `0 issues.`; `ok elimaz.com.vn/crm/tests/arch 42.870s` |
+| Cổng kiểm của task (bản đã gộp main 733654b1) | toàn bộ cổng tĩnh + toàn bộ test (phần gộp đổi go.mod/testkit → "all") | `ci-task.sh` | `CI-TASK XANH (từ xa trên blacksmith, so với điểm tách nhánh 6f4297303ccc…)`, run 45883730823: static, test (1), test (2) success |
 
 ## Test bị xóa hoặc tắt
 
 (không có)
+
+## E2E viết sẵn, chưa chạy
+
+(không có: kế hoạch không có e2e cho task này)
 
 ## Khác kế hoạch
 
@@ -108,8 +126,17 @@ cá nhân: audit nhập chỉ tên trường và số đếm; xung đột trả 
 
 ## Việc phát hiện thêm
 
-(không có)
+1. `docs/quyen.md` (dòng 146–147): mô tả `web.coupons.issue`, `web.birthdays.write` chưa nhắc báo quà gửi lỗi và nhập
+   hồ sơ sinh nhật cũ (lúc đăng ký lùi ngày, cờ `legacyDelivered`).
+2. `WebBirthdayGiftFailed`: khi quà đã hết lượt (3 lần) lần báo thêm không đổi gì nhưng vẫn ghi audit `send_failed`;
+   có thể bỏ audit khi số lỗi không tăng.
+3. `ImportBirthdays`: mục conflict vì mã dừng thuộc khách khác vẫn tạo khách (lead) theo SĐT dù không có hồ sơ.
 
 ## Reviewer
 
-Kết luận: CHƯA REVIEW
+Kết luận: ĐẠT (27/11, duyệt toàn bộ phần của task: commit wip 2d5e97df + phần đã stage, so `git diff main --cached`
+trong lúc gộp main 733654b1; kiểm cả phần giải xung đột openapi.yaml và mã sinh). Không phát hiện phải sửa. Đã kiểm
+thêm: thứ tự khóa coupons → birthday_gifts (ADR-46 nhóm 10), con trỏ micro giây khớp timestamptz và so bằng citext như
+ORDER BY, thân hàm trong RetryTx dựng lại kết quả, quyền cột của crm_app, ErrInvalidPhone có mapping. Ghi chú không bắt
+buộc (không sửa, ghi ở Việc phát hiện thêm): audit send_failed vẫn ghi khi quà đã hết lượt; mục conflict vì mã dừng
+thuộc khách khác vẫn tạo khách theo SĐT; `docs/quyen.md` chưa nhắc hai thao tác mới.

@@ -1,0 +1,363 @@
+/* Màn Hộp chat (Task 174). Chép đúng lớp của docs/mockups/m4/m4.css (ba cột, chọn tài khoản kênh, số chưa đọc, băng,
+   dòng hội thoại, nhãn, biểu tượng kênh), chỉ bằng biến của hệ thiết kế (m1.css → styles.css): không màu, cỡ chữ, bo
+   góc mới. Lớp chung (.chip, .toggle, .select-wrap, .input.is-search, .empty, .more, .box) ở styles.css.
+   Không có gì chỉ hiện khi rê chuột. */
+
+/* Trang hộp chat dùng hết bề ngang (m4.css .main.is-chat) */
+.main:has(.inbox) {
+  max-width: none;
+  padding: var(--space-md) var(--space-md) var(--space-xl);
+}
+@media (max-width: 999px) {
+  .main:has(.inbox) {
+    padding: var(--space-md) var(--space-md) 96px;
+  }
+}
+
+/* Bố cục: danh sách 340px | hội thoại | khung bên phải 360px. Dưới 1200px khung bên phải xuống dưới; dưới 1000px mỗi
+   lúc một màn: /inbox chỉ danh sách, /inbox/:id chỉ hội thoại (HV02). */
+.chat {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr) 360px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  background: var(--paper);
+  align-items: stretch;
+  min-width: 0;
+}
+.chat.is-2 {
+  grid-template-columns: 340px minmax(0, 1fr);
+}
+.chat > * {
+  min-width: 0;
+}
+.chat > * + * {
+  border-left: 1px solid var(--rule);
+}
+@media (max-width: 1199px) {
+  .chat {
+    grid-template-columns: 340px minmax(0, 1fr);
+  }
+  .chat > .pane-side {
+    grid-column: 1 / -1;
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+  }
+}
+@media (max-width: 999px) {
+  .chat,
+  .chat.is-2 {
+    grid-template-columns: minmax(0, 1fr);
+    border: 0;
+    border-radius: 0;
+  }
+  .chat > * + * {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+  }
+  .chat.has-conv > .pane-list,
+  .chat:not(.has-conv) > .pane-conv {
+    display: none;
+  }
+  .chat.has-conv > .pane-conv {
+    border-top: 0;
+  }
+}
+.pane-h {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--rule);
+  min-height: 56px;
+  flex-wrap: wrap;
+}
+.pane-b {
+  padding: var(--space-md);
+  display: grid;
+  gap: var(--space-md);
+  align-content: start;
+}
+.pane-list > .pane-b:first-child {
+  gap: 12px;
+}
+@media (max-width: 999px) {
+  .pane-h {
+    padding: var(--space-sm) 0;
+  }
+  .pane-b {
+    padding: var(--space-md) 0;
+  }
+}
+.only-phone {
+  display: none;
+}
+@media (max-width: 999px) {
+  .only-phone {
+    display: inline-flex;
+  }
+}
+.list-h {
+  gap: var(--space-sm);
+  align-items: center;
+}
+.f-row {
+  gap: var(--space-sm);
+}
+.f-row > .select-wrap {
+  min-width: 0;
+}
+
+/* Chọn tài khoản kênh: mỗi tài khoản một dòng, số chưa đọc bên phải (HV03) */
+.pg {
+  display: grid;
+  gap: 0;
+}
+.pg-a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--tap);
+  padding: 0 var(--space-sm);
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+}
+.pg-a[aria-pressed="true"] {
+  background: var(--surface);
+  font-weight: 700;
+  box-shadow: inset 2px 0 0 var(--buy);
+}
+.pg-a .grow {
+  min-width: 0;
+}
+
+/* Biểu tượng chữ của kênh (m4.css .ch-ic; cỡ nhỏ trong danh sách tài khoản) */
+.ch-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-box);
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  color: var(--title);
+  font: 700 12px/1 var(--font-body);
+  flex: none;
+  letter-spacing: 0.02em;
+}
+.ch-ic.is-sm {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r);
+}
+
+/* Số chưa đọc: trên 99 hiện "99+" (số thật nằm trong aria-label) */
+.unr {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--buy);
+  color: var(--paper);
+  font: 700 12px/1 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+/* Băng báo trên đầu danh sách */
+.bnr {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-start;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--r-box);
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.bnr .grow {
+  min-width: 180px;
+}
+.bnr-info {
+  background: var(--surface);
+}
+.bnr-warn {
+  background: var(--soft);
+}
+.bnr-err {
+  background: var(--soft-sale);
+  border: 1px solid var(--buy);
+}
+.bnr-err b:first-child {
+  color: var(--buy);
+}
+
+/* Dòng hội thoại */
+.cvlist {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+.cv-li {
+  min-width: 0;
+}
+.cv {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 2px var(--space-sm);
+  padding: 10px var(--space-sm);
+  border-bottom: 1px solid var(--rule);
+  align-items: start;
+  color: var(--ink);
+  text-decoration: none;
+  min-width: 0;
+}
+.cv[aria-current="true"] {
+  background: var(--surface);
+  box-shadow: inset 2px 0 0 var(--buy);
+}
+.cv.is-new {
+  background: var(--soft);
+}
+.cv .avatar {
+  grid-row: span 3;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--label);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+.cv-n {
+  font-weight: 600;
+  color: var(--title);
+}
+.cv.is-unread .cv-n {
+  font-weight: 700;
+}
+.cv.is-unread .cv-s {
+  color: var(--ink);
+  font-weight: 600;
+}
+.cv-s {
+  grid-column: 2 / -1;
+  color: var(--muted);
+  font-size: 13px;
+}
+.cv-t {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.cv-m {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  align-items: center;
+  font-size: 12px;
+  min-width: 0;
+}
+.cv-m .ellip {
+  max-width: 100%;
+}
+.cv-r {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+}
+@media (max-width: 999px) {
+  .cv {
+    padding: 10px 0;
+  }
+}
+
+/* Nhãn hội thoại: tên kèm một trong bốn sắc nền có sẵn */
+.lb {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: var(--r);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: 1px solid transparent;
+}
+.lb-1 {
+  background: var(--soft);
+  color: var(--title);
+}
+.lb-2 {
+  background: var(--surface);
+  color: var(--label);
+}
+.lb-3 {
+  background: var(--paper);
+  color: var(--success);
+  border-color: var(--success);
+}
+.lb-4 {
+  background: var(--paper);
+  color: var(--ink);
+  border-color: var(--edge);
+}
+.lb-more {
+  background: var(--paper);
+  color: var(--muted);
+  border-color: var(--rule);
+}
+
+/* Khung bên phải */
+.sec {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  min-width: 0;
+}
+.sec > h3 {
+  font-size: 14px;
+}
+@media (max-width: 999px) {
+  .sec {
+    padding: var(--space-md) 0;
+  }
+}
+
+/* Khách chưa trả lời (Inbox trạng thái D, CH16) */
+.fu {
+  display: grid;
+  gap: 12px;
+}
+.fu-row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.fu-row > .field {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.fu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}

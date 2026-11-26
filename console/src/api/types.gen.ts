@@ -37,9 +37,35 @@ export type Error = {
     statementId?: string;
     quote?: WebQuote;
     /**
-     * Chỉ có ở item_unavailable — biến thể không bán được trên web, theo thứ tự gửi (Task 194)
+     * Chỉ có ở item_unavailable — biến thể không bán được trên web, theo thứ tự gửi (Task 194); ở out_of_stock — đúng một phần tử, biến thể của variantId (chốt comment live đọc mảng, Task 172)
      */
     variantIds?: Array<string>;
+    denyReason?: SendDenyReason;
+    /**
+     * Chỉ có ở send_not_allowed — lúc cửa sổ gửi đóng (M4)
+     */
+    until?: string;
+    /**
+     * Chỉ có ở comment_claimed — tên hiển thị của nhân viên đã chốt comment (M4, Task 172)
+     */
+    claimedBy?: string;
+    /**
+     * Chỉ có ở comment_claimed — đơn nháp của comment (M4, Task 172)
+     */
+    orderId?: string;
+    /**
+     * Chỉ có ở comment_claimed — mã đơn nháp của comment (M4, Task 172)
+     */
+    orderCode?: string;
+    /**
+     * Chỉ có ở open_draft_exists — đơn nháp khách đang có trong phiên live (M4, Task 172)
+     */
+    drafts?: Array<LiveDraftRef>;
+    /**
+     * Chỉ có ở template_variable_missing — tên biến thiếu giá trị (M4, Task 161)
+     */
+    name?: string;
+    assignee?: Actor;
 };
 
 export type HealthStatus = {
@@ -463,6 +489,10 @@ export type CreateOrderRequest = {
      * Nhân viên phụ trách
      */
     careBy?: string;
+    /**
+     * Lên đơn trong khung chat (M4, Task 176): đơn lưu hội thoại này; máy chủ tự lấy Page của hội thoại, người bán của Page (áp làm người bán của đơn, ADR-29) và kênh facebook (thay channel đã gửi). Cần conversation.read trên Page của hội thoại, không thì 404 not_found. Khách của đơn phải là customerId cùng nhóm hồ sơ với khách của hội thoại (Task 501); gửi customer (khách mới, tìm theo SĐT) hay customerId nhóm khác → 422 conversation_customer_mismatch.
+     */
+    conversationId?: string;
     channel?: OrderChannel;
     externalRef?: string;
     /**
@@ -2509,7 +2539,7 @@ export type Note = {
 export type TimelineItem = {
     at: string;
     /**
-     * Chuỗi mở, không phải enum (M4 thêm conversation, C7). Khách: order_created, order_status, note, merge, merge_undone, tag. Đơn: status, edit, note; M3 thêm shipment, payment, return.
+     * Chuỗi mở, không phải enum (M4 thêm conversation, call; C7, Task 169). Khách: order_created, order_status, note, merge, merge_undone, tag. Đơn: status, edit, note; M3 thêm shipment, payment, return.
      */
     kind: string;
     refId: string;
@@ -4876,6 +4906,855 @@ export type WebBirthdayImportReport = {
     conflicts: Array<number>;
 };
 
+export type ChannelAccountStatus = 'active' | 'degraded' | 'disconnected';
+
+/**
+ * read_only = chỉ xem (mặc định khi kết nối, mọi thao tác ra ngoài bị từ chối), enabled = gửi thật
+ */
+export type ChannelSendMode = 'read_only' | 'enabled';
+
+export type ChannelAccount = {
+    id: string;
+    /**
+     * Khóa adapter của kênh (facebook)
+     */
+    channel: string;
+    /**
+     * Mã Page trên Meta (công khai)
+     */
+    externalId: string;
+    name: string;
+    status: ChannelAccountStatus;
+    statusReason?: string;
+    sendMode: ChannelSendMode;
+    humanAgentEnabled: boolean;
+    subscribedFields: Array<string>;
+    tokenCheckedAt?: string;
+    version: number;
+    features?: ChannelFeatures;
+};
+
+/**
+ * Tính năng kênh hỗ trợ (theo adapter của kênh; chủ shop 26/11): màn hình ẩn phần kênh không có
+ */
+export type ChannelFeatures = {
+    /**
+     * Tin nhắn hộp thư
+     */
+    messages: boolean;
+    comments: boolean;
+    liveComments: boolean;
+    /**
+     * Nhắn riêng người comment
+     */
+    privateReply: boolean;
+    hideComment: boolean;
+    /**
+     * Nút trả lời nhanh
+     */
+    quickReplies: boolean;
+    /**
+     * Thẻ nhân viên (Human Agent)
+     */
+    humanAgent: boolean;
+};
+
+export type ChannelAccountList = {
+    items: Array<ChannelAccount>;
+};
+
+export type SetChannelSendModeRequest = {
+    mode: ChannelSendMode;
+    expectedVersion: number;
+};
+
+export type SetChannelHumanAgentRequest = {
+    enabled: boolean;
+    expectedVersion: number;
+};
+
+export type FacebookOAuthStart = {
+    authorizeUrl: string;
+};
+
+export type ExchangeFacebookOAuthRequest = {
+    code: string;
+    state: string;
+};
+
+export type FacebookPageOption = {
+    pageId: string;
+    name: string;
+    canMessage: boolean;
+    canModerate: boolean;
+};
+
+export type FacebookOAuthPages = {
+    sessionId: string;
+    pages: Array<FacebookPageOption>;
+};
+
+/**
+ * Đúng một trong sessionId, systemUserToken (handler kiểm; sai → 422 invalid_input)
+ */
+export type ConnectFacebookPageRequest = {
+    pageId: string;
+    sessionId?: string;
+};
+
+/**
+ * Lý do chính sách gửi của kênh không cho gửi (SendPolicy của adapter, 04 mục 4)
+ */
+export type SendDenyReason = 'window_closed' | 'private_reply_used' | 'private_reply_expired' | 'blocked_by_user' | 'no_permission' | 'read_only' | 'comment_removed';
+
+export type SendMode = 'standard' | 'human_agent' | 'private_reply' | 'comment_reply' | 'utility_template';
+
+export type SendPolicy = {
+    allowed: boolean;
+    mode?: SendMode;
+    /**
+     * Hết hạn cửa sổ gửi hiện tại
+     */
+    until?: string;
+    remaining?: number;
+    reason?: SendDenyReason;
+};
+
+export type ConversationKind = 'inbox' | 'comment';
+
+export type ConversationStatus = 'open' | 'pending' | 'done' | 'spam';
+
+export type ChatCustomerRef = {
+    id: string;
+    name: string;
+    avatarUrl?: string;
+};
+
+export type ChatPostRef = {
+    id: string;
+    snippet?: string;
+    /**
+     * Giờ đăng bài trên kênh (chưa đọc được bài → không có)
+     */
+    postedAt?: string;
+    /**
+     * Đường dẫn bài trên kênh ("Mở bài")
+     */
+    permalink?: string;
+    /**
+     * Ảnh bài đã chép về CRM (Task 501); đường dẫn 5 phút lấy bằng getAttachmentUrl của hội thoại comment trên bài
+     */
+    imageFileId?: string;
+};
+
+export type PagePost = {
+    id: string;
+    /**
+     * Mã bài trên kênh (giá trị của exceptPostIds, postIds trong quy tắc tự động)
+     */
+    externalId: string;
+    kind: 'post' | 'live' | 'ad' | 'unknown';
+    snippet?: string;
+    postedAt?: string;
+    permalink?: string;
+};
+
+export type PagePostPage = {
+    items: Array<PagePost>;
+    nextCursor?: string;
+};
+
+export type ConversationSummary = {
+    id: string;
+    pageId: string;
+    kind: ConversationKind;
+    status: ConversationStatus;
+    customer: ChatCustomerRef;
+    assignee?: Actor;
+    tags: Array<ConversationTag>;
+    unreadCount: number;
+    lastMessageAt: string;
+    lastSnippet?: string;
+    post?: ChatPostRef;
+    hasOpenDraft: boolean;
+    /**
+     * Khách tiềm năng mới (CH08, Task 501): hồ sơ khách được tạo tự động từ chính hội thoại này (người lạ nhắn, comment lần đầu), chưa gộp vào hồ sơ khác và chưa có đơn nào (kể cả đơn nháp)
+     */
+    newLead?: boolean;
+    version: number;
+};
+
+export type ConversationPage = {
+    items: Array<ConversationSummary>;
+    nextCursor?: string;
+};
+
+export type ConversationPageCount = {
+    pageId: string;
+    unread: number;
+    open: number;
+};
+
+export type ConversationCounts = {
+    byPage: Array<ConversationPageCount>;
+    mine: number;
+    unassigned: number;
+};
+
+export type ConversationDetail = {
+    conversation: ConversationSummary;
+    page: ChannelAccount;
+    sendPolicy: SendPolicy;
+    humanAgentAvailable: boolean;
+    blockedByUser: boolean;
+    doNotContact: boolean;
+};
+
+export type ChatOrderRef = {
+    id: string;
+    code: string;
+    status: string;
+    grandTotal: Money;
+    createdAt: string;
+    draftExpiresAt?: string;
+    version: number;
+};
+
+export type ChatCustomerCardInfo = {
+    id: string;
+    rootId: string;
+    name: string;
+    /**
+     * Nguồn tên (tạm từ kênh hay nhân viên đã sửa, Q26)
+     */
+    nameSource: string;
+    doNotContact: boolean;
+    /**
+     * Chỉ có khi người gọi có customer.read
+     */
+    phones?: Array<string>;
+    orderCount: number;
+    deliveredCount: number;
+    returnedCount: number;
+    /**
+     * Nguyên Stats.ReturnRateBP của M2 (không tính lại)
+     */
+    returnRateBp: number;
+    totalSpent: Money;
+    lastOrderAt?: string;
+};
+
+export type ConversationCustomerCard = {
+    customer: ChatCustomerCardInfo;
+    recentOrders: Array<ChatOrderRef>;
+    openDrafts: Array<ChatOrderRef>;
+    mergeSuggestionCustomerId?: string;
+};
+
+export type ConversationOrderContext = {
+    channelAccountId: string;
+    conversationId: string;
+    customerId?: string;
+    sellerId: string;
+    trafficSourceId?: string | null;
+};
+
+export type MessageDirection = 'in' | 'out';
+
+export type MessageKind = 'message' | 'comment' | 'private_reply' | 'note' | 'system';
+
+export type MessageOrigin = 'customer' | 'staff' | 'automation' | 'page_external' | 'own_echo_unmatched' | 'history' | 'system';
+
+export type MessageSendStatus = 'queued' | 'sent' | 'failed' | 'checking' | 'in_doubt' | 'expired' | 'discarded';
+
+export type QuickReply = {
+    title: string;
+    payload: string;
+};
+
+export type ChatAttachment = {
+    fileId?: string;
+    /**
+     * image, video, audio, file, sticker, fallback
+     */
+    type: string;
+    /**
+     * Trạng thái tệp ở CRM (đường dẫn lấy bằng getAttachmentUrl)
+     */
+    status: string;
+    name?: string;
+};
+
+export type ChatPrivateReplyRef = {
+    /**
+     * none hoặc send_status của tin riêng
+     */
+    state: string;
+    messageId?: string;
+};
+
+export type ChatMessage = {
+    id: string;
+    conversationId: string;
+    direction: MessageDirection;
+    kind: MessageKind;
+    origin: MessageOrigin;
+    body?: string;
+    attachments: Array<ChatAttachment>;
+    quickReplies?: Array<QuickReply>;
+    sender?: Actor;
+    senderName?: string;
+    sendStatus?: MessageSendStatus;
+    failReason?: string;
+    isHidden: boolean;
+    /**
+     * Chỉ khi isHidden (Task 501): ai ẩn lần gần nhất — tự ẩn vì có SĐT (auto_phone), tự ẩn mọi comment (auto_all), tự ẩn không rõ chế độ (automation, comment ẩn trước Task 501), nhân viên trong CRM (staff), ẩn trên Facebook ngoài CRM (page_external). Không có: chưa rõ (ẩn sẵn khi CRM đọc về)
+     */
+    hiddenReason?: 'auto_phone' | 'auto_all' | 'automation' | 'staff' | 'page_external';
+    removed: boolean;
+    editedCount: number;
+    privateReply?: ChatPrivateReplyRef;
+    parentMessageId?: string;
+    sentAt: string;
+    deliveredAt?: string;
+    readAt?: string;
+};
+
+export type MessagePage = {
+    items: Array<ChatMessage>;
+    olderCursor?: string;
+    newerCursor?: string;
+};
+
+/**
+ * Đúng một trong text, attachmentFileId (ảnh mục đích chat_outgoing đã sẵn sàng)
+ */
+export type SendMessageRequest = {
+    text?: string;
+    attachmentFileId?: string;
+    humanAgent?: boolean;
+};
+
+export type MarkConversationReadRequest = {
+    upToMessageId: string;
+};
+
+export type SetConversationStatusRequest = {
+    status: ConversationStatus;
+    expectedVersion: number;
+};
+
+export type AttachmentUrl = {
+    url: string;
+    expiresAt: string;
+};
+
+export type ReplyToCommentRequest = {
+    commentMessageId: string;
+    text: string;
+};
+
+export type SendPrivateReplyRequest = {
+    commentMessageId: string;
+    text: string;
+};
+
+export type AssignConversationRequest = {
+    /**
+     * null = bỏ giao
+     */
+    userId: string | null;
+    expectedVersion: number;
+};
+
+export type ConversationAssignment = {
+    id: string;
+    from?: Actor;
+    to?: Actor;
+    actor?: Actor;
+    reason: 'self' | 'manager' | 'round_robin' | 'unassign';
+    createdAt: string;
+};
+
+export type ConversationAssignmentList = {
+    items: Array<ConversationAssignment>;
+};
+
+export type ConversationTag = {
+    id: string;
+    name: string;
+    /**
+     * Tên token màu của hệ thiết kế
+     */
+    color: string;
+    sort: number;
+    version: number;
+};
+
+export type ConversationTagList = {
+    items: Array<ConversationTag>;
+};
+
+export type CreateConversationTagRequest = {
+    name: string;
+    color: string;
+    sort?: number;
+};
+
+export type UpdateConversationTagRequest = {
+    name?: string;
+    color?: string;
+    sort?: number;
+    expectedVersion: number;
+};
+
+export type LiveSlot = {
+    from: string;
+    to: string;
+    trafficSourceId: string;
+};
+
+export type CommentPollMode = 'auto' | 'on' | 'off';
+
+export type PageSettings = {
+    channelAccountId: string;
+    roundRobinEnabled: boolean;
+    roundRobinUserIds: Array<string>;
+    askAddressTemplateId?: string;
+    inboxTrafficSourceId?: string;
+    commentTrafficSourceId?: string;
+    liveSlots: Array<LiveSlot>;
+    commentPollMode: CommentPollMode;
+    automationMaxAgeMinutes: number;
+    version: number;
+};
+
+export type UpdatePageSettingsRequest = {
+    roundRobinEnabled: boolean;
+    roundRobinUserIds: Array<string>;
+    askAddressTemplateId?: string | null;
+    inboxTrafficSourceId?: string | null;
+    commentTrafficSourceId?: string | null;
+    liveSlots: Array<LiveSlot>;
+    commentPollMode: CommentPollMode;
+    automationMaxAgeMinutes: number;
+    /**
+     * version đang đọc (0 khi Page chưa có dòng cài đặt)
+     */
+    expectedVersion: number;
+};
+
+export type AssignableUser = {
+    id: string;
+    name: string;
+};
+
+export type AssignableUserList = {
+    items: Array<AssignableUser>;
+};
+
+export type AddConversationNoteRequest = {
+    text: string;
+};
+
+export type ReplyTemplate = {
+    id: string;
+    /**
+     * Không có = mẫu dùng chung mọi Page
+     */
+    pageId?: string;
+    shortcut: string;
+    title: string;
+    body: string;
+    attachmentFileId?: string;
+    quickReplies: Array<QuickReply>;
+    version: number;
+    createdAt: string;
+};
+
+export type ReplyTemplateList = {
+    items: Array<ReplyTemplate>;
+};
+
+export type CreateReplyTemplateRequest = {
+    pageId?: string;
+    shortcut: string;
+    title: string;
+    body: string;
+    attachmentFileId?: string;
+    quickReplies?: Array<QuickReply>;
+};
+
+export type UpdateReplyTemplateRequest = {
+    pageId?: string | null;
+    shortcut?: string;
+    title?: string;
+    body?: string;
+    attachmentFileId?: string | null;
+    quickReplies?: Array<QuickReply>;
+    expectedVersion: number;
+};
+
+export type RenderReplyTemplateRequest = {
+    conversationId: string;
+    orderId?: string;
+};
+
+export type RenderedReplyTemplate = {
+    text: string;
+    attachmentFileId?: string;
+    quickReplies: Array<QuickReply>;
+};
+
+export type PresenceState = 'viewing' | 'typing' | 'drafting_order';
+
+export type SetPresenceRequest = {
+    state: PresenceState;
+};
+
+export type PresenceEntry = {
+    userId: string;
+    displayName: string;
+    state: PresenceState;
+};
+
+export type PresenceList = {
+    items: Array<PresenceEntry>;
+};
+
+export type AutomationRuleKind = 'auto_hide' | 'auto_reply_comment' | 'greeting' | 'follow_up';
+
+export type AutoHideConfig = {
+    kind: 'auto_hide';
+    mode: 'off' | 'phone_only' | 'all';
+    exceptPostIds: Array<string>;
+};
+
+export type AutoReplyPrivateMessage = {
+    templateId?: string;
+    text?: string;
+};
+
+export type AutoReplyCommentConfig = {
+    kind: 'auto_reply_comment';
+    replies: Array<string>;
+    privateMessage?: AutoReplyPrivateMessage;
+    /**
+     * Rỗng = mọi bài
+     */
+    postIds: Array<string>;
+    exceptPostIds: Array<string>;
+    includeLive: boolean;
+    perUserPerPostHours: number;
+};
+
+export type GreetingConfig = {
+    kind: 'greeting';
+    text: string;
+    quickReplies: Array<QuickReply>;
+};
+
+export type FollowUpConfig = {
+    kind: 'follow_up';
+    afterHours: number;
+    templateId: string;
+};
+
+export type AutomationRuleConfig = ({
+    kind: 'auto_hide';
+} & AutoHideConfig) | ({
+    kind: 'auto_reply_comment';
+} & AutoReplyCommentConfig) | ({
+    kind: 'greeting';
+} & GreetingConfig) | ({
+    kind: 'follow_up';
+} & FollowUpConfig);
+
+export type AutomationRule = {
+    kind: AutomationRuleKind;
+    enabled: boolean;
+    config: AutomationRuleConfig;
+    /**
+     * 0 khi Page chưa có dòng cấu hình cho loại này (trả mặc định)
+     */
+    version: number;
+    updatedAt?: string;
+};
+
+export type AutomationRuleList = {
+    items: Array<AutomationRule>;
+};
+
+export type UpdateAutomationRuleRequest = {
+    enabled: boolean;
+    config: AutomationRuleConfig;
+    expectedVersion: number;
+};
+
+export type FollowUpItem = {
+    conversationId: string;
+    pageId: string;
+    customer: ChatCustomerRef;
+    lastStaffMessageAt: string;
+    /**
+     * Đoạn đầu (tối đa 120 ký tự) tin người thật cuối của Page, hiện là Bạn: … (Task 501); tin ảnh → không có
+     */
+    lastStaffSnippet?: string;
+    windowEndsAt: string;
+};
+
+export type FollowUpList = {
+    items: Array<FollowUpItem>;
+};
+
+export type ReminderStatus = 'pending' | 'fired' | 'done' | 'cancelled';
+
+export type Reminder = {
+    id: string;
+    conversationId: string;
+    userId: string;
+    remindAt: string;
+    note?: string;
+    status: ReminderStatus;
+    source: 'manual' | 'call_callback';
+    firedAt?: string;
+    version: number;
+    createdAt: string;
+};
+
+export type ReminderList = {
+    items: Array<Reminder>;
+};
+
+export type CreateReminderRequest = {
+    /**
+     * Trong tương lai, tối đa 90 ngày
+     */
+    remindAt: string;
+    note?: string;
+    /**
+     * Giao cho người khác (cần conversation.assign); không có = chính người gọi
+     */
+    userId?: string;
+};
+
+export type CallOutcome = 'closed' | 'no_answer' | 'callback' | 'wrong_number' | 'declined' | 'other';
+
+export type CallLog = {
+    id: string;
+    customerId: string;
+    conversationId?: string;
+    orderId?: string;
+    outcome: CallOutcome;
+    note?: string;
+    callbackAt?: string;
+    createdBy: Actor;
+    createdAt: string;
+};
+
+export type CallLogPage = {
+    items: Array<CallLog>;
+    nextCursor?: string;
+};
+
+/**
+ * callbackAt bắt buộc khi và chỉ khi outcome = callback
+ */
+export type CreateCallLogRequest = {
+    conversationId?: string;
+    orderId?: string;
+    outcome: CallOutcome;
+    note?: string;
+    callbackAt?: string;
+};
+
+export type SetCustomerDoNotContactRequest = {
+    on: boolean;
+};
+
+export type LiveSessionStatus = 'live' | 'ended';
+
+export type LiveSession = {
+    id: string;
+    pageId: string;
+    liveVideoId: string;
+    videoId?: string;
+    title?: string;
+    status: LiveSessionStatus;
+    startedAt: string;
+    endedAt?: string;
+    detectedBy: 'webhook' | 'poll' | 'manual';
+    receivedCount: number;
+    metaCommentCount?: number;
+    /**
+     * Nguồn comment đang đọc (sse, poll)
+     */
+    activeSource?: string;
+    lastCommentAt?: string;
+    version: number;
+};
+
+export type LiveSessionList = {
+    items: Array<LiveSession>;
+};
+
+export type StartLiveSessionRequest = {
+    videoIdOrUrl: string;
+};
+
+export type LiveCommentClaimRef = {
+    by: Actor;
+    orderId: string;
+    orderCode: string;
+};
+
+export type LiveComment = {
+    messageId: string;
+    conversationId: string;
+    customer: ChatCustomerRef;
+    text: string;
+    sentAt: string;
+    hasPhone: boolean;
+    isHidden: boolean;
+    claim?: LiveCommentClaimRef;
+    privateReply: ChatPrivateReplyRef;
+    customerHasOpenDraft: boolean;
+};
+
+export type LiveCommentPage = {
+    items: Array<LiveComment>;
+    nextCursor?: string;
+};
+
+export type LiveDraftItem = {
+    variantId: string;
+    name: string;
+    quantity: number;
+};
+
+export type LiveDraftRef = {
+    orderId: string;
+    code: string;
+    items: Array<LiveDraftItem>;
+    grandTotal: Money;
+    version: number;
+    expiresAt?: string;
+};
+
+export type LiveCommentContext = {
+    customer: ChatCustomerCardInfo;
+    openDrafts: Array<LiveDraftRef>;
+    /**
+     * SĐT tách từ comment (dạng 0xxxxxxxxx)
+     */
+    phones: Array<string>;
+    sellerId: string;
+};
+
+export type ClaimLiveCommentItem = {
+    variantId: string;
+    qty: number;
+};
+
+export type ClaimLiveCommentRequest = {
+    items: Array<ClaimLiveCommentItem>;
+    mode: 'new' | 'add_to_draft';
+    /**
+     * Bắt buộc khi mode = add_to_draft
+     */
+    orderId?: string;
+    /**
+     * version của đơn nháp khi mode = add_to_draft
+     */
+    expectedVersion?: number;
+    forceNew?: boolean;
+    askAddress?: boolean;
+    templateId?: string;
+};
+
+export type AskAddressResult = {
+    status: 'queued' | 'skipped_policy' | 'not_requested';
+    reason?: string;
+};
+
+export type ClaimLiveCommentResult = {
+    orderId: string;
+    orderCode: string;
+    claim: LiveCommentClaimRef;
+    ask: AskAddressResult;
+};
+
+export type RemindAllowed = {
+    allowed: boolean;
+    reason?: string;
+};
+
+export type PendingDraft = {
+    orderId: string;
+    /**
+     * Hội thoại comment chứa comment được chốt (Task 501)
+     */
+    conversationId: string;
+    /**
+     * Hộp thư của khách trên Page của phiên (nơi tin xin địa chỉ được gửi, khách trả địa chỉ); chưa có → không có (màn mở conversationId)
+     */
+    inboxConversationId?: string;
+    orderCode: string;
+    customer: ChatCustomerRef;
+    items: Array<LiveDraftItem>;
+    grandTotal: Money;
+    expiresAt?: string;
+    claimedBy: Actor;
+    claimedAt: string;
+    ask: AskAddressResult;
+    customerRepliedAfterAsk: boolean;
+    canRemind: RemindAllowed;
+};
+
+export type PendingDraftList = {
+    items: Array<PendingDraft>;
+    expiredCount: number;
+    confirmedCount: number;
+};
+
+export type RemindPendingDraftsRequest = {
+    /**
+     * Rỗng hoặc không có = mọi đơn còn nháp của phiên
+     */
+    orderIds?: Array<string>;
+    templateId: string;
+};
+
+export type RemindOutcome = {
+    orderId: string;
+    outcome: 'queued' | 'skipped';
+    reason?: string;
+};
+
+export type RemindPendingDraftsResult = {
+    results: Array<RemindOutcome>;
+};
+
+export type MessageRevision = {
+    body?: string;
+    isHidden: boolean;
+    removed: boolean;
+    source: 'customer' | 'staff' | 'page_external' | 'automation';
+    recordedAt: string;
+};
+
+export type MessageRevisionList = {
+    items: Array<MessageRevision>;
+};
+
+export type ResendMessageResult = {
+    message: ChatMessage;
+    /**
+     * true khi tin cũ "không rõ đã gửi" (khách có thể nhận hai lần)
+     */
+    mayDuplicate: boolean;
+};
+
 export type ProductWritable = {
     id: string;
     code: string;
@@ -4889,6 +5768,15 @@ export type ProductWritable = {
      * Ảnh đang hiện theo thứ tự (ảnh đầu là ảnh bìa)
      */
     images: Array<ProductImage>;
+};
+
+/**
+ * Đúng một trong sessionId, systemUserToken (handler kiểm; sai → 422 invalid_input)
+ */
+export type ConnectFacebookPageRequestWritable = {
+    pageId: string;
+    sessionId?: string;
+    systemUserToken?: string;
 };
 
 /**
@@ -4993,6 +5881,34 @@ export type Cursor = string;
 export type IfNoneMatch = string;
 
 export type Limit = number;
+
+/**
+ * Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+ */
+export type ChannelId = string;
+
+export type ConversationId = string;
+
+export type MessageId = string;
+
+export type ConversationTagId = string;
+
+export type ConversationTagIdPath = string;
+
+export type ReplyTemplateId = string;
+
+export type ReminderId = string;
+
+export type LiveSessionId = string;
+
+/**
+ * Mã tin (messages.id) của comment live
+ */
+export type LiveCommentId = string;
+
+export type AttachmentFileId = string;
+
+export type AutomationRuleKindPath = AutomationRuleKind;
 
 export type HealthLiveData = {
     body?: never;
@@ -13051,3 +13967,2083 @@ export type WebCancelRequestResponses = {
 };
 
 export type WebCancelRequestResponse = WebCancelRequestResponses[keyof WebCancelRequestResponses];
+
+export type ListChannelAccountsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/channels';
+};
+
+export type ListChannelAccountsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListChannelAccountsError = ListChannelAccountsErrors[keyof ListChannelAccountsErrors];
+
+export type ListChannelAccountsResponses = {
+    /**
+     * listChannelAccounts
+     */
+    200: ChannelAccountList;
+};
+
+export type ListChannelAccountsResponse = ListChannelAccountsResponses[keyof ListChannelAccountsResponses];
+
+export type ListPagePostsData = {
+    body?: never;
+    path: {
+        /**
+         * Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+         */
+        id: string;
+    };
+    query?: {
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/channels/{id}/posts';
+};
+
+export type ListPagePostsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListPagePostsError = ListPagePostsErrors[keyof ListPagePostsErrors];
+
+export type ListPagePostsResponses = {
+    /**
+     * listPagePosts
+     */
+    200: PagePostPage;
+};
+
+export type ListPagePostsResponse = ListPagePostsResponses[keyof ListPagePostsResponses];
+
+export type SetChannelSendModeData = {
+    body: SetChannelSendModeRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/channels/{id}/send-mode';
+};
+
+export type SetChannelSendModeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SetChannelSendModeError = SetChannelSendModeErrors[keyof SetChannelSendModeErrors];
+
+export type SetChannelSendModeResponses = {
+    /**
+     * setChannelSendMode
+     */
+    200: ChannelAccount;
+};
+
+export type SetChannelSendModeResponse = SetChannelSendModeResponses[keyof SetChannelSendModeResponses];
+
+export type SetChannelHumanAgentData = {
+    body: SetChannelHumanAgentRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/channels/{id}/human-agent';
+};
+
+export type SetChannelHumanAgentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SetChannelHumanAgentError = SetChannelHumanAgentErrors[keyof SetChannelHumanAgentErrors];
+
+export type SetChannelHumanAgentResponses = {
+    /**
+     * setChannelHumanAgent
+     */
+    200: ChannelAccount;
+};
+
+export type SetChannelHumanAgentResponse = SetChannelHumanAgentResponses[keyof SetChannelHumanAgentResponses];
+
+export type StartFacebookOAuthData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/channels/facebook/oauth/start';
+};
+
+export type StartFacebookOAuthErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type StartFacebookOAuthError = StartFacebookOAuthErrors[keyof StartFacebookOAuthErrors];
+
+export type StartFacebookOAuthResponses = {
+    /**
+     * startFacebookOAuth
+     */
+    200: FacebookOAuthStart;
+};
+
+export type StartFacebookOAuthResponse = StartFacebookOAuthResponses[keyof StartFacebookOAuthResponses];
+
+export type ExchangeFacebookOAuthData = {
+    body: ExchangeFacebookOAuthRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/channels/facebook/oauth/exchange';
+};
+
+export type ExchangeFacebookOAuthErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ExchangeFacebookOAuthError = ExchangeFacebookOAuthErrors[keyof ExchangeFacebookOAuthErrors];
+
+export type ExchangeFacebookOAuthResponses = {
+    /**
+     * exchangeFacebookOAuth
+     */
+    200: FacebookOAuthPages;
+};
+
+export type ExchangeFacebookOAuthResponse = ExchangeFacebookOAuthResponses[keyof ExchangeFacebookOAuthResponses];
+
+export type ConnectFacebookPageData = {
+    body: ConnectFacebookPageRequestWritable;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/channels/facebook/pages';
+};
+
+export type ConnectFacebookPageErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ConnectFacebookPageError = ConnectFacebookPageErrors[keyof ConnectFacebookPageErrors];
+
+export type ConnectFacebookPageResponses = {
+    /**
+     * connectFacebookPage
+     */
+    200: ChannelAccount;
+};
+
+export type ConnectFacebookPageResponse = ConnectFacebookPageResponses[keyof ConnectFacebookPageResponses];
+
+export type DisconnectChannelData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/channels/{id}/disconnect';
+};
+
+export type DisconnectChannelErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type DisconnectChannelError = DisconnectChannelErrors[keyof DisconnectChannelErrors];
+
+export type DisconnectChannelResponses = {
+    /**
+     * disconnectChannel
+     */
+    200: ChannelAccount;
+};
+
+export type DisconnectChannelResponse = DisconnectChannelResponses[keyof DisconnectChannelResponses];
+
+export type RunChannelHealthCheckData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/channels/{id}/health-check';
+};
+
+export type RunChannelHealthCheckErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RunChannelHealthCheckError = RunChannelHealthCheckErrors[keyof RunChannelHealthCheckErrors];
+
+export type RunChannelHealthCheckResponses = {
+    /**
+     * runChannelHealthCheck
+     */
+    202: ChannelAccount;
+};
+
+export type RunChannelHealthCheckResponse = RunChannelHealthCheckResponses[keyof RunChannelHealthCheckResponses];
+
+export type GetPageSettingsData = {
+    body?: never;
+    path: {
+        /**
+         * Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/channels/{id}/page-settings';
+};
+
+export type GetPageSettingsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetPageSettingsError = GetPageSettingsErrors[keyof GetPageSettingsErrors];
+
+export type GetPageSettingsResponses = {
+    /**
+     * getPageSettings
+     */
+    200: PageSettings;
+};
+
+export type GetPageSettingsResponse = GetPageSettingsResponses[keyof GetPageSettingsResponses];
+
+export type UpdatePageSettingsData = {
+    body: UpdatePageSettingsRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/channels/{id}/page-settings';
+};
+
+export type UpdatePageSettingsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type UpdatePageSettingsError = UpdatePageSettingsErrors[keyof UpdatePageSettingsErrors];
+
+export type UpdatePageSettingsResponses = {
+    /**
+     * updatePageSettings
+     */
+    200: PageSettings;
+};
+
+export type UpdatePageSettingsResponse = UpdatePageSettingsResponses[keyof UpdatePageSettingsResponses];
+
+export type ListAssignableUsersData = {
+    body?: never;
+    path: {
+        /**
+         * Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/channels/{id}/assignable-users';
+};
+
+export type ListAssignableUsersErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListAssignableUsersError = ListAssignableUsersErrors[keyof ListAssignableUsersErrors];
+
+export type ListAssignableUsersResponses = {
+    /**
+     * listAssignableUsers
+     */
+    200: AssignableUserList;
+};
+
+export type ListAssignableUsersResponse = ListAssignableUsersResponses[keyof ListAssignableUsersResponses];
+
+export type ListAutomationRulesData = {
+    body?: never;
+    path: {
+        /**
+         * Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/channels/{id}/automation-rules';
+};
+
+export type ListAutomationRulesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListAutomationRulesError = ListAutomationRulesErrors[keyof ListAutomationRulesErrors];
+
+export type ListAutomationRulesResponses = {
+    /**
+     * listAutomationRules
+     */
+    200: AutomationRuleList;
+};
+
+export type ListAutomationRulesResponse = ListAutomationRulesResponses[keyof ListAutomationRulesResponses];
+
+export type UpdateAutomationRuleData = {
+    body: UpdateAutomationRuleRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+         */
+        id: string;
+        kind: AutomationRuleKind;
+    };
+    query?: never;
+    url: '/api/v1/channels/{id}/automation-rules/{kind}';
+};
+
+export type UpdateAutomationRuleErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type UpdateAutomationRuleError = UpdateAutomationRuleErrors[keyof UpdateAutomationRuleErrors];
+
+export type UpdateAutomationRuleResponses = {
+    /**
+     * updateAutomationRule
+     */
+    200: AutomationRule;
+};
+
+export type UpdateAutomationRuleResponse = UpdateAutomationRuleResponses[keyof UpdateAutomationRuleResponses];
+
+export type StartLiveSessionManuallyData = {
+    body: StartLiveSessionRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/channels/{id}/live-sessions';
+};
+
+export type StartLiveSessionManuallyErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type StartLiveSessionManuallyError = StartLiveSessionManuallyErrors[keyof StartLiveSessionManuallyErrors];
+
+export type StartLiveSessionManuallyResponses = {
+    /**
+     * startLiveSessionManually
+     */
+    201: LiveSession;
+};
+
+export type StartLiveSessionManuallyResponse = StartLiveSessionManuallyResponses[keyof StartLiveSessionManuallyResponses];
+
+export type ListConversationsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        pageId?: string;
+        status?: ConversationStatus;
+        tagId?: string;
+        /**
+         * me, none, hoặc mã nhân viên (uuid)
+         */
+        assignee?: string;
+        kind?: ConversationKind;
+        unread?: boolean;
+        /**
+         * Mã khách, SĐT, đuôi SĐT từ 4 số, tên từ 2 ký tự (customer.Search của M2; ngắn hơn → 422 query_too_short)
+         */
+        q?: string;
+        updatedSince?: string;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/conversations';
+};
+
+export type ListConversationsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListConversationsError = ListConversationsErrors[keyof ListConversationsErrors];
+
+export type ListConversationsResponses = {
+    /**
+     * listConversations
+     */
+    200: ConversationPage;
+};
+
+export type ListConversationsResponse = ListConversationsResponses[keyof ListConversationsResponses];
+
+export type CountConversationsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/conversations/counts';
+};
+
+export type CountConversationsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CountConversationsError = CountConversationsErrors[keyof CountConversationsErrors];
+
+export type CountConversationsResponses = {
+    /**
+     * countConversations
+     */
+    200: ConversationCounts;
+};
+
+export type CountConversationsResponse = CountConversationsResponses[keyof CountConversationsResponses];
+
+export type GetConversationData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}';
+};
+
+export type GetConversationErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetConversationError = GetConversationErrors[keyof GetConversationErrors];
+
+export type GetConversationResponses = {
+    /**
+     * getConversation
+     */
+    200: ConversationDetail;
+};
+
+export type GetConversationResponse = GetConversationResponses[keyof GetConversationResponses];
+
+export type GetConversationCustomerCardData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/customer-card';
+};
+
+export type GetConversationCustomerCardErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetConversationCustomerCardError = GetConversationCustomerCardErrors[keyof GetConversationCustomerCardErrors];
+
+export type GetConversationCustomerCardResponses = {
+    /**
+     * getConversationCustomerCard
+     */
+    200: ConversationCustomerCard;
+};
+
+export type GetConversationCustomerCardResponse = GetConversationCustomerCardResponses[keyof GetConversationCustomerCardResponses];
+
+export type GetConversationOrderContextData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/order-context';
+};
+
+export type GetConversationOrderContextErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetConversationOrderContextError = GetConversationOrderContextErrors[keyof GetConversationOrderContextErrors];
+
+export type GetConversationOrderContextResponses = {
+    /**
+     * getConversationOrderContext
+     */
+    200: ConversationOrderContext;
+};
+
+export type GetConversationOrderContextResponse = GetConversationOrderContextResponses[keyof GetConversationOrderContextResponses];
+
+export type ListMessagesData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Chuỗi mờ của tin cũ nhất đang có (lấy trang trước)
+         */
+        before?: string;
+        /**
+         * Chuỗi mờ của tin mới nhất đang có (lấy tin mới)
+         */
+        after?: string;
+        limit?: number;
+    };
+    url: '/api/v1/conversations/{id}/messages';
+};
+
+export type ListMessagesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListMessagesError = ListMessagesErrors[keyof ListMessagesErrors];
+
+export type ListMessagesResponses = {
+    /**
+     * listMessages
+     */
+    200: MessagePage;
+};
+
+export type ListMessagesResponse = ListMessagesResponses[keyof ListMessagesResponses];
+
+export type SendMessageData = {
+    body: SendMessageRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/messages';
+};
+
+export type SendMessageErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SendMessageError = SendMessageErrors[keyof SendMessageErrors];
+
+export type SendMessageResponses = {
+    /**
+     * sendMessage
+     */
+    201: ChatMessage;
+};
+
+export type SendMessageResponse = SendMessageResponses[keyof SendMessageResponses];
+
+export type MarkConversationReadData = {
+    body: MarkConversationReadRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/read';
+};
+
+export type MarkConversationReadErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type MarkConversationReadError = MarkConversationReadErrors[keyof MarkConversationReadErrors];
+
+export type MarkConversationReadResponses = {
+    /**
+     * markConversationRead
+     */
+    204: void;
+};
+
+export type MarkConversationReadResponse = MarkConversationReadResponses[keyof MarkConversationReadResponses];
+
+export type SetConversationStatusData = {
+    body: SetConversationStatusRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/status';
+};
+
+export type SetConversationStatusErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SetConversationStatusError = SetConversationStatusErrors[keyof SetConversationStatusErrors];
+
+export type SetConversationStatusResponses = {
+    /**
+     * setConversationStatus
+     */
+    200: ConversationDetail;
+};
+
+export type SetConversationStatusResponse = SetConversationStatusResponses[keyof SetConversationStatusResponses];
+
+export type GetAttachmentUrlData = {
+    body?: never;
+    path: {
+        id: string;
+        fileId: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/attachments/{fileId}/url';
+};
+
+export type GetAttachmentUrlErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetAttachmentUrlError = GetAttachmentUrlErrors[keyof GetAttachmentUrlErrors];
+
+export type GetAttachmentUrlResponses = {
+    /**
+     * getAttachmentUrl
+     */
+    200: AttachmentUrl;
+};
+
+export type GetAttachmentUrlResponse = GetAttachmentUrlResponses[keyof GetAttachmentUrlResponses];
+
+export type ReplyToCommentData = {
+    body: ReplyToCommentRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/comment-replies';
+};
+
+export type ReplyToCommentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ReplyToCommentError = ReplyToCommentErrors[keyof ReplyToCommentErrors];
+
+export type ReplyToCommentResponses = {
+    /**
+     * replyToComment
+     */
+    201: ChatMessage;
+};
+
+export type ReplyToCommentResponse = ReplyToCommentResponses[keyof ReplyToCommentResponses];
+
+export type SendPrivateReplyData = {
+    body: SendPrivateReplyRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/private-replies';
+};
+
+export type SendPrivateReplyErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SendPrivateReplyError = SendPrivateReplyErrors[keyof SendPrivateReplyErrors];
+
+export type SendPrivateReplyResponses = {
+    /**
+     * sendPrivateReply
+     */
+    201: ChatMessage;
+};
+
+export type SendPrivateReplyResponse = SendPrivateReplyResponses[keyof SendPrivateReplyResponses];
+
+export type ClaimConversationData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/claim';
+};
+
+export type ClaimConversationErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ClaimConversationError = ClaimConversationErrors[keyof ClaimConversationErrors];
+
+export type ClaimConversationResponses = {
+    /**
+     * claimConversation
+     */
+    200: ConversationDetail;
+};
+
+export type ClaimConversationResponse = ClaimConversationResponses[keyof ClaimConversationResponses];
+
+export type AssignConversationData = {
+    body: AssignConversationRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/assign';
+};
+
+export type AssignConversationErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type AssignConversationError = AssignConversationErrors[keyof AssignConversationErrors];
+
+export type AssignConversationResponses = {
+    /**
+     * assignConversation
+     */
+    200: ConversationDetail;
+};
+
+export type AssignConversationResponse = AssignConversationResponses[keyof AssignConversationResponses];
+
+export type ListConversationAssignmentsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/assignments';
+};
+
+export type ListConversationAssignmentsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListConversationAssignmentsError = ListConversationAssignmentsErrors[keyof ListConversationAssignmentsErrors];
+
+export type ListConversationAssignmentsResponses = {
+    /**
+     * listConversationAssignments
+     */
+    200: ConversationAssignmentList;
+};
+
+export type ListConversationAssignmentsResponse = ListConversationAssignmentsResponses[keyof ListConversationAssignmentsResponses];
+
+export type RemoveConversationTagData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+        tagId: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/tags/{tagId}';
+};
+
+export type RemoveConversationTagErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RemoveConversationTagError = RemoveConversationTagErrors[keyof RemoveConversationTagErrors];
+
+export type RemoveConversationTagResponses = {
+    /**
+     * removeConversationTag
+     */
+    204: void;
+};
+
+export type RemoveConversationTagResponse = RemoveConversationTagResponses[keyof RemoveConversationTagResponses];
+
+export type AddConversationTagData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+        tagId: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/tags/{tagId}';
+};
+
+export type AddConversationTagErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type AddConversationTagError = AddConversationTagErrors[keyof AddConversationTagErrors];
+
+export type AddConversationTagResponses = {
+    /**
+     * addConversationTag
+     */
+    204: void;
+};
+
+export type AddConversationTagResponse = AddConversationTagResponses[keyof AddConversationTagResponses];
+
+export type AddConversationNoteData = {
+    body: AddConversationNoteRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/notes';
+};
+
+export type AddConversationNoteErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type AddConversationNoteError = AddConversationNoteErrors[keyof AddConversationNoteErrors];
+
+export type AddConversationNoteResponses = {
+    /**
+     * addConversationNote
+     */
+    201: ChatMessage;
+};
+
+export type AddConversationNoteResponse = AddConversationNoteResponses[keyof AddConversationNoteResponses];
+
+export type GetPresenceData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/presence';
+};
+
+export type GetPresenceErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetPresenceError = GetPresenceErrors[keyof GetPresenceErrors];
+
+export type GetPresenceResponses = {
+    /**
+     * getPresence
+     */
+    200: PresenceList;
+};
+
+export type GetPresenceResponse = GetPresenceResponses[keyof GetPresenceResponses];
+
+export type SetPresenceData = {
+    body: SetPresenceRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/presence';
+};
+
+export type SetPresenceErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SetPresenceError = SetPresenceErrors[keyof SetPresenceErrors];
+
+export type SetPresenceResponses = {
+    /**
+     * setPresence
+     */
+    204: void;
+};
+
+export type SetPresenceResponse = SetPresenceResponses[keyof SetPresenceResponses];
+
+export type CreateReminderData = {
+    body: CreateReminderRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversations/{id}/reminders';
+};
+
+export type CreateReminderErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateReminderError = CreateReminderErrors[keyof CreateReminderErrors];
+
+export type CreateReminderResponses = {
+    /**
+     * createReminder
+     */
+    201: Reminder;
+};
+
+export type CreateReminderResponse = CreateReminderResponses[keyof CreateReminderResponses];
+
+export type ListMessageRevisionsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/messages/{id}/revisions';
+};
+
+export type ListMessageRevisionsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListMessageRevisionsError = ListMessageRevisionsErrors[keyof ListMessageRevisionsErrors];
+
+export type ListMessageRevisionsResponses = {
+    /**
+     * listMessageRevisions
+     */
+    200: MessageRevisionList;
+};
+
+export type ListMessageRevisionsResponse = ListMessageRevisionsResponses[keyof ListMessageRevisionsResponses];
+
+export type ResendMessageData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/messages/{id}/resend';
+};
+
+export type ResendMessageErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ResendMessageError = ResendMessageErrors[keyof ResendMessageErrors];
+
+export type ResendMessageResponses = {
+    /**
+     * resendMessage
+     */
+    201: ResendMessageResult;
+};
+
+export type ResendMessageResponse = ResendMessageResponses[keyof ResendMessageResponses];
+
+export type DiscardMessageData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/messages/{id}/discard';
+};
+
+export type DiscardMessageErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type DiscardMessageError = DiscardMessageErrors[keyof DiscardMessageErrors];
+
+export type DiscardMessageResponses = {
+    /**
+     * discardMessage
+     */
+    200: ChatMessage;
+};
+
+export type DiscardMessageResponse = DiscardMessageResponses[keyof DiscardMessageResponses];
+
+export type HideCommentData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/messages/{id}/hide';
+};
+
+export type HideCommentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type HideCommentError = HideCommentErrors[keyof HideCommentErrors];
+
+export type HideCommentResponses = {
+    /**
+     * hideComment
+     */
+    202: ChatMessage;
+};
+
+export type HideCommentResponse = HideCommentResponses[keyof HideCommentResponses];
+
+export type UnhideCommentData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/messages/{id}/unhide';
+};
+
+export type UnhideCommentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type UnhideCommentError = UnhideCommentErrors[keyof UnhideCommentErrors];
+
+export type UnhideCommentResponses = {
+    /**
+     * unhideComment
+     */
+    202: ChatMessage;
+};
+
+export type UnhideCommentResponse = UnhideCommentResponses[keyof UnhideCommentResponses];
+
+export type ListConversationTagsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/conversation-tags';
+};
+
+export type ListConversationTagsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListConversationTagsError = ListConversationTagsErrors[keyof ListConversationTagsErrors];
+
+export type ListConversationTagsResponses = {
+    /**
+     * listConversationTags
+     */
+    200: ConversationTagList;
+};
+
+export type ListConversationTagsResponse = ListConversationTagsResponses[keyof ListConversationTagsResponses];
+
+export type CreateConversationTagData = {
+    body: CreateConversationTagRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/conversation-tags';
+};
+
+export type CreateConversationTagErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateConversationTagError = CreateConversationTagErrors[keyof CreateConversationTagErrors];
+
+export type CreateConversationTagResponses = {
+    /**
+     * createConversationTag
+     */
+    201: ConversationTag;
+};
+
+export type CreateConversationTagResponse = CreateConversationTagResponses[keyof CreateConversationTagResponses];
+
+export type DeleteConversationTagData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversation-tags/{id}';
+};
+
+export type DeleteConversationTagErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type DeleteConversationTagError = DeleteConversationTagErrors[keyof DeleteConversationTagErrors];
+
+export type DeleteConversationTagResponses = {
+    /**
+     * deleteConversationTag
+     */
+    204: void;
+};
+
+export type DeleteConversationTagResponse = DeleteConversationTagResponses[keyof DeleteConversationTagResponses];
+
+export type UpdateConversationTagData = {
+    body: UpdateConversationTagRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/conversation-tags/{id}';
+};
+
+export type UpdateConversationTagErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type UpdateConversationTagError = UpdateConversationTagErrors[keyof UpdateConversationTagErrors];
+
+export type UpdateConversationTagResponses = {
+    /**
+     * updateConversationTag
+     */
+    200: ConversationTag;
+};
+
+export type UpdateConversationTagResponse = UpdateConversationTagResponses[keyof UpdateConversationTagResponses];
+
+export type ListReplyTemplatesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+        pageId?: string;
+    };
+    url: '/api/v1/reply-templates';
+};
+
+export type ListReplyTemplatesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListReplyTemplatesError = ListReplyTemplatesErrors[keyof ListReplyTemplatesErrors];
+
+export type ListReplyTemplatesResponses = {
+    /**
+     * listReplyTemplates
+     */
+    200: ReplyTemplateList;
+};
+
+export type ListReplyTemplatesResponse = ListReplyTemplatesResponses[keyof ListReplyTemplatesResponses];
+
+export type CreateReplyTemplateData = {
+    body: CreateReplyTemplateRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/reply-templates';
+};
+
+export type CreateReplyTemplateErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateReplyTemplateError = CreateReplyTemplateErrors[keyof CreateReplyTemplateErrors];
+
+export type CreateReplyTemplateResponses = {
+    /**
+     * createReplyTemplate
+     */
+    201: ReplyTemplate;
+};
+
+export type CreateReplyTemplateResponse = CreateReplyTemplateResponses[keyof CreateReplyTemplateResponses];
+
+export type DeleteReplyTemplateData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/reply-templates/{id}';
+};
+
+export type DeleteReplyTemplateErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type DeleteReplyTemplateError = DeleteReplyTemplateErrors[keyof DeleteReplyTemplateErrors];
+
+export type DeleteReplyTemplateResponses = {
+    /**
+     * deleteReplyTemplate
+     */
+    204: void;
+};
+
+export type DeleteReplyTemplateResponse = DeleteReplyTemplateResponses[keyof DeleteReplyTemplateResponses];
+
+export type UpdateReplyTemplateData = {
+    body: UpdateReplyTemplateRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/reply-templates/{id}';
+};
+
+export type UpdateReplyTemplateErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type UpdateReplyTemplateError = UpdateReplyTemplateErrors[keyof UpdateReplyTemplateErrors];
+
+export type UpdateReplyTemplateResponses = {
+    /**
+     * updateReplyTemplate
+     */
+    200: ReplyTemplate;
+};
+
+export type UpdateReplyTemplateResponse = UpdateReplyTemplateResponses[keyof UpdateReplyTemplateResponses];
+
+export type RenderReplyTemplateData = {
+    body: RenderReplyTemplateRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/reply-templates/{id}/render';
+};
+
+export type RenderReplyTemplateErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RenderReplyTemplateError = RenderReplyTemplateErrors[keyof RenderReplyTemplateErrors];
+
+export type RenderReplyTemplateResponses = {
+    /**
+     * renderReplyTemplate
+     */
+    200: RenderedReplyTemplate;
+};
+
+export type RenderReplyTemplateResponse = RenderReplyTemplateResponses[keyof RenderReplyTemplateResponses];
+
+export type ListFollowUpsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        pageId?: string;
+        afterHours?: number;
+        limit?: number;
+    };
+    url: '/api/v1/follow-ups';
+};
+
+export type ListFollowUpsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListFollowUpsError = ListFollowUpsErrors[keyof ListFollowUpsErrors];
+
+export type ListFollowUpsResponses = {
+    /**
+     * listFollowUps
+     */
+    200: FollowUpList;
+};
+
+export type ListFollowUpsResponse = ListFollowUpsResponses[keyof ListFollowUpsResponses];
+
+export type ListMyRemindersData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: 'pending' | 'fired';
+    };
+    url: '/api/v1/me/reminders';
+};
+
+export type ListMyRemindersErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListMyRemindersError = ListMyRemindersErrors[keyof ListMyRemindersErrors];
+
+export type ListMyRemindersResponses = {
+    /**
+     * listMyReminders
+     */
+    200: ReminderList;
+};
+
+export type ListMyRemindersResponse = ListMyRemindersResponses[keyof ListMyRemindersResponses];
+
+export type CompleteReminderData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/reminders/{id}/done';
+};
+
+export type CompleteReminderErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CompleteReminderError = CompleteReminderErrors[keyof CompleteReminderErrors];
+
+export type CompleteReminderResponses = {
+    /**
+     * completeReminder
+     */
+    200: Reminder;
+};
+
+export type CompleteReminderResponse = CompleteReminderResponses[keyof CompleteReminderResponses];
+
+export type CancelReminderData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/reminders/{id}/cancel';
+};
+
+export type CancelReminderErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CancelReminderError = CancelReminderErrors[keyof CancelReminderErrors];
+
+export type CancelReminderResponses = {
+    /**
+     * cancelReminder
+     */
+    200: Reminder;
+};
+
+export type CancelReminderResponse = CancelReminderResponses[keyof CancelReminderResponses];
+
+export type ListCustomerCallsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/customers/{id}/calls';
+};
+
+export type ListCustomerCallsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListCustomerCallsError = ListCustomerCallsErrors[keyof ListCustomerCallsErrors];
+
+export type ListCustomerCallsResponses = {
+    /**
+     * listCustomerCalls
+     */
+    200: CallLogPage;
+};
+
+export type ListCustomerCallsResponse = ListCustomerCallsResponses[keyof ListCustomerCallsResponses];
+
+export type CreateCallLogData = {
+    body: CreateCallLogRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/customers/{id}/calls';
+};
+
+export type CreateCallLogErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateCallLogError = CreateCallLogErrors[keyof CreateCallLogErrors];
+
+export type CreateCallLogResponses = {
+    /**
+     * createCallLog
+     */
+    201: CallLog;
+};
+
+export type CreateCallLogResponse = CreateCallLogResponses[keyof CreateCallLogResponses];
+
+export type ListCustomerConversationsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/customers/{id}/conversations';
+};
+
+export type ListCustomerConversationsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListCustomerConversationsError = ListCustomerConversationsErrors[keyof ListCustomerConversationsErrors];
+
+export type ListCustomerConversationsResponses = {
+    /**
+     * listCustomerConversations
+     */
+    200: ConversationPage;
+};
+
+export type ListCustomerConversationsResponse = ListCustomerConversationsResponses[keyof ListCustomerConversationsResponses];
+
+export type SetCustomerDoNotContactData = {
+    body: SetCustomerDoNotContactRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/customers/{id}/do-not-contact';
+};
+
+export type SetCustomerDoNotContactErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SetCustomerDoNotContactError = SetCustomerDoNotContactErrors[keyof SetCustomerDoNotContactErrors];
+
+export type SetCustomerDoNotContactResponses = {
+    /**
+     * setCustomerDoNotContact
+     */
+    204: void;
+};
+
+export type SetCustomerDoNotContactResponse = SetCustomerDoNotContactResponses[keyof SetCustomerDoNotContactResponses];
+
+export type ListLiveSessionsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: LiveSessionStatus;
+        since?: string;
+    };
+    url: '/api/v1/live-sessions';
+};
+
+export type ListLiveSessionsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListLiveSessionsError = ListLiveSessionsErrors[keyof ListLiveSessionsErrors];
+
+export type ListLiveSessionsResponses = {
+    /**
+     * listLiveSessions
+     */
+    200: LiveSessionList;
+};
+
+export type ListLiveSessionsResponse = ListLiveSessionsResponses[keyof ListLiveSessionsResponses];
+
+export type EndLiveSessionManuallyData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/live-sessions/{id}/end';
+};
+
+export type EndLiveSessionManuallyErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type EndLiveSessionManuallyError = EndLiveSessionManuallyErrors[keyof EndLiveSessionManuallyErrors];
+
+export type EndLiveSessionManuallyResponses = {
+    /**
+     * endLiveSessionManually
+     */
+    200: LiveSession;
+};
+
+export type EndLiveSessionManuallyResponse = EndLiveSessionManuallyResponses[keyof EndLiveSessionManuallyResponses];
+
+export type ListLiveCommentsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Chuỗi mờ "sentAt,id" của comment cuối đã có (lùi 30 giây, màn hình bỏ trùng theo messageId)
+         */
+        after?: string;
+        limit?: number;
+        phoneOnly?: boolean;
+        unhandledOnly?: boolean;
+    };
+    url: '/api/v1/live-sessions/{id}/comments';
+};
+
+export type ListLiveCommentsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListLiveCommentsError = ListLiveCommentsErrors[keyof ListLiveCommentsErrors];
+
+export type ListLiveCommentsResponses = {
+    /**
+     * listLiveComments
+     */
+    200: LiveCommentPage;
+};
+
+export type ListLiveCommentsResponse = ListLiveCommentsResponses[keyof ListLiveCommentsResponses];
+
+export type ListPendingDraftsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/live-sessions/{id}/pending-drafts';
+};
+
+export type ListPendingDraftsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListPendingDraftsError = ListPendingDraftsErrors[keyof ListPendingDraftsErrors];
+
+export type ListPendingDraftsResponses = {
+    /**
+     * listPendingDrafts
+     */
+    200: PendingDraftList;
+};
+
+export type ListPendingDraftsResponse = ListPendingDraftsResponses[keyof ListPendingDraftsResponses];
+
+export type RemindPendingDraftsData = {
+    body: RemindPendingDraftsRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/live-sessions/{id}/pending-drafts/remind';
+};
+
+export type RemindPendingDraftsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RemindPendingDraftsError = RemindPendingDraftsErrors[keyof RemindPendingDraftsErrors];
+
+export type RemindPendingDraftsResponses = {
+    /**
+     * remindPendingDrafts
+     */
+    200: RemindPendingDraftsResult;
+};
+
+export type RemindPendingDraftsResponse = RemindPendingDraftsResponses[keyof RemindPendingDraftsResponses];
+
+export type GetLiveCommentContextData = {
+    body?: never;
+    path: {
+        /**
+         * Mã tin (messages.id) của comment live
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/live-comments/{id}/context';
+};
+
+export type GetLiveCommentContextErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetLiveCommentContextError = GetLiveCommentContextErrors[keyof GetLiveCommentContextErrors];
+
+export type GetLiveCommentContextResponses = {
+    /**
+     * getLiveCommentContext
+     */
+    200: LiveCommentContext;
+};
+
+export type GetLiveCommentContextResponse = GetLiveCommentContextResponses[keyof GetLiveCommentContextResponses];
+
+export type ClaimLiveCommentData = {
+    body: ClaimLiveCommentRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * Mã tin (messages.id) của comment live
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/live-comments/{id}/claim';
+};
+
+export type ClaimLiveCommentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ClaimLiveCommentError = ClaimLiveCommentErrors[keyof ClaimLiveCommentErrors];
+
+export type ClaimLiveCommentResponses = {
+    /**
+     * claimLiveComment
+     */
+    201: ClaimLiveCommentResult;
+};
+
+export type ClaimLiveCommentResponse = ClaimLiveCommentResponses[keyof ClaimLiveCommentResponses];

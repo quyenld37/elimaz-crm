@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M4 — Đã chốt, thiếu địa chỉ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="m4.css">
+<style>
+@media (min-width: 760px) { .tdc td:nth-child(2) { max-width: 220px; } }
+@media (max-width: 759px) { .res li { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body data-page="thieu-dia-chi" data-title="Thiếu địa chỉ">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><p class="crumb"><a href="live.html">Hộp chat · Live</a> / Đã chốt, thiếu địa chỉ</p><h1>Đã chốt, thiếu địa chỉ</h1><p class="sub">Đơn nháp chốt từ comment live còn chờ khách gửi địa chỉ. Khách trả lời thì mở hội thoại để hoàn tất đơn ngay cạnh khung chat.</p></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="lv05 bang-nhap 50-don-nhap lv06 het-han"><p class="xs">TRẠNG THÁI A</p><h2>Hết ca: 50 đơn nháp của phiên, đủ trạng thái xin địa chỉ, khách đã trả lời hay chưa, nhắc từng dòng hoặc nhắc tất cả; 3 đơn quá hạn đã tự hủy</h2></section>
+
+<div class="stack">
+	<div class="toolbar" style="margin:0">
+		<span class="select-wrap" style="flex:0 1 360px"><select aria-label="Phiên"><option>Mọi phiên hôm nay</option><option>Xả hàng đầm lụa tối thứ Ba</option><option>Live ca trưa: áo len</option></select></span>
+		<button class="toggle" aria-pressed="false">Khách đã trả lời</button>
+		<span class="grow"></span>
+		<div class="act" data-ca="nhac-tat-ca"><button class="btn btn-dark">Nhắc tất cả (50)</button><span class="reason">Bỏ qua đơn vừa nhắc trong 60 phút.</span></div>
+	</div>
+	<div class="lstats"><span>Còn nháp <b>50</b></span><span>Đã xác nhận <b>12</b></span><span>Hết hạn, đã hủy <b>3</b></span></div>
+	<div class="box box-info small" data-ca="het-han lv06"><b>3 đơn nháp quá hạn đã tự hủy</b> vì khách không gửi địa chỉ trong 24 giờ. Hàng đã trả về "có thể bán"; lý do "Hết hạn đơn nháp" ghi ở từng đơn. <a class="btn btn-text" href="../m2/don-danh-sach.html">Xem 3 đơn đã hủy</a></div>
+
+	<div class="tbl-frame" data-ca="bang-nhap 50-don-nhap lv05">
+		<table class="tbl tdc">
+			<thead><tr><th>Khách · đơn</th><th>Món</th><th class="r">Tổng</th><th>Hết hạn</th><th>Xin địa chỉ</th><th>Khách trả lời</th><th></th></tr></thead>
+			<tbody>
+				<tr data-ca="khach-da-tra-loi mo-hoi-thoai lv04"><td data-label="Khách" class="lead"><span class="stack-sm" style="gap:0;min-width:0"><b class="ellip">Phạm Ngọc Anh</b><span class="xs muted num">DH0001241 · chốt 20:01 · An</span></span></td><td data-label="Món">Đầm lụa be L × 1</td><td data-label="Tổng" class="r"><span class="money">1.290.000 ₫</span></td><td data-label="Hết hạn" class="num">20:01 ngày mai</td><td data-label="Xin địa chỉ"><span class="chip chip-ok" data-ca="tt-xin-da-nhan-rieng">Đã nhắn riêng 20:02</span></td><td data-label="Khách trả lời"><span class="chip chip-ok">Đã trả lời 20:09</span></td><td class="c-act"><a class="btn btn-dark" href="khung-ben-phai.html">Mở hội thoại để hoàn tất</a></td></tr>
+				<tr data-ca="ten-60"><td data-label="Khách" class="lead"><span class="stack-sm" style="gap:0;min-width:0"><b class="ellip">NguyễnThịThuHàShopThờiTrangCôngSởXuấtKhẩuHàNộiChiNhánhSố0205</b><span class="xs muted num">DH0001242 · chốt 20:02 · Hằng</span></span></td><td data-label="Món">Váy hoa nhí S × 1, Áo len cổ lọ kem M × 2</td><td data-label="Tổng" class="r"><span class="money">2.070.000 ₫</span></td><td data-label="Hết hạn" class="num">20:02 ngày mai</td><td data-label="Xin địa chỉ"><span class="chip chip-ok" data-ca="tt-xin-hop-thu">Gửi trong hộp thư 20:03</span></td><td data-label="Khách trả lời"><span class="muted small">Chưa</span></td><td class="c-act"><button class="btn btn-quiet" data-ca="nut-nhac">Nhắc</button></td></tr>
+				<tr><td data-label="Khách" class="lead"><span class="stack-sm" style="gap:0;min-width:0"><b class="ellip">Ngô Kim Khánh</b><span class="xs muted num">DH0001238 · chốt 20:00 · Lan</span></span></td><td data-label="Món">Đầm lụa be L × 2, Áo len cổ lọ kem M × 1</td><td data-label="Tổng" class="r"><span class="money">3.270.000 ₫</span></td><td data-label="Hết hạn" class="num">20:00 ngày mai</td><td data-label="Xin địa chỉ"><span class="chip chip-ok">Đã nhắn riêng 20:01</span></td><td data-label="Khách trả lời"><span class="muted small">Chưa</span></td><td class="c-act"><div class="act" style="justify-items:end"><button class="btn btn-quiet" disabled>Nhắc</button><span class="reason">Đã nhắc lúc 20:40</span></div></td></tr>
+				<tr class="is-err" data-ca="tt-xin-chua-duoc"><td data-label="Khách" class="lead"><span class="stack-sm" style="gap:0;min-width:0"><b class="ellip">Vũ Thị Vân</b><span class="xs muted num">DH0001243 · chốt 20:02 · An</span></span></td><td data-label="Món">Váy hoa nhí S × 1</td><td data-label="Tổng" class="r"><span class="money">690.000 ₫</span></td><td data-label="Hết hạn" class="num">20:02 ngày mai</td><td data-label="Xin địa chỉ"><span class="stack-sm" style="gap:0;justify-items:end"><span class="chip chip-err">Chưa xin được</span><span class="xs">Page đang ở chế độ chỉ xem</span></span></td><td data-label="Khách trả lời"><span class="muted small">Chưa</span></td><td class="c-act"><button class="btn btn-quiet">Nhắc</button></td></tr>
+				<tr class="is-err"><td data-label="Khách" class="lead"><span class="stack-sm" style="gap:0;min-width:0"><b class="ellip">Đinh Hoài Thu</b><span class="xs muted num">DH0001190 · chốt hôm qua 20:30</span></span></td><td data-label="Món">Đầm lụa be M × 1</td><td data-label="Tổng" class="r"><span class="money">1.290.000 ₫</span></td><td data-label="Hết hạn" class="num"><span class="err-text bold">còn 35 phút</span></td><td data-label="Xin địa chỉ"><span class="stack-sm" style="gap:0;justify-items:end"><span class="chip chip-err">Chưa xin được</span><span class="xs">Đã quá 24 giờ và đã nhắn riêng cho comment này</span></span></td><td data-label="Khách trả lời"><span class="muted small">Chưa</span></td><td class="c-act"><div class="act" style="justify-items:end"><button class="btn btn-quiet" disabled>Nhắc</button><span class="reason">Không còn cách gửi tin. Gọi khách nếu có số.</span></div></td></tr>
+				<tr><td data-label="Khách" class="lead"><span class="stack-sm" style="gap:0;min-width:0"><b class="ellip">Hồ Bảo Quyên</b><span class="xs muted num">DH0001244 · chốt 20:14 · Lan</span></span></td><td data-label="Món">Áo len cổ lọ kem M × 1</td><td data-label="Tổng" class="r"><span class="money">690.000 ₫</span></td><td data-label="Hết hạn" class="num">20:14 ngày mai</td><td data-label="Xin địa chỉ"><span class="chip">Đang gửi</span></td><td data-label="Khách trả lời"><span class="muted small">Chưa</span></td><td class="c-act"><button class="btn btn-quiet">Nhắc</button></td></tr>
+			</tbody>
+		</table>
+	</div>
+	<div class="more"><span>Đang xem 6 / 50 đơn nháp</span><button class="btn btn-quiet">Tải thêm 44</button></div>
+	<p class="mk"><b>Mockup:</b> 50 đơn nháp (dữ liệu cứng của kế hoạch) xếp theo giờ hết hạn gần nhất trước; vẽ 6 dòng đủ loại. "Mở hội thoại để hoàn tất" đưa sang khung bên phải của hội thoại (hoàn tất đơn, LV04, xem <a class="btn btn-text" href="khung-ben-phai.html">Khung bên phải B</a>). Đơn đã xác nhận rời khỏi bảng.</p>
+</div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="ket-qua-nhac nhac-tat-ca"><p class="xs">TRẠNG THÁI B</p><h2>Sau "Nhắc tất cả": mỗi đơn một kết quả; dòng không gửi được bị bỏ qua kèm lý do, không chặn dòng khác</h2></section>
+
+<div class="dlgs">
+	<div class="card" data-ca="ket-qua-nhac">
+		<div class="box box-ok small"><b class="ok-text">Đã xếp 46 tin nhắc</b> · bỏ qua 4</div>
+		<ul class="olines res" style="margin-top:8px">
+			<li><span>DH0001238 · Ngô Kim Khánh</span><span class="small muted">Đã nhắc lúc 20:40</span></li>
+			<li><span>DH0001243 · Vũ Thị Vân</span><span class="small muted">Page đang ở chế độ chỉ xem</span></li>
+			<li><span>DH0001190 · Đinh Hoài Thu</span><span class="small muted">Đã quá 24 giờ và đã nhắn riêng cho comment này</span></li>
+			<li><span>DH0001236 · Lý Thị Hoa</span><span class="small muted">Đơn không còn là nháp</span></li>
+		</ul>
+		<p class="xs muted" style="margin-top:8px">Còn cửa sổ 24 giờ thì nhắc trong hộp thư; không thì nhắn riêng nếu comment chưa dùng. Mỗi đơn một tin riêng, một đơn lỗi không chặn đơn khác.</p>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" data-ca="0-don-nhap"><p class="xs">TRẠNG THÁI C</p><h2>0 đơn nháp: mọi đơn đã hoàn tất hoặc hết hạn</h2></section>
+
+<div class="empty" data-ca="0-don-nhap">
+	<h2>Không còn đơn nào thiếu địa chỉ</h2>
+	<p class="small muted">Phiên "Live ca trưa: áo len": 27 đơn đã xác nhận, 0 hết hạn.</p>
+	<a class="btn btn-quiet" href="live.html">Về Live</a>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

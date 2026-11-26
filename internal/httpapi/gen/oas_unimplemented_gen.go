@@ -31,6 +31,24 @@ func (UnimplementedHandler) AddAttributeValue(ctx context.Context, req *AddAttri
 	return r, ht.ErrNotImplemented
 }
 
+// AddConversationNote implements addConversationNote operation.
+//
+// Ghi chú nội bộ trong hội thoại (không bao giờ gửi ra ngoài) (Task 161).
+//
+// POST /api/v1/conversations/{id}/notes
+func (UnimplementedHandler) AddConversationNote(ctx context.Context, req *AddConversationNoteRequest, params AddConversationNoteParams) (r AddConversationNoteRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// AddConversationTag implements addConversationTag operation.
+//
+// Gắn nhãn cho hội thoại (gắn lại không lỗi) (Task 160).
+//
+// PUT /api/v1/conversations/{id}/tags/{tagId}
+func (UnimplementedHandler) AddConversationTag(ctx context.Context, params AddConversationTagParams) (r AddConversationTagRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // AddCustomerAddress implements addCustomerAddress operation.
 //
 // Thêm địa chỉ giao cho khách; mã tỉnh, xã kiểm theo danh mục (Task M2-09).
@@ -158,6 +176,16 @@ func (UnimplementedHandler) AssignCallbackTask(ctx context.Context, req *AssignC
 	return r, ht.ErrNotImplemented
 }
 
+// AssignConversation implements assignConversation operation.
+//
+// Giao hội thoại cho nhân viên có quyền trên Page, hoặc bỏ giao (userId null); kiểm
+// version (Task 160).
+//
+// POST /api/v1/conversations/{id}/assign
+func (UnimplementedHandler) AssignConversation(ctx context.Context, req *AssignConversationRequest, params AssignConversationParams) (r AssignConversationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // AttachProductImage implements attachProductImage operation.
 //
 // Color (không bắt buộc) là một màu đang có của biến thể trong mẫu. Tệp chưa
@@ -177,6 +205,15 @@ func (UnimplementedHandler) AttachProductImage(ctx context.Context, req *AttachP
 //
 // POST /api/v1/orders/{id}/cancel
 func (UnimplementedHandler) CancelOrder(ctx context.Context, req *CancelOrderRequest, params CancelOrderParams) (r CancelOrderRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CancelReminder implements cancelReminder operation.
+//
+// Hủy nhắc việc (cập nhật có điều kiện) (Task 169).
+//
+// POST /api/v1/reminders/{id}/cancel
+func (UnimplementedHandler) CancelReminder(ctx context.Context, params CancelReminderParams) (r CancelReminderRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -247,12 +284,42 @@ func (UnimplementedHandler) CheckOrderDuplicates(ctx context.Context, params Che
 	return r, ht.ErrNotImplemented
 }
 
+// ClaimConversation implements claimConversation operation.
+//
+// Nhận hội thoại về mình; người khác đang nhận → 409 already_assigned (Task 160).
+//
+// POST /api/v1/conversations/{id}/claim
+func (UnimplementedHandler) ClaimConversation(ctx context.Context, params ClaimConversationParams) (r ClaimConversationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ClaimLiveComment implements claimLiveComment operation.
+//
+// Cần thêm order.create (mode new) hay order.update (mode add_to_draft) toàn shop. Comment đã
+// chốt → 409 comment_claimed (claimedBy, orderId, orderCode); khách đã có nháp của phiên
+// → 409 open_draft_exists (drafts); hết hàng → 409 out_of_stock (variantIds, available), không
+// tạo gì; người bán khác Page → 422 seller_mismatch.
+//
+// POST /api/v1/live-comments/{id}/claim
+func (UnimplementedHandler) ClaimLiveComment(ctx context.Context, req *ClaimLiveCommentRequest, params ClaimLiveCommentParams) (r ClaimLiveCommentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CloseReturn implements closeReturn operation.
 //
 // Đóng phiếu trả đã nhập kho (Task M2-22).
 //
 // POST /api/v1/returns/{returnId}/close
 func (UnimplementedHandler) CloseReturn(ctx context.Context, req *VersionRequest, params CloseReturnParams) (r CloseReturnRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CompleteReminder implements completeReminder operation.
+//
+// Đánh dấu nhắc việc đã xong (cập nhật có điều kiện) (Task 169).
+//
+// POST /api/v1/reminders/{id}/done
+func (UnimplementedHandler) CompleteReminder(ctx context.Context, params CompleteReminderParams) (r CompleteReminderRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -286,6 +353,27 @@ func (UnimplementedHandler) ConfirmOrder(ctx context.Context, req *VersionReques
 	return r, ht.ErrNotImplemented
 }
 
+// ConnectFacebookPage implements connectFacebookPage operation.
+//
+// Đúng một trong sessionId (phiên đăng nhập của exchangeFacebookOAuth) và systemUserToken
+// (mã system user, chỉ sống trong bộ nhớ của yêu cầu, không lưu, không ghi log);
+// thiếu hoặc có cả hai → 422 invalid_input. Page thiếu quyền MESSAGING, MODERATE → 422
+// page_not_accessible; Page đã nối với shop khác → 409 page_connected_elsewhere.
+//
+// POST /api/v1/channels/facebook/pages
+func (UnimplementedHandler) ConnectFacebookPage(ctx context.Context, req *ConnectFacebookPageRequest, params ConnectFacebookPageParams) (r ConnectFacebookPageRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CountConversations implements countConversations operation.
+//
+// Số hội thoại chưa đọc, đang mở theo Page; của tôi; chưa ai nhận (Task 159).
+//
+// GET /api/v1/conversations/counts
+func (UnimplementedHandler) CountConversations(ctx context.Context) (r CountConversationsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CountFeedback implements countFeedback operation.
 //
 // Số góp ý theo trạng thái (đủ 3 trạng thái) và tổng, cho thanh lọc của màn Góp
@@ -311,6 +399,15 @@ func (UnimplementedHandler) CountOrderRequests(ctx context.Context) (r CountOrde
 //
 // POST /api/v1/catalog/attributes
 func (UnimplementedHandler) CreateAttribute(ctx context.Context, req *CreateAttributeRequest, params CreateAttributeParams) (r CreateAttributeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateCallLog implements createCallLog operation.
+//
+// Ghi kết quả cuộc gọi khách; "hẹn gọi lại" tự tạo nhắc việc (Q14, Task 169).
+//
+// POST /api/v1/customers/{id}/calls
+func (UnimplementedHandler) CreateCallLog(ctx context.Context, req *CreateCallLogRequest, params CreateCallLogParams) (r CreateCallLogRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -352,6 +449,15 @@ func (UnimplementedHandler) CreateCategory(ctx context.Context, req *CreateCateg
 //
 // POST /api/v1/cod/adjustments
 func (UnimplementedHandler) CreateCodAdjustment(ctx context.Context, req *CreateCodAdjustmentRequest, params CreateCodAdjustmentParams) (r CreateCodAdjustmentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateConversationTag implements createConversationTag operation.
+//
+// Tạo nhãn hội thoại; tên trùng → 409 already_exists (Task 160).
+//
+// POST /api/v1/conversation-tags
+func (UnimplementedHandler) CreateConversationTag(ctx context.Context, req *CreateConversationTagRequest, params CreateConversationTagParams) (r CreateConversationTagRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -425,6 +531,26 @@ func (UnimplementedHandler) CreateOrder(ctx context.Context, req *CreateOrderReq
 //
 // POST /api/v1/catalog/products
 func (UnimplementedHandler) CreateProduct(ctx context.Context, req *CreateProductRequest, params CreateProductParams) (r CreateProductRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateReminder implements createReminder operation.
+//
+// Nhắc việc trên hội thoại "nhắc tôi lúc…" (giao cho người khác cần
+// conversation.assign) (Task 169).
+//
+// POST /api/v1/conversations/{id}/reminders
+func (UnimplementedHandler) CreateReminder(ctx context.Context, req *CreateReminderRequest, params CreateReminderParams) (r CreateReminderRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateReplyTemplate implements createReplyTemplate operation.
+//
+// Tạo mẫu trả lời (chung hay riêng một Page); phím tắt trùng → 409 already_exists
+// (Task 161).
+//
+// POST /api/v1/reply-templates
+func (UnimplementedHandler) CreateReplyTemplate(ctx context.Context, req *CreateReplyTemplateRequest, params CreateReplyTemplateParams) (r CreateReplyTemplateRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -534,6 +660,15 @@ func (UnimplementedHandler) CreateWebCampaign(ctx context.Context, req *WebCampa
 	return r, ht.ErrNotImplemented
 }
 
+// DeleteConversationTag implements deleteConversationTag operation.
+//
+// Xóa mềm nhãn hội thoại (Task 160).
+//
+// DELETE /api/v1/conversation-tags/{id}
+func (UnimplementedHandler) DeleteConversationTag(ctx context.Context, params DeleteConversationTagParams) (r DeleteConversationTagRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // DeleteCustomerAddress implements deleteCustomerAddress operation.
 //
 // Xóa mềm một địa chỉ (Task M2-09).
@@ -553,6 +688,15 @@ func (UnimplementedHandler) DeleteProductImage(ctx context.Context, params Delet
 	return r, ht.ErrNotImplemented
 }
 
+// DeleteReplyTemplate implements deleteReplyTemplate operation.
+//
+// Xóa mềm mẫu trả lời (Task 161).
+//
+// DELETE /api/v1/reply-templates/{id}
+func (UnimplementedHandler) DeleteReplyTemplate(ctx context.Context, params DeleteReplyTemplateParams) (r DeleteReplyTemplateRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // DeleteWebCampaign implements deleteWebCampaign operation.
 //
 // Xóa chiến dịch không đang bật, lý do bắt buộc; banner trỏ chiến dịch tự ẩn
@@ -560,6 +704,44 @@ func (UnimplementedHandler) DeleteProductImage(ctx context.Context, params Delet
 //
 // POST /api/v1/web-campaigns/{campaignId}/delete
 func (UnimplementedHandler) DeleteWebCampaign(ctx context.Context, req *DeleteWebCampaignRequest, params DeleteWebCampaignParams) (r DeleteWebCampaignRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// DiscardMessage implements discardMessage operation.
+//
+// Bỏ tin "không rõ đã gửi" hay "chưa gửi được" (Task 157).
+//
+// POST /api/v1/messages/{id}/discard
+func (UnimplementedHandler) DiscardMessage(ctx context.Context, params DiscardMessageParams) (r DiscardMessageRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// DisconnectChannel implements disconnectChannel operation.
+//
+// Ngắt kết nối Page: hủy đăng ký webhook, xóa token sau khi hủy xong; tin cũ giữ
+// nguyên (Task 149).
+//
+// POST /api/v1/channels/{id}/disconnect
+func (UnimplementedHandler) DisconnectChannel(ctx context.Context, params DisconnectChannelParams) (r DisconnectChannelRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// EndLiveSessionManually implements endLiveSessionManually operation.
+//
+// Kết thúc theo dõi một phiên live bằng tay (Task 170).
+//
+// POST /api/v1/live-sessions/{id}/end
+func (UnimplementedHandler) EndLiveSessionManually(ctx context.Context, params EndLiveSessionManuallyParams) (r EndLiveSessionManuallyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExchangeFacebookOAuth implements exchangeFacebookOAuth operation.
+//
+// Đổi mã đăng nhập lấy danh sách Page người dùng quản trị; state sai, hết hạn,
+// đã dùng → 400 oauth_state_invalid (Task 149).
+//
+// POST /api/v1/channels/facebook/oauth/exchange
+func (UnimplementedHandler) ExchangeFacebookOAuth(ctx context.Context, req *ExchangeFacebookOAuthRequest, params ExchangeFacebookOAuthParams) (r ExchangeFacebookOAuthRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -571,6 +753,16 @@ func (UnimplementedHandler) DeleteWebCampaign(ctx context.Context, req *DeleteWe
 //
 // POST /api/v1/birthday-customers/export
 func (UnimplementedHandler) ExportBirthdayCustomers(ctx context.Context, req *BirthdayExportRequest, params ExportBirthdayCustomersParams) (r ExportBirthdayCustomersRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetAttachmentUrl implements getAttachmentUrl operation.
+//
+// Đường dẫn có hạn 5 phút tới tệp đính kèm của một tin trong hội thoại (Task
+// 155).
+//
+// GET /api/v1/conversations/{id}/attachments/{fileId}/url
+func (UnimplementedHandler) GetAttachmentUrl(ctx context.Context, params GetAttachmentUrlParams) (r GetAttachmentUrlRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -620,6 +812,36 @@ func (UnimplementedHandler) GetCatalogImportTemplate(ctx context.Context) (r Get
 //
 // GET /api/v1/cod-statements/{id}
 func (UnimplementedHandler) GetCodStatement(ctx context.Context, params GetCodStatementParams) (r GetCodStatementRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetConversation implements getConversation operation.
+//
+// Chi tiết hội thoại: Page, người phụ trách, nhãn, chính sách gửi hiện tại, cờ
+// chặn và không liên hệ (Task 159).
+//
+// GET /api/v1/conversations/{id}
+func (UnimplementedHandler) GetConversation(ctx context.Context, params GetConversationParams) (r GetConversationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetConversationCustomerCard implements getConversationCustomerCard operation.
+//
+// Thẻ khách cạnh khung chat: chỉ số của M2, đơn gần đây của cả nhóm, đơn nháp
+// đang mở (Task 159).
+//
+// GET /api/v1/conversations/{id}/customer-card
+func (UnimplementedHandler) GetConversationCustomerCard(ctx context.Context, params GetConversationCustomerCardParams) (r GetConversationCustomerCardRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetConversationOrderContext implements getConversationOrderContext operation.
+//
+// Bối cảnh lên đơn từ hội thoại: Page, khách, người bán, nguồn đơn tự điền
+// (Task 159).
+//
+// GET /api/v1/conversations/{id}/order-context
+func (UnimplementedHandler) GetConversationOrderContext(ctx context.Context, params GetConversationOrderContextParams) (r GetConversationOrderContextRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -724,6 +946,16 @@ func (UnimplementedHandler) GetLabelBatch(ctx context.Context, params GetLabelBa
 	return r, ht.ErrNotImplemented
 }
 
+// GetLiveCommentContext implements getLiveCommentContext operation.
+//
+// Bối cảnh chốt một comment live: khách rút gọn, đơn nháp đang mở, SĐT tách từ
+// comment, người bán của Page (Task 172).
+//
+// GET /api/v1/live-comments/{id}/context
+func (UnimplementedHandler) GetLiveCommentContext(ctx context.Context, params GetLiveCommentContextParams) (r GetLiveCommentContextRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetLooks implements getLooks operation.
 //
 // Danh sách bộ phối theo thứ tự, kèm revision, trạng thái hiện/ẩn (lý do, món gây
@@ -794,6 +1026,16 @@ func (UnimplementedHandler) GetOriginalImageURL(ctx context.Context, params GetO
 	return r, ht.ErrNotImplemented
 }
 
+// GetPageSettings implements getPageSettings operation.
+//
+// Cài đặt hộp chat của Page: xoay vòng, nguồn đơn, khung giờ live, đọc comment
+// định kỳ, tuổi tối đa sự kiện tự động (Task 160).
+//
+// GET /api/v1/channels/{id}/page-settings
+func (UnimplementedHandler) GetPageSettings(ctx context.Context, params GetPageSettingsParams) (r GetPageSettingsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetPickingList implements getPickingList operation.
 //
 // Phiếu nhặt hàng gộp theo SKU cho các vận đơn đã chọn; không địa chỉ, không
@@ -810,6 +1052,15 @@ func (UnimplementedHandler) GetPickingList(ctx context.Context, params GetPickin
 //
 // GET /api/v1/platform/health
 func (UnimplementedHandler) GetPlatformHealth(ctx context.Context) (r GetPlatformHealthRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetPresence implements getPresence operation.
+//
+// Ai khác đang xem, đang gõ, đang lên đơn trong hội thoại (Task 163).
+//
+// GET /api/v1/conversations/{id}/presence
+func (UnimplementedHandler) GetPresence(ctx context.Context, params GetPresenceParams) (r GetPresenceRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -958,6 +1209,15 @@ func (UnimplementedHandler) HealthReady(ctx context.Context) (r HealthReadyRes, 
 	return r, ht.ErrNotImplemented
 }
 
+// HideComment implements hideComment operation.
+//
+// Ẩn comment của khách trên Page (vẫn hiện trong CRM) (Task 158).
+//
+// POST /api/v1/messages/{id}/hide
+func (UnimplementedHandler) HideComment(ctx context.Context, params HideCommentParams) (r HideCommentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ImportCodStatement implements importCodStatement operation.
 //
 // Nhập bảng kê COD từ tệp đã tải lên (mục đích cod_statement); tệp đã nhập →
@@ -985,6 +1245,16 @@ func (UnimplementedHandler) ListAdminUnits(ctx context.Context, params ListAdmin
 //
 // GET /api/v1/inventory/aged-reservations
 func (UnimplementedHandler) ListAgedReservations(ctx context.Context, params ListAgedReservationsParams) (r ListAgedReservationsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListAssignableUsers implements listAssignableUsers operation.
+//
+// Nhân viên đang hoạt động có conversation.read trên Page (danh sách "Giao cho…") (Task
+// 160).
+//
+// GET /api/v1/channels/{id}/assignable-users
+func (UnimplementedHandler) ListAssignableUsers(ctx context.Context, params ListAssignableUsersParams) (r ListAssignableUsersRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1018,6 +1288,16 @@ func (UnimplementedHandler) ListAuditActors(ctx context.Context) (r ListAuditAct
 //
 // GET /api/v1/identity/audit-logs
 func (UnimplementedHandler) ListAuditLogs(ctx context.Context, params ListAuditLogsParams) (r ListAuditLogsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListAutomationRules implements listAutomationRules operation.
+//
+// Bốn quy tắc tự động của Page (loại chưa cấu hình trả mặc định, enabled =
+// false) (Task 165).
+//
+// GET /api/v1/channels/{id}/automation-rules
+func (UnimplementedHandler) ListAutomationRules(ctx context.Context, params ListAutomationRulesParams) (r ListAutomationRulesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1093,6 +1373,16 @@ func (UnimplementedHandler) ListCategories(ctx context.Context) (r ListCategorie
 	return r, ht.ErrNotImplemented
 }
 
+// ListChannelAccounts implements listChannelAccounts operation.
+//
+// Tài khoản kênh (Page) người gọi được xem theo phạm vi conversation.read; không bao
+// giờ có token (Task 145).
+//
+// GET /api/v1/channels
+func (UnimplementedHandler) ListChannelAccounts(ctx context.Context) (r ListChannelAccountsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListCodDiscrepancies implements listCodDiscrepancies operation.
 //
 // Lệch đối soát: dòng lệch tiền, trùng, ngoài hệ thống; phần thiếu còn mở;
@@ -1121,6 +1411,34 @@ func (UnimplementedHandler) ListCodStatements(ctx context.Context, params ListCo
 	return r, ht.ErrNotImplemented
 }
 
+// ListConversationAssignments implements listConversationAssignments operation.
+//
+// Lịch sử giao, nhận hội thoại (Task 160).
+//
+// GET /api/v1/conversations/{id}/assignments
+func (UnimplementedHandler) ListConversationAssignments(ctx context.Context, params ListConversationAssignmentsParams) (r ListConversationAssignmentsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListConversationTags implements listConversationTags operation.
+//
+// Nhãn hội thoại dùng chung cả shop (Q7) (Task 160).
+//
+// GET /api/v1/conversation-tags
+func (UnimplementedHandler) ListConversationTags(ctx context.Context) (r ListConversationTagsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListConversations implements listConversations operation.
+//
+// Hội thoại trên các Page được xem, mới nhất trước; lọc Page, trạng thái, nhãn,
+// người phụ trách, loại, chưa đọc, tìm khách (Task 159).
+//
+// GET /api/v1/conversations
+func (UnimplementedHandler) ListConversations(ctx context.Context, params ListConversationsParams) (r ListConversationsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListCouponBatches implements listCouponBatches operation.
 //
 // Đợt mã, mới nhất trước; lọc theo loại (manual, birthday, imported) (Task 197).
@@ -1145,6 +1463,25 @@ func (UnimplementedHandler) ListCouponRedemptions(ctx context.Context, params Li
 //
 // GET /api/v1/coupons
 func (UnimplementedHandler) ListCoupons(ctx context.Context, params ListCouponsParams) (r ListCouponsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListCustomerCalls implements listCustomerCalls operation.
+//
+// Cuộc gọi của cả nhóm khách (mọi hồ sơ đã gộp), chỉ cuộc gọi gắn Page
+// được xem (Task 169).
+//
+// GET /api/v1/customers/{id}/calls
+func (UnimplementedHandler) ListCustomerCalls(ctx context.Context, params ListCustomerCallsParams) (r ListCustomerCallsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListCustomerConversations implements listCustomerConversations operation.
+//
+// Hội thoại của cả nhóm khách trên các Page được xem (Task 169).
+//
+// GET /api/v1/customers/{id}/conversations
+func (UnimplementedHandler) ListCustomerConversations(ctx context.Context, params ListCustomerConversationsParams) (r ListCustomerConversationsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1188,12 +1525,40 @@ func (UnimplementedHandler) ListFeedback(ctx context.Context, params ListFeedbac
 	return r, ht.ErrNotImplemented
 }
 
+// ListFollowUps implements listFollowUps operation.
+//
+// Hội thoại cần nhắn lại: nhân viên nói sau cùng, khách im quá afterHours, cửa sổ
+// 24 giờ còn ít nhất 5 phút (Task 168).
+//
+// GET /api/v1/follow-ups
+func (UnimplementedHandler) ListFollowUps(ctx context.Context, params ListFollowUpsParams) (r ListFollowUpsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListJobs implements listJobs operation.
 //
 // Việc nền cần người xử lý của tenant người gọi (không có payload).
 //
 // GET /api/v1/platform/jobs
 func (UnimplementedHandler) ListJobs(ctx context.Context, params ListJobsParams) (r ListJobsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListLiveComments implements listLiveComments operation.
+//
+// Comment của phiên live theo thời gian; lọc có SĐT, chưa xử lý (Task 172).
+//
+// GET /api/v1/live-sessions/{id}/comments
+func (UnimplementedHandler) ListLiveComments(ctx context.Context, params ListLiveCommentsParams) (r ListLiveCommentsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListLiveSessions implements listLiveSessions operation.
+//
+// Phiên live trên các Page được xem (Task 170).
+//
+// GET /api/v1/live-sessions
+func (UnimplementedHandler) ListLiveSessions(ctx context.Context, params ListLiveSessionsParams) (r ListLiveSessionsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1204,6 +1569,34 @@ func (UnimplementedHandler) ListJobs(ctx context.Context, params ListJobsParams)
 //
 // GET /api/v1/platform/files/lost
 func (UnimplementedHandler) ListLostFiles(ctx context.Context, params ListLostFilesParams) (r ListLostFilesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListMessageRevisions implements listMessageRevisions operation.
+//
+// Lịch sử sửa, ẩn, xóa của một comment (Task 154).
+//
+// GET /api/v1/messages/{id}/revisions
+func (UnimplementedHandler) ListMessageRevisions(ctx context.Context, params ListMessageRevisionsParams) (r ListMessageRevisionsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListMessages implements listMessages operation.
+//
+// Tin của hội thoại theo thứ tự thời gian; đính kèm chỉ có mã tệp và trạng
+// thái (Task 159).
+//
+// GET /api/v1/conversations/{id}/messages
+func (UnimplementedHandler) ListMessages(ctx context.Context, params ListMessagesParams) (r ListMessagesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListMyReminders implements listMyReminders operation.
+//
+// Nhắc việc của chính người gọi (Task 169).
+//
+// GET /api/v1/me/reminders
+func (UnimplementedHandler) ListMyReminders(ctx context.Context, params ListMyRemindersParams) (r ListMyRemindersRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1265,6 +1658,25 @@ func (UnimplementedHandler) ListOrders(ctx context.Context, params ListOrdersPar
 	return r, ht.ErrNotImplemented
 }
 
+// ListPagePosts implements listPagePosts operation.
+//
+// Bài viết CRM đã gặp trên Page (có comment), mới gặp trước; để chọn bài ngoại
+// lệ tự ẩn, bài của tự trả lời comment (Task 501).
+//
+// GET /api/v1/channels/{id}/posts
+func (UnimplementedHandler) ListPagePosts(ctx context.Context, params ListPagePostsParams) (r ListPagePostsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListPendingDrafts implements listPendingDrafts operation.
+//
+// Đơn nháp "đã chốt, thiếu địa chỉ" của phiên live (Task 173).
+//
+// GET /api/v1/live-sessions/{id}/pending-drafts
+func (UnimplementedHandler) ListPendingDrafts(ctx context.Context, params ListPendingDraftsParams) (r ListPendingDraftsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListPermissions implements listPermissions operation.
 //
 // Mọi quyền của CRM kèm nhóm, nhãn tiếng Việt và loại phạm vi (để soạn vai
@@ -1302,6 +1714,16 @@ func (UnimplementedHandler) ListReconcileFindings(ctx context.Context, params Li
 //
 // GET /api/v1/refund-obligations
 func (UnimplementedHandler) ListRefundObligations(ctx context.Context, params ListRefundObligationsParams) (r ListRefundObligationsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListReplyTemplates implements listReplyTemplates operation.
+//
+// Mẫu trả lời khớp tiền tố phím tắt hay tiêu đề: mẫu chung và mẫu của Page
+// (menu "/") (Task 161).
+//
+// GET /api/v1/reply-templates
+func (UnimplementedHandler) ListReplyTemplates(ctx context.Context, params ListReplyTemplatesParams) (r ListReplyTemplatesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1486,6 +1908,16 @@ func (UnimplementedHandler) MarkBirthdayMessaged(ctx context.Context, req *Birth
 	return r, ht.ErrNotImplemented
 }
 
+// MarkConversationRead implements markConversationRead operation.
+//
+// Đánh dấu đã đọc tới một tin (hộp thư dùng chung; không gửi "đã xem" cho
+// khách, Q10) (Task 159).
+//
+// POST /api/v1/conversations/{id}/read
+func (UnimplementedHandler) MarkConversationRead(ctx context.Context, req *MarkConversationReadRequest, params MarkConversationReadParams) (r MarkConversationReadRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // MergeCustomer implements mergeCustomer operation.
 //
 // Gộp nhóm của mergedId vào nhóm của khách id (Task M2-11); đã cùng gốc → 422
@@ -1642,6 +2074,25 @@ func (UnimplementedHandler) RegenerateImages(ctx context.Context, req *Regenerat
 	return r, ht.ErrNotImplemented
 }
 
+// RemindPendingDrafts implements remindPendingDrafts operation.
+//
+// Nhắc một chạm khách còn đơn nháp gửi địa chỉ; mỗi đơn một kết quả (Task
+// 173).
+//
+// POST /api/v1/live-sessions/{id}/pending-drafts/remind
+func (UnimplementedHandler) RemindPendingDrafts(ctx context.Context, req *RemindPendingDraftsRequest, params RemindPendingDraftsParams) (r RemindPendingDraftsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// RemoveConversationTag implements removeConversationTag operation.
+//
+// Gỡ nhãn khỏi hội thoại (gỡ nhãn không có không lỗi) (Task 160).
+//
+// DELETE /api/v1/conversations/{id}/tags/{tagId}
+func (UnimplementedHandler) RemoveConversationTag(ctx context.Context, params RemoveConversationTagParams) (r RemoveConversationTagRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // RemoveCustomerIdentity implements removeCustomerIdentity operation.
 //
 // Gỡ một danh tính của khách (không gỡ fb_psid: M4 quản) (Task M2-09).
@@ -1657,6 +2108,16 @@ func (UnimplementedHandler) RemoveCustomerIdentity(ctx context.Context, params R
 //
 // DELETE /api/v1/customers/{id}/tags/{tagId}
 func (UnimplementedHandler) RemoveCustomerTag(ctx context.Context, params RemoveCustomerTagParams) (r RemoveCustomerTagRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// RenderReplyTemplate implements renderReplyTemplate operation.
+//
+// Điền biến của mẫu cho một hội thoại (thiếu giá trị → 422
+// template_variable_missing) (Task 161).
+//
+// POST /api/v1/reply-templates/{id}/render
+func (UnimplementedHandler) RenderReplyTemplate(ctx context.Context, req *RenderReplyTemplateRequest, params RenderReplyTemplateParams) (r RenderReplyTemplateRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1713,6 +2174,15 @@ func (UnimplementedHandler) ReplyOrderRequest(ctx context.Context, req *ReplyOrd
 	return r, ht.ErrNotImplemented
 }
 
+// ReplyToComment implements replyToComment operation.
+//
+// Trả lời công khai một comment của khách (Task 158).
+//
+// POST /api/v1/conversations/{id}/comment-replies
+func (UnimplementedHandler) ReplyToComment(ctx context.Context, req *ReplyToCommentRequest, params ReplyToCommentParams) (r ReplyToCommentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // RequestAddressChange implements requestAddressChange operation.
 //
 // Yêu cầu đổi địa chỉ giao sau khi đã gửi hãng (một yêu cầu mở mỗi vận
@@ -1730,6 +2200,16 @@ func (UnimplementedHandler) RequestAddressChange(ctx context.Context, req *Reque
 //
 // POST /api/v1/orders/{id}/shipping-quotes
 func (UnimplementedHandler) RequestShippingQuotes(ctx context.Context, req *RequestShippingQuotesRequest, params RequestShippingQuotesParams) (r RequestShippingQuotesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ResendMessage implements resendMessage operation.
+//
+// Gửi lại tin "không rõ đã gửi" hay "chưa gửi được" (mayDuplicate khi tin cũ không
+// rõ) (Task 157).
+//
+// POST /api/v1/messages/{id}/resend
+func (UnimplementedHandler) ResendMessage(ctx context.Context, params ResendMessageParams) (r ResendMessageRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1823,6 +2303,16 @@ func (UnimplementedHandler) RunBirthdayGifts(ctx context.Context, params RunBirt
 	return r, ht.ErrNotImplemented
 }
 
+// RunChannelHealthCheck implements runChannelHealthCheck operation.
+//
+// Kiểm ngay token, quyền, đăng ký webhook của Page (ghi lệnh kiểm; kết quả về qua
+// báo hiệu channel.status) (Task 150).
+//
+// POST /api/v1/channels/{id}/health-check
+func (UnimplementedHandler) RunChannelHealthCheck(ctx context.Context, params RunChannelHealthCheckParams) (r RunChannelHealthCheckRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // SaveBanners implements saveBanners operation.
 //
 // Tối đa 8 banner (422 too_many_banners). Trường không thuộc loại bị bỏ (như admin
@@ -1896,6 +2386,26 @@ func (UnimplementedHandler) SearchVariants(ctx context.Context, params SearchVar
 	return r, ht.ErrNotImplemented
 }
 
+// SendMessage implements sendMessage operation.
+//
+// Gửi tin cho khách (chữ hoặc một ảnh); Page chỉ xem → 409 channel_read_only; ngoài
+// chính sách → 409 send_not_allowed (Task 156).
+//
+// POST /api/v1/conversations/{id}/messages
+func (UnimplementedHandler) SendMessage(ctx context.Context, req *SendMessageRequest, params SendMessageParams) (r SendMessageRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SendPrivateReply implements sendPrivateReply operation.
+//
+// Nhắn riêng người comment (một lần mỗi comment; lần hai → 409 private_reply_used)
+// (Task 158).
+//
+// POST /api/v1/conversations/{id}/private-replies
+func (UnimplementedHandler) SendPrivateReply(ctx context.Context, req *SendPrivateReplyRequest, params SendPrivateReplyParams) (r SendPrivateReplyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // SetCarrierAccountStatus implements setCarrierAccountStatus operation.
 //
 // Đổi trạng thái tài khoản: active (manual hoặc đã có khóa), paused, revoked (Task
@@ -1903,6 +2413,44 @@ func (UnimplementedHandler) SearchVariants(ctx context.Context, params SearchVar
 //
 // POST /api/v1/carrier-accounts/{id}/status
 func (UnimplementedHandler) SetCarrierAccountStatus(ctx context.Context, req *SetCarrierAccountStatusRequest, params SetCarrierAccountStatusParams) (r SetCarrierAccountStatusRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SetChannelHumanAgent implements setChannelHumanAgent operation.
+//
+// Bật, tắt trả lời "nhân viên" (thẻ HUMAN_AGENT) khi Meta đã cấp tính năng (Q19,
+// Task 145).
+//
+// PUT /api/v1/channels/{id}/human-agent
+func (UnimplementedHandler) SetChannelHumanAgent(ctx context.Context, req *SetChannelHumanAgentRequest, params SetChannelHumanAgentParams) (r SetChannelHumanAgentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SetChannelSendMode implements setChannelSendMode operation.
+//
+// Đổi chế độ gửi của Page (read_only = chỉ xem, enabled = gửi thật); kiểm version,
+// ghi nhật ký (Task 145).
+//
+// PUT /api/v1/channels/{id}/send-mode
+func (UnimplementedHandler) SetChannelSendMode(ctx context.Context, req *SetChannelSendModeRequest, params SetChannelSendModeParams) (r SetChannelSendModeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SetConversationStatus implements setConversationStatus operation.
+//
+// Đổi trạng thái hội thoại (mở, chờ, xong, spam); kiểm version (Task 159).
+//
+// POST /api/v1/conversations/{id}/status
+func (UnimplementedHandler) SetConversationStatus(ctx context.Context, req *SetConversationStatusRequest, params SetConversationStatusParams) (r SetConversationStatusRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SetCustomerDoNotContact implements setCustomerDoNotContact operation.
+//
+// Bật, tắt cờ "không liên hệ" của khách: chặn mọi tin tự động (Q13, Task 152).
+//
+// PUT /api/v1/customers/{id}/do-not-contact
+func (UnimplementedHandler) SetCustomerDoNotContact(ctx context.Context, req *SetCustomerDoNotContactRequest, params SetCustomerDoNotContactParams) (r SetCustomerDoNotContactRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1937,6 +2485,16 @@ func (UnimplementedHandler) SetOrderRequestStatus(ctx context.Context, req *SetO
 //
 // POST /api/v1/orders/packing
 func (UnimplementedHandler) SetPackingStatus(ctx context.Context, req *SetPackingStatusRequest, params SetPackingStatusParams) (r SetPackingStatusRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SetPresence implements setPresence operation.
+//
+// Nhịp tim "đang xem/gõ/lên đơn" (hạn 30 giây; khóa chống trùng mới mỗi lần, Q9)
+// (Task 163).
+//
+// POST /api/v1/conversations/{id}/presence
+func (UnimplementedHandler) SetPresence(ctx context.Context, req *SetPresenceRequest, params SetPresenceParams) (r SetPresenceRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2013,6 +2571,25 @@ func (UnimplementedHandler) StartCustomerImport(ctx context.Context, req *StartC
 	return r, ht.ErrNotImplemented
 }
 
+// StartFacebookOAuth implements startFacebookOAuth operation.
+//
+// Bắt đầu đăng nhập Facebook for Business (mở trong cùng tab); trả địa chỉ đăng
+// nhập có state hạn 15 phút (Task 149).
+//
+// POST /api/v1/channels/facebook/oauth/start
+func (UnimplementedHandler) StartFacebookOAuth(ctx context.Context, params StartFacebookOAuthParams) (r StartFacebookOAuthRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// StartLiveSessionManually implements startLiveSessionManually operation.
+//
+// Theo dõi live bằng tay theo mã video hay đường dẫn video (Q5, Task 170).
+//
+// POST /api/v1/channels/{id}/live-sessions
+func (UnimplementedHandler) StartLiveSessionManually(ctx context.Context, req *StartLiveSessionRequest, params StartLiveSessionManuallyParams) (r StartLiveSessionManuallyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // StartStocktake implements startStocktake operation.
 //
 // Mở phiên kiểm kho ở một kho (một phiên mở mỗi kho; kho đã đóng →
@@ -2060,12 +2637,31 @@ func (UnimplementedHandler) UndoCustomerMerge(ctx context.Context, params UndoCu
 	return r, ht.ErrNotImplemented
 }
 
+// UnhideComment implements unhideComment operation.
+//
+// Hiện lại comment đã ẩn (Task 158).
+//
+// POST /api/v1/messages/{id}/unhide
+func (UnimplementedHandler) UnhideComment(ctx context.Context, params UnhideCommentParams) (r UnhideCommentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // UnlockStaff implements unlockStaff operation.
 //
 // Mở khóa nhân viên.
 //
 // POST /api/v1/identity/users/{id}/unlock
 func (UnimplementedHandler) UnlockStaff(ctx context.Context, params UnlockStaffParams) (r UnlockStaffRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateAutomationRule implements updateAutomationRule operation.
+//
+// Bật, tắt, sửa một quy tắc tự động của Page; config.kind phải trùng kind trên
+// đường dẫn; kiểm version (Task 165).
+//
+// PUT /api/v1/channels/{id}/automation-rules/{kind}
+func (UnimplementedHandler) UpdateAutomationRule(ctx context.Context, req *UpdateAutomationRuleRequest, params UpdateAutomationRuleParams) (r UpdateAutomationRuleRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2087,6 +2683,15 @@ func (UnimplementedHandler) UpdateCarrierAccount(ctx context.Context, req *Updat
 //
 // PATCH /api/v1/catalog/categories/{id}
 func (UnimplementedHandler) UpdateCategory(ctx context.Context, req *UpdateCategoryRequest, params UpdateCategoryParams) (r UpdateCategoryRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateConversationTag implements updateConversationTag operation.
+//
+// Sửa tên, màu, thứ tự nhãn hội thoại; kiểm version (Task 160).
+//
+// PATCH /api/v1/conversation-tags/{id}
+func (UnimplementedHandler) UpdateConversationTag(ctx context.Context, req *UpdateConversationTagRequest, params UpdateConversationTagParams) (r UpdateConversationTagRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2167,12 +2772,31 @@ func (UnimplementedHandler) UpdateOrderSettings(ctx context.Context, req *Update
 	return r, ht.ErrNotImplemented
 }
 
+// UpdatePageSettings implements updatePageSettings operation.
+//
+// Lưu cài đặt hộp chat của Page; kiểm version, khung giờ live không chồng nhau,
+// nguồn đơn còn bật (Task 160).
+//
+// PUT /api/v1/channels/{id}/page-settings
+func (UnimplementedHandler) UpdatePageSettings(ctx context.Context, req *UpdatePageSettingsRequest, params UpdatePageSettingsParams) (r UpdatePageSettingsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // UpdateProduct implements updateProduct operation.
 //
 // Sửa tên, mô tả, bài viết, trạng thái của mẫu khi version còn khớp.
 //
 // PATCH /api/v1/catalog/products/{id}
 func (UnimplementedHandler) UpdateProduct(ctx context.Context, req *UpdateProductRequest, params UpdateProductParams) (r UpdateProductRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateReplyTemplate implements updateReplyTemplate operation.
+//
+// Sửa mẫu trả lời; kiểm version (Task 161).
+//
+// PATCH /api/v1/reply-templates/{id}
+func (UnimplementedHandler) UpdateReplyTemplate(ctx context.Context, req *UpdateReplyTemplateRequest, params UpdateReplyTemplateParams) (r UpdateReplyTemplateRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

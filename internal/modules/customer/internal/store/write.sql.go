@@ -134,7 +134,8 @@ func (q *Queries) TxNow(ctx context.Context) (time.Time, error) {
 
 const updateCustomerProfile = `-- name: UpdateCustomerProfile :one
 UPDATE customer.customers
-SET full_name   = $1,
+SET name_source = CASE WHEN full_name <> $1 THEN 'staff' ELSE name_source END, -- nhân viên đổi tên (Task 152)
+    full_name   = $1,
     name_search = $2,
     birthday    = $3::date,
     updated_at  = $4,

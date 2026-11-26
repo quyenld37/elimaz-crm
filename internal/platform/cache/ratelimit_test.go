@@ -49,7 +49,7 @@ func TestRateLimiter_ValkeyFixedWindow(t *testing.T) {
 	vk := testkit.StartValkey(t)
 	reg := metrics.NewRegistry()
 	clk := &fakeClock{t: windowBase()}
-	rl := cache.NewRateLimiter(dialGate(t, vk.URL("crm_gate"), nil, 0), clk.now, reg)
+	rl := cache.NewRateLimiter(dialGate(t, vk.URL("crm_gate"), nil, testOpTimeout), clk.now, reg)
 	l := cache.Limit{Name: "t1", Max: 5, Window: time.Second, FallbackMax: 2}
 
 	ok, last := allowN(t, rl, l, "svc:a", 5)
@@ -93,7 +93,7 @@ func TestRateLimiter_KeyExpires(t *testing.T) {
 	vk := testkit.StartValkey(t)
 	admin := dial(t, vk.URL("crm_admin"), nil)
 	now := windowBase().Add(300 * time.Millisecond)
-	rl := cache.NewRateLimiter(dialGate(t, vk.URL("crm_gate"), nil, 0), func() time.Time { return now }, nil)
+	rl := cache.NewRateLimiter(dialGate(t, vk.URL("crm_gate"), nil, testOpTimeout), func() time.Time { return now }, nil)
 	l := cache.Limit{Name: "ttl", Max: 3, Window: time.Second, FallbackMax: 1}
 	rl.Allow(t.Context(), l, "svc:x")
 	keys := scanRL(t, admin)
@@ -144,7 +144,7 @@ func TestRateLimiter_ParallelExact(t *testing.T) {
 func TestRateLimiter_FallbackInProcess(t *testing.T) {
 	vk := testkit.StartValkey(t)
 	reg := metrics.NewRegistry()
-	gate := dialGate(t, vk.URL("crm_gate"), reg, 0)
+	gate := dialGate(t, vk.URL("crm_gate"), reg, testOpTimeout)
 	clk := &fakeClock{t: windowBase()}
 	rl := cache.NewRateLimiter(gate, clk.now, reg)
 	l := cache.Limit{Name: "fb", Max: 100, Window: 10 * time.Second, FallbackMax: 2}
@@ -291,7 +291,7 @@ func TestRateLimiter_InvalidInput(t *testing.T) {
 func TestRateLimiter_KeysHaveNoPersonalData(t *testing.T) {
 	vk := testkit.StartValkey(t)
 	admin := dial(t, vk.URL("crm_admin"), nil)
-	rl := cache.NewRateLimiter(dialGate(t, vk.URL("crm_gate"), nil, 0), windowBase, nil)
+	rl := cache.NewRateLimiter(dialGate(t, vk.URL("crm_gate"), nil, testOpTimeout), windowBase, nil)
 	secret := []byte(strings.Repeat("k", 32))
 	limits := cache.DefaultLimits()
 	phone, ip := "0901234567", "203.0.113.7"
@@ -368,7 +368,7 @@ func peekAllowed(t *testing.T, rl cache.RateLimiter, l cache.Limit, subject stri
 func TestRateLimiter_PeekDoesNotCount(t *testing.T) {
 	vk := testkit.StartValkey(t)
 	clk := &fakeClock{t: windowBase().Add(3 * time.Second)}
-	rl := cache.NewRateLimiter(dialGate(t, vk.URL("crm_gate"), nil, 0), clk.now, nil)
+	rl := cache.NewRateLimiter(dialGate(t, vk.URL("crm_gate"), nil, testOpTimeout), clk.now, nil)
 	l := cache.Limit{Name: "peek", Max: 3, Window: 10 * time.Second, FallbackMax: 2}
 	if d := rl.Peek(t.Context(), l, "svc:a"); !d.Allowed || d.Degraded {
 		t.Fatalf("Peek chủ thể mới: %+v", d)

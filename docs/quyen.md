@@ -74,13 +74,13 @@ Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn đ
 | `platform.jobs.manage` | toàn shop | M0 | owner | Xem, chạy lại, bỏ việc nền lỗi |
 | `platform.health.read` | toàn shop | M0 | owner | Xem tình trạng hệ thống |
 | `identity.users.manage` | toàn shop | M0 | owner | Quản lý nhân viên: tạo, gán vai trò, khóa, mở |
-| `conversation.read` | theo đích: page | M0 | owner, manager | Đọc hội thoại của Page được giao |
+| `conversation.read` | theo đích: page | M0 | owner, manager, sale | Đọc hội thoại của Page được giao (Bán hàng nhận từ M4) |
 | `catalog.read` | none | M1 | owner, manager, sale, warehouse, accountant | Xem sản phẩm, biến thể, giá |
 | `catalog.manage` | none | M1 | owner, manager | Tạo, sửa, ngừng bán sản phẩm; danh mục, thuộc tính, nhãn |
 | `catalog.import` | none | M1 | owner, manager | Nhập sản phẩm bằng tệp Excel |
 | `order.create` | none | M1 | owner, manager, sale | Tạo đơn |
 | `order.read` | none | M1 | owner, manager, sale, warehouse, accountant | Xem đơn (Kho nhận từ M2) |
-| `files.upload` | none | M1 | owner, manager, accountant | Tải ảnh, tệp lên kho tệp (Kế toán nhận từ M3: tải bảng kê COD) |
+| `files.upload` | none | M1 | owner, manager, sale, accountant | Tải ảnh, tệp lên kho tệp (Kế toán nhận từ M3: tải bảng kê COD; Bán hàng nhận từ M4: gửi ảnh cho khách) |
 | `platform.files.manage` | toàn shop | M1 | owner | Quản trị kho tệp (khôi phục, tình trạng bản sao) |
 | `inventory.suppliers.manage` | none | M1 | owner, manager, warehouse | Quản lý danh bạ nhà cung cấp |
 | `identity.roles.manage` | toàn shop | M1 | owner | Tạo, sửa, lưu trữ vai trò tự định nghĩa (Task M1-56) |
@@ -133,6 +133,11 @@ Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn đ
 | `content.manage` | toàn shop | M5 | owner, manager | Sửa, sắp xếp, bật/tắt banner trang chủ website; tải ảnh banner dùng thêm `files.upload` (Task 453) |
 | `customer.feedback.read` | toàn shop | M5 | owner, manager | Xem góp ý của khách (cả nội dung, liên lạc) và khối góp ý trong hồ sơ khách (Task 455) |
 | `customer.feedback.manage` | toàn shop | M5 | owner, manager | Đổi trạng thái góp ý (mới, đã xem, đã trả lời), ghi chú nội bộ (Task 455) |
+| `channel.manage` | toàn shop | M4 | owner, manager | Kết nối, ngắt kết nối Page, đổi chế độ gửi (chỉ xem / gửi thật), bật trả lời "nhân viên", kiểm sức khỏe kênh (Task 143) |
+| `conversation.reply` | theo đích: page | M4 | owner, manager, sale | Trả lời tin, comment, nhắn riêng, ẩn comment, ghi chú, nhãn, nhận hội thoại, nhắc việc, ghi cuộc gọi trên Page được giao |
+| `conversation.assign` | theo đích: page | M4 | owner, manager | Giao hội thoại cho nhân viên khác trên Page được giao |
+| `conversation.settings` | theo đích: page | M4 | owner, manager | Cài đặt hộp chat của Page: nhãn, mẫu trả lời, quy tắc tự động, khung giờ live, xoay vòng |
+| `live.operate` | theo đích: page | M4 | owner, manager, sale | Theo dõi, kết thúc phiên Live; chốt đơn từ comment Live, nhắc khách thiếu địa chỉ (cần thêm `order.create`) |
 | `web.catalog.read` | none | M5 | | Khóa dịch vụ: đọc sản phẩm, giá, tồn cho website |
 | `web.orders.create` | none | M5 | | Khóa dịch vụ: tạo đơn web |
 | `web.orders.read` | none | M5 | | Khóa dịch vụ: tra đơn kênh web theo mã đơn web |

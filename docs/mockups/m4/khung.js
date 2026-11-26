@@ -1,11 +1,11 @@
 // Khung điều hướng chung của mockup M4 phần hộp chat (Task M4-01): cùng cấu trúc với docs/mockups/m2/khung.js (menu trái
 // từ 1000px, thanh trên 56px dưới 1000px), thêm nhóm "Hộp chat" đứng đầu menu (đề xuất HV01 của M4). Mục của M2, M1 trỏ
-// sang mockup của mốc đó. Live, Đã chốt thiếu địa chỉ, Kết nối Page, Cài đặt hộp chat là màn của Task M4-02.
+// sang mockup của mốc đó. Live, Đã chốt thiếu địa chỉ, Kênh kết nối, Cài đặt hộp chat là màn của Task M4-02 (142).
 // Trang đặt <body data-page="..." data-title="..."> và có <div class="app"><main class="main">…</main></div>.
 // Menu chỉ hiện mục người dùng có quyền; mockup vẽ với tài khoản Chủ.
 (function () {
 	const groups = [
-		["Hộp chat", [["inbox", "Hộp chat", ["hoi-thoai", "khung-ben-phai"]]]],
+		["Hộp chat", [["inbox", "Hộp chat", ["hoi-thoai", "khung-ben-phai"]], ["live", "Live"], ["thieu-dia-chi", "Đã chốt, thiếu địa chỉ"], ["ket-noi-page", "Kênh kết nối"], ["cai-dat", "Cài đặt hộp chat"]]],
 		["Đơn hàng", [["../m2/len-don", "Lên đơn"], ["../m2/don-danh-sach", "Danh sách đơn"], ["../m2/don-trung", "Đơn trùng"], ["../m2/cai-dat-don", "Cài đặt đơn"]]],
 		["Khách hàng", [["../m2/khach-danh-sach", "Khách hàng"]]],
 		["Khuyến mãi", [["../m2/ma-giam-gia", "Mã giảm giá"]]],
