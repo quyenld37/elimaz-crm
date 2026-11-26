@@ -19,8 +19,8 @@ func TestHealthCheck(t *testing.T) {
 	t.Parallel()
 	e := newOutEnv(t)
 	ctx := t.Context()
-	if len(facebook.SubscribedFields()) != 11 {
-		t.Fatalf("SubscribedFields = %v, muốn 11 trường", facebook.SubscribedFields())
+	if len(channel.WebhookFields()) != 11 {
+		t.Fatalf("WebhookFields = %v, muốn 11 trường", channel.WebhookFields())
 	}
 	h, err := e.ch.HealthCheck(ctx, e.acc, e.cred)
 	if err != nil || !h.TokenValid || !h.PermissionsOK || h.WebhookSubscribed || len(h.MissingFields) != 11 {
@@ -29,7 +29,7 @@ func TestHealthCheck(t *testing.T) {
 	if err := e.ch.Subscribe(ctx, e.acc, e.cred, nil); err != nil {
 		t.Fatalf("Subscribe: %v", err)
 	}
-	if got := e.fg.Subscribed(testPageID); !slices.Equal(got, facebook.SubscribedFields()) {
+	if got := e.fg.Subscribed(testPageID); !slices.Equal(got, channel.WebhookFields()) {
 		t.Errorf("đăng ký = %v", got)
 	}
 	h, err = e.ch.HealthCheck(ctx, e.acc, e.cred)
@@ -41,7 +41,7 @@ func TestHealthCheck(t *testing.T) {
 		t.Errorf("debug_token phải gọi bằng app token, input_token là token Page: %+v", call)
 	}
 
-	if err := e.ch.Subscribe(ctx, e.acc, e.cred, without(facebook.SubscribedFields(), "feed")); err != nil {
+	if err := e.ch.Subscribe(ctx, e.acc, e.cred, without(channel.WebhookFields(), "feed")); err != nil {
 		t.Fatal(err)
 	}
 	h, _ = e.ch.HealthCheck(ctx, e.acc, e.cred)

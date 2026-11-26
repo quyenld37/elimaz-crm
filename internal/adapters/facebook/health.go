@@ -10,14 +10,6 @@ import (
 	"elimaz.com.vn/crm/internal/platform/logging"
 )
 
-// SubscribedFields là 11 trường webhook app CRM đăng ký trên mỗi Page (spec 02 mục 2).
-func SubscribedFields() []string {
-	return []string{
-		"messages", "message_echoes", "messaging_postbacks", "message_reads", "message_deliveries", "message_reactions",
-		"message_edits", "messaging_referrals", "messaging_policy_enforcement", "feed", "live_videos",
-	}
-}
-
 // RequiredPermissions là quyền token Page phải có (spec 02 mục 1).
 func RequiredPermissions() []string {
 	return []string{
@@ -66,7 +58,7 @@ func (c *Channel) HealthCheck(ctx context.Context, acc channel.ChannelAccount, c
 		}
 		return h, err
 	}
-	h.MissingFields = missing(SubscribedFields(), fields)
+	h.MissingFields = missing(channel.WebhookFields(), fields)
 	h.WebhookSubscribed = len(h.MissingFields) == 0
 	return h, nil
 }

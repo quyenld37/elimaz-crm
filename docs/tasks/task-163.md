@@ -165,3 +165,15 @@ dòng hai bên, `ErrNotFound` vẫn là dòng kiểm đầu; thứ tự `Schedul
 reminders); xóa `ErrNotFound` ở presence.go đúng vì cùng giá trị `access.ErrNotFound`; hai test chọn handler theo Kind
 giữ nguyên ý; `m4_pending.txt` bỏ ba operation đã hiện thực. Ghi chú: mẫu `-run 'Errors'` không khớp test snapshot (đã
 chạy thêm `-run 'DomainError'`, dòng trên).
+
+## Lượt sửa gộp m4 (lần 2, sau Task 149)
+
+- **Xung đột:** chỉ `cmd/crm/wire_m4_test.go`, phần chú thích của `TestWireM4_Frame` (task-163 ghi hai lịch presence_cleanup + reminders; m4 ghi lệnh Page của Task 149 và "lịch duy nhất là reminders"). Thân test git tự gộp đủ: kênh fakechat, lệnh `channel.SubscribePageKind`/`UnsubscribePageKind` (149), hai lịch `conversation.presence_cleanup` (163) và `conversation.reminders` (169).
+- **Sửa:** viết chú thích gộp cả ba phần. Sau gộp, `TestLintCleanOnRealCode` báo gocognit 24 > 20 ở `TestWireM4_Frame` → tách phần kiểm lịch ra hàm phụ `checkM4Schedules` (cùng ca kiểm, không bớt điều kiện). `tests/arch/testdata/m4_pending.txt`: git tự gộp, giữ việc 163 bỏ `getPresence`/`setPresence`. Không có tên khai trùng; `make gen` không chênh.
+- **Bằng chứng:**
+  - `go build ./...` → không lỗi; `go vet ./cmd/crm/ ./internal/modules/channel/... ./internal/modules/conversation/...` → không lỗi.
+  - `go test -count=1 ./cmd/crm/ -run 'WireM4' -v` → `--- PASS: TestWireM4_Frame`, `ok elimaz.com.vn/crm/cmd/crm`.
+  - `go test -race -count=1 ./cmd/crm/ ./internal/httpapi/ ./internal/modules/channel/... ./internal/adapters/facebook/... ./internal/modules/conversation/...` → tất cả `ok` (cmd/crm, httpapi 95s, channel, facebook, conversation, access, presence).
+  - `go test -count=1 ./tests/arch/` → `ok ... 124.440s` (trước khi tách hàm: FAIL gocognit).
+  - `golangci-lint run` trên các thư mục chạm → `0 issues.`; `make jscpd` → `Found 0 clones.`
+- **Reviewer (lượt gộp lần 2):** ĐẠT, không có phát hiện phải sửa. Đã đối chiếu từng điều kiện kiểm của `TestWireM4_Frame` với bản m4: lệnh Page (149), hai lịch presence_cleanup (163) + reminders (169), fakechat, FIELD_ENC_KEYS sai đều còn; `checkM4Schedules` giữ đủ điều kiện; mã 149 giống hệt MERGE_HEAD; `m4_pending.txt` đúng.

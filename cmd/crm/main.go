@@ -404,6 +404,7 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 		fulfillment.NewStuckAlertCommand(d, alerter, logger),
 		// Cảnh báo Page bắt đầu gửi thật (kế hoạch M4, Task 145): lệnh do channel.Writer.SetSendMode ghi.
 		channel.NewSendModeAlertCommand(alerter, logger),
+		channel.NewSubscribeAlertCommand(alerter, logger),
 	}, nil
 }
 
@@ -510,6 +511,7 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 			Fulfillment: mods.M3.Fulfillment.Service,
 			ServiceKeys: web.keys, RateLimiter: web.limiter, ReadCache: wc.rc, WebOrderLimiter: web.orderLimiter,
 			CouponGuard: web.couponGuard,
+			Channels:    mods.M4.Channels, ChannelKeys: mods.M4.Keys,
 		})
 	} else {
 		h, err := ingestHandler(cfg, d, reg, logger)
