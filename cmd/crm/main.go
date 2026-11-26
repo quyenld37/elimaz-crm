@@ -416,6 +416,9 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 		// Cảnh báo Page bắt đầu gửi thật (kế hoạch M4, Task 145): lệnh do channel.Writer.SetSendMode ghi.
 		channel.NewSendModeAlertCommand(alerter, logger),
 		channel.NewSubscribeAlertCommand(alerter, logger),
+		// Cảnh báo phiên live (Task 171): luồng comment hỏng (do nguồn comment ghi) và đối chiếu cuối phiên thiếu comment
+		// (do lệnh command.fb.live_reconcile ghi).
+		conversation.NewLiveAlertCommand(alerter, logger),
 		checkup,
 		// Cảnh báo sức khỏe kênh (Task 150), gồm channel.auth_alert do channel.Writer.ReportTokenInvalid (Task 156, gửi tin
 		// nhận lỗi token) và kiểm sức khỏe mất quyền cùng ghi.

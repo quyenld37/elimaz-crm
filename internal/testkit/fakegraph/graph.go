@@ -332,7 +332,8 @@ func (s *Server) live(w http.ResponseWriter, c *Call, id, edge string) {
 	}
 }
 
-// liveCommentsPage trả comment live sau since (giây Unix), kèm summary.total_count khi được hỏi.
+// liveCommentsPage trả comment live sau since (giây Unix) theo thứ tự thêm, từng trang limit comment (không có limit:
+// một trang; limit=0: không comment nào) với con trỏ after, kèm summary.total_count khi được hỏi.
 func (s *Server) liveCommentsPage(w http.ResponseWriter, c *Call, videoID string) {
 	var since time.Time
 	if v, err := strconv.ParseInt(c.Query.Get("since"), 10, 64); err == nil {
@@ -340,15 +341,38 @@ func (s *Server) liveCommentsPage(w http.ResponseWriter, c *Call, videoID string
 	}
 	s.mu.Lock()
 	all := s.st.liveComments[videoID]
-	data := []map[string]any{}
+	var match []*Comment
 	for _, cm := range all {
 		if cm.Created.After(since) || since.IsZero() {
-			data = append(data, commentJSON(cm))
+			match = append(match, cm)
 		}
 	}
-	total := len(all)
+	total, ok := s.st.liveTotals[videoID]
+	if !ok {
+		total = len(all)
+	}
 	s.mu.Unlock()
+	from, _ := strconv.Atoi(c.Query.Get("after"))
+	from = min(max(from, 0), len(match))
+	to := len(match)
+	if v, err := strconv.Atoi(c.Query.Get("limit")); err == nil {
+		to = min(from+max(v, 0), len(match))
+	}
+	data := []map[string]any{}
+	for _, cm := range match[from:to] {
+		j := commentJSON(cm)
+		if cm.ParentID != videoID { // trả lời một comment live: Meta trả parent
+			j["parent"] = map[string]any{"id": cm.ParentID}
+		}
+		data = append(data, j)
+	}
 	out := map[string]any{"data": data}
+	if to < len(match) {
+		out["paging"] = map[string]any{
+			"cursors": map[string]any{"after": strconv.Itoa(to)},
+			"next":    "https://graph.facebook.com/" + videoID + "/comments?after=" + strconv.Itoa(to),
+		}
+	}
 	if strings.Contains(c.Query.Get("summary"), "total_count") {
 		out["summary"] = map[string]any{"total_count": total}
 	}

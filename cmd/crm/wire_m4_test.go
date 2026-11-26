@@ -13,9 +13,9 @@ import (
 // 148, nối ở Task 153); production không cấu hình Meta thì không có kênh nào. Mỗi nguồn có đúng một handler vào của
 // conversation (Task 153); lệnh: đăng ký, hủy đăng ký webhook của Page (Task 149), kiểm sức khỏe, hỏi bù, đọc
 // comment (Task 150), tải tệp đính kèm, đọc hồ sơ khách (Task 155), đọc bài khi có kênh Facebook (Task 154), gửi tin
-// (Task 156), trả lời, nhắn riêng, ẩn comment (Task 158); chưa có luồng nền; lịch là bốn lịch sức khỏe kênh (Task
-// 150), conversation.presence_cleanup (Task 163), conversation.reminders (Task 169), channel.comment_poll (Task 150),
-// mỗi lịch một handler cùng Kind; ingest vẫn dựng được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng → lỗi khởi động.
+// (Task 156), trả lời, nhắn riêng, ẩn comment (Task 158), tự ẩn (Task 165), nhận biết và đối chiếu live (Task 170,
+// 171), lịch sử tin (Task 164) — wantM4Commands; một luồng nền đọc comment live khi có kênh Facebook (Task 171); lịch
+// xem checkM4Schedules, mỗi lịch một handler cùng Kind; ingest vẫn dựng được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng → lỗi khởi động.
 func TestWireM4_Frame(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
@@ -41,25 +41,11 @@ func TestWireM4_Frame(t *testing.T) {
 		if inbound := m4InboundSources(p); !slices.Equal(inbound, c.keys) && len(inbound)+len(c.keys) != 0 {
 			t.Errorf("%s: handler vào của nguồn %v, muốn %v", c.cfg.Env, inbound, c.keys)
 		}
-		if len(p.Background) != 0 {
-			t.Errorf("%s: khung M4 chưa được có luồng nền: %+v", c.cfg.Env, p)
+		// Luồng nền đọc comment live (Task 171) chỉ khi có kênh Facebook.
+		if wantBg := len(slices.DeleteFunc(slices.Clone(c.keys), func(k string) bool { return k != "facebook" })); len(p.Background) != wantBg {
+			t.Errorf("%s: %d luồng nền, muốn %d", c.cfg.Env, len(p.Background), wantBg)
 		}
-		wantCmds := []string{
-			channel.SubscribePageKind, channel.UnsubscribePageKind, channel.HealthCheckKind, channel.BackfillKind,
-			channel.CommentPollKind,
-			"command.fb.fetch_attachment", "command.fb.fetch_profile", // Task 155: tệp đính kèm, hồ sơ khách
-		}
-		if slices.Contains(c.keys, "facebook") {
-			wantCmds = append(wantCmds, "command.fb.fetch_post") // Task 154: đọc bài của comment (kênh đọc được bài)
-		}
-		wantCmds = append(wantCmds, conversation.SendMessageKind, // Task 156: gửi tin, mọi cấu hình
-			conversation.ReplyCommentKind, conversation.PrivateReplyKind, conversation.HideCommentKind) // Task 158
-		// Task 165: tự ẩn comment, mọi cấu hình.
-		wantCmds = append(wantCmds, "command.fb.auto_hide_comment")
-		if slices.Contains(c.keys, "facebook") {
-			wantCmds = append(wantCmds, "command.fb.live_detect")   // Task 170: nhận biết live bằng hỏi định kỳ
-			wantCmds = append(wantCmds, "command.fb.fetch_history") // Task 164: lịch sử tin (kênh đọc được lịch sử)
-		}
+		wantCmds := wantM4Commands(slices.Contains(c.keys, "facebook"))
 		if cmds := m4CommandKinds(p); !slices.Equal(cmds, wantCmds) {
 			t.Errorf("%s: lệnh M4 = %v", c.cfg.Env, cmds)
 		}
@@ -68,6 +54,30 @@ func TestWireM4_Frame(t *testing.T) {
 	if _, err := wireM4(config.Config{FieldEncKeys: "sai"}, m4Deps{}); err == nil {
 		t.Error("FIELD_ENC_KEYS sai dạng phải là lỗi khởi động")
 	}
+}
+
+// wantM4Commands: lệnh M4 theo đúng thứ tự đăng ký (channel, rồi các phần của conversation: inbound, send,
+// automation, live, history); facebook: có kênh Facebook (đọc bài, nhận biết live, lịch sử tin).
+func wantM4Commands(facebook bool) []string {
+	want := []string{
+		channel.SubscribePageKind, channel.UnsubscribePageKind, channel.HealthCheckKind, channel.BackfillKind,
+		channel.CommentPollKind,
+		"command.fb.fetch_attachment", "command.fb.fetch_profile", // Task 155: tệp đính kèm, hồ sơ khách
+	}
+	if facebook {
+		want = append(want, "command.fb.fetch_post") // Task 154: đọc bài của comment (kênh đọc được bài)
+	}
+	want = append(want, conversation.SendMessageKind, // Task 156: gửi tin, mọi cấu hình
+		conversation.ReplyCommentKind, conversation.PrivateReplyKind, conversation.HideCommentKind, // Task 158
+		"command.fb.auto_hide_comment") // Task 165: tự ẩn comment, mọi cấu hình
+	if facebook {
+		want = append(want, "command.fb.live_detect") // Task 170: nhận biết live bằng hỏi định kỳ
+	}
+	want = append(want, "command.fb.live_reconcile") // Task 171: đối chiếu comment cuối phiên, mọi cấu hình
+	if facebook {
+		want = append(want, "command.fb.fetch_history") // Task 164: lịch sử tin (kênh đọc được lịch sử)
+	}
+	return want
 }
 
 // m4InboundSources trả nguồn của các handler vào của M4, đã sắp xếp.

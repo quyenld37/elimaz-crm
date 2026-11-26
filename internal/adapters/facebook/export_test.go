@@ -2,6 +2,7 @@ package facebook
 
 import (
 	"errors"
+	"io"
 	"net/netip"
 )
 
@@ -27,3 +28,6 @@ func NewGraphErrorForTest(status, code, subcode int, typ, trace, msg string) *Gr
 func NewTransportErrorForTest(sent bool) *GraphError {
 	return transportError(errors.New("connection reset"), sent, "")
 }
+
+// ReadSSE là bộ đọc text/event-stream của luồng comment live.
+func ReadSSE(r io.Reader, emit func(data []byte) bool) error { return readSSE(r, emit) }

@@ -114,3 +114,29 @@ SET last_comment_at = GREATEST(last_comment_at, sqlc.narg(last_comment_at)::time
     received_count  = received_count + @n::int
 WHERE id = @id
   AND lease_owner = @owner::text;
+
+-- name: SetLiveActiveSource :execrows
+-- Nguồn comment đang dùng của phiên còn live (Task 171: sse hay poll, chỉ để hiển thị và theo dõi).
+UPDATE conversation.live_sessions
+SET active_source = @active_source::text
+WHERE id = @id
+  AND status = 'live';
+
+-- name: SetLiveReconciled :exec
+-- Kết quả đối chiếu cuối phiên (Task 171): số comment Meta đếm và lúc đối chiếu.
+UPDATE conversation.live_sessions
+SET meta_comment_count = @meta_comment_count::int,
+    reconciled_at      = @reconciled_at
+WHERE id = @id;
+
+-- name: LiveCommentIDsOfSession :many
+-- Mã comment is_live của phiên đã thành tin: tin trên bài của Page có mã là mã bài, mã live hay mã video của phiên
+-- (như MatchLiveComment). Đối chiếu cuối phiên gộp với comment vừa đọc lại của Meta.
+SELECT m.external_id::text AS external_id
+FROM conversation.messages AS m
+JOIN conversation.posts AS p ON p.id = m.post_id
+WHERE m.channel_account_id = @channel_account_id
+  AND m.is_live
+  AND m.external_id IS NOT NULL
+  AND p.channel_account_id = @channel_account_id
+  AND p.external_id = ANY(@posts::text[]);

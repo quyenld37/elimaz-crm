@@ -14,13 +14,13 @@ import (
 )
 
 // Không có bộ adapter: không handler vào, luồng nền. Có bộ adapter: mỗi adapter đúng một handler vào cùng khóa
-// (Task 153). Lệnh luôn có command.fb.fetch_attachment, command.fb.fetch_profile (Task 155, chỉ đọc) và
-// command.fb.send_message (Task 156; không có adapter thì lệnh từ chối tin còn chờ), thêm command.fb.fetch_post (Task
-// 154), command.fb.live_detect và lịch live.detect (Task 170), command.fb.fetch_history (Task 164, đọc được lịch sử)
-// khi có adapter Facebook. Phần chạy nền luôn có lịch conversation.send_reveal mỗi 15 s (Task 157),
-// conversation.presence_cleanup (Task 163), conversation.reminders (Task 169) mỗi 60 s, channel.comment_poll (Task 150,
-// đọc comment định kỳ) mỗi 30 s và conversation.retention (Task 164, dọn theo hạn giữ) mỗi giờ, theo tenant, đúng một
-// handler cùng Kind.
+// (Task 153). Lệnh luôn có command.fb.fetch_attachment, command.fb.fetch_profile (Task 155, chỉ đọc),
+// command.fb.send_message (Task 156; không có adapter thì lệnh từ chối tin còn chờ) và command.fb.live_reconcile
+// (Task 171), thêm command.fb.fetch_post (Task 154), command.fb.live_detect và lịch live.detect (Task 170), một luồng
+// nền đọc comment live (Task 171), command.fb.fetch_history (Task 164, đọc được lịch sử) khi có adapter Facebook.
+// Phần chạy nền luôn có lịch conversation.send_reveal mỗi 15 s (Task 157), conversation.presence_cleanup (Task 163),
+// conversation.reminders (Task 169) mỗi 60 s, channel.comment_poll (Task 150, đọc comment định kỳ) mỗi 30 s và
+// conversation.retention (Task 164, dọn theo hạn giữ) mỗi giờ, theo tenant, đúng một handler cùng Kind.
 func TestWiring(t *testing.T) {
 	t.Parallel()
 	d := conversation.Deps{}
@@ -44,13 +44,17 @@ func TestWiring(t *testing.T) {
 	checkCommands(t, d)
 	checkReminders(t, d)
 	// Có adapter Facebook: thêm lệnh command.fb.fetch_post (đọc bài, Task 154), command.fb.live_detect cùng lịch
-	// live.detect 30 s theo tenant (nhận biết live, Task 170) và command.fb.fetch_history (đọc lịch sử, Task 164).
+	// live.detect 30 s theo tenant (nhận biết live, Task 170), command.fb.fetch_history (đọc lịch sử, Task 164) và một
+	// luồng nền đọc comment live (Task 171).
 	reg, err = channel.NewRegistry(fake.New("0123456789abcdef0123456789abcdef"), facebook.New(facebook.Options{}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	d.Registry = reg
 	checkCommands(t, d)
+	if n := len(conversation.Background(d)); n != 1 {
+		t.Errorf("luồng nền khi có Facebook: %d, mong 1 (đọc comment live)", n)
+	}
 	var detect []schedules.Schedule
 	for _, s := range conversation.Schedules(d) {
 		if s.Name == "live.detect" {
@@ -64,8 +68,9 @@ func TestWiring(t *testing.T) {
 
 // checkCommands: lệnh của conversation theo thứ tự đăng ký: command.fb.fetch_attachment, command.fb.fetch_profile
 // (luôn có, Task 155), command.fb.fetch_post (khi có adapter Facebook), command.fb.send_message hạn 3 phút, ba lệnh
-// comment của Task 158 (luôn có), command.fb.auto_hide_comment (luôn có, Task 165), command.fb.live_detect,
-// command.fb.fetch_history (khi có adapter Facebook, Task 170, 164).
+// comment của Task 158 (luôn có), command.fb.auto_hide_comment (luôn có, Task 165), command.fb.live_detect (khi có
+// adapter Facebook, Task 170), command.fb.live_reconcile (luôn có, Task 171), command.fb.fetch_history (khi có adapter
+// Facebook, Task 164).
 // autoHideKind là lệnh ẩn comment của quy tắc auto_hide (Task 165).
 const autoHideKind = "command.fb.auto_hide_comment"
 
@@ -77,10 +82,10 @@ func checkCommands(t *testing.T, d conversation.Deps) {
 		conversation.SendMessageKind, conversation.ReplyCommentKind, conversation.PrivateReplyKind,
 		conversation.HideCommentKind, autoHideKind,
 	}
-	want := append(slices.Clone(reads), sends...)
+	want := append(append(slices.Clone(reads), sends...), "command.fb.live_reconcile")
 	if fb {
 		want = append(append(append(slices.Clone(reads), "command.fb.fetch_post"), sends...), "command.fb.live_detect",
-			conversation.FetchHistoryKind)
+			"command.fb.live_reconcile", conversation.FetchHistoryKind)
 	}
 	var got []string
 	for _, h := range conversation.CommandHandlers(d) {

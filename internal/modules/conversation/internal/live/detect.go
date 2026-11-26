@@ -132,8 +132,8 @@ func (c *DetectCommand) targets(ctx context.Context, tenant uuid.UUID) ([]detect
 			return err //nolint:wrapcheck // channel đã bọc việc đang làm
 		}
 		for _, acc := range accs {
-			det := detectorOf(c.d.Registry, acc.Channel)
-			if det == nil || acc.Status == "disconnected" || acc.TokenKind == "" {
+			det, ok := deps.AdapterAs[detector](c.d.Registry, acc.Channel)
+			if !ok || acc.Status == "disconnected" || acc.TokenKind == "" {
 				continue
 			}
 			cred, err := channel.CredentialsFor(ctx, tx, c.d.Keys, acc.ID)
@@ -197,25 +197,4 @@ func (c *DetectCommand) failed(key string) {
 	if c.d.Metrics != nil {
 		c.d.Metrics.Inc(metricDetectFailed, key, 1)
 	}
-}
-
-// detectorOf trả phần nhận biết live của adapter key trong r, nil khi không có.
-func detectorOf(r *channel.Registry, key string) detector { //nolint:ireturn // phần nhận biết là interface của kênh
-	if r == nil {
-		return nil
-	}
-	a, ok := r.Get(key)
-	if !ok {
-		return nil
-	}
-	d, _ := a.(detector)
-	return d
-}
-
-// canDetect: có adapter nào trong r nhận biết được live không.
-func canDetect(r *channel.Registry) bool {
-	if r == nil {
-		return false
-	}
-	return slices.ContainsFunc(r.Keys(), func(k string) bool { return detectorOf(r, k) != nil })
 }
