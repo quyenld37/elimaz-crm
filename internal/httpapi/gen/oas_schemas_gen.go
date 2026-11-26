@@ -3674,6 +3674,109 @@ func (s *BirthdaySettings) SetLastRun(val OptBirthdayRun) {
 func (*BirthdaySettings) getBirthdaySettingsRes()  {}
 func (*BirthdaySettings) saveBirthdaySettingsRes() {}
 
+// Ref: #/components/schemas/BirthdaySettingsFields
+type BirthdaySettingsFields struct {
+	Enabled bool `json:"enabled"`
+	// Mệnh giá (đồng), 10.000–1.000.000, bước 1.000.
+	Amount int64 `json:"amount"`
+	// Đơn tối thiểu (đồng), 0 = mọi đơn.
+	MinOrder int64 `json:"minOrder"`
+	// Phát mã trước sinh nhật bao nhiêu ngày (0–30).
+	DaysBefore int32 `json:"daysBefore"`
+	// Số ngày dùng được, tính từ ngày phát (1–60).
+	ValidDays int32 `json:"validDays"`
+	// Đăng ký trước sinh nhật tối thiểu bao nhiêu ngày mới nhận quà năm đó (0–120).
+	MinLeadDays int32 `json:"minLeadDays"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *BirthdaySettingsFields) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetAmount returns the value of Amount.
+func (s *BirthdaySettingsFields) GetAmount() int64 {
+	return s.Amount
+}
+
+// GetMinOrder returns the value of MinOrder.
+func (s *BirthdaySettingsFields) GetMinOrder() int64 {
+	return s.MinOrder
+}
+
+// GetDaysBefore returns the value of DaysBefore.
+func (s *BirthdaySettingsFields) GetDaysBefore() int32 {
+	return s.DaysBefore
+}
+
+// GetValidDays returns the value of ValidDays.
+func (s *BirthdaySettingsFields) GetValidDays() int32 {
+	return s.ValidDays
+}
+
+// GetMinLeadDays returns the value of MinLeadDays.
+func (s *BirthdaySettingsFields) GetMinLeadDays() int32 {
+	return s.MinLeadDays
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *BirthdaySettingsFields) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetAmount sets the value of Amount.
+func (s *BirthdaySettingsFields) SetAmount(val int64) {
+	s.Amount = val
+}
+
+// SetMinOrder sets the value of MinOrder.
+func (s *BirthdaySettingsFields) SetMinOrder(val int64) {
+	s.MinOrder = val
+}
+
+// SetDaysBefore sets the value of DaysBefore.
+func (s *BirthdaySettingsFields) SetDaysBefore(val int32) {
+	s.DaysBefore = val
+}
+
+// SetValidDays sets the value of ValidDays.
+func (s *BirthdaySettingsFields) SetValidDays(val int32) {
+	s.ValidDays = val
+}
+
+// SetMinLeadDays sets the value of MinLeadDays.
+func (s *BirthdaySettingsFields) SetMinLeadDays(val int32) {
+	s.MinLeadDays = val
+}
+
+// BirthdaySettingsFieldsHeaders wraps BirthdaySettingsFields with response headers.
+type BirthdaySettingsFieldsHeaders struct {
+	ETag     OptString
+	Response BirthdaySettingsFields
+}
+
+// GetETag returns the value of ETag.
+func (s *BirthdaySettingsFieldsHeaders) GetETag() OptString {
+	return s.ETag
+}
+
+// GetResponse returns the value of Response.
+func (s *BirthdaySettingsFieldsHeaders) GetResponse() BirthdaySettingsFields {
+	return s.Response
+}
+
+// SetETag sets the value of ETag.
+func (s *BirthdaySettingsFieldsHeaders) SetETag(val OptString) {
+	s.ETag = val
+}
+
+// SetResponse sets the value of Response.
+func (s *BirthdaySettingsFieldsHeaders) SetResponse(val BirthdaySettingsFields) {
+	s.Response = val
+}
+
+func (*BirthdaySettingsFieldsHeaders) webBirthdaySettingsRes() {}
+
 // Ref: #/components/schemas/BirthdayStateCounts
 type BirthdayStateCounts struct {
 	Manual      int32 `json:"manual"`
@@ -14648,6 +14751,7 @@ func (*ErrorStatusCode) waiveRefundObligationRes()       {}
 func (*ErrorStatusCode) webAvailabilityRes()             {}
 func (*ErrorStatusCode) webBirthdayGiftFailedRes()       {}
 func (*ErrorStatusCode) webBirthdayOutboxRes()           {}
+func (*ErrorStatusCode) webBirthdaySettingsRes()         {}
 func (*ErrorStatusCode) webBirthdayStopRes()             {}
 func (*ErrorStatusCode) webCampaignRes()                 {}
 func (*ErrorStatusCode) webCampaignsRes()                {}
@@ -42605,6 +42709,11 @@ func (s *WebBirthdayResult) SetMonth(val int32) {
 }
 
 func (*WebBirthdayResult) webRegisterBirthdayRes() {}
+
+// WebBirthdaySettingsNotModified is response for WebBirthdaySettings operation.
+type WebBirthdaySettingsNotModified struct{}
+
+func (*WebBirthdaySettingsNotModified) webBirthdaySettingsRes() {}
 
 // Ref: #/components/schemas/WebBirthdayStopRequest
 type WebBirthdayStopRequest struct {

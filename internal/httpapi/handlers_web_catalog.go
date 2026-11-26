@@ -96,6 +96,17 @@ func (h *handler) WebCampaign(ctx context.Context, params gen.WebCampaignParams)
 	return h.d.webCatalog.Campaign(ctx, u.TenantID, params) //nolint:wrapcheck // như trên
 }
 
+// WebBirthdaySettings (GET /api/v1/web/birthdays/settings, Task 512) → 200 có ETag hoặc 304.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) WebBirthdaySettings(ctx context.Context, params gen.WebBirthdaySettingsParams) (gen.WebBirthdaySettingsRes, error) {
+	u, ok := authUser(ctx)
+	if !ok {
+		return nil, errNoAuthUser
+	}
+	return h.d.webCatalog.BirthdaySettings(ctx, u.TenantID, params) //nolint:wrapcheck // như trên
+}
+
 // WebIntakeStatus (GET /api/v1/web/intake, Task 456) → 200 {paused}.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)

@@ -5600,6 +5600,33 @@ paths:
           $ref: "#/components/responses/RetryLater"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web/birthdays/settings:
+    get:
+      operationId: webBirthdaySettings
+      summary: Cài đặt quà sinh nhật CRM đang dùng để phát quà (thẻ quà trên trang kết quả đơn của website); có ETag
+      description: |
+        Task 512. Đúng các số CRM dùng khi phát quà (promotion.birthday_settings, Task 468); chưa lưu lần nào → mặc định
+        của CRM (enabled false). Không có người sửa, version. Bộ đệm 60 s.
+      x-auth: service_key
+      x-permission: web.catalog.read
+      parameters:
+        - $ref: "#/components/parameters/IfNoneMatch"
+      responses:
+        "200":
+          description: Cài đặt quà sinh nhật
+          headers:
+            ETag:
+              description: sha256 của thân câu trả lời
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BirthdaySettingsFields"
+        "304":
+          description: If-None-Match khớp ETag hiện tại; thân rỗng
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/web/feedback:
     post:
       operationId: webSubmitFeedback

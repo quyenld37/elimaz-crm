@@ -2895,6 +2895,17 @@ func (UnimplementedHandler) WebBirthdayOutbox(ctx context.Context, params WebBir
 	return r, ht.ErrNotImplemented
 }
 
+// WebBirthdaySettings implements webBirthdaySettings operation.
+//
+// Task 512. Đúng các số CRM dùng khi phát quà (promotion.birthday_settings, Task 468); chưa
+// lưu lần nào → mặc định của CRM (enabled false). Không có người sửa, version.
+// Bộ đệm 60 s.
+//
+// GET /api/v1/web/birthdays/settings
+func (UnimplementedHandler) WebBirthdaySettings(ctx context.Context, params WebBirthdaySettingsParams) (r WebBirthdaySettingsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // WebBirthdayStop implements webBirthdayStop operation.
 //
 // Mã dừng lạ → 404 not_found.

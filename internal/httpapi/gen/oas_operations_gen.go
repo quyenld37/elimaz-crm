@@ -299,6 +299,7 @@ const (
 	WebAvailabilityOperation             OperationName = "WebAvailability"
 	WebBirthdayGiftFailedOperation       OperationName = "WebBirthdayGiftFailed"
 	WebBirthdayOutboxOperation           OperationName = "WebBirthdayOutbox"
+	WebBirthdaySettingsOperation         OperationName = "WebBirthdaySettings"
 	WebBirthdayStopOperation             OperationName = "WebBirthdayStop"
 	WebCampaignOperation                 OperationName = "WebCampaign"
 	WebCampaignsOperation                OperationName = "WebCampaigns"
