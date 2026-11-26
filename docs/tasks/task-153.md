@@ -185,3 +185,43 @@ buộc: adapter `fake` không đặt `EchoAppID` nên echo kênh giả luôn là
 vế thừa trong `wire_m4_test.go` (không sửa).
 
 Kết luận: ĐẠT
+
+## Lượt sửa gộp m4
+
+Gộp `m4` (9820e65, có Task 148 adapter Facebook và Task 169 nhắc việc, cuộc gọi) vào `task-153` bằng
+`git merge --no-commit m4`.
+
+**Xung đột và sửa:**
+
+1. `cmd/crm/wire_m4_test.go`, `internal/modules/conversation/wiring_test.go` (xung đột nội dung): giữ cả hai bên —
+   kiểm mỗi adapter đúng một handler vào (153) và lịch `conversation.reminders` + một handler cùng Kind (169). Kiểm
+   lịch tách thành `checkReminders`, chạy cả khi không và có bộ adapter.
+2. Build/vet đỏ: Task 148 đổi `facebook.New(appSecret, verifyToken)` thành `facebook.New(facebook.Options)`. Đổi 3 chỗ
+   gọi của nhánh 153: `tests/e2e/fb_inbound_latency_test.go:106`, `internal/modules/conversation/internal/inbound/env_test.go`
+   (2 chỗ) sang `facebook.Options{AppSecret, VerifyToken}`.
+3. Nối adapter Facebook theo tệp task 148, Quyết định 1 và Việc phát hiện thêm 1: `facebook.Adapter(cfg)` trả
+   `fromConfig(cfg)` (nil thật khi Meta tắt hay thiếu app secret, không phải nil có kiểu); `TestSource` đổi dòng
+   "Adapter vẫn nil" thành kiểm Adapter có khóa `facebook` khi bật và nil thật ở hai ca tắt; `TestWireM4_Frame` thêm
+   ca Meta bật có `AppSecret` (dev → kênh, nguồn, handler vào `facebook`, `fakechat`; production → chỉ `facebook`).
+4. Test đỏ sau gộp (không phải xung đột chữ): khóa ngoại `posts_channel_account_fk`, `conversations_*` của migration
+   0412 (Task 153) làm dữ liệu thử của Task 169 (Page là `uuid.New()`) bị từ chối. Đổi sang
+   `testkit.Staff.ChannelAccount` (có từ Task 153) ở `internal/modules/conversation/chatenv_test.go`,
+   `internal/queries/chat_timeline_dynsql_test.go`, `internal/httpapi/handlers_reminders_calls_test.go`.
+
+**Bằng chứng:**
+
+| Việc | Lệnh | Kết quả |
+|---|---|---|
+| Build | `go build ./...` | không lỗi |
+| Vet | `go vet ./cmd/crm/ ./internal/adapters/facebook/ ./internal/modules/conversation/... ./tests/e2e/ ./internal/queries/ ./internal/httpapi/` | không lỗi |
+| Test gói chạm | `go test -race -count=1 ./cmd/crm/ ./internal/adapters/facebook/... ./internal/modules/conversation/...` | `ok` cmd/crm 22.7s, facebook 12.3s, conversation 10.1s, access, inbound 8.6s |
+| Test gói có dữ liệu thử sửa | `go test -race -count=1 ./internal/queries/ ./internal/httpapi/` | `ok` queries 21.1s, httpapi 46.2s (trước sửa: TestChatTimeline, TestChatAPI_* đỏ 23503) |
+| Kiến trúc | `go test -count=1 ./tests/arch/` | `ok` 140s |
+| Lint | `golangci-lint run` trên 6 thư mục chạm | `0 issues.` |
+| e2e | không chạy (đúng giao việc); `go vet ./tests/e2e/` qua | — |
+
+**Reviewer (lượt gộp):** giải xung đột giữ đủ hai bên; `Adapter` trả nil thật khi Meta tắt; đổi đủ 3 chỗ
+`facebook.New`; dữ liệu thử 169 dùng tài khoản kênh thật. Không phát hiện phải sửa. Ghi chú: từ nay production bật
+Meta thì `/hooks/facebook` được đăng ký thật vào ingest và worker (đúng ý Quyết định 1 của 148); e2e chỉ qua `go vet`.
+
+Kết luận: ĐẠT

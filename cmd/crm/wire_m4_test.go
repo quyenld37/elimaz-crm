@@ -7,10 +7,10 @@ import (
 	"elimaz.com.vn/crm/internal/platform/config"
 )
 
-// wireM4: kênh nhắn tin giả fakechat (Task 145) có ngoài production, là nguồn webhook duy nhất của M4 lúc này (adapter
-// Facebook chưa hiện thực); production không có kênh nào. Mỗi nguồn có đúng một handler vào của conversation (Task
-// 153); các phần khác (lệnh, lịch, luồng nền) chưa có; ingest vẫn dựng được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng →
-// lỗi khởi động.
+// wireM4: kênh nhắn tin giả fakechat (Task 145) có ngoài production; kênh Facebook khi Meta bật và có app secret (Task
+// 148, nối ở Task 153); production không cấu hình Meta thì không có kênh nào. Mỗi nguồn có đúng một handler vào của
+// conversation (Task 153); chưa có lệnh, luồng nền; lịch duy nhất là conversation.reminders (Task 169) cùng handler
+// của nó; ingest vẫn dựng được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng → lỗi khởi động.
 func TestWireM4_Frame(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
@@ -20,6 +20,8 @@ func TestWireM4_Frame(t *testing.T) {
 		{config.Config{Env: "production"}, nil},
 		{config.Config{Env: "dev"}, []string{"fakechat"}},
 		{config.Config{Env: "dev", Meta: config.MetaConfig{Enabled: true}}, []string{"fakechat"}},
+		{config.Config{Env: "dev", Meta: config.MetaConfig{Enabled: true, AppSecret: "s"}}, []string{"facebook", "fakechat"}},
+		{config.Config{Env: "production", Meta: config.MetaConfig{Enabled: true, AppSecret: "s"}}, []string{"facebook"}},
 	} {
 		p, err := wireM4(c.cfg, m4Deps{})
 		if err != nil {
@@ -38,8 +40,12 @@ func TestWireM4_Frame(t *testing.T) {
 		if slices.Sort(inbound); !slices.Equal(inbound, c.keys) && len(inbound)+len(c.keys) != 0 {
 			t.Errorf("%s: handler vào của nguồn %v, muốn %v", c.cfg.Env, inbound, c.keys)
 		}
-		if len(p.Commands)+len(p.Jobs)+len(p.Schedules)+len(p.Background) != 0 {
+		if len(p.Commands)+len(p.Background) != 0 {
 			t.Errorf("%s: khung M4 chưa được có phần chạy nền: %+v", c.cfg.Env, p)
+		}
+		if len(p.Schedules) != 1 || p.Schedules[0].Name != "conversation.reminders" || !p.Schedules[0].PerTenant ||
+			len(p.Jobs) != 1 || p.Jobs[0].Kind().Name != p.Schedules[0].Kind.Name {
+			t.Errorf("%s: lịch, việc nền của M4: %+v, %d handler", c.cfg.Env, p.Schedules, len(p.Jobs))
 		}
 	}
 	if _, err := wireM4(config.Config{FieldEncKeys: "sai"}, m4Deps{}); err == nil {

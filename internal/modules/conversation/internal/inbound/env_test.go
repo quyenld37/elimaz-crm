@@ -86,7 +86,7 @@ func newEnv(t *testing.T) *env {
 		DB: staff.App, Queue: queue.NewQueue(), Bus: e.bus, Events: events.NewRegistry(), Metrics: e.reg,
 		Config: config.Config{Meta: config.MetaConfig{AppID: ownAppID}},
 	}
-	sources := []webhooks.Source{facebook.New(logging.Secret(secret32), logging.Secret(secret32+secret32)), fake.New(secret32)}
+	sources := []webhooks.Source{facebook.New(facebook.Options{AppSecret: logging.Secret(secret32), VerifyToken: logging.Secret(secret32 + secret32)}), fake.New(secret32)}
 	hs, err := webhooks.InboundJobHandlers(sources, []webhooks.InboundHandler{inbound.NewHandler(d, facebook.Key), inbound.NewHandler(d, fake.Key)})
 	if err != nil {
 		t.Fatal(err)
@@ -162,7 +162,7 @@ func fixtureEvents(t *testing.T, name string) []webhooks.InboundEvent {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := facebook.New(logging.Secret(secret32), logging.Secret(secret32+secret32)).Split(raw)
+	res, err := facebook.New(facebook.Options{AppSecret: logging.Secret(secret32), VerifyToken: logging.Secret(secret32 + secret32)}).Split(raw)
 	if err != nil {
 		t.Fatal(err)
 	}

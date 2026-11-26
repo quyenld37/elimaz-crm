@@ -103,7 +103,7 @@ func newFBLatency(t *testing.T) *fbLatency {
 	api.Config.RegisterOnShutdown(func() { close(streamStop) })
 	api.Start()
 
-	fb := facebook.New(logging.Secret(secret32), logging.Secret(secret32+secret32))
+	fb := facebook.New(facebook.Options{AppSecret: logging.Secret(secret32), VerifyToken: logging.Secret(secret32 + secret32)})
 	sources := []webhooks.Source{fb}
 	ingest := ingestServer(t, webhooks.IngestOptions{DB: app, Sources: sources, Spool: &webhooks.Spool{Dir: t.TempDir()}, Metrics: reg, Logger: logger})
 
