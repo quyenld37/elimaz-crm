@@ -1,6 +1,7 @@
 package send
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -55,19 +56,20 @@ func Send(ctx context.Context, tx pgx.Tx, env Env, u identity.AuthUser, conversa
 	if err != nil {
 		return Message{}, err //nolint:wrapcheck // channel đã bọc việc đang làm
 	}
-	if err := allowed(env.Registry, conversationRow(c), acc, in.HumanAgent, now); err != nil {
+	if err := allowed(env.Registry, conversationRow(c), acc, in.HumanAgent, false, now); err != nil {
 		return Message{}, err
 	}
 	atts, err := outgoingAttachments(ctx, tx, in.AttachmentFileID)
 	if err != nil {
 		return Message{}, err
 	}
-	return insert(ctx, tx, env, u, c.ID, acc, in.Text, atts, now)
+	return insert(ctx, tx, env, u, c.ID, acc, outgoing{text: in.Text, atts: atts}, now)
 }
 
-// allowed hỏi SendPolicy của adapter của Page cho tin thường của nhân viên.
-func allowed(reg *channel.Registry, c conversationRow, acc channel.ChannelAccount, humanAgent bool, now time.Time) error {
-	pol, err := policyFor(reg, acc, state(c, acc, false), now)
+// allowed hỏi SendPolicy của adapter của Page cho tin thường của nhân viên (automated: tin tự động do nhân viên gửi
+// lại, không được dùng thẻ nhân viên).
+func allowed(reg *channel.Registry, c conversationRow, acc channel.ChannelAccount, humanAgent, automated bool, now time.Time) error {
+	pol, err := policyFor(reg, acc, state(c, acc, automated), now)
 	if err != nil {
 		return err
 	}
@@ -100,10 +102,20 @@ func outgoingAttachments(ctx context.Context, tx pgx.Tx, fileID *uuid.UUID) ([]A
 	return []Attachment{{Index: 0, Type: attachImage, Status: attachReady, FileID: &id}}, nil
 }
 
-// insert chèn tin queued, cập nhật hội thoại đã khóa, ghi lệnh gửi (DedupeKey = mã tin), gắn mã lệnh vào tin, báo hiệu.
+// outgoing là nội dung tin thường cần chèn: chữ, ảnh; origin rỗng = staff (gửi lại tin tự động: automation) và nút trả
+// lời nhanh (cột quick_replies của tin cũ, nil khi không có).
+type outgoing struct {
+	origin       string
+	text         string
+	atts         []Attachment
+	quickReplies []byte
+}
+
+// insert chèn tin queued o, cập nhật hội thoại đã khóa, ghi lệnh gửi (DedupeKey = mã tin), gắn mã lệnh vào tin, báo hiệu.
 func insert(ctx context.Context, tx pgx.Tx, env Env, u identity.AuthUser, convID uuid.UUID, acc channel.ChannelAccount,
-	text string, atts []Attachment, now time.Time,
+	o outgoing, now time.Time,
 ) (Message, error) {
+	text, atts, origin := o.text, o.atts, cmp.Or(o.origin, originStaff)
 	q := store.New(tx)
 	raw, err := json.Marshal(atts)
 	if err != nil {
@@ -115,21 +127,21 @@ func insert(ctx context.Context, tx pgx.Tx, env Env, u identity.AuthUser, convID
 	}
 	id, err := q.InsertOutgoingMessage(ctx, store.InsertOutgoingMessageParams{
 		ConversationID: convID, ChannelAccountID: acc.ID, ClientRef: pgtype.UUID{Bytes: ref, Valid: true},
-		Body: pgtype.Text{String: text, Valid: text != ""}, Attachments: raw,
+		Origin: origin, Body: pgtype.Text{String: text, Valid: text != ""}, Attachments: raw, QuickReplies: o.quickReplies,
 		SenderStaffID: pgtype.UUID{Bytes: u.UserID, Valid: u.UserID != uuid.Nil}, SentAt: now,
 	})
 	if err != nil {
 		return Message{}, fmt.Errorf("ghi tin gửi: %w", err)
 	}
 	tenant := acc.TenantID
-	if err := queueOutgoing(ctx, tx, env.Queue, CommandKind(), tenant, convID, id, deps.Snippet(text, len(atts) > 0), now); err != nil {
+	if err := queueOutgoing(ctx, tx, env.Queue, CommandKind(), origin, tenant, convID, id, deps.Snippet(text, len(atts) > 0), now); err != nil {
 		return Message{}, err
 	}
 	if err := publish(ctx, tx, env.Bus, tenant, acc.ID, convID); err != nil {
 		return Message{}, err
 	}
 	return Message{
-		ID: id, ConversationID: convID, ClientRef: ref, SenderStaffID: u.UserID, Origin: originStaff, Kind: kindMessage,
+		ID: id, ConversationID: convID, ClientRef: ref, SenderStaffID: u.UserID, Origin: origin, Kind: kindMessage,
 		Body: text, Attachments: atts, SendStatus: statusQueued, SentAt: now,
 	}, nil
 }

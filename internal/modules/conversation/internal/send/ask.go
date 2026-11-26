@@ -91,14 +91,14 @@ func AskAddress(ctx context.Context, tx pgx.Tx, env Env, u identity.AuthUser, co
 	if err != nil {
 		return AskResult{}, fmt.Errorf("khóa hội thoại hộp thư: %w", err)
 	}
-	if err := allowed(env.Registry, conversationRow(c), acc, false, now); err != nil {
+	if err := allowed(env.Registry, conversationRow(c), acc, false, false, now); err != nil {
 		mna, ok := errors.AsType[*NotAllowedError](err)
 		if !ok {
 			return AskResult{}, err
 		}
 		return AskResult{Status: AskSkippedPolicy, Reason: privateWhy + "; " + FailReasonText(string(mna.Reason))}, nil
 	}
-	m, err := insert(ctx, tx, env, u, inbox, acc, text, []Attachment{}, now)
+	m, err := insert(ctx, tx, env, u, inbox, acc, outgoing{text: text, atts: []Attachment{}}, now)
 	if err != nil {
 		return AskResult{}, err
 	}

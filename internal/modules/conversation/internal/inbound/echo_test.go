@@ -150,3 +150,19 @@ func TestEchoOwnUnmatched(t *testing.T) {
 		t.Fatalf("tin: %+v, hội thoại %+v", ms, c)
 	}
 }
+
+// Task 497: echo của CRM không khớp được (app của CRM, không metadata → own_echo_unmatched) là tin của chính CRM (nhân
+// viên hay tự động, chưa biết): đẩy mốc tin cuối nhưng không đổi mốc tin nhân viên (tin của CRM đã tự đặt mốc khi
+// chèn); echo từ Business Suite thì vẫn đặt (TestEchoFromBusinessSuite).
+func TestEchoOwnUnmatchedKeepsStaffMark(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.receiveAt("u-2", "mid-in-2", "còn hàng không", at(-60))
+	p := channel.MessagePayload{PageID: pageExt1, UserID: "u-2", MID: "mid-own-2", Text: "Chào chị", IsEcho: true, EchoAppID: ownAppID, SentAt: at(0)}
+	e.deliver(channel.EventMessageEcho, "m:mid-own-2", "u-2", at(0), p)
+	e.noDeadJobs()
+	c := e.conversation(e.page1, "u-2")
+	if c.LastStaffAt != nil || !c.LastMessageAt.Equal(at(0)) {
+		t.Fatalf("hội thoại sau echo own_echo_unmatched: %+v", c)
+	}
+}

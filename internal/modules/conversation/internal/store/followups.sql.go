@@ -98,6 +98,19 @@ JOIN LATERAL (
       AND m.kind = 'message'
       AND m.origin IN ('staff', 'page_external')
       AND coalesce(m.send_status, 'sent') NOT IN ('failed', 'expired', 'discarded')
+      -- Tin page_external sau một tin tự động bị bỏ vì không rõ đã gửi (auto_dropped) mà khách chưa nhắn lại có thể
+      -- là echo hỏi bù của chính tin tự động (không mã CRM, không mid để ghép): không coi là tin người thật (Task 497).
+      AND NOT (m.origin = 'page_external' AND EXISTS (
+          SELECT 1
+          FROM conversation.messages AS a
+          WHERE a.tenant_id = c.tenant_id
+            AND a.conversation_id = c.id
+            AND a.direction = 'out'
+            AND a.origin = 'automation'
+            AND a.send_status = 'discarded'
+            AND a.fail_reason = 'auto_dropped'
+            AND a.sent_at > c.last_customer_message_at
+            AND a.sent_at <= m.sent_at))
     ORDER BY m.sent_at DESC, m.id DESC
     LIMIT 1
 ) AS s ON true
@@ -140,7 +153,7 @@ type ListFollowUpCandidatesRow struct {
 // Nhắn lại khách chưa trả lời (Task 168; kế hoạch M4-28, CH16). Mọi câu chạy trong tx tenant.
 // Hội thoại hộp thư cần nhắn lại trên các Page được xem: đang mở hay chờ, khách không chặn Page, khách (hồ sơ gốc)
 // không do_not_contact; tin người thật cuối của Page (nhân viên trong CRM hay trên Meta, không phải tin tự động, không
-// thất bại) mới hơn tin khách cuối và cũ hơn @silent_before; cửa sổ 24 giờ còn mở tới sau @window_after. Cửa sổ đóng sớm
+// thất bại, không phải tin page_external sau tin tự động bị bỏ của cùng lần khách im) mới hơn tin khách cuối và cũ hơn @silent_before; cửa sổ 24 giờ còn mở tới sau @window_after. Cửa sổ đóng sớm
 // trước (index conversations_page_status lọc Page, trạng thái; tin cuối đọc theo messages_conversation). @rule_id khác
 // NULL (lịch): bỏ hội thoại mà tin nhân viên cuối đã có lượt của quy tắc đó (unique của automation_runs), để lô không
 // bị chiếm bởi hội thoại đã xử lý.

@@ -26,7 +26,8 @@ const (
 // checking, in_doubt; cả failed, expired, discarded: sự thật thắng, Task 157) → đúng tin đó thành sent có mã ngoài,
 // không thêm dòng; tin đã bị nhân viên bỏ thì đếm chỉ số late_echo_after_discard. Còn lại: app của CRM → tin
 // own_echo_unmatched (Task 156 gộp); app khác hay không có (Business Suite, ứng dụng Meta) → tin page_external (CH14).
-// Hai loại chèn cập nhật mốc tin cuối, mốc tin nhân viên; không tăng chưa đọc. Mã ngoài đã có → không làm gì.
+// Hai loại chèn cập nhật mốc tin cuối (page_external cả mốc tin nhân viên, bumpOutbound); không tăng chưa đọc. Mã
+// ngoài đã có → không làm gì.
 func (h *handler) echo(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, p channel.MessagePayload) error {
 	acc, ok, err := h.account(ctx, tx, e, p.PageID)
 	if err != nil || !ok {
@@ -67,10 +68,8 @@ func (h *handler) echo(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, p cha
 	if err != nil {
 		return fmt.Errorf("ghi tin Page gửi: %w", err)
 	}
-	if err := q.BumpConversationOutbound(ctx, store.BumpConversationOutboundParams{
-		At: at, Snippet: text(deps.Snippet(p.Text, len(p.Attachments) > 0)), ID: convID,
-	}); err != nil {
-		return fmt.Errorf("cập nhật hội thoại sau tin Page gửi: %w", err)
+	if err := bumpOutbound(ctx, q, origin, convID, at, text(deps.Snippet(p.Text, len(p.Attachments) > 0))); err != nil {
+		return err
 	}
 	if len(p.Attachments) > 0 {
 		if err := deps.EnqueueAttachmentFetches(ctx, tx, h.d.Queue, acc.TenantID, msgID, refs); err != nil {
@@ -103,4 +102,20 @@ func (h *handler) confirmOwn(ctx context.Context, tx pgx.Tx, e webhooks.Inbound,
 		h.d.Metrics.Inc(metricLateEchoAfterDiscard, h.source, 1)
 	}
 	return true, h.publish(ctx, tx, e, acc, row.ConversationID)
+}
+
+// bumpOutbound cập nhật hội thoại conv sau tin Page gửi lúc at: page_external (người của Page gửi ngoài CRM) đẩy mốc tin
+// cuối và mốc tin nhân viên; own_echo_unmatched (echo của chính CRM chưa ghép được: tin nhân viên hay tin tự động, chưa
+// biết) chỉ đẩy mốc tin cuối — tin của CRM đã tự đặt mốc nhân viên lúc chèn nếu là tin của người (Task 497).
+func bumpOutbound(ctx context.Context, q *store.Queries, origin string, conv uuid.UUID, at time.Time, snip pgtype.Text) error {
+	var err error
+	if origin == originOwnEchoUnmatched {
+		err = q.BumpConversationAutomated(ctx, store.BumpConversationAutomatedParams{At: at, Snippet: snip, ID: conv})
+	} else {
+		err = q.BumpConversationOutbound(ctx, store.BumpConversationOutboundParams{At: at, Snippet: snip, ID: conv})
+	}
+	if err != nil {
+		return fmt.Errorf("cập nhật hội thoại sau tin Page gửi: %w", err)
+	}
+	return nil
 }

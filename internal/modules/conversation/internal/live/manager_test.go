@@ -87,6 +87,11 @@ func TestGracefulStopReleasesLease(t *testing.T) {
 
 // 04 mục 18: hai worker quét song song khoảng 50 lần trên ba phiên → không lúc nào hai Run của cùng phiên chồng nhau;
 // mỗi phiên đúng một chủ; mất khóa (ép hết hạn) thì luồng cũ dừng trước khi luồng mới đọc ghi được.
+//
+// Task 497: câu kiểm an toàn (không chồng nhau) không phụ thuộc giờ; câu kiểm "mỗi phiên đúng một luồng" chờ theo điều
+// kiện (eventually, trần 10 s chỉ chống treo) thay vì chụp đúng lúc sau 2,5 s. Khóa 2 s, gia hạn 100 ms: hạn cục bộ
+// (LeaseTTL − RenewEvery/2 = 1,95 s) chịu được một lần gia hạn chậm gần 2 s khi máy bận; bản cũ (300 ms, 80 ms) mất khóa
+// khi một lần gia hạn chậm hơn 260 ms, luồng mở lại và lúc chụp có phiên 0 luồng (đỏ 1/5 trên máy, một lần trên GitHub).
 func TestTwoWorkersNeverReadSameSession(t *testing.T) {
 	t.Parallel()
 	e := newLiveEnv(t)
@@ -98,7 +103,7 @@ func TestTwoWorkersNeverReadSameSession(t *testing.T) {
 	src := newFakeSource(0, base)
 	fast := func(owner string) live.Options {
 		return live.Options{
-			Owner: owner, LeaseTTL: 300 * time.Millisecond, RenewEvery: 80 * time.Millisecond,
+			Owner: owner, LeaseTTL: 2 * time.Second, RenewEvery: 100 * time.Millisecond,
 			ScanEvery: 20 * time.Millisecond, Overlap: live.Overlap,
 		}
 	}
@@ -106,15 +111,20 @@ func TestTwoWorkersNeverReadSameSession(t *testing.T) {
 	m2 := live.NewManager(e.d, src, fast("w2"))
 	runManager(t, m1)
 	runManager(t, m2)
-	time.Sleep(50 * 50 * time.Millisecond)
-	for _, id := range ids {
-		if n := src.runningOf(id); n != 1 {
-			t.Errorf("phiên %s: %d luồng đang chạy, muốn 1", id, n)
+	oneOwnerEach := func() bool {
+		for _, id := range ids {
+			if src.runningOf(id) != 1 {
+				return false
+			}
+			if _, owner, _, _ := e.session(id); owner != "w1" && owner != "w2" {
+				return false
+			}
 		}
-		if _, owner, _, _ := e.session(id); owner != "w1" && owner != "w2" {
-			t.Errorf("phiên %s: chủ = %q", id, owner)
-		}
+		return true
 	}
+	eventually(t, 10*time.Second, "mỗi phiên đúng một luồng của w1 hay w2", oneOwnerEach)
+	time.Sleep(50 * 20 * time.Millisecond) // cửa sổ quan sát: khoảng 50 lần quét của mỗi worker trong lúc phiên đang có chủ
+	eventually(t, 10*time.Second, "sau 50 lần quét, mỗi phiên vẫn đúng một luồng", oneOwnerEach)
 	if src.overlapped() {
 		t.Fatal("hai Run của cùng phiên chạy chồng nhau")
 	}
@@ -126,8 +136,8 @@ func TestTwoWorkersNeverReadSameSession(t *testing.T) {
 			lease_until = now() + interval '1 second' WHERE id = $1`, ids[0])
 		return err //nolint:wrapcheck // test
 	})
-	eventually(t, 3*time.Second, "luồng dừng khi mất khóa", func() bool { return src.runningOf(ids[0]) == 0 })
-	eventually(t, 5*time.Second, "worker nhận lại sau khi khóa lạ hết hạn", func() bool { return len(src.runsOf(ids[0])) > before })
+	eventually(t, 10*time.Second, "luồng dừng khi mất khóa", func() bool { return src.runningOf(ids[0]) == 0 })
+	eventually(t, 10*time.Second, "worker nhận lại sau khi khóa lạ hết hạn", func() bool { return len(src.runsOf(ids[0])) > before })
 	lost := int64(0)
 	for _, r := range e.d.Metrics.Drain() {
 		if r.Name == "live_lease_lost" {

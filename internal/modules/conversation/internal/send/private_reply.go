@@ -77,10 +77,7 @@ func PrivateReply(ctx context.Context, tx pgx.Tx, env Env, u identity.AuthUser, 
 		return Message{}, err
 	}
 	if _, err := policyFor(env.Registry, acc, privateState(acc, cm.SentAt, used != nil), now); err != nil {
-		if na, ok := errors.AsType[*NotAllowedError](err); ok && na.Reason == channel.DenyPrivateReplyUsed {
-			return Message{}, ErrPrivateReplyUsed
-		}
-		return Message{}, err
+		return Message{}, privateUsed(err)
 	}
 	if inbox, err = ensureInbox(ctx, tx, th, inbox, now); err != nil {
 		return Message{}, err
@@ -88,16 +85,25 @@ func PrivateReply(ctx context.Context, tx pgx.Tx, env Env, u identity.AuthUser, 
 	m, err := insertAction(ctx, tx, u, actionRow{
 		conv: inbox, acc: acc, kind: kindPrivate, parent: cm, text: in.Text, jobKind: PrivateReplyKind(), jobQueue: env.Queue,
 	}, now)
-	if pe, ok := errors.AsType[*pgconn.PgError](err); ok && pe.Code == uniqueViolation {
-		return Message{}, ErrPrivateReplyUsed
-	}
 	if err != nil {
-		return Message{}, err
+		return Message{}, privateUsed(err)
 	}
 	if err := publish(ctx, tx, env.Bus, acc.TenantID, acc.ID, inbox); err != nil {
 		return Message{}, err
 	}
 	return m, publish(ctx, tx, env.Bus, acc.TenantID, acc.ID, c.ID)
+}
+
+// privateUsed đổi lỗi "comment đã được nhắn riêng" (SendPolicy private_reply_used, hay unique
+// messages_one_live_private_reply khi hai lần nhắn riêng cùng lúc) sang ErrPrivateReplyUsed; lỗi khác giữ nguyên.
+func privateUsed(err error) error {
+	if na, ok := errors.AsType[*NotAllowedError](err); ok && na.Reason == channel.DenyPrivateReplyUsed {
+		return ErrPrivateReplyUsed
+	}
+	if pe, ok := errors.AsType[*pgconn.PgError](err); ok && pe.Code == uniqueViolation {
+		return ErrPrivateReplyUsed
+	}
+	return err
 }
 
 // inboxOf đọc hội thoại comment id (không khóa) và hội thoại hộp thư sẽ nhận tin riêng (uuid.Nil: chưa có); hộp thư có
