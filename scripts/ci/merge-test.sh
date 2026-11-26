@@ -13,6 +13,10 @@
 # In "MERGE-TEST XANH (<bể>) …" (thoát 0) hoặc "MERGE-TEST ĐỎ (<bể>) …" (thoát 1); 2 sai tham số; 3 không máy nào chạy được.
 # Biến: như pool.py (CRM_CI_RUNNER ép bể…) và remote-test.sh (CRM_CI_STATIC=false bỏ cổng tĩnh, cả ở máy dev);
 # CRM_CI_LABEL mặc định merge-<tên thư mục>.
+# Task 499: CRM_CI_E2E=1 chạy "toàn bộ + e2e" trên một bản bằng một lệnh (thêm job e2e của tests/e2e và console-e2e của
+# Playwright, remote-test.sh); lượt e2e chỉ chạy ở bể từ xa blacksmith/ubicloud/github — không Mac (chủ shop 26/11: máy
+# Mac chỉ làm task), không vps — hết chỗ thì chờ, không bể nào dùng được thì mã 3.
+#   CRM_CI_E2E=1 scripts/ci/merge-test.sh <commit gộp>
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 cd "$(git rev-parse --show-toplevel)" || exit 2
@@ -58,15 +62,25 @@ for f in "$pkgs" "$race"; do [ "$f" = ALL ] || [ -f "$f" ] || { echo "không có
 isall() { [ "$1" = ALL ] || [ "$(tr -d ' \t\n' < "$1")" = ALL ]; }
 isall "$pkgs" && pkgs=ALL
 isall "$race" && race=ALL
+case ${CRM_CI_E2E:-0} in
+  0|1) ;;
+  *) echo "CRM_CI_E2E=$CRM_CI_E2E không phải 0|1" >&2; exit 2 ;;
+esac
+e2e=${CRM_CI_E2E:-0}
+if [ "$e2e" = 1 ] && [ "${CRM_CI_RUNNER:-}" = mac ]; then
+  echo "CRM_CI_E2E=1 không chạy ở máy dev (mac): e2e chỉ chạy ở bể từ xa" >&2; exit 2
+fi
 # Số gói sau khi mở mẫu (./internal/x/... là nhiều gói): vps chỉ nhận ≤ 15. Không mở được thì coi như ALL (không vps).
-if [ "$pkgs" = ALL ]; then size=(--all)
+# Lượt e2e: --all để không bao giờ sang vps (job e2e bỏ qua ở đó).
+if [ "$pkgs" = ALL ] || [ "$e2e" = 1 ]; then size=(--all)
 elif n=$(xargs go list < "$pkgs" 2>/dev/null | grep -c .); then size=(--count "$n")
 else size=(--all); fi
 flags=()
-if [ "$src" != "$(git rev-parse HEAD)" ] || [ -n "$(git status --porcelain)" ]; then flags+=(--no-mac); fi
+if [ "$e2e" = 1 ] || [ "$src" != "$(git rev-parse HEAD)" ] || [ -n "$(git status --porcelain)" ]; then flags+=(--no-mac); fi
 . "$here/lib.sh"
 mode=$(ci_mode)
 if [ "${mode%% *}" != remote ]; then
+  [ "$e2e" = 1 ] && { echo "MERGE-TEST: CRM_CI_E2E=1 cần bể từ xa, không chạy được từ xa (${mode#local })" >&2; exit 3; }
   echo "== không chạy được từ xa (${mode#local }): chỉ máy dev"
   [ ${#flags[@]} -eq 0 ] || { echo "MERGE-TEST: bản cần test không phải HEAD sạch của thư mục này, không chạy được ở máy" >&2; exit 3; }
   flags+=(--local-only)
@@ -74,5 +88,5 @@ fi
 if [ "${CRM_CI_RUNNER:-}" = mac ] && [ "${flags[0]:-}" = --no-mac ]; then
   echo "CRM_CI_RUNNER=mac: bản cần test không phải HEAD sạch của thư mục này" >&2; exit 2
 fi
-echo "== merge-test: $src so với $base; gói: $pkgs; -race: $race"
+echo "== merge-test: $src so với $base; gói: $pkgs; -race: $race; e2e: $e2e"
 exec python3 "$here/pool.py" run "${size[@]}" ${flags[@]+"${flags[@]}"} -- bash "$here/merge-test.sh" __inner "$src" "$base" "$pkgs" "$race"

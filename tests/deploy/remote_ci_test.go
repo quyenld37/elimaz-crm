@@ -64,9 +64,11 @@ func TestRemoteWorkflow_DispatchOnlyWithInputs(t *testing.T) {
 	if strings.Contains(string(b), "secrets.") {
 		t.Error("test-remote.yml không được dùng secret")
 	}
-	for _, banned := range []string{"playwright", "-tags e2e", "docker build", "make image", "console-e2e"} {
+	// Task 499: e2e và Playwright chỉ ở job e2e, console-e2e khi inputs.e2e (TestRemoteWorkflow_E2EOnlyInE2EJobs); image
+	// chính vẫn không dựng ở đây (job e2e chạy vai trò như tiến trình trên máy).
+	for _, banned := range []string{"-tags e2e", "docker build", "make image"} {
 		if strings.Contains(string(b), banned) {
-			t.Errorf("test-remote.yml không dựng image, không e2e, không Playwright: có %q", banned)
+			t.Errorf("test-remote.yml không dựng image chính: có %q", banned)
 		}
 	}
 }
@@ -595,7 +597,8 @@ case "$1 $2" in
       if [ "${FAKE_QUEUED:-0}" = 1 ]; then echo '{"status":"queued","jobs":[{"status":"queued","conclusion":""}]}'; else echo '{"status":"in_progress","jobs":[{"status":"in_progress","conclusion":""}]}'; fi; exit 0; fi
     n=$(cat "$FAKE_LOG.views" 2>/dev/null || echo 0); echo $((n+1)) > "$FAKE_LOG.views"
     if [[ " $* " != *" --log-failed "* ]] && [ "$n" -lt "${FAKE_PENDING_VIEWS:-0}" ]; then echo '{"conclusion":"","url":"u","jobs":[]}'; exit 0; fi
-    if [[ " $* " == *" --log-failed "* ]]; then printf 'test (2)\tgo test\t--- FAIL: TestHong (0.01s)\ntest (2)\tgo test\tok   elimaz.com.vn/crm/x 1.0s\n'; else
+    if [[ " $* " == *" --log-failed "* ]]; then printf 'test (2)\tgo test\t--- FAIL: TestHong (0.01s)\ntest (2)\tgo test\tok   elimaz.com.vn/crm/x 1.0s\n'
+      [ "${FAKE_PW_FAIL:-0}" = 1 ] && printf 'console-e2e\tPlaywright\t2026-11-27T01:00:00.0Z   1) [chromium] › e2e/don.spec.ts:12:3 › lên đơn ───\nconsole-e2e\tPlaywright\t2026-11-27T01:00:01.0Z   1 failed\nconsole-e2e\tPlaywright\t2026-11-27T01:00:01.0Z   40 passed (1.2m)\n'; true; else
     echo "{\"conclusion\":\"${FAKE_RESULT:-success}\",\"url\":\"https://example.invalid/run/42\",\"jobs\":[{\"name\":\"static\",\"conclusion\":\"${FAKE_RESULT:-success}\",\"startedAt\":\"2026-11-26T01:00:00Z\",\"completedAt\":\"2026-11-26T01:04:30Z\"}]}"; fi ;;
   *) echo "gh giả không biết: $*" >&2; exit 9 ;;
 esac

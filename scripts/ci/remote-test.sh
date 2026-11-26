@@ -15,6 +15,8 @@
 # đánh dấu bể tạm hỏng, chọn bể khác); phút của mỗi run ghi vào sổ của bộ điều phối (pool.py record).
 # Task 180: CRM_CI_LOADTEST=live|chaos[:<thời lượng>] chạy thêm job loadtest (bài thử tải M4, loadtest/fb_run.sh) ở máy
 # đã chọn; thường đi cùng tệp gói rỗng và CRM_CI_STATIC=false. Bảng chấm nằm trong tóm tắt của run.
+# Task 499: CRM_CI_E2E=1 chạy thêm job e2e (go test -race ./tests/e2e/... trên compose dev đủ profile) và console-e2e
+# (Playwright) ở máy đã chọn (mặc định 0: lượt của task không chạy e2e). Không nhận vps (hai job đó bỏ qua ở vps: xanh giả).
 # Không đổi nhánh nào: commit tạm dựng bằng git commit-tree, đẩy -f lên refs/heads/ci/<nhãn>, xóa khi xong (cả khi lỗi).
 # Thoát 0: xanh. 1: đỏ (in các dòng FAIL của job đỏ). 2: sai tham số. 3: không chạy được từ xa (gh, mạng) — bên gọi lùi
 # về chạy máy.
@@ -33,6 +35,14 @@ case $loadtest in
   ""|live|chaos|live:[0-9]*[smh]|chaos:[0-9]*[smh]) ;;
   *) echo "CRM_CI_LOADTEST=$loadtest không phải live|chaos[:<thời lượng>]" >&2; exit 2 ;;
 esac
+case ${CRM_CI_E2E:-0} in
+  1) e2e=true ;;
+  0) e2e=false ;;
+  *) echo "CRM_CI_E2E=$CRM_CI_E2E không phải 0|1" >&2; exit 2 ;;
+esac
+if [ "$e2e" = true ] && [ "$runner" = vps ]; then
+  echo "CRM_CI_E2E=1 không chạy trên vps (dịch vụ dùng chung; job e2e bỏ qua ở đó): chọn blacksmith, ubicloud hay github" >&2; exit 2
+fi
 [ $# -ge 3 ] || { echo "Dùng: remote-test.sh <tree|commit> <base> <tệp gói> [tệp gói -race]" >&2; exit 2; }
 src=$1 base_ref=$2 pkg_file=$3 race_file=${4:-}
 cd "$(git rev-parse --show-toplevel)" || exit 2
@@ -82,7 +92,7 @@ git push -q -f origin "$sha:refs/heads/$branch" || infra "git push lỗi"
 pushed=1
 
 "$gh" workflow run test-remote.yml --ref "$branch" -f base="$base" -f packages="$pkgs" -f race_packages="$race" \
-  -f static="$static" -f task_file="$task_file" -f runner="$runner" -f loadtest="$loadtest" || infra "gh workflow run lỗi"
+  -f static="$static" -f task_file="$task_file" -f runner="$runner" -f loadtest="$loadtest" -f e2e="$e2e" || infra "gh workflow run lỗi"
 
 for _ in $(seq 1 36); do
   id=$("$gh" run list --workflow test-remote.yml --branch "$branch" --event workflow_dispatch --limit 20 \
@@ -126,7 +136,8 @@ python3 "$here/pool.py" record --runner "$runner" --run "$id" --minutes "$minute
 if [ "$conclusion" = success ]; then echo "REMOTE-TEST XANH $url"; exit 0; fi
 echo "== các dòng lỗi của job đỏ:"
 # Dòng log: "<job>\t<bước>\t<giờ> <nội dung>". Bỏ giờ và các dòng lệnh của chính bước (in màu ESC[36;1m).
+# Playwright (Task 499): dòng tên spec đỏ "  1) [chromium] › e2e/x.spec.ts:…" và dòng đếm "  N failed".
 "$gh" run view "$id" --log-failed 2>/dev/null | awk -F'\t' '{sub(/^[0-9][0-9-]*T[0-9:.]*Z /, "", $NF); print $1 ": " $NF}' \
-  | grep -v $'\e\\[36;1m' | grep -E -- '--- FAIL|: FAIL|panic:|ĐỎ|##\[error\]' | head -80
+  | grep -v $'\e\\[36;1m' | grep -E -- '--- FAIL|: FAIL|panic:|ĐỎ|##\[error\]|[0-9]+\) \[(chromium|webkit)\] ›|: +[0-9]+ (failed|flaky)$' | head -80
 echo "REMOTE-TEST ĐỎ ($conclusion) $url"
 exit 1
