@@ -74,7 +74,7 @@ var (
 	// ErrAssignForbidden là lỗi khi giao nhắc cho người khác mà không có conversation.assign trên Page của hội thoại (403).
 	ErrAssignForbidden = errors.New("conversation: không có quyền giao nhắc việc cho người khác")
 	// ErrAssigneeNotAllowed là lỗi khi người được giao không phải nhân viên đang làm có quyền trả lời hội thoại (422).
-	ErrAssigneeNotAllowed = errors.New("conversation: người được giao không xem được hội thoại")
+	ErrAssigneeNotAllowed = access.ErrAssigneeNotAllowed
 )
 
 // Reminder là một nhắc việc. FiredAt nil khi chưa bắn.
@@ -235,21 +235,11 @@ func FireDue(ctx context.Context, tx pgx.Tx, bus realtime.Bus, tenantID uuid.UUI
 	return fired, nil
 }
 
-// Signal phát báo hiệu topic cho thực thể (kind, id) trên Page pageID: người có conversation.read trên Page đó nhận,
-// không mang nội dung. bus nil: không làm gì.
+// Signal phát báo hiệu topic cho thực thể (kind, id) trên Page pageID (access.Signal).
 func Signal(ctx context.Context, tx pgx.Tx, bus realtime.Bus, tenantID uuid.UUID, topic string, pageID uuid.UUID,
 	kind string, id uuid.UUID,
 ) error {
-	if bus == nil {
-		return nil
-	}
-	if err := bus.Publish(ctx, tx, realtime.Signal{
-		TenantID: tenantID, Topic: topic, Requires: permRead, Scope: access.PageScope(pageID),
-		Entity: realtime.Entity{Type: kind, ID: id.String()},
-	}); err != nil {
-		return fmt.Errorf("báo hiệu %s: %w", topic, err)
-	}
-	return nil
+	return access.Signal(ctx, tx, bus, tenantID, topic, pageID, kind, id) //nolint:wrapcheck // access đã bọc
 }
 
 // fromRow đổi một dòng nhắc (các câu trả cùng cột) sang Reminder.

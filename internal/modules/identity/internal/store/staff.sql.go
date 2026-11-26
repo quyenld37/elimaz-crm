@@ -317,6 +317,62 @@ func (q *Queries) ListStaffUsers(ctx context.Context) ([]ListStaffUsersRow, erro
 	return items, nil
 }
 
+const listStaffWithPermissionAt = `-- name: ListStaffWithPermissionAt :many
+SELECT DISTINCT u.id, u.email::text AS email, u.display_name, u.status, u.version, u.created_at
+FROM identity.users AS u
+JOIN identity.user_role_grants AS g ON g.tenant_id = u.tenant_id AND g.user_id = u.id
+JOIN identity.roles AS r ON r.tenant_id = g.tenant_id AND r.id = g.role_id AND r.status = 'active'
+JOIN identity.role_permissions AS rp ON rp.tenant_id = g.tenant_id AND rp.role_id = g.role_id
+WHERE u.status = 'active'
+  AND rp.permission = $1
+  AND ((g.scope_type = 'all' AND g.scope_id = '') OR (g.scope_type = $2 AND g.scope_id = $3))
+ORDER BY u.display_name, u.id
+`
+
+type ListStaffWithPermissionAtParams struct {
+	Permission string
+	ScopeType  string
+	ScopeID    string
+}
+
+type ListStaffWithPermissionAtRow struct {
+	ID          uuid.UUID
+	Email       string
+	DisplayName string
+	Status      string
+	Version     int64
+	CreatedAt   time.Time
+}
+
+// Nhân viên active có quyền @permission qua một vai trò còn active, ở phạm vi all hoặc đúng (scope_type, scope_id)
+// (Task 160: người được giao hội thoại của một Page); sắp theo tên hiển thị.
+func (q *Queries) ListStaffWithPermissionAt(ctx context.Context, arg ListStaffWithPermissionAtParams) ([]ListStaffWithPermissionAtRow, error) {
+	rows, err := q.db.Query(ctx, listStaffWithPermissionAt, arg.Permission, arg.ScopeType, arg.ScopeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListStaffWithPermissionAtRow{}
+	for rows.Next() {
+		var i ListStaffWithPermissionAtRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.DisplayName,
+			&i.Status,
+			&i.Version,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockStaffRows = `-- name: LockStaffRows :many
 SELECT u.id, u.status, u.version
 FROM identity.users AS u
