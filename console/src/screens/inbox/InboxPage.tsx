@@ -4,7 +4,8 @@
 //   kênh có số chưa đọc, âm báo (tắt mặc định), bộ lọc, danh sách ảo, "Tải thêm 50".
 // - Bộ lọc nằm trên URL; mỗi lần đổi được nhớ trên máy; mở /inbox không tham số lọc → dùng bộ lọc lần trước.
 // - Máy tính: danh sách | hội thoại | khung khách (khi đang mở một hội thoại). Điện thoại: mỗi lúc một màn (HV02).
-// Hội thoại (Task 175) và khung bên phải (Task 176) nạp lười.
+// Hội thoại (Task 175) và khung bên phải (Task 176) nạp lười. "Khách chưa trả lời" (CH16, trạng thái D, Task 175)
+// thay danh sách hội thoại khi bật.
 import { useQuery } from "@tanstack/react-query";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
@@ -23,6 +24,7 @@ import { useRealtimeState } from "../../shell/realtimeState";
 import { ChannelBanners } from "./ChannelBanners";
 import { ConversationList } from "./ConversationList";
 import { Filters } from "./Filters";
+import { FollowUps } from "./FollowUps";
 import {
   DEFAULT_FILTERS,
   hasFilterParams,
@@ -183,63 +185,69 @@ export function InboxPage() {
             />
             <Filters value={filters} onChange={setFilters} tags={tags.data?.items ?? []} staff={others} />
           </div>
-          {list.isError && (
-            <div className="pane-b">
-              <div className="box box-err" role="alert">
-                {errorMessage(list.error)}
-              </div>
-            </div>
-          )}
-          {list.isPending && (
-            <div className="pane-b">
-              <p className="muted">Đang tải hội thoại…</p>
-            </div>
-          )}
-          {!list.isPending && !list.isError && list.rows.length === 0 && (
-            <div className="pane-b">
-              <div className="empty">
-                <h2>Không có hội thoại nào</h2>
-                <p className="muted small">{emptyText(filters)}</p>
-                {!isDefault(filters) && (
-                  <button
-                    type="button"
-                    className="btn btn-line"
-                    onClick={() => {
-                      setFilters(DEFAULT_FILTERS);
-                    }}
-                  >
-                    Bỏ lọc
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-          {list.rows.length > 0 && (
+          {filters.followUp ? (
+            <FollowUps pageId={filters.page} search={search} now={now} grants={grants} />
+          ) : (
             <>
-              <ConversationList
-                rows={list.rows}
-                flash={list.flash}
-                {...(conversationId === undefined ? {} : { selectedId: conversationId })}
-                meId={meId}
-                accountName={nameOf}
-                search={search}
-                now={now}
-              />
-              <div className="pane-b">
-                <div className="more">
-                  <span>{`Đang xem ${String(list.rows.length)} hội thoại`}</span>
-                  {list.hasNextPage && (
-                    <button
-                      type="button"
-                      className="btn btn-quiet"
-                      disabled={list.isFetchingNextPage}
-                      onClick={list.fetchNextPage}
-                    >
-                      Tải thêm 50
-                    </button>
-                  )}
+              {list.isError && (
+                <div className="pane-b">
+                  <div className="box box-err" role="alert">
+                    {errorMessage(list.error)}
+                  </div>
                 </div>
-              </div>
+              )}
+              {list.isPending && (
+                <div className="pane-b">
+                  <p className="muted">Đang tải hội thoại…</p>
+                </div>
+              )}
+              {!list.isPending && !list.isError && list.rows.length === 0 && (
+                <div className="pane-b">
+                  <div className="empty">
+                    <h2>Không có hội thoại nào</h2>
+                    <p className="muted small">{emptyText(filters)}</p>
+                    {!isDefault(filters) && (
+                      <button
+                        type="button"
+                        className="btn btn-line"
+                        onClick={() => {
+                          setFilters(DEFAULT_FILTERS);
+                        }}
+                      >
+                        Bỏ lọc
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+              {list.rows.length > 0 && (
+                <>
+                  <ConversationList
+                    rows={list.rows}
+                    flash={list.flash}
+                    {...(conversationId === undefined ? {} : { selectedId: conversationId })}
+                    meId={meId}
+                    accountName={nameOf}
+                    search={search}
+                    now={now}
+                  />
+                  <div className="pane-b">
+                    <div className="more">
+                      <span>{`Đang xem ${String(list.rows.length)} hội thoại`}</span>
+                      {list.hasNextPage && (
+                        <button
+                          type="button"
+                          className="btn btn-quiet"
+                          disabled={list.isFetchingNextPage}
+                          onClick={list.fetchNextPage}
+                        >
+                          Tải thêm 50
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
@@ -255,7 +263,7 @@ export function InboxPage() {
           )}
         </div>
         {open && (
-          <div className="pane-side">
+          <div className="pane-side" id="khach">
             <Suspense fallback={null}>
               <SidePanel conversationId={conversationId} />
             </Suspense>

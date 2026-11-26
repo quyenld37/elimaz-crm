@@ -30,6 +30,8 @@ export interface InboxFilters {
   kind: KindFilter;
   unread: boolean;
   q: string;
+  /** "Khách chưa trả lời" (CH16, trạng thái D): hiện danh sách nhắn lại thay danh sách hội thoại. */
+  followUp: boolean;
 }
 
 /** Bộ lọc mặc định lần đầu (HV06): Đang mở, Mọi người, Mọi nhãn, Tin và comment. */
@@ -41,6 +43,7 @@ export const DEFAULT_FILTERS: InboxFilters = {
   kind: "all",
   unread: false,
   q: "",
+  followUp: false,
 };
 
 export const STATUS_OPTIONS: readonly [StatusFilter, string][] = [
@@ -65,7 +68,7 @@ const STATUS_TEXT: Readonly<Record<ConversationStatus, string>> = {
 };
 
 /** Tham số URL của bộ lọc; có ít nhất một thì URL là nguồn bộ lọc (không lấy bộ lọc đã lưu). */
-export const FILTER_PARAMS = ["page", "status", "assignee", "tag", "kind", "unread", "q"] as const;
+export const FILTER_PARAMS = ["page", "status", "assignee", "tag", "kind", "unread", "q", "followup"] as const;
 
 const pick = <T extends string>(opts: readonly [T, string][], v: string | null, dflt: T): T =>
   opts.find(([k]) => k === v)?.[0] ?? dflt;
@@ -79,6 +82,7 @@ export function readFilters(sp: URLSearchParams): InboxFilters {
     kind: pick(KIND_OPTIONS, sp.get("kind"), DEFAULT_FILTERS.kind),
     unread: sp.get("unread") === "1",
     q: sp.get("q") ?? "",
+    followUp: sp.get("followup") === "1",
   };
 }
 
@@ -93,6 +97,7 @@ export function writeFilters(f: InboxFilters): URLSearchParams {
     ["kind", f.kind, d.kind],
     ["unread", f.unread ? "1" : "", ""],
     ["q", f.q, d.q],
+    ["followup", f.followUp ? "1" : "", ""],
   ];
   return new URLSearchParams(fields.filter(([, v, dv]) => v !== dv).map(([k, v]) => [k, v]));
 }

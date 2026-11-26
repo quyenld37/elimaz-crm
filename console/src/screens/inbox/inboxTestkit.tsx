@@ -4,7 +4,9 @@ import type {
   ConversationCounts,
   ConversationSummary,
   ConversationTag,
+  FollowUpItem,
   Grant,
+  ReplyTemplate,
   StaffMember,
 } from "../../api";
 import { NOT_FOUND, emptyWrites, page, reply, stubApi, type WriteQueue } from "../../app/screenTestkit";
@@ -78,6 +80,11 @@ export interface InboxFake extends WriteQueue {
   /** Tham số của mỗi lần gọi listConversations. */
   listCalls: URLSearchParams[];
   countCalls: number;
+  /** Khách chưa trả lời (CH16, listFollowUps) và mẫu trả lời; renderReplyTemplate trả chữ theo mã mẫu. */
+  followUps: FollowUpItem[];
+  templates: ReplyTemplate[];
+  rendered: Record<string, string>;
+  followUpCalls: URLSearchParams[];
   /** Có thì listConversations trả lỗi này. */
   listError?: { status: number; body: unknown };
 }
@@ -93,6 +100,10 @@ export function inboxFake(p: Partial<InboxFake> = {}): InboxFake {
     staff: [],
     listCalls: [],
     countCalls: 0,
+    followUps: [],
+    templates: [],
+    rendered: {},
+    followUpCalls: [],
     ...p,
   };
 }
@@ -120,12 +131,41 @@ function readApi(f: InboxFake, path: string, q: URLSearchParams): Response {
       return reply({ items: f.tags });
     case "/api/v1/identity/users":
       return reply(f.staff);
+    case "/api/v1/follow-ups":
+      f.followUpCalls.push(q);
+      return reply({ items: f.followUps });
+    case "/api/v1/reply-templates":
+      return reply({ items: f.templates });
     default:
       return reply(NOT_FOUND, 404);
   }
 }
 
-/** Thay fetch bằng API giả của Inbox; màn không có yêu cầu ghi nào (ghi → 404). */
+/** Ghi của Inbox: chỉ gửi mẫu cho khách chưa trả lời (render mẫu rồi gửi tin); đường khác → 404. */
+function writeApi(f: InboxFake, path: string): Response {
+  const tpl = /^\/api\/v1\/reply-templates\/([^/]+)\/render$/.exec(path);
+  if (tpl !== null) return reply({ text: f.rendered[tpl[1] ?? ""] ?? "", quickReplies: [] });
+  if (path.endsWith("/messages"))
+    return reply(
+      {
+        id: "0195f3b2-0000-7000-8000-000000050099",
+        conversationId: path.split("/")[4] ?? "",
+        direction: "out",
+        kind: "message",
+        origin: "staff",
+        attachments: [],
+        isHidden: false,
+        removed: false,
+        editedCount: 0,
+        sendStatus: "queued",
+        sentAt: "2026-11-26T07:05:00Z",
+      },
+      201,
+    );
+  return reply(NOT_FOUND, 404);
+}
+
+/** Thay fetch bằng API giả của Inbox. */
 export function stubInbox(f: InboxFake): InboxFake {
-  return stubApi(f, readApi, () => reply(NOT_FOUND, 404));
+  return stubApi(f, readApi, writeApi);
 }

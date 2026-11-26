@@ -1,6 +1,6 @@
 // Bộ lọc của danh sách hội thoại (mockup inbox.html trạng thái A, B; HV06 đã sửa): tìm tên hoặc SĐT khách, trạng
 // thái, người phụ trách (Của tôi, Chưa ai nhận, tên nhân viên khi người xem quản lý nhân viên), nhãn, loại, "Chỉ chưa
-// đọc"; "Bỏ lọc" hiện khi khác mặc định. Chữ tìm gửi sau khi ngừng gõ 300 ms.
+// đọc", "Khách chưa trả lời" (CH16, Task 175); "Bỏ lọc" hiện khi khác mặc định. Chữ tìm gửi sau khi ngừng gõ 300 ms.
 import { useEffect, useRef, useState } from "react";
 import type { ConversationTag, StaffMember } from "../../api";
 import { SEARCH_DELAY_MS } from "../inventory/Balances";
@@ -141,6 +141,16 @@ export function Filters({ value, onChange, tags, staff }: FiltersProps) {
           }}
         >
           Chỉ chưa đọc
+        </button>
+        <button
+          type="button"
+          className="toggle"
+          aria-pressed={value.followUp}
+          onClick={() => {
+            set({ followUp: !value.followUp });
+          }}
+        >
+          Khách chưa trả lời
         </button>
         {!isDefault(value) && (
           <button

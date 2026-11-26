@@ -55,10 +55,11 @@ describe("bộ lọc trên URL", () => {
       kind: "comment",
       unread: true,
       q: "5678",
+      followUp: true,
     } as const;
     expect(readFilters(writeFilters(f))).toEqual(f);
     expect(isDefault(f)).toBe(false);
-    expect(readFilters(new URLSearchParams("status=xyz&kind=abc&unread=2"))).toEqual(DEFAULT_FILTERS);
+    expect(readFilters(new URLSearchParams("status=xyz&kind=abc&unread=2&followup=x"))).toEqual(DEFAULT_FILTERS);
   });
 
   it("listQuery: Của tôi → assignee=me, nhãn → tagId, mọi trạng thái → không status, tìm dưới 2 ký tự không gửi", () => {
