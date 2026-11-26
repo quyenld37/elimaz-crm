@@ -5,7 +5,7 @@
 // docs/mockups/m4/png/hoi-thoai-{1512,390,360}.png.
 // VIẾT SẴN, CHƯA CHẠY (chủ shop 24/11: Playwright chạy khi xong toàn bộ task màn hình M4).
 import type { Page } from "@playwright/test";
-import type { ChannelAccount, ChatMessage, ConversationDetail, Grant } from "../src/api";
+import type { ChannelAccount, ChatMessage, ConversationCustomerCard, ConversationDetail, Grant } from "../src/api";
 import { OWNER_GRANTS, expect, json, noHorizontalScroll, test } from "./fixtures";
 
 const id = (n: number) => `0195f3b2-0000-7000-8000-0000000f${String(n).padStart(4, "0")}`;
@@ -57,6 +57,26 @@ function detail(conv: string, kind: "inbox" | "comment", name: string): Conversa
     humanAgentAvailable: false,
     blockedByUser: false,
     doNotContact: false,
+  };
+}
+
+/** Thẻ khách của khung bên phải (Task 176); không có customer.read nên không có SĐT. */
+function card(name: string): ConversationCustomerCard {
+  return {
+    customer: {
+      id: id(9),
+      rootId: id(9),
+      name,
+      nameSource: "channel",
+      doNotContact: false,
+      orderCount: 0,
+      deliveredCount: 0,
+      returnedCount: 0,
+      returnRateBp: 0,
+      totalSpent: 0,
+    },
+    recentOrders: [],
+    openDrafts: [],
   };
 }
 
@@ -146,6 +166,11 @@ async function fakeConversation(page: Page, api: { live: (me?: { grants: Grant[]
   );
   await page.route(`**/api/v1/conversations/${INBOX}/messages*`, (r) => json(r, 200, { items: INBOX_MESSAGES }));
   await page.route(`**/api/v1/conversations/${COMMENTS}/messages*`, (r) => json(r, 200, { items: COMMENT_MESSAGES }));
+  // Khung bên phải (Task 176): thẻ khách, nhắc việc của tôi, cuộc gọi gần nhất.
+  await page.route(`**/api/v1/conversations/${INBOX}/customer-card`, (r) => json(r, 200, card(NAME_60)));
+  await page.route(`**/api/v1/conversations/${COMMENTS}/customer-card`, (r) => json(r, 200, card("Hoàng Văn Nam")));
+  await page.route("**/api/v1/me/reminders", (r) => json(r, 200, { items: [] }));
+  await page.route(`**/api/v1/customers/${id(9)}/calls*`, (r) => json(r, 200, { items: [] }));
   await page.route("**/api/v1/conversations/*/presence", (r) =>
     r.request().method() === "GET"
       ? json(r, 200, { items: [{ userId: id(7), displayName: "Trần Minh An", state: "viewing" }] })
@@ -169,7 +194,8 @@ function conversationCases(vp: { width: number; height: number }) {
   test("tin nhắn đủ loại, trạng thái gửi: không tràn, không cuộn ngang", async ({ page, api }) => {
     await fakeConversation(page, api);
     await page.goto(`/inbox/${INBOX}`);
-    await expect(page.getByText(NAME_60)).toBeVisible();
+    // Tên hiện ở đầu hội thoại và ở thẻ khách của khung bên phải (Task 176).
+    await expect(page.getByText(NAME_60).first()).toBeVisible();
     await expect(page.getByText(FILE_NAME)).toBeVisible();
     await expect(page.getByText("Không rõ đã gửi chưa.")).toBeVisible();
     await expect(page.getByText("Trần Minh An đang xem")).toBeVisible();

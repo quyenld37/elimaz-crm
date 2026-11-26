@@ -1,6 +1,7 @@
 // API giả (fetch) và cách dựng cho test vitest của màn Khách. Chỉ test nhập tệp này. Trả đúng kiểu của client sinh.
 import { vi } from "vitest";
 import type {
+  ChannelAccount,
   Customer,
   CustomerImport,
   CustomerListItem,
@@ -128,6 +129,8 @@ export interface Fake {
   customers: Map<string, Customer>;
   candidates: MergeCandidate[];
   timeline: TimelineItem[];
+  /** Tài khoản kênh của listChannelAccounts (tên Page của mục hội thoại trong dòng thời gian, C7). */
+  channels: ChannelAccount[];
   tags: CustomerTag[];
   rules: Map<string, CustomerTagRule>;
   imports: CustomerImport[];
@@ -164,6 +167,7 @@ function readRoutes(fake: Fake): [RegExp, Handler][] {
     [/^\/api\/v1\/customers\/[^/]+\/merge-candidates$/, () => reply({ items: fake.candidates })],
     [/^\/api\/v1\/customers\/([^/]+)$/, (m) => found(fake.customers.get(m[1] ?? ""))],
     [/^\/api\/v1\/customer-tags$/, () => reply({ items: fake.tags })],
+    [/^\/api\/v1\/channels$/, () => reply({ items: fake.channels })],
     [
       /^\/api\/v1\/feedback$/,
       (_m, q) => {
@@ -220,6 +224,7 @@ export function installFake(): Fake {
     customers: new Map(),
     candidates: [],
     timeline: [],
+    channels: [],
     tags: [TAG_QUEN, TAG_HOAN, TAG_SI],
     rules: new Map(),
     imports: [],
