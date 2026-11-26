@@ -187,10 +187,10 @@ func TestQuoteForWeb_PreferredAndTimeout(t *testing.T) {
 		t.Fatalf("ưu tiên vtp: %+v, muốn vtp đứng đầu", opts)
 	}
 	e.vtp.hang = 5 * time.Second
-	start := time.Now()
 	opts, err = e.quote(webTo())
-	if took := time.Since(start); took > 3500*time.Millisecond {
-		t.Fatalf("vtp treo: mất %s, muốn < 3,5 s", took)
+	// Hạn mỗi hãng cho web 3 s: kiểm bằng hạn ctx hãng nhận và việc lần treo bị cắt (không đo giờ thật, Task 496).
+	if dl, at, cut := e.vtp.lastCall(); dl.IsZero() || dl.Sub(at) > 3*time.Second || !cut {
+		t.Fatalf("vtp treo: hạn còn %s lúc gọi, bị ctx cắt %v; muốn hạn ≤ 3 s, bị cắt", dl.Sub(at), cut)
 	}
 	if err != nil || len(opts) != 1 || opts[0].AccountID != e.accBest {
 		t.Fatalf("vtp treo: %+v, %v; muốn chỉ best", opts, err)

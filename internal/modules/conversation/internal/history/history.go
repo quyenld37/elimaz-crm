@@ -29,7 +29,8 @@ import (
 // lệnh đọc tối đa 20 tin gần nhất qua channel.HistoryFetcher ngoài transaction, trả tin trong Outcome.Result (lưu ở
 // jobs.result tới khi lịch dọn việc đã xong xóa); OnDone chèn mỗi tin origin = history (ON CONFLICT DO NOTHING: tin
 // vừa kích hoạt hội thoại không bị nhân đôi), không đổi bộ đếm, mốc, đoạn trích của hội thoại, không gọi hook tự động,
-// một báo hiệu cho cả lô. Payload lệnh chỉ có mã hội thoại (PSID, token đọc lúc chạy).
+// một báo hiệu cho cả lô; tệp đính kèm của tin mới được tải như tin vào (lệnh tải của Task 155). Payload lệnh chỉ có
+// mã hội thoại (PSID, token đọc lúc chạy).
 
 const (
 	// FetchHistoryKind là lệnh đọc lịch sử tin của hội thoại hộp thư mới.
@@ -291,7 +292,7 @@ func (c fetchHistory) OnDone(ctx context.Context, j queue.Job, result json.RawMe
 	cutoff := retentionCutoff(c.d, c.now())
 	inserted := 0
 	for _, m := range res.Messages {
-		ok, err := insertHistory(ctx, q, conv, m, cutoff)
+		ok, err := c.insertHistory(ctx, tx, q, *j.TenantID, conv, m, cutoff)
 		if err != nil {
 			return err
 		}
@@ -311,15 +312,15 @@ func (c fetchHistory) OnDone(ctx context.Context, j queue.Job, result json.RawMe
 	return nil
 }
 
-// insertHistory chèn tin m vào hội thoại conv; ok = false khi tin đã có hay đã quá hạn giữ (trước cutoff).
-func insertHistory(ctx context.Context, q *store.Queries, conv store.GetConversationForSendRow, m historyMessage,
-	cutoff time.Time,
+// insertHistory chèn tin m vào hội thoại conv; ok = false khi tin đã có hay đã quá hạn giữ (trước cutoff). Tin mới có
+// đính kèm: mục pending giữ URL của kênh và xếp lệnh tải của Task 155 trong cùng tx (như tin vào; Task 496).
+func (c fetchHistory) insertHistory(ctx context.Context, tx pgx.Tx, q *store.Queries, tenant uuid.UUID,
+	conv store.GetConversationForSendRow, m historyMessage, cutoff time.Time,
 ) (bool, error) {
 	if m.MID == "" || m.SentAt.Before(cutoff) {
 		return false, nil
 	}
-	// Tin lịch sử chưa xếp lệnh tải tệp (Task 155 chỉ nối đường tin vào): không giữ đường dẫn có chữ ký của kênh.
-	atts, err := deps.PendingAttachments(deps.WithoutURLs(m.Attachments))
+	atts, err := deps.PendingAttachments(m.Attachments)
 	if err != nil {
 		return false, err //nolint:wrapcheck // deps đã bọc việc đang làm
 	}
@@ -327,7 +328,7 @@ func insertHistory(ctx context.Context, q *store.Queries, conv store.GetConversa
 	if m.FromPage {
 		dir = dirOut
 	}
-	_, err = q.InsertInboundMessage(ctx, store.InsertInboundMessageParams{
+	id, err := q.InsertInboundMessage(ctx, store.InsertInboundMessageParams{
 		ConversationID: conv.ID, ChannelAccountID: conv.ChannelAccountID, ExternalID: text(m.MID), Direction: dir,
 		Kind: kindMessage, Origin: originHistory, Body: text(m.Text), Attachments: atts, SentAt: m.SentAt.UTC(),
 	})
@@ -336,6 +337,9 @@ func insertHistory(ctx context.Context, q *store.Queries, conv store.GetConversa
 		return false, nil // tin đã có
 	case err != nil:
 		return false, fmt.Errorf("ghi tin lịch sử: %w", err)
+	}
+	if err := deps.EnqueueAttachmentFetches(ctx, tx, c.d.Queue, tenant, id, m.Attachments); err != nil {
+		return false, err //nolint:wrapcheck // deps đã bọc việc đang làm
 	}
 	return true, nil
 }

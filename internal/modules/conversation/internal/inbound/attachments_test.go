@@ -308,3 +308,25 @@ func (e *fileEnv) checkPrivateVariants(id uuid.UUID) string {
 
 	return prefix
 }
+
+// Tệp 0 byte (Task 496; phát hiện của 155): CDN trả thân rỗng → mục unavailable (không giữ pending mãi), lệnh dead với
+// lý do empty_file (không in_doubt), không dòng tệp, không ghi gì lên kho.
+func TestInboundAttachment_EmptyFile(t *testing.T) {
+	t.Parallel()
+	e := newFileEnv(t)
+	u := e.chat.AddFile("/f/rong.pdf", []byte{})
+	e.receive(e.tenant, "u1", "m-empty", file(u))
+	if it, _ := e.one("m-empty"); it.Status != "unavailable" || it.FileID != nil || it.URL != "" {
+		t.Fatalf("tệp 0 byte: %+v, muốn unavailable, không fileId, không url", it)
+	}
+	if n := e.staff.Count(t, `SELECT count(*) FROM platform.jobs WHERE kind = 'command.fb.fetch_attachment'
+		AND status = 'dead' AND last_error = 'rejected: empty_file'`); n != 1 {
+		t.Fatalf("lệnh tải dead empty_file = %d, muốn 1", n)
+	}
+	if n := e.staff.Count(t, `SELECT count(*) FROM platform.jobs WHERE status = 'in_doubt'`); n != 0 {
+		t.Fatalf("%d việc in_doubt, muốn 0", n)
+	}
+	if n := e.staff.CountIn(t, e.tenant, `SELECT count(*) FROM platform.files`); n != 0 {
+		t.Fatalf("%d dòng tệp, muốn 0", n)
+	}
+}

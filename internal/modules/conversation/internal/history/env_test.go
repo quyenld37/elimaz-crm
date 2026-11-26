@@ -18,6 +18,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
@@ -34,7 +35,7 @@ const (
 )
 
 // env: database thử, tenant A có Page Facebook (máy Meta giả, token lưu mã hóa); handler vào thật của conversation;
-// worker chạy cả lệnh của inbound và history; bus ghi lại báo hiệu.
+// worker chạy cả lệnh của inbound và history; kho tệp trong bộ nhớ (lệnh tải tệp); bus ghi lại báo hiệu.
 type env struct {
 	t      *testing.T
 	staff  *testkit.Staff
@@ -58,7 +59,7 @@ func newEnv(t *testing.T) *env {
 	e.fg.AddProfile(fakegraph.Profile{PSID: psid, FirstName: "Khách", LastName: "Thử"})
 	e.d = deps.Deps{
 		DB: fbe.Staff.App, Queue: queue.NewQueue(), Bus: e.bus, Events: events.NewRegistry(), Metrics: metrics.NewRegistry(),
-		Registry: fbe.Registry, Keys: fbe.Keys,
+		Registry: fbe.Registry, Keys: fbe.Keys, Files: filestest.MemFileStore(t),
 		Config: config.Config{Meta: config.MetaConfig{AppID: fbtest.AppID}, ConversationRetentionMonths: 24},
 	}
 	hs, err := webhooks.InboundJobHandlers([]webhooks.Source{e.fb}, []webhooks.InboundHandler{inbound.NewHandler(e.d, facebook.Key)})

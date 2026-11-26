@@ -29,7 +29,10 @@ phần kế hoạch riêng; nguồn việc: `docs/tasks/task-164.md` mục "Gộ
     `files.MarkDeleted` (như 164).
   - Không có migration (câu mới dùng `IN (SELECT … )` thành hashed subplan một lần quét; không cần index mới).
 - Test chập chờn (chỉ sửa test, không đổi mã chạy):
-  - `internal/platform/cache`: `ratelimit_test.go`, `conn_test.go` (hạn lệnh của kết nối thử).
+  - `internal/platform/cache`: `ratelimit_test.go`, `conn_test.go` (hạn lệnh của kết nối thử), `readcache_test.go`
+    (hạn lệnh qua `dial`; `FallbackBusyConcurrent` chờ theo điều kiện).
+  - `internal/platform/observability/deephealth_valkey_test.go`, `internal/wiring/webcache/invalidator_test.go` (hạn
+    lệnh của kết nối thử).
   - `internal/httpapi/web/catalog_test.go` (`valkeyCache`, dùng bởi `TestWebShippingQuote`, catalog, shipping…).
   - `internal/httpapi/coupon_guard_test.go` (giới hạn tốc độ qua Valkey).
   - `internal/modules/fulfillment/quote_test.go`, `webcarriers_test.go` (ngưỡng giờ thật).
@@ -92,6 +95,16 @@ phần kế hoạch riêng; nguồn việc: `docs/tasks/task-164.md` mục "Gộ
 
 | Tiêu chí | Test | Lệnh | Kết quả |
 |---|---|---|---|
+| Việc 1 — ảnh đại diện: 4 hội thoại quá hạn bị xóa (3 có tin 26 tháng, 1 rỗng sẵn), mỗi cái một ảnh đại diện → tệp chỉ nó dùng (2) có `deleted_at`; tệp còn là ảnh đại diện của hội thoại giữ, còn là đính kèm của tin còn lại, ảnh của hội thoại giữ → giữ; `files = 2`; lần hai 0 | `TestRetention_Avatars` (retention_test.go) | `go test -race -count=1 -run '^(TestFetchHistory_AttachmentsDownloaded\|TestRetention_Avatars\|TestRetention\|TestFetchHistory_NewConversation\|TestFetchHistory_ExistingConversation\|TestRetention_Continues\|TestRetention_OutsideHours\|TestRetention_RevisionsNeedFlag)$' ./internal/modules/conversation/internal/history/` | trước sửa: `FAIL … {Messages:3 Conversations:4 Files:0 …}`; sau: `--- PASS: TestRetention_Avatars (0.86s)`; 8 test PASS, `ok …/history 2.553s` |
+| Việc 2 — tin lịch sử có đính kèm: OnDone ghi mục pending giữ URL, đúng 1 lệnh `command.fb.fetch_attachment` (payload `{messageId, index: 0}`, khóa `<msgID>:0`; sticker không URL không lệnh; tin đã có cùng mã ngoài không thêm lệnh); worker chạy lệnh → mục ảnh `blocked` (máy lạ), URL bị xóa, sticker giữ pending | `TestFetchHistory_AttachmentsDownloaded` (history_test.go) | như trên | trước sửa: `FAIL … [{Status:pending URL:} …], muốn … mục ảnh có URL`; sau: `--- PASS (0.93s)`; `TestFetchHistory_NewConversation`, `_ExistingConversation` PASS |
+| Việc 3 — tệp 0 byte: mục `unavailable` (không pending mãi), lệnh dead `rejected: empty_file`, 0 in_doubt, 0 dòng tệp | `TestInboundAttachment_EmptyFile` (attachments_test.go) | `go test -race -count=1 -run '^(TestInboundAttachment_EmptyFile\|TestFetchProfile_EmptyAvatar\|TestFetchProfile_CH08\|TestInboundAttachment_Refusals\|TestInboundFile_TP04\|TestInboundImage_TP02)$' ./internal/modules/conversation/internal/inbound/` | trước sửa: `FAIL … Status:pending … URL:https://cdn.fakechat.test/f/rong.pdf`; sau: `ok …/inbound 2.915s` |
+| Việc 3 — ảnh đại diện 0 byte: tên vẫn đặt, không ảnh, lệnh hồ sơ done, 0 in_doubt/dead, 0 dòng tệp | `TestFetchProfile_EmptyAvatar` (profile_test.go) | như trên | PASS cả trước sửa (thân rỗng nhận dạng `text/plain`, không phải ảnh, nên đã bị bỏ); giữ làm chốt, thêm kiểm `Size <= 0` tường minh |
+| Việc 4 — cache: test cần Valkey trả lời dùng hạn lệnh 2 s (`testOpTimeout`), `TestConn_OpTimeout` vẫn kiểm hạn mặc định 50 ms (`dialOp(…, 0)`); `TestReadCache_FallbackBusyConcurrent` chờ theo điều kiện, câu kiểm chặt lại đúng 2 thành công / 3 bận | `TestRateLimiter_KeysHaveNoPersonalData`, `_ValkeyFixedWindow`, `_KeyExpires`, `_FallbackInProcess`, `_PeekDoesNotCount`, `TestConn_OpTimeout`, `TestConn_ServerDown`, `TestReadCache_HitMissInvalidateBump`, `_ValkeyDownFallsBack`, `_FallbackBusyConcurrent` | `go test -race -count=1 -run '^(…10 test trên…)$' ./internal/platform/cache/` | `ok …/platform/cache 10.104s` |
+| Việc 4 — web, coupon, health, webcache: kết nối Valkey của test có hạn lệnh 2 s (`valkeyTestOpTimeout`) | `TestWebShippingQuote`, `TestCouponGuard_ValkeyDownFallback`, `TestDeepHealthValkey`, `TestEndToEnd_PriceChangedInvalidatesProduct` | `go test [-race] -count=1 -run '^<tên>$'` từng gói | `ok …/httpapi/web 2.696s`, `ok …/httpapi 5.600s`, `ok …/observability 1.254s`, `ok …/webcache 0.876s` |
+| Việc 4 — fulfillment: bỏ ngưỡng giờ thật (≤ 3,5 s; 9–11 s); kiểm hạn ctx hãng giả nhận (≤ 3 s; kẹp: hạn − lúc gọi ≤ 10 s và hạn − lúc bắt đầu ≥ 10 s, một đồng hồ đơn điệu) và lần treo bị ctx cắt | `TestQuoteNow_ParallelTimeoutNoDB`, `TestQuoteNow_TimeoutClamped`, `TestQuoteForWeb_PreferredAndTimeout` | `go test -race -count=1 -run '^(…)$' ./internal/modules/fulfillment/` | `ok …/fulfillment 11.714s`; `--- PASS: TestQuoteForWeb_PreferredAndTimeout (3.44s)` |
+| Tự soát trước ci-task (sau gộp m4 4e8cd0e5, không xung đột) | — | `make gen` (git status không đổi); `go build ./...`; `go vet`, `golangci-lint run` các gói đổi; `make jscpd`; `go test -count=1 ./tests/arch/` | qua; lint 0 (sau khi thêm `//nolint:wrapcheck` cho 3 chỗ gọi của commit 1); jscpd `Found 0 clones`; `ok tests/arch 144.942s` |
+| Cổng của task | cổng tĩnh + test -race các gói đổi + test thường gói phụ thuộc (conversation/…, cmd/crm, files, realtime) | ci-task (tree 1c021b79, điểm tách 4e8cd0e5) | run 45813266241 (blacksmith): plan, static success; test (2) success; test (1) failure chỉ `TestSendProperty_AtMostOncePerClientRef` (gói `conversation/internal/send`: task này không sửa; đã ghi chập chờn trên m4 ở tệp task-164 lượt gộp 1; để đợt 2 theo giao việc) |
+| Việc 4 — không chập chờn khi chạy lặp ở bể: cùng tree 1c021b79 chạy thêm 2 lượt song song (8 gói: cache, httpapi/web, httpapi, fulfillment, observability, webcache, history, inbound; tất cả -race), cộng lượt ci-task là 3 lượt xanh | các gói nêu bên | `CRM_CI_STATIC=false merge-test.sh 1c021b79 HEAD <tệp 8 gói> <tệp 8 gói>` ×2 | run 45814037163 `MERGE-TEST XANH (blacksmith)` (test 1, 2 success); run 45814080473 `MERGE-TEST XANH (blacksmith)` (test 1, 2 success) |
 | Commit 1 (cấu trúc): dời lệnh xếp tải tệp sang deps, không đổi hành vi (tên lệnh, payload, DedupeKey giữ nguyên); không còn tên cũ | `TestInboundAttachment_Refusals`, `TestInboundFile_TP04`; grep | `go build ./internal/modules/conversation/...`; `go test -race -count=1 -run '^(TestInboundAttachment_Refusals\|TestInboundFile_TP04)$' ./internal/modules/conversation/internal/inbound/`; `grep -rn "OnInboundAttachments\|attachmentPayload" internal cmd tests` | build qua; `ok …/inbound 3.338s`; grep 0 dòng |
 
 ## E2E viết sẵn, chưa chạy
@@ -104,16 +117,49 @@ phần kế hoạch riêng; nguồn việc: `docs/tasks/task-164.md` mục "Gộ
 
 ## Khác kế hoạch
 
-(không có phần kế hoạch riêng)
+- Không có phần kế hoạch riêng (task sửa sau gộp). Commit 2 thêm `//nolint:wrapcheck` cho 3 chỗ gọi
+  `deps.EnqueueAttachmentFetches` (lint báo sau commit 1; chỉ chú thích, không đổi mã).
+- Env thử của `history` có thêm kho tệp trong bộ nhớ (lệnh tải tệp cần kho; trước đây tin lịch sử không xếp lệnh tải).
 
 ## Quyết định thay chủ shop
 
+1. **Ảnh đại diện còn chỗ dùng thì giữ**, theo đúng luật tệp đính kèm của 164: không đánh dấu xóa khi tệp còn là ảnh
+   đại diện của một hội thoại còn lại, đính kèm của một tin còn lại hay tệp của mẫu trả lời. Ảnh đại diện gắn với hội
+   thoại (`conversations.avatar_file_id`); khách không còn hội thoại nào thì ảnh đã theo hội thoại cuối bị xóa. Không
+   thêm migration: câu kiểm dùng `IN (SELECT avatar_file_id …)` (một lần quét mỗi lô, lịch chạy đêm). Phương án khác:
+   index một phần trên `avatar_file_id` (thêm migration) — làm khi bảng lớn.
+2. **Tệp 0 byte → mục `unavailable`, lệnh `rejected` lý do `empty_file`** (dead ngay, không in_doubt). Dùng trạng thái
+   có sẵn (`ChatAttachment.status` là chuỗi tự do, màn hình M4 chưa làm) thay vì thêm `empty`. Phương án khác: trạng
+   thái riêng `empty` (đổi một hằng).
+3. **Tin lịch sử của Page có đính kèm cũng được tải** (như echo của ứng dụng khác, Task 155): tin Page cũ trước khi có
+   CRM hay từ Business Suite không có tệp ở CRM. Phương án khác: chỉ tải tin của khách.
+4. **Test chập chờn sửa gốc, không chạm testkit:** kết nối Valkey trong test có hạn lệnh 2 s (hằng riêng mỗi gói test;
+   đưa vào testkit sẽ buộc ci-task chạy toàn bộ); mã chạy thật giữ 50 ms. Test fulfillment kiểm hạn ctx mà hãng giả
+   nhận thay cho thời gian chạy cả lời gọi. Không tắt test, không bỏ câu kiểm; `FallbackBusyConcurrent` chặt hơn trước
+   (đúng 2/3, trước cho phép ≥ 2).
+
 ## Việc phát hiện thêm
 
-(không có)
+1. `conversation/internal/send` `TestSendProperty_AtMostOncePerClientRef` vẫn chập chờn (đỏ ở ci-task của task này;
+   gói không sửa) — đợt 2 theo giao việc.
+2. `cmd/crm/webcache_test.go` dựng bộ đệm qua `newWebCache` (hạn lệnh 50 ms của mã thật) nên có thể chập chờn cùng kiểu
+   khi máy tải; chưa sửa (cần đường đặt hạn cho test qua cấu hình, ngoài các gói được giao).
+3. `fulfillment` `TestLabels_RetryThenTerminal` ("chưa có mã hãng", task-119): nghi lệnh tạo vận đơn lỗi tạm khi máy tải
+   rồi hẹn thử lại 4 s mà `DrainDue` không chạy; chưa đủ chứng cứ để sửa, để đợt 2.
+4. `SetConversationAvatar` thay ảnh đại diện không đánh dấu xóa tệp ảnh cũ (lệnh hồ sơ hiện chỉ chạy một lần cho khách
+   mới nên chưa gặp).
 
 ## Reviewer
 
 Commit 1/2 (cấu trúc: dời lệnh xếp tải tệp sang deps): **Kết luận: ĐẠT** — không phát hiện phải sửa. Thân
 `EnqueueAttachmentFetches` giống từng dòng `OnInboundAttachments`; tên lệnh, hạn, tag JSON, DedupeKey giữ nguyên; đủ 3
 chỗ gọi; không vòng nhập mới (deps chỉ nhập channel, commands, queue vốn đã nhập).
+
+Commit 2/2 (hành vi: ảnh đại diện khi dọn 24 tháng, tải tệp của tin lịch sử, tệp 0 byte, test chập chờn; sau gộp m4
+4e8cd0e5): **Kết luận: ĐẠT** — không phát hiện phải sửa. Đã soát: tin đã có trả về trước khi xếp lệnh tải; mã sinh
+khớp SQL, `avatar_file_id` chỉ có ở `conversations`; `markFiles` vẫn sắp id tăng trước khi khóa `platform.files`
+(ADR-46 12b), OnDone lịch sử chỉ thêm dòng `platform.jobs`; `Size` của bộ tải là độ dài thật nên tệp thật không bị từ
+chối nhầm; không `t.Skip`, không bỏ hay nới câu kiểm (`FallbackBusyConcurrent` chặt hơn, câu thời gian fulfillment
+thay bằng câu tương đương trên một đồng hồ, đọc sau `wg.Wait()` nên không tranh chấp); test dừng Valkey bị từ chối kết
+nối ngay nên hạn 2 s không đổi chúng. Ghi chú không bắt buộc (đã làm): thêm `readcache_test.go`,
+`deephealth_valkey_test.go`, `invalidator_test.go` vào mục Ảnh hưởng.

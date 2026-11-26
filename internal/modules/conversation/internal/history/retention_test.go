@@ -72,6 +72,50 @@ func TestRetention(t *testing.T) {
 	}
 }
 
+// Ảnh đại diện (Task 496, dữ liệu cá nhân): hội thoại bị xóa theo hạn giữ → tệp ảnh đại diện chỉ nó dùng được đánh
+// dấu xóa; tệp còn là ảnh đại diện của hội thoại còn lại, hay còn là đính kèm của một tin còn lại, thì giữ; ảnh của hội
+// thoại còn giữ không đụng. Chạy lần hai không đánh dấu thêm.
+func TestRetention_Avatars(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.d.Now = now
+	only, sharedAvatar, sharedAttachment, kept := e.file(), e.file(), e.file(), e.file()
+	keep := e.thread("keep", months(1))
+	e.message(keep, "keep-1", months(1), sharedAttachment)
+	e.avatar(keep, sharedAvatar)
+	keep2 := e.thread("keep2", months(1))
+	e.message(keep2, "keep2-1", months(1))
+	e.avatar(keep2, kept)
+	for ref, f := range map[string]uuid.UUID{"gone-a": only, "gone-b": sharedAvatar, "gone-c": sharedAttachment} {
+		c := e.thread(ref, months(25))
+		e.message(c, ref+"-1", months(26))
+		e.avatar(c, f)
+	}
+	empty := e.thread("gone-empty", months(30)) // hội thoại rỗng sẵn (không còn tin), có ảnh đại diện
+	solo := e.file()
+	e.avatar(empty, solo)
+
+	res := e.runRetention(e.retention(5000))
+	if res.Conversations != 4 || res.Files != 2 {
+		t.Fatalf("lần 1: %+v, mong xóa 4 hội thoại, đánh dấu 2 tệp", res)
+	}
+	for name, f := range map[string]uuid.UUID{"chỉ hội thoại xóa dùng": only, "hội thoại rỗng sẵn": solo} {
+		if n := e.count(`SELECT count(*) FROM platform.files WHERE id = $1 AND deleted_at IS NOT NULL`, f); n != 1 {
+			t.Errorf("ảnh đại diện %s chưa bị đánh dấu xóa", name)
+		}
+	}
+	for name, f := range map[string]uuid.UUID{
+		"còn là ảnh đại diện": sharedAvatar, "còn là đính kèm": sharedAttachment, "của hội thoại giữ": kept,
+	} {
+		if n := e.count(`SELECT count(*) FROM platform.files WHERE id = $1 AND deleted_at IS NULL`, f); n != 1 {
+			t.Errorf("ảnh %s bị đánh dấu xóa", name)
+		}
+	}
+	if res := e.runRetention(e.retention(5000)); res.Conversations != 0 || res.Files != 0 {
+		t.Errorf("lần 2: %+v, mong 0", res)
+	}
+}
+
 func checkConversations(t *testing.T, e *env, keep, gone, reminded uuid.UUID) {
 	t.Helper()
 	if n := e.count(`SELECT count(*) FROM conversation.conversations WHERE id = ANY($1)`, []uuid.UUID{keep, reminded}); n != 2 {
@@ -234,6 +278,12 @@ func (e *env) message(conv uuid.UUID, ext string, at time.Time, files ...uuid.UU
 			RETURNING id`, conv, e.page, ext, raw, at.UTC()).Scan(&id)
 	})
 	return id
+}
+
+// avatar đặt tệp f làm ảnh đại diện của hội thoại conv.
+func (e *env) avatar(conv, f uuid.UUID) {
+	e.t.Helper()
+	e.exec(`UPDATE conversation.conversations SET avatar_file_id = $2 WHERE id = $1`, conv, f)
 }
 
 // revision chèn một dòng lịch sử sửa của tin msg.

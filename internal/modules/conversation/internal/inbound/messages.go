@@ -72,7 +72,7 @@ func (h *handler) messageReceived(ctx context.Context, tx pgx.Tx, e webhooks.Inb
 	}
 	if len(p.Attachments) > 0 {
 		if err := deps.EnqueueAttachmentFetches(ctx, tx, h.d.Queue, acc.TenantID, msgID, p.Attachments); err != nil {
-			return err
+			return err //nolint:wrapcheck // deps đã bọc việc đang làm
 		}
 	}
 	if err := onInboxMessage(ctx, tx, h.d, e, acc, p, msgID, convID); err != nil {

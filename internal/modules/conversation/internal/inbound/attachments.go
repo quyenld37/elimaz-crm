@@ -28,7 +28,7 @@ const (
 	attPending     = "pending"
 	attStored      = "stored"
 	attBlocked     = "blocked"     // địa chỉ không thuộc máy chủ của kênh, hay trỏ vào mạng nội bộ
-	attUnavailable = "unavailable" // máy chủ của kênh báo tệp không còn (403, 404, 410)
+	attUnavailable = "unavailable" // máy chủ của kênh báo tệp không còn (403, 404, 410), hay trả tệp 0 byte
 	attTooLarge    = "too_large"   // quá 25 MiB
 	attFailed      = "failed"      // hết lượt thử, hay kênh không cho tải
 	attExpired     = "expired"     // quá hạn 1 giờ mà chưa tải được
@@ -41,6 +41,7 @@ const (
 	reasonStore        = "store"
 	reasonNoDownloader = "no_downloader"
 	reasonNoStore      = "no_file_store"
+	reasonEmptyFile    = "empty_file" // kênh trả tệp 0 byte: mục unavailable
 )
 
 // octetStream là loại ghi trên kho cho tệp không phải ảnh: đường dẫn ký trả đúng loại này, kèm attachment (TP04).
@@ -75,7 +76,7 @@ type source struct {
 // Execute tải mục j.Index của tin: (1) transaction chỉ đọc: URL của mục còn pending, adapter của Page; (2) tải (tối đa
 // 25 MiB, chỉ từ máy chủ của kênh, loại nhận dạng theo nội dung); (3) ảnh JPEG/PNG/WebP → kho crm-tmp ở TmpKey (ảnh
 // thô có thể còn GPS, R10); loại khác (cả GIF, SVG, HTML giả ảnh) → bucket private ở ServerKey, ghi loại
-// application/octet-stream. Lỗi vĩnh viễn ghi lý do vào mục rồi rejected; lỗi tạm not_sent.
+// application/octet-stream. Lỗi vĩnh viễn (cả tệp 0 byte) ghi lý do vào mục rồi rejected; lỗi tạm not_sent.
 func (c fetchAttachment) Execute(ctx context.Context, j queue.Job) (commands.Outcome, error) {
 	var p deps.AttachmentPayload
 	if err := json.Unmarshal(j.Payload, &p); err != nil || p.MessageID == uuid.Nil || j.TenantID == nil {
@@ -101,6 +102,9 @@ func (c fetchAttachment) Execute(ctx context.Context, j queue.Job) (commands.Out
 		return commands.Outcome{Status: commands.StatusNotSent, Reason: reasonDownload}, nil
 	}
 	defer func() { _ = rc.Close() }()
+	if info.Size <= 0 { // tệp rỗng: không có gì để lưu, files.Register sẽ từ chối (Task 496)
+		return c.refuse(ctx, tenant, p, attUnavailable, reasonEmptyFile), nil
+	}
 	out, ok := c.put(ctx, tenant, rc, info)
 	if !ok {
 		return commands.Outcome{Status: commands.StatusNotSent, Reason: reasonStore}, nil

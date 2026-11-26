@@ -38,7 +38,8 @@ RETURNING attachments;
 
 -- name: DeleteEmptyConversations :many
 -- Xóa các hội thoại @ids (bên gọi đã khóa) còn rỗng và quá hạn ở câu này (snapshot mới), kèm nhãn, lịch sử phân công
--- (trong một câu: khóa ngoại kiểm cuối câu); hiện diện tự xóa theo ON DELETE CASCADE. Trả mã đã xóa.
+-- (trong một câu: khóa ngoại kiểm cuối câu); hiện diện tự xóa theo ON DELETE CASCADE. Trả mã đã xóa và ảnh đại diện
+-- (avatar_file_id, có thể NULL) để đánh dấu xóa tệp không còn chỗ dùng (Task 496).
 WITH gone AS (
     SELECT c.id
     FROM conversation.conversations AS c
@@ -54,14 +55,15 @@ WITH gone AS (
 )
 DELETE FROM conversation.conversations
 WHERE id IN (SELECT id FROM gone)
-RETURNING id;
+RETURNING id, avatar_file_id;
 
 -- name: ReferencedFiles :many
--- Trong các tệp @ids, tệp còn được một tin (đính kèm) hay một mẫu trả lời (kể cả mẫu đã xóa mềm) dùng: không
--- đánh dấu xóa.
+-- Trong các tệp @ids, tệp còn được một tin (đính kèm), một mẫu trả lời (kể cả mẫu đã xóa mềm) hay một hội thoại còn
+-- lại (ảnh đại diện, Task 496) dùng: không đánh dấu xóa. Ảnh đại diện kiểm bằng IN (một lần quét, hashed subplan).
 SELECT f.id::uuid AS id
 FROM unnest(@ids::uuid[]) AS f(id)
 WHERE EXISTS (SELECT 1 FROM conversation.messages AS m
               WHERE m.attachments @> jsonb_build_array(jsonb_build_object('fileId', f.id::text)))
    OR EXISTS (SELECT 1 FROM conversation.reply_templates AS t
-              WHERE t.attachment_file_id = f.id);
+              WHERE t.attachment_file_id = f.id)
+   OR f.id IN (SELECT c.avatar_file_id FROM conversation.conversations AS c WHERE c.avatar_file_id IS NOT NULL);
