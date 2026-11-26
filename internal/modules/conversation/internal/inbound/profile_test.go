@@ -70,3 +70,23 @@ func TestFetchProfile_CH08(t *testing.T) {
 		t.Fatalf("%d việc mới, muốn 2 (việc vào + lệnh hồ sơ)", n)
 	}
 }
+
+// Ảnh đại diện 0 byte (Task 496): bỏ qua ảnh, vẫn đặt tên; lệnh hồ sơ done (không in_doubt), không dòng tệp.
+func TestFetchProfile_EmptyAvatar(t *testing.T) {
+	t.Parallel()
+	e := newFileEnv(t)
+	e.chat.SetProfile("u1", channel.Profile{Name: "Mai", AvatarURL: e.chat.AddFile("/a/rong.png", []byte{})})
+	e.receive(e.tenant, "u1", "m-1")
+	if name, _, av := e.profileOf("m-1"); name != "Mai" || av != nil {
+		t.Fatalf("ảnh 0 byte: tên %q, ảnh %v; muốn Mai, không ảnh", name, av)
+	}
+	if n := e.jobs("command.fb.fetch_profile", "done"); n != 1 {
+		t.Fatalf("lệnh hồ sơ done = %d, muốn 1", n)
+	}
+	if n := e.staff.Count(t, `SELECT count(*) FROM platform.jobs WHERE status IN ('in_doubt', 'dead')`); n != 0 {
+		t.Fatalf("%d việc in_doubt/dead, muốn 0", n)
+	}
+	if n := e.staff.CountIn(t, e.tenant, `SELECT count(*) FROM platform.files`); n != 0 {
+		t.Fatalf("%d dòng tệp, muốn 0", n)
+	}
+}

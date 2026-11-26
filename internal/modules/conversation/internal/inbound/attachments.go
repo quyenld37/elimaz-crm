@@ -9,8 +9,6 @@ import (
 	"io"
 	"mime"
 	"slices"
-	"strconv"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -25,19 +23,12 @@ import (
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 )
 
-// Lệnh tải tệp đính kèm của tin vào (Task 155; TP02, TP04): chỉ đọc từ máy chủ của kênh, hạn 1 giờ, mỗi lần 30 s.
-const (
-	fetchAttachmentName    = "command.fb.fetch_attachment"
-	fetchAttachmentExpiry  = time.Hour
-	fetchAttachmentTimeout = 30 * time.Second
-)
-
 // Trạng thái của một mục đính kèm (cột messages.attachments): pending → stored, hoặc một lý do không lưu được.
 const (
 	attPending     = "pending"
 	attStored      = "stored"
 	attBlocked     = "blocked"     // địa chỉ không thuộc máy chủ của kênh, hay trỏ vào mạng nội bộ
-	attUnavailable = "unavailable" // máy chủ của kênh báo tệp không còn (403, 404, 410)
+	attUnavailable = "unavailable" // máy chủ của kênh báo tệp không còn (403, 404, 410), hay trả tệp 0 byte
 	attTooLarge    = "too_large"   // quá 25 MiB
 	attFailed      = "failed"      // hết lượt thử, hay kênh không cho tải
 	attExpired     = "expired"     // quá hạn 1 giờ mà chưa tải được
@@ -50,21 +41,11 @@ const (
 	reasonStore        = "store"
 	reasonNoDownloader = "no_downloader"
 	reasonNoStore      = "no_file_store"
+	reasonEmptyFile    = "empty_file" // kênh trả tệp 0 byte: mục unavailable
 )
 
 // octetStream là loại ghi trên kho cho tệp không phải ảnh: đường dẫn ký trả đúng loại này, kèm attachment (TP04).
 const octetStream = "application/octet-stream"
-
-// FetchAttachmentKind là loại lệnh tải một tệp đính kèm.
-func FetchAttachmentKind() queue.Kind {
-	return commands.CommandKind(fetchAttachmentName, fetchAttachmentExpiry, fetchAttachmentTimeout)
-}
-
-// attachmentPayload là payload của lệnh tải: chỉ mã tin và chỉ số mục (URL nằm trong mục, không trong lệnh).
-type attachmentPayload struct {
-	MessageID uuid.UUID `json:"messageId"`
-	Index     int       `json:"index"`
-}
 
 // storedFile là tệp lệnh đã ghi lên kho (jobs.result, truyền cho OnDone). FileID nil: không có gì để ghi (tin không
 // còn, mục không còn pending).
@@ -76,30 +57,11 @@ type storedFile struct {
 	Image       bool       `json:"image,omitempty"`
 }
 
-// OnInboundAttachments xếp lệnh tải từng tệp có URL của tin msgID (tenant tenantID) trong tx của tin vào; mục không có
-// URL (sticker không ảnh, fallback) giữ pending không lệnh. DedupeKey <msgID>:<chỉ số>: tin giao lại không thêm lệnh.
-func OnInboundAttachments(ctx context.Context, tx pgx.Tx, q queue.JobQueue, tenantID, msgID uuid.UUID,
-	refs []channel.AttachmentRef,
-) error {
-	for i, r := range refs {
-		if r.URL == "" {
-			continue
-		}
-		if _, _, err := q.Enqueue(ctx, tx, FetchAttachmentKind(), queue.NewJob{
-			TenantID: &tenantID, Payload: attachmentPayload{MessageID: msgID, Index: i},
-			DedupeKey: msgID.String() + ":" + strconv.Itoa(i),
-		}); err != nil {
-			return fmt.Errorf("ghi lệnh tải tệp đính kèm: %w", err)
-		}
-	}
-	return nil
-}
-
 // fetchAttachment là lệnh command.fb.fetch_attachment: Execute ngoài transaction, OnDone và OnTerminal trong
 // transaction của Runner.
 type fetchAttachment struct{ d deps.Deps }
 
-func (fetchAttachment) Kind() queue.Kind { return FetchAttachmentKind() }
+func (fetchAttachment) Kind() queue.Kind { return deps.FetchAttachmentKind() }
 
 // AutoRetryNotSent: lệnh chỉ đọc, lỗi tạm thì tự thử lại trong hạn.
 func (fetchAttachment) AutoRetryNotSent() bool { return true }
@@ -114,9 +76,9 @@ type source struct {
 // Execute tải mục j.Index của tin: (1) transaction chỉ đọc: URL của mục còn pending, adapter của Page; (2) tải (tối đa
 // 25 MiB, chỉ từ máy chủ của kênh, loại nhận dạng theo nội dung); (3) ảnh JPEG/PNG/WebP → kho crm-tmp ở TmpKey (ảnh
 // thô có thể còn GPS, R10); loại khác (cả GIF, SVG, HTML giả ảnh) → bucket private ở ServerKey, ghi loại
-// application/octet-stream. Lỗi vĩnh viễn ghi lý do vào mục rồi rejected; lỗi tạm not_sent.
+// application/octet-stream. Lỗi vĩnh viễn (cả tệp 0 byte) ghi lý do vào mục rồi rejected; lỗi tạm not_sent.
 func (c fetchAttachment) Execute(ctx context.Context, j queue.Job) (commands.Outcome, error) {
-	var p attachmentPayload
+	var p deps.AttachmentPayload
 	if err := json.Unmarshal(j.Payload, &p); err != nil || p.MessageID == uuid.Nil || j.TenantID == nil {
 		return commands.Outcome{Status: commands.StatusRejected, Reason: reasonBadPayload}, nil
 	}
@@ -140,6 +102,9 @@ func (c fetchAttachment) Execute(ctx context.Context, j queue.Job) (commands.Out
 		return commands.Outcome{Status: commands.StatusNotSent, Reason: reasonDownload}, nil
 	}
 	defer func() { _ = rc.Close() }()
+	if info.Size <= 0 { // tệp rỗng: không có gì để lưu, files.Register sẽ từ chối (Task 496)
+		return c.refuse(ctx, tenant, p, attUnavailable, reasonEmptyFile), nil
+	}
 	out, ok := c.put(ctx, tenant, rc, info)
 	if !ok {
 		return commands.Outcome{Status: commands.StatusNotSent, Reason: reasonStore}, nil
@@ -175,7 +140,7 @@ func nothingToDo() commands.Outcome {
 }
 
 // source đọc URL của mục p.Index (còn pending) và adapter tải tệp của Page.
-func (c fetchAttachment) source(ctx context.Context, tx pgx.Tx, p attachmentPayload) (source, error) {
+func (c fetchAttachment) source(ctx context.Context, tx pgx.Tx, p deps.AttachmentPayload) (source, error) {
 	m, err := store.New(tx).GetMessageAttachments(ctx, p.MessageID)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
@@ -235,7 +200,7 @@ func (c fetchAttachment) put(ctx context.Context, tenant uuid.UUID, r io.Reader,
 
 // refuse ghi trạng thái state vào mục (transaction ngắn riêng) rồi trả rejected với mã reason. Ghi lỗi thì OnTerminal
 // vẫn đặt mục failed.
-func (c fetchAttachment) refuse(ctx context.Context, tenant uuid.UUID, p attachmentPayload, state, reason string) commands.Outcome {
+func (c fetchAttachment) refuse(ctx context.Context, tenant uuid.UUID, p deps.AttachmentPayload, state, reason string) commands.Outcome {
 	_ = tenancy.WithTenant(ctx, c.d.DB, tenant, func(tx pgx.Tx) error {
 		return c.patch(ctx, tx, tenant, p, attachmentPatch{Status: state})
 	})
@@ -253,7 +218,7 @@ type attachmentPatch struct {
 var errNotPending = errors.New("mục đính kèm không còn chờ")
 
 // patch ghép pt vào mục còn pending rồi báo hiệu hội thoại đổi; mục không còn pending → errNotPending.
-func (c fetchAttachment) patch(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, p attachmentPayload, pt attachmentPatch) error {
+func (c fetchAttachment) patch(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, p deps.AttachmentPayload, pt attachmentPatch) error {
 	raw, err := json.Marshal(pt)
 	if err != nil {
 		return fmt.Errorf("mã hóa mục đính kèm: %w", err)
@@ -276,7 +241,7 @@ func (c fetchAttachment) patch(ctx context.Context, tx pgx.Tx, tenant uuid.UUID,
 // transaction); loại khác → files.Register (chat_attachment, ready, chỉ tải về). Tin hay mục không còn → không ghi gì
 // (đối tượng đã ghi lên kho thành mồ côi, việc dọn của M1 xử lý).
 func (c fetchAttachment) OnDone(ctx context.Context, j queue.Job, result json.RawMessage, tx pgx.Tx) error {
-	var p attachmentPayload
+	var p deps.AttachmentPayload
 	var f storedFile
 	if json.Unmarshal(j.Payload, &p) != nil || json.Unmarshal(result, &f) != nil || f.FileID == nil || j.TenantID == nil {
 		return nil
@@ -314,7 +279,7 @@ func (c fetchAttachment) OnDone(ctx context.Context, j queue.Job, result json.Ra
 // OnTerminal: lệnh dead → mục còn pending thành failed; expired → expired (lý do cụ thể đã ghi lúc rejected thì mục
 // không còn pending, giữ nguyên). in_doubt (giữ chỗ hết hạn) giữ pending: chạy lại bằng tay an toàn (chỉ đọc).
 func (c fetchAttachment) OnTerminal(ctx context.Context, j queue.Job, status string, tx pgx.Tx) error {
-	var p attachmentPayload
+	var p deps.AttachmentPayload
 	if json.Unmarshal(j.Payload, &p) != nil || j.TenantID == nil {
 		return nil
 	}

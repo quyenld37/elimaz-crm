@@ -16,9 +16,21 @@ import (
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
+// testOpTimeout là hạn mỗi lệnh của kết nối thử khi test cần Valkey trả lời thật (Task 496). Hạn mặc định 50 ms của
+// mã chạy thật (OpTimeout 0) làm lệnh hết hạn khi máy chạy test đang tải (nhiều container, -race): lệnh coi như Valkey
+// ngừng, đường dự phòng chạy, test đếm khóa hay nguồn đỏ dù mã đúng. 2 s vẫn ngắn khi Valkey ngừng thật (cầu dao mở
+// sau 5 lỗi). Test kiểm chính hạn mặc định (TestConn_OpTimeout) dùng dialOp(…, 0).
+const testOpTimeout = 2 * time.Second
+
 func dial(t *testing.T, url string, reg *metrics.Registry) *cache.Conn {
 	t.Helper()
-	c, err := cache.Dial(t.Context(), url, cache.DialOptions{Name: "cache", Metrics: reg})
+	return dialOp(t, url, reg, testOpTimeout)
+}
+
+// dialOp nối crm_cache với hạn mỗi lệnh op (0: mặc định 50 ms của mã chạy thật).
+func dialOp(t *testing.T, url string, reg *metrics.Registry, op time.Duration) *cache.Conn {
+	t.Helper()
+	c, err := cache.Dial(t.Context(), url, cache.DialOptions{Name: "cache", Metrics: reg, OpTimeout: op})
 	if err != nil {
 		t.Fatalf("Dial: %v", err)
 	}
@@ -85,7 +97,7 @@ func TestConn_PingSetGet(t *testing.T) {
 func TestConn_OpTimeout(t *testing.T) {
 	vk := testkit.StartValkey(t)
 	reg := metrics.NewRegistry()
-	c := dial(t, vk.URL("crm_cache"), reg)
+	c := dialOp(t, vk.URL("crm_cache"), reg, 0) // hạn mặc định là thứ được kiểm
 	admin := dial(t, vk.URL("crm_admin"), nil)
 	if err := c.Ping(t.Context()); err != nil {
 		t.Fatalf("Ping: %v", err)

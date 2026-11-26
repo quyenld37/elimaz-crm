@@ -73,8 +73,8 @@ func (h *handler) echo(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, p cha
 		return fmt.Errorf("cập nhật hội thoại sau tin Page gửi: %w", err)
 	}
 	if len(p.Attachments) > 0 {
-		if err := OnInboundAttachments(ctx, tx, h.d.Queue, acc.TenantID, msgID, refs); err != nil {
-			return err
+		if err := deps.EnqueueAttachmentFetches(ctx, tx, h.d.Queue, acc.TenantID, msgID, refs); err != nil {
+			return err //nolint:wrapcheck // deps đã bọc việc đang làm
 		}
 	}
 	return h.publish(ctx, tx, e, acc, convID)

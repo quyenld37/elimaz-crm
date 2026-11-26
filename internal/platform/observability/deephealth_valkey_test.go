@@ -2,11 +2,16 @@ package observability_test
 
 import (
 	"testing"
+	"time"
 
 	"elimaz.com.vn/crm/internal/platform/cache"
 	"elimaz.com.vn/crm/internal/platform/observability"
 	"elimaz.com.vn/crm/internal/testkit"
 )
+
+// valkeyTestOpTimeout là hạn mỗi lệnh Valkey của test (Task 496): hạn mặc định 50 ms của mã chạy thật hết khi máy chạy
+// test đang tải, lệnh coi như Valkey ngừng và test đếm nguồn, lượt gọi hãng đỏ dù mã đúng.
+const valkeyTestOpTimeout = 2 * time.Second
 
 // /health/deep báo Valkey cache, gate là ok|down|off (kế hoạch M5 Task 184); Valkey ngừng không làm OK thành false.
 func TestDeepHealthValkey(t *testing.T) {
@@ -17,7 +22,7 @@ func TestDeepHealthValkey(t *testing.T) {
 	}
 	vk := testkit.StartValkey(t)
 	dial := func(user, name string) *cache.Conn {
-		c, err := cache.Dial(t.Context(), vk.URL(user), cache.DialOptions{Name: name})
+		c, err := cache.Dial(t.Context(), vk.URL(user), cache.DialOptions{Name: name, OpTimeout: valkeyTestOpTimeout})
 		if err != nil {
 			t.Fatalf("Dial: %v", err)
 		}

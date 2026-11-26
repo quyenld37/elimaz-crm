@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -15,7 +16,9 @@ import (
 )
 
 // quoteCarrier là hãng giả chỉ báo phí (kế hoạch M3, Task M3-13): trả results hay err, treo hang (theo ctx) trước khi
-// trả; locations = true khai khả năng Locations (bên gọi kiểm địa giới trước khi gọi). Đếm số lần gọi.
+// trả; locations = true khai khả năng Locations (bên gọi kiểm địa giới trước khi gọi). Đếm số lần gọi; ghi hạn của ctx,
+// lúc được gọi và việc lần treo bị ctx cắt — test kiểm hạn bằng các mốc đó (đồng hồ đơn điệu), không đo giờ thật của cả
+// lời gọi (Task 400, 496: máy tải làm lời gọi chậm hơn hạn mà mã vẫn đúng).
 type quoteCarrier struct {
 	fulfillment.Unsupported
 	key       string
@@ -24,6 +27,17 @@ type quoteCarrier struct {
 	hang      time.Duration
 	locations bool
 	calls     atomic.Int32
+	mu        sync.Mutex
+	deadline  time.Time // hạn của ctx ở lần gọi gần nhất (zero: không có hạn)
+	calledAt  time.Time // lúc lần gọi gần nhất bắt đầu
+	cut       bool      // lần treo gần nhất kết thúc vì ctx hết hạn
+}
+
+// lastCall trả hạn của ctx, lúc gọi và việc lần treo có bị ctx cắt không, của lần gọi gần nhất.
+func (q *quoteCarrier) lastCall() (deadline, calledAt time.Time, cut bool) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return q.deadline, q.calledAt, q.cut
 }
 
 func (q *quoteCarrier) Key() string { return q.key }
@@ -34,9 +48,16 @@ func (q *quoteCarrier) Capabilities() fulfillment.Capabilities {
 
 func (q *quoteCarrier) Quote(ctx context.Context, _ fulfillment.Account, _ fulfillment.QuoteInput) ([]fulfillment.QuoteResult, error) {
 	q.calls.Add(1)
+	dl, _ := ctx.Deadline()
+	q.mu.Lock()
+	q.deadline, q.calledAt, q.cut = dl, time.Now(), false
+	q.mu.Unlock()
 	if q.hang > 0 {
 		select {
 		case <-ctx.Done():
+			q.mu.Lock()
+			q.cut = true
+			q.mu.Unlock()
 			return nil, fmt.Errorf("báo phí giả: %w", ctx.Err())
 		case <-time.After(q.hang):
 		}
@@ -57,8 +78,9 @@ func vc02Carriers() (a, b, c *quoteCarrier) {
 	return a, b, c
 }
 
-// QuoteNow trực tiếp với A, B, C (hạn 3 s): A, B có kết quả, C timeout sau ≤ 3,5 s. Service không có database (DB
-// nil): một câu SQL nào cũng làm test hỏng, nên QuoteNow chắc chắn không mở transaction.
+// QuoteNow trực tiếp với A, B, C (hạn 3 s): A, B có kết quả, C nhận ctx hạn ≤ 3 s, bị ctx cắt (không chờ hết 20 s)
+// và ra timeout. Service không có database (DB nil): một câu SQL nào cũng làm test hỏng, nên QuoteNow chắc chắn không
+// mở transaction.
 func TestQuoteNow_ParallelTimeoutNoDB(t *testing.T) {
 	t.Parallel()
 	a, b, c := vc02Carriers()
@@ -66,10 +88,9 @@ func TestQuoteNow_ParallelTimeoutNoDB(t *testing.T) {
 	accs := []fulfillment.Account{
 		{ID: uuid.New(), CarrierKey: "qa"}, {ID: uuid.New(), CarrierKey: "qb"}, {ID: uuid.New(), CarrierKey: "qc"},
 	}
-	start := time.Now()
 	out := s.QuoteNow(t.Context(), accs, fulfillment.QuoteInput{}, 3*time.Second)
-	if took := time.Since(start); took > 3500*time.Millisecond {
-		t.Fatalf("QuoteNow mất %s, muốn ≤ 3,5 s", took)
+	if dl, at, cut := c.lastCall(); dl.IsZero() || dl.Sub(at) > 3*time.Second || !cut {
+		t.Fatalf("hãng treo: hạn %v, còn %s lúc gọi, bị ctx cắt %v; muốn hạn ≤ 3 s, bị cắt", dl, dl.Sub(at), cut)
 	}
 	if len(out) != 3 {
 		t.Fatalf("FeeQuote = %d, muốn 3", len(out))
@@ -102,9 +123,13 @@ func TestQuoteNow_TimeoutClamped(t *testing.T) {
 	defer cancel()
 	start := time.Now()
 	out := s.QuoteNow(ctx, []fulfillment.Account{{ID: uuid.New(), CarrierKey: "qc"}}, fulfillment.QuoteInput{}, time.Hour)
-	took := time.Since(start)
-	if out[0].ErrorCode != fulfillment.QuoteErrTimeout || took < 9*time.Second || took > 11*time.Second {
-		t.Fatalf("hạn 1 giờ: mã %q sau %s, muốn timeout sau ~10 s", out[0].ErrorCode, took)
+	// Hạn kẹp đặt sau start, trước lúc hãng được gọi: hạn tính từ start ≥ 10 s, hạn còn lại lúc gọi ≤ 10 s (một đồng hồ
+	// đơn điệu; không đo thời gian chạy cả lời gọi).
+	dl, at, cut := c.lastCall()
+	if out[0].ErrorCode != fulfillment.QuoteErrTimeout || !cut || dl.IsZero() || dl.Sub(at) > 10*time.Second ||
+		dl.Sub(start) < 10*time.Second {
+		t.Fatalf("hạn 1 giờ: mã %q, hạn còn %s lúc gọi (%s tính từ lúc bắt đầu), bị cắt %v; muốn timeout, hạn kẹp 10 s",
+			out[0].ErrorCode, dl.Sub(at), dl.Sub(start), cut)
 	}
 }
 

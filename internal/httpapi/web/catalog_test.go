@@ -96,11 +96,15 @@ type env struct {
 	srv      http.Handler
 }
 
+// valkeyTestOpTimeout là hạn mỗi lệnh Valkey của test (Task 496): hạn mặc định 50 ms của mã chạy thật hết khi máy chạy
+// test đang tải, lệnh coi như Valkey ngừng và test đếm nguồn, lượt gọi hãng đỏ dù mã đúng.
+const valkeyTestOpTimeout = 2 * time.Second
+
 // valkeyCache chạy Valkey thật cho test và trả kết nối bộ đệm (đóng khi test xong).
 func valkeyCache(t *testing.T) (*testkit.Valkey, *cache.Conn) {
 	t.Helper()
 	vk := testkit.StartValkey(t)
-	conn, err := cache.Dial(t.Context(), vk.URL("crm_cache"), cache.DialOptions{Name: "cache"})
+	conn, err := cache.Dial(t.Context(), vk.URL("crm_cache"), cache.DialOptions{Name: "cache", OpTimeout: valkeyTestOpTimeout})
 	if err != nil {
 		t.Fatal(err)
 	}

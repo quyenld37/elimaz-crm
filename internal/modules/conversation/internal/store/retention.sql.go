@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const deleteEmptyConversations = `-- name: DeleteEmptyConversations :many
@@ -28,7 +29,7 @@ WITH gone AS (
 )
 DELETE FROM conversation.conversations
 WHERE id IN (SELECT id FROM gone)
-RETURNING id
+RETURNING id, avatar_file_id
 `
 
 type DeleteEmptyConversationsParams struct {
@@ -36,21 +37,27 @@ type DeleteEmptyConversationsParams struct {
 	Cutoff time.Time
 }
 
+type DeleteEmptyConversationsRow struct {
+	ID           uuid.UUID
+	AvatarFileID pgtype.UUID
+}
+
 // Xóa các hội thoại @ids (bên gọi đã khóa) còn rỗng và quá hạn ở câu này (snapshot mới), kèm nhãn, lịch sử phân công
-// (trong một câu: khóa ngoại kiểm cuối câu); hiện diện tự xóa theo ON DELETE CASCADE. Trả mã đã xóa.
-func (q *Queries) DeleteEmptyConversations(ctx context.Context, arg DeleteEmptyConversationsParams) ([]uuid.UUID, error) {
+// (trong một câu: khóa ngoại kiểm cuối câu); hiện diện tự xóa theo ON DELETE CASCADE. Trả mã đã xóa và ảnh đại diện
+// (avatar_file_id, có thể NULL) để đánh dấu xóa tệp không còn chỗ dùng (Task 496).
+func (q *Queries) DeleteEmptyConversations(ctx context.Context, arg DeleteEmptyConversationsParams) ([]DeleteEmptyConversationsRow, error) {
 	rows, err := q.db.Query(ctx, deleteEmptyConversations, arg.Ids, arg.Cutoff)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []uuid.UUID{}
+	items := []DeleteEmptyConversationsRow{}
 	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
+		var i DeleteEmptyConversationsRow
+		if err := rows.Scan(&i.ID, &i.AvatarFileID); err != nil {
 			return nil, err
 		}
-		items = append(items, id)
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -201,10 +208,11 @@ WHERE EXISTS (SELECT 1 FROM conversation.messages AS m
               WHERE m.attachments @> jsonb_build_array(jsonb_build_object('fileId', f.id::text)))
    OR EXISTS (SELECT 1 FROM conversation.reply_templates AS t
               WHERE t.attachment_file_id = f.id)
+   OR f.id IN (SELECT c.avatar_file_id FROM conversation.conversations AS c WHERE c.avatar_file_id IS NOT NULL)
 `
 
-// Trong các tệp @ids, tệp còn được một tin (đính kèm) hay một mẫu trả lời (kể cả mẫu đã xóa mềm) dùng: không
-// đánh dấu xóa.
+// Trong các tệp @ids, tệp còn được một tin (đính kèm), một mẫu trả lời (kể cả mẫu đã xóa mềm) hay một hội thoại còn
+// lại (ảnh đại diện, Task 496) dùng: không đánh dấu xóa. Ảnh đại diện kiểm bằng IN (một lần quét, hashed subplan).
 func (q *Queries) ReferencedFiles(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error) {
 	rows, err := q.db.Query(ctx, referencedFiles, ids)
 	if err != nil {

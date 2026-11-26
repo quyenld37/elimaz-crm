@@ -22,8 +22,9 @@ import (
 // giờ Việt Nam (lịch nền không neo được giờ cố định; tệp task-164, Quyết định 3). Mỗi việc một transaction, một lô tối
 // đa retentionBatch tin gửi trước now − CONVERSATION_RETENTION_MONTHS: đặt app.retention = on; khóa các hội thoại của
 // lô và các hội thoại rỗng quá hạn (id tăng, ADR-46 nhóm 6); xóa lịch sử sửa rồi tin; xóa hội thoại không còn tin,
-// tin cuối quá hạn, không có hẹn gọi lại hay nhật ký gọi, kèm nhãn và lịch sử phân công; đánh dấu xóa tệp đính kèm
-// không còn tin hay mẫu trả lời nào dùng (files.MarkDeleted, nhóm 12b). Lô đầy → ghi một việc tiếp theo (chạy ngay,
+// tin cuối quá hạn, không có hẹn gọi lại hay nhật ký gọi, kèm nhãn và lịch sử phân công; đánh dấu xóa tệp đính kèm của
+// tin đã xóa và ảnh đại diện của hội thoại đã xóa khi không còn tin, mẫu trả lời hay hội thoại nào dùng
+// (files.MarkDeleted, nhóm 12b). Lô đầy → ghi một việc tiếp theo (chạy ngay,
 // không chờ khung giờ). Chạy lại không lỗi: lần sau xóa 0.
 
 const (
@@ -153,6 +154,11 @@ func (h retentionHandler) sweep(ctx context.Context, tx pgx.Tx, now time.Time) (
 		return res, fmt.Errorf("xóa hội thoại quá hạn giữ: %w", err)
 	}
 	res.Conversations = len(gone)
+	for _, g := range gone { // ảnh đại diện của hội thoại đã xóa (dữ liệu cá nhân, Task 496)
+		if id := uuid.UUID(g.AvatarFileID.Bytes); g.AvatarFileID.Valid && !slices.Contains(fileIDs, id) {
+			fileIDs = append(fileIDs, id)
+		}
+	}
 	if res.Files, err = markFiles(ctx, tx, q, fileIDs); err != nil {
 		return res, err
 	}
@@ -190,7 +196,8 @@ func deleteMessages(ctx context.Context, q *store.Queries, ids []uuid.UUID, cuto
 	return out, len(atts), nil
 }
 
-// markFiles đánh dấu xóa các tệp ids không còn tin hay mẫu trả lời nào dùng; trả số tệp đã đánh dấu.
+// markFiles đánh dấu xóa các tệp ids không còn tin, mẫu trả lời hay hội thoại (ảnh đại diện) nào dùng; trả số tệp đã
+// đánh dấu.
 func markFiles(ctx context.Context, tx pgx.Tx, q *store.Queries, ids []uuid.UUID) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil

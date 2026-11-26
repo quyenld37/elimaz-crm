@@ -138,8 +138,8 @@ func (h *handler) afterCommentInserted(ctx context.Context, tx pgx.Tx, e webhook
 		return err
 	}
 	if len(refs) > 0 {
-		if err := OnInboundAttachments(ctx, tx, h.d.Queue, acc.TenantID, msgID, refs); err != nil {
-			return err
+		if err := deps.EnqueueAttachmentFetches(ctx, tx, h.d.Queue, acc.TenantID, msgID, refs); err != nil {
+			return err //nolint:wrapcheck // deps đã bọc việc đang làm
 		}
 	}
 	if !p.FromPage && !st.removed.Valid {

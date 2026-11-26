@@ -158,7 +158,7 @@ func (c fetchProfile) source(ctx context.Context, tx pgx.Tx, convID uuid.UUID) (
 	return src, nil
 }
 
-// avatar tải ảnh đại diện rawURL (≤ 2 MiB, JPEG/PNG/WebP) lên bucket private; mọi lỗi → nil (bỏ qua ảnh).
+// avatar tải ảnh đại diện rawURL (≤ 2 MiB, JPEG/PNG/WebP, không rỗng) lên bucket private; mọi lỗi → nil (bỏ qua ảnh).
 func (c fetchProfile) avatar(ctx context.Context, tenant uuid.UUID, ad channel.MessagingAdapter, rawURL string) *storedFile {
 	dl, ok := ad.(channel.AttachmentDownloader)
 	if rawURL == "" || !ok || c.d.Files == nil {
@@ -171,7 +171,7 @@ func (c fetchProfile) avatar(ctx context.Context, tenant uuid.UUID, ad channel.M
 	defer func() { _ = rc.Close() }()
 	mt := mediaType(info.ContentType)
 	id, err := uuid.NewV7()
-	if err != nil || !slices.Contains(imageTypes(), mt) {
+	if err != nil || info.Size <= 0 || !slices.Contains(imageTypes(), mt) {
 		return nil
 	}
 	if err := c.d.Files.Put(ctx, files.BucketPrivate, files.ServerKey(tenant, id), rc, info.Size, mt); err != nil &&

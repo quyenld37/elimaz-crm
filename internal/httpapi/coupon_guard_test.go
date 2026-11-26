@@ -121,10 +121,14 @@ func TestCouponGuard_ParallelFailures(t *testing.T) {
 	mustBlocked(t, g, s, true, "20 lần sai song song")
 }
 
+// valkeyTestOpTimeout là hạn mỗi lệnh Valkey của test (Task 496): hạn mặc định 50 ms của mã chạy thật hết khi máy chạy
+// test đang tải, lệnh coi như Valkey ngừng và test đếm nguồn, lượt gọi hãng đỏ dù mã đúng.
+const valkeyTestOpTimeout = 2 * time.Second
+
 // Valkey ngừng giữa chừng: bộ đếm lùi về trong tiến trình (FallbackMax 2 của SĐT) — vẫn chặn, không mở toang.
 func TestCouponGuard_ValkeyDownFallback(t *testing.T) {
 	vk := testkit.StartValkey(t)
-	gate, err := cache.Dial(t.Context(), vk.URL("crm_gate"), cache.DialOptions{Name: "gate"})
+	gate, err := cache.Dial(t.Context(), vk.URL("crm_gate"), cache.DialOptions{Name: "gate", OpTimeout: valkeyTestOpTimeout})
 	if err != nil {
 		t.Fatalf("Dial: %v", err)
 	}
