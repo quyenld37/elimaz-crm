@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/access"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/assign"
@@ -51,17 +50,10 @@ func Get(ctx context.Context, tx pgx.Tx, actor identity.AuthUser, id uuid.UUID) 
 			PostID: assign.PtrUUID(r.PostID), PostSnippet: r.PostSnippet.String, HasOpenDraft: r.HasOpenDraft,
 			Version: r.Version,
 		},
-		AssigneeName: r.AssigneeName, LastCustomerMessageAt: optTime(r.LastCustomerMessageAt), BlockedByUser: r.BlockedByUser,
+		AssigneeName: r.AssigneeName, LastCustomerMessageAt: assign.OptTime(r.LastCustomerMessageAt), BlockedByUser: r.BlockedByUser,
 	}
 	for _, t := range tags {
 		c.Tags = append(c.Tags, Tag(t))
 	}
 	return c, nil
-}
-
-func optTime(v pgtype.Timestamptz) *time.Time {
-	if v.Valid {
-		return new(v.Time)
-	}
-	return nil
 }

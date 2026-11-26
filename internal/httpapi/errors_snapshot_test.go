@@ -234,6 +234,7 @@ func domainErrorSnapshot() []snapshotCase {
 		{"conversation.ErrChannelReadOnly", conversation.ErrChannelReadOnly, http.StatusConflict, "channel_read_only"},
 		{"conversation.ErrAttachmentNotReady", conversation.ErrAttachmentNotReady, http.StatusUnprocessableEntity, "attachment_not_ready"},
 		{"conversation.ErrAttachmentRejected", conversation.ErrAttachmentRejected, http.StatusUnprocessableEntity, "attachment_rejected"},
+		{"conversation.ErrInvalidStatus", conversation.ErrInvalidStatus, http.StatusUnprocessableEntity, "invalid_input"},
 		{"weborders.ErrBadLimit", weborders.ErrBadLimit, http.StatusBadRequest, "bad_request"},
 		{"weborders.ErrNotFound", weborders.ErrNotFound, http.StatusNotFound, "not_found"},
 		{"webcatalog.ErrBadLimit", webcatalog.ErrBadLimit, http.StatusBadRequest, "bad_request"},
