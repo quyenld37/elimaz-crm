@@ -546,6 +546,39 @@ type ContentLookSet struct {
 	UpdatedAt *time.Time
 }
 
+type ConversationAutomationRule struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	ChannelAccountID uuid.UUID
+	Kind             string
+	Config           []byte
+	Enabled          bool
+	Version          int32
+	UpdatedBy        *uuid.UUID
+	UpdatedAt        time.Time
+}
+
+type ConversationAutomationRulesV struct {
+	TenantID         uuid.UUID
+	ID               uuid.UUID
+	ChannelAccountID uuid.UUID
+	Kind             string
+	Enabled          bool
+	UpdatedAt        time.Time
+	Version          int32
+}
+
+type ConversationAutomationRun struct {
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	RuleID       uuid.UUID
+	ExternalRef  string
+	SubjectRef   pgtype.Text
+	Outcome      string
+	CommandJobID *uuid.UUID
+	CreatedAt    time.Time
+}
+
 type ConversationCallLog struct {
 	ID             uuid.UUID
 	TenantID       uuid.UUID

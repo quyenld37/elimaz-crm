@@ -58,6 +58,7 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 | `conversation.conversations_v` (M4 Task 151; Q-X2) | `tenant_id, id, channel_account_id, customer_id, kind, status, assignee_id, post_id, last_message_at, last_customer_message_at, created_at` | 151 | M6, M7, dòng thời gian khách |
 | `conversation.tags_v` (chỉ nhãn chưa xóa; B2-11) | `tenant_id, id, name, color, sort` | 151 | M7 (báo cáo sẵn sàng) |
 | `conversation.reply_templates_v` (chỉ mẫu chưa xóa; không có `body`; B2-11) | `tenant_id, id, channel_account_id, shortcut, title, created_at` | 161 | M7 (báo cáo sẵn sàng) |
+| `conversation.automation_rules_v` (một dòng mỗi (Page, loại) đã lưu; không có `config`; B2-11; M7 thêm cột thì thêm ở cuối, R3) | `tenant_id, id, channel_account_id, kind, enabled, updated_at, version` | 165 | M7 (báo cáo sẵn sàng: mỗi Page có dòng cấu hình) |
 | `conversation.call_logs_v` (Q14; không có `note` — dữ liệu cá nhân) | `tenant_id, id, customer_id, conversation_id, order_id, outcome, callback_at, created_by, created_at` | 169 | hồ sơ khách, dòng thời gian khách (C7), M6, M7 |
 | `cash.cod_balances_v` (tối thiểu; M3 mở rộng) | `shipment_id, account, balance` | 32 | M3 trở đi |
 | `cash.shipment_cod_v` (số dư từng ngăn theo vận đơn, dạng ngang; vận đơn chưa có dòng sổ thì không có dòng) | `tenant_id, shipment_id, to_collect, carrier_holding, shop_received, carrier_fee, sales_clearing` | 93 | M3 trở đi |

@@ -60,13 +60,17 @@ func TestWiring(t *testing.T) {
 }
 
 // checkCommands: lệnh của conversation theo thứ tự đăng ký: command.fb.fetch_post (khi có adapter Facebook),
-// command.fb.send_message hạn 3 phút (luôn có), command.fb.live_detect (khi có adapter Facebook).
+// command.fb.send_message hạn 3 phút (luôn có), command.fb.auto_hide_comment (luôn có, Task 165),
+// command.fb.live_detect (khi có adapter Facebook).
+// autoHideKind là lệnh ẩn comment của quy tắc auto_hide (Task 165).
+const autoHideKind = "command.fb.auto_hide_comment"
+
 func checkCommands(t *testing.T, d conversation.Deps) {
 	t.Helper()
 	fb := d.Registry != nil && slices.Contains(d.Registry.Keys(), facebook.Key)
-	want := []string{conversation.SendMessageKind}
+	want := []string{conversation.SendMessageKind, autoHideKind}
 	if fb {
-		want = []string{"command.fb.fetch_post", conversation.SendMessageKind, "command.fb.live_detect"}
+		want = []string{"command.fb.fetch_post", conversation.SendMessageKind, autoHideKind, "command.fb.live_detect"}
 	}
 	var got []string
 	for _, h := range conversation.CommandHandlers(d) {

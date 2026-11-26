@@ -5,6 +5,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
+	"elimaz.com.vn/crm/internal/modules/channel"
+	"elimaz.com.vn/crm/internal/modules/conversation/internal/automation"
+	"elimaz.com.vn/crm/internal/modules/conversation/internal/deps"
+	"elimaz.com.vn/crm/internal/platform/webhooks"
 )
 
 // Hook của đường tin vào mà task sau hiện thực (khung của Task 153; chạy trong tx của sự kiện vào, sau khi đã ghi tin
@@ -19,9 +24,17 @@ func onNewConversation(context.Context, pgx.Tx, uuid.UUID) error { return nil }
 // (automation.OnInboxMessage, Task 167). Khung: không làm gì.
 func onInboxMessage(context.Context, pgx.Tx, uuid.UUID, bool) error { return nil }
 
-// onCommentCreated chạy sau mỗi comment khách mới (chưa xóa): tự ẩn, tự trả lời, tự nhắn riêng
-// (automation.OnCommentCreated, Task 165, 166). Khung: không làm gì.
-func onCommentCreated(context.Context, pgx.Tx, uuid.UUID) error { return nil }
+// onCommentCreated chạy sau mỗi comment khách mới msgID (chưa xóa): tự ẩn (Task 165), tự trả lời, tự nhắn riêng
+// (Task 166) qua automation.OnCommentCreated. Sự kiện tới bằng đường lịch sử (ViaHistory) không kích hoạt quy tắc.
+func onCommentCreated(ctx context.Context, tx pgx.Tx, d deps.Deps, e webhooks.Inbound, acc channel.ChannelAccount,
+	p channel.CommentPayload, msgID, convID uuid.UUID, isLive bool,
+) error {
+	return automation.OnCommentCreated(ctx, tx, d, msgID, automation.Trigger{ //nolint:wrapcheck // automation đã bọc
+		Account: acc, ConversationID: convID, OccurredAt: p.CreatedAt.UTC(), FromPage: p.FromPage,
+		IsHistory: e.Via == webhooks.ViaHistory, IsLive: isLive, Text: p.Text, CommentExternalID: p.CommentID,
+		PostExternalID: p.PostID,
+	})
+}
 
 // onLiveComment chạy sau comment khách mới thuộc phiên live: chốt từ comment live (live.OnComment, Task 172). Khung:
 // không làm gì.

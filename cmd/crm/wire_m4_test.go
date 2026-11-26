@@ -52,6 +52,8 @@ func TestWireM4_Frame(t *testing.T) {
 			wantCmds = append(wantCmds, "command.fb.fetch_post") // Task 154: đọc bài của comment (kênh đọc được bài)
 		}
 		wantCmds = append(wantCmds, conversation.SendMessageKind) // Task 156: gửi tin, mọi cấu hình
+		// Task 165: tự ẩn comment, mọi cấu hình.
+		wantCmds = append(wantCmds, "command.fb.auto_hide_comment")
 		if slices.Contains(c.keys, "facebook") {
 			wantCmds = append(wantCmds, "command.fb.live_detect") // Task 170: nhận biết live bằng hỏi định kỳ
 		}
