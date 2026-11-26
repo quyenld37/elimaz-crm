@@ -126,3 +126,42 @@ Kết luận: ĐẠT (lượt 1, 26/11).
 - Bảng bằng chứng: mọi dòng trỏ test có thật và kiểm đúng tiêu chí (CH10, LV07, dọn sau 31 s, Q9, 404/403/400).
 - Ghi chú không bắt buộc: lớp HTTP chưa có ca 404 tenant khác (đã có ở test module, cùng đường ErrNotFound); hai nhịp
   tim đầu đồng thời có thể phát 2 báo hiệu (đã ghi ở 6.1, vô hại).
+
+## Lượt sửa gộp m4
+
+**Xung đột** (`git merge --no-commit m4`, nhánh m4 đã có Task 145, 146, 147, 148, 152, 169):
+
+| Tệp | Hai bên | Cách giải |
+|---|---|---|
+| `internal/httpapi/errors.go` | 163 thêm `conversationError`; m4 thêm `channelError` | giữ cả hai trong `domainErrorMappers`: `… contentError, channelError, conversationError` (thứ tự của m4) |
+| `internal/httpapi/errors_conversation.go` | cả hai tạo tệp; 163 chỉ có `ErrNotFound`, m4 (169) có `ErrNotFound` + 5 lỗi nhắc việc + `isConversationRefusal` | lấy bản m4 (chứa dòng của 163, cùng thứ tự kiểm) |
+| `internal/httpapi/errors_snapshot_test.go` | 163: 1 dòng conversation; m4: 3 dòng channel + 6 dòng conversation | lấy bản m4 (chứa dòng của 163) |
+| `cmd/crm/wire_m4_test.go` | 163: lịch duy nhất presence_cleanup, không kênh; m4: kênh fakechat ngoài production, lịch duy nhất reminders | giữ kiểm kênh/nguồn của m4; lịch mong đợi = `[conversation.presence_cleanup, conversation.reminders]`, mỗi lịch theo tenant, một handler cùng Kind |
+| `internal/modules/conversation/wiring_test.go` | 163 `TestWiring` (1 lịch presence) + `TestPresenceTopic`; m4 `TestWiringEmpty` (1 lịch reminders) | một `TestWiring` kiểm đủ 2 lịch (theo tenant, 60 s, handler cùng Kind); giữ `TestPresenceTopic`; thêm `jobFor` chọn handler theo Kind của lịch |
+| `tests/arch/testdata/m4_pending.txt` | 163 bỏ `getPresence`, `setPresence`; m4 bỏ `createReminder` | bỏ cả ba (cả hai bên đã hiện thực) |
+| 14 tệp `internal/**/internal/store/models.go` (mã sinh) | — | lấy bản m4 rồi `make gen` |
+
+**Lỗi sau gộp:**
+- Build: `conversation.ErrNotFound` khai hai lần (`presence.go` của 163, `reminders.go` của m4), cả hai đều là `access.ErrNotFound` (cùng một giá trị). Xóa khai báo phía 163 trong `presence.go` (và import `access`), không đổi tên: đổi tên sẽ tạo hai tên cho cùng một sentinel; mọi chỗ dùng `conversation.ErrNotFound` vẫn đúng.
+- Test giả định module chỉ có 1 việc nền (`len(jobs) != 1`) gãy khi có 2: `TestPresence_ExpiresAfterCleanup` (163, `handlers_presence_test.go`) và `TestFireDueReminders` (169, `reminders_test.go`) giờ chọn handler theo Kind của lịch đúng tên.
+
+**Bằng chứng:**
+
+| Kiểm | Lệnh | Kết quả |
+|---|---|---|
+| build | `go build ./...` | qua |
+| vet | `go vet ./internal/modules/conversation/... ./internal/httpapi/ ./cmd/crm/` | qua |
+| lỗi HTTP | `go test -count=1 ./internal/httpapi/ -run 'Errors'` | `ok elimaz.com.vn/crm/internal/httpapi 2.089s` |
+| wire M4 | `go test -count=1 ./cmd/crm/ -run 'WireM4'` | `ok elimaz.com.vn/crm/cmd/crm 0.740s` |
+| gói chạm, -race | `go test -race -count=1 ./internal/modules/conversation/... ./internal/httpapi/ ./cmd/crm/ ./internal/modules/channel/...` | `ok conversation 4.777s`, `ok conversation/internal/access`, `ok conversation/internal/presence`, `ok httpapi 34.705s`, `ok cmd/crm 12.800s`, `ok channel 3.952s` |
+| kiến trúc | `go test -count=1 ./tests/arch/` | `ok elimaz.com.vn/crm/tests/arch 14.657s` |
+| lint | `golangci-lint run ./internal/modules/conversation/... ./internal/httpapi/... ./cmd/crm/... ./internal/modules/channel/...` | `0 issues.` |
+
+Không gói nào ngoài `httpapi`, `cmd/crm` nhập `internal/modules/conversation` (`go list`).
+| snapshot lỗi (thêm theo ghi chú reviewer) | `go test -count=1 ./internal/httpapi/ -run 'DomainError'` | `ok elimaz.com.vn/crm/internal/httpapi 0.674s` |
+
+**Reviewer (lượt gộp): ĐẠT.** Không có phát hiện phải sửa. Đã đối chiếu: errors.go/errors_conversation.go/snapshot đủ
+dòng hai bên, `ErrNotFound` vẫn là dòng kiểm đầu; thứ tự `Schedules[i]`/`Jobs[i]` khớp `areas()` (presence trước
+reminders); xóa `ErrNotFound` ở presence.go đúng vì cùng giá trị `access.ErrNotFound`; hai test chọn handler theo Kind
+giữ nguyên ý; `m4_pending.txt` bỏ ba operation đã hiện thực. Ghi chú: mẫu `-run 'Errors'` không khớp test snapshot (đã
+chạy thêm `-run 'DomainError'`, dòng trên).

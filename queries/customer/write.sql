@@ -17,7 +17,8 @@ FOR UPDATE;
 
 -- name: UpdateCustomerProfile :one
 UPDATE customer.customers
-SET full_name   = @full_name,
+SET name_source = CASE WHEN full_name <> @full_name THEN 'staff' ELSE name_source END, -- nhân viên đổi tên (Task 152)
+    full_name   = @full_name,
     name_search = @name_search,
     birthday    = sqlc.narg(birthday)::date,
     updated_at  = @now,

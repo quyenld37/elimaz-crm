@@ -28,20 +28,7 @@ func TestFindOrCreateForOrderRace(t *testing.T) {
 		})
 	}
 	wg.Wait()
-	created := 0
-	ids := map[uuid.UUID]bool{}
-	for i := range n {
-		if errs[i] != nil {
-			t.Fatalf("yêu cầu %d: %v", i, errs[i])
-		}
-		ids[got[i].CustomerID] = true
-		if got[i].Created {
-			created++
-		}
-	}
-	if len(ids) != 1 || created != 1 {
-		t.Fatalf("mã khách %v, số lần tạo %d", ids, created)
-	}
+	expectOneCreated(t, errs, func(i int) (uuid.UUID, bool) { return got[i].CustomerID, got[i].Created })
 	if c := e.count(`SELECT count(*) FROM customer.customers WHERE full_name = 'Khách Đua'`); c != 1 {
 		t.Errorf("số khách: %d", c)
 	}
@@ -93,5 +80,26 @@ func TestFindOrCreateForOrderVsAddIdentityNoDeadlock(t *testing.T) {
 	e.staff.Count(t, "SELECT 0 FROM pg_stat_force_next_flush()")
 	if after := deadlocks(); after != before {
 		t.Fatalf("deadlock: %d → %d", before, after)
+	}
+}
+
+// expectOneCreated: mọi lời gọi song song (errs[i], kết quả at(i) = mã khách, đã tạo) không lỗi, cùng một mã khách và
+// đúng một lời gọi đã tạo.
+func expectOneCreated(t *testing.T, errs []error, at func(i int) (uuid.UUID, bool)) {
+	t.Helper()
+	created := 0
+	ids := map[uuid.UUID]bool{}
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("lời gọi %d: %v", i, err)
+		}
+		id, c := at(i)
+		ids[id] = true
+		if c {
+			created++
+		}
+	}
+	if len(ids) != 1 || created != 1 {
+		t.Fatalf("mã khách %v, số lần tạo %d", ids, created)
 	}
 }

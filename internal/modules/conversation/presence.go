@@ -8,15 +8,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"elimaz.com.vn/crm/internal/modules/conversation/internal/access"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/presence"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/realtime"
 )
-
-// ErrNotFound là lỗi khi hội thoại không có, của tenant khác, hoặc người gọi không có quyền trên Page của nó (lớp HTTP trả 404
-// để không lộ sự tồn tại).
-var ErrNotFound = access.ErrNotFound
 
 // PresenceState là việc một nhân viên đang làm trong hội thoại (Task 163).
 type PresenceState = presence.State

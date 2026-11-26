@@ -222,13 +222,21 @@ func TestPresence_ExpiresAfterCleanup(t *testing.T) {
 	e := newPresenceEnv(t)
 	e.mustBeat(presAn, "viewing")
 	e.now = e.now.Add(31 * time.Second)
-	jobs := conversation.JobHandlers(conversation.Deps{Bus: e.bus, Now: func() time.Time { return e.now }})
-	if len(jobs) != 1 {
-		t.Fatalf("việc nền conversation: %d", len(jobs))
+	d := conversation.Deps{Bus: e.bus, Now: func() time.Time { return e.now }}
+	var cleanup queue.Handler
+	for _, s := range conversation.Schedules(d) {
+		for _, j := range conversation.JobHandlers(d) {
+			if s.Name == conversation.PresenceCleanupSchedule && j.Kind().Name == s.Kind.Name {
+				cleanup = j
+			}
+		}
+	}
+	if cleanup == nil {
+		t.Fatalf("không thấy việc nền %s", conversation.PresenceCleanupSchedule)
 	}
 	before := e.signals()
 	if err := tenancy.WithTenant(t.Context(), e.staff.App, e.tenant, func(tx pgx.Tx) error {
-		_, err := jobs[0].Handle(t.Context(), queue.Job{TenantID: &e.tenant, Kind: jobs[0].Kind().Name}, tx)
+		_, err := cleanup.Handle(t.Context(), queue.Job{TenantID: &e.tenant, Kind: cleanup.Kind().Name}, tx)
 		return err //nolint:wrapcheck // test
 	}); err != nil {
 		t.Fatal(err)

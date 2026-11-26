@@ -10,6 +10,7 @@ import (
 	"elimaz.com.vn/crm/internal/httpapi/web"
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/channel"
 	"elimaz.com.vn/crm/internal/modules/content"
 	"elimaz.com.vn/crm/internal/modules/conversation"
 	"elimaz.com.vn/crm/internal/modules/customer"
@@ -195,7 +196,16 @@ func domainErrorSnapshot() []snapshotCase {
 		{"content.ErrLookPhoto", content.ErrLookPhoto, http.StatusUnprocessableEntity, "look_photo_invalid"},
 		{"content.ErrLookWindow", content.ErrLookWindow, http.StatusUnprocessableEntity, "look_window_invalid"},
 		{"content.ErrLookNotFound", content.ErrLookNotFound, http.StatusNotFound, "not_found"},
+		// Tài khoản kênh (M4, Task 145).
+		{"channel.ErrAccountNotFound", channel.ErrAccountNotFound, http.StatusNotFound, "not_found"},
+		{"channel.ErrVersionConflict", channel.ErrVersionConflict, http.StatusConflict, "version_conflict"},
+		{"channel.ErrInvalidSendMode", channel.ErrInvalidSendMode, http.StatusBadRequest, "invalid_input"},
 		{"conversation.ErrNotFound", conversation.ErrNotFound, http.StatusNotFound, "not_found"},
+		{"conversation.ErrReminderInvalid", conversation.ErrReminderInvalid, http.StatusBadRequest, "invalid_input"},
+		{"conversation.ErrCallInvalid", conversation.ErrCallInvalid, http.StatusBadRequest, "invalid_input"},
+		{"conversation.ErrReminderClosed", conversation.ErrReminderClosed, http.StatusConflict, "version_conflict"},
+		{"conversation.ErrReminderAssignForbidden", conversation.ErrReminderAssignForbidden, http.StatusForbidden, "forbidden"},
+		{"conversation.ErrAssigneeNotAllowed", conversation.ErrAssigneeNotAllowed, http.StatusUnprocessableEntity, "assignee_not_allowed"},
 		{"weborders.ErrBadLimit", weborders.ErrBadLimit, http.StatusBadRequest, "bad_request"},
 		{"weborders.ErrNotFound", weborders.ErrNotFound, http.StatusNotFound, "not_found"},
 		{"webcatalog.ErrBadLimit", webcatalog.ErrBadLimit, http.StatusBadRequest, "bad_request"},
@@ -357,6 +367,9 @@ type membershipCase struct {
 //nolint:funlen // bảng dữ liệu, một dòng mỗi sentinel; tách nhỏ chỉ làm khó đối chiếu với bảng cũ
 func domainErrorMembership() []membershipCase {
 	return []membershipCase{
+		{"channelError", channelError, channel.ErrAccountNotFound},
+		{"channelError", channelError, channel.ErrVersionConflict},
+		{"channelError", channelError, channel.ErrInvalidSendMode},
 		{"identityError", identityError, identity.ErrSelfModify},
 		{"identityError", identityError, identity.ErrGrantExceedsActor},
 		{"identityError", identityError, identity.ErrLocked},
@@ -469,6 +482,9 @@ func domainErrorMembership() []membershipCase {
 		{"fulfillmentError", fulfillmentError, fulfillment.ErrCallbackNotFound},
 		{"fulfillmentError", fulfillmentError, fulfillment.ErrCallbackClosed},
 		{"fulfillmentError", fulfillmentError, fulfillment.ErrCallbackAssignee},
+		{"conversationError", conversationError, conversation.ErrNotFound},
+		{"conversationError", conversationError, conversation.ErrReminderClosed},
+		{"conversationError", conversationError, conversation.ErrCallInvalid},
 		{"cashError", cashError, cash.ErrCarrierAccountNotFound},
 		{"cashError", cashError, cash.ErrStatementNotFound},
 		{"cashError", cashError, cash.ErrStatementChanged},

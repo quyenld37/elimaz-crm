@@ -414,6 +414,74 @@ type CatalogVariantsV struct {
 	WeightGrams   pgtype.Int4
 }
 
+type ChannelChannelAccount struct {
+	ID                uuid.UUID
+	TenantID          uuid.UUID
+	SellerID          uuid.UUID
+	Channel           string
+	ExternalID        string
+	Name              string
+	CredentialEnc     []byte
+	CredentialKid     pgtype.Text
+	TokenKind         pgtype.Text
+	Status            string
+	StatusReason      pgtype.Text
+	SendMode          string
+	HumanAgentEnabled bool
+	SubscribedFields  []string
+	TokenCheckedAt    pgtype.Timestamptz
+	LastWebhookAt     pgtype.Timestamptz
+	LastFeedAt        pgtype.Timestamptz
+	BlockedUntil      pgtype.Timestamptz
+	Version           int32
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type ChannelChannelAccountsV struct {
+	ID                uuid.UUID
+	TenantID          uuid.UUID
+	SellerID          uuid.UUID
+	Channel           string
+	ExternalID        string
+	Name              string
+	TokenKind         pgtype.Text
+	Status            string
+	StatusReason      pgtype.Text
+	SendMode          string
+	HumanAgentEnabled bool
+	SubscribedFields  []string
+	TokenCheckedAt    pgtype.Timestamptz
+	LastWebhookAt     pgtype.Timestamptz
+	LastFeedAt        pgtype.Timestamptz
+	BlockedUntil      pgtype.Timestamptz
+	Version           int32
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type ChannelOauthSession struct {
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	UserID       uuid.UUID
+	StateHash    []byte
+	UserTokenEnc []byte
+	UserTokenKid pgtype.Text
+	Pages        []byte
+	ExpiresAt    time.Time
+	UsedAt       pgtype.Timestamptz
+	CreatedAt    time.Time
+}
+
+type ChannelSendBucket struct {
+	TenantID         uuid.UUID
+	ChannelAccountID uuid.UUID
+	Tokens           float64
+	Capacity         int32
+	RefillPerSec     float64
+	UpdatedAt        time.Time
+}
+
 type ContentHomeBanner struct {
 	ID           uuid.UUID
 	TenantID     uuid.UUID
@@ -475,6 +543,31 @@ type ContentLookSet struct {
 	Revision  int32
 	UpdatedBy *uuid.UUID
 	UpdatedAt pgtype.Timestamptz
+}
+
+type ConversationCallLog struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	CustomerID     uuid.UUID
+	ConversationID *uuid.UUID
+	OrderID        *uuid.UUID
+	Outcome        string
+	Note           pgtype.Text
+	CallbackAt     pgtype.Timestamptz
+	CreatedBy      uuid.UUID
+	CreatedAt      time.Time
+}
+
+type ConversationCallLogsV struct {
+	TenantID       uuid.UUID
+	ID             uuid.UUID
+	CustomerID     uuid.UUID
+	ConversationID *uuid.UUID
+	OrderID        *uuid.UUID
+	Outcome        string
+	CallbackAt     pgtype.Timestamptz
+	CreatedBy      uuid.UUID
+	CreatedAt      time.Time
 }
 
 type ConversationConversation struct {
@@ -612,6 +705,21 @@ type ConversationPresence struct {
 	ExpiresAt      time.Time
 }
 
+type ConversationReminder struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	ConversationID uuid.UUID
+	UserID         uuid.UUID
+	RemindAt       time.Time
+	Note           pgtype.Text
+	Status         string
+	Source         string
+	CreatedBy      uuid.UUID
+	FiredAt        pgtype.Timestamptz
+	Version        int32
+	CreatedAt      time.Time
+}
+
 type ConversationTag struct {
 	ID        uuid.UUID
 	TenantID  uuid.UUID
@@ -704,6 +812,9 @@ type CustomerCustomer struct {
 	LastOrderAt    pgtype.Timestamptz
 	StatsUpdatedAt pgtype.Timestamptz
 	CreatedBy      *uuid.UUID
+	DoNotContact   bool
+	DoNotContactAt pgtype.Timestamptz
+	NameSource     string
 }
 
 type CustomerCustomerAddress struct {
@@ -855,6 +966,8 @@ type CustomerCustomersV struct {
 	LastOrderAt    pgtype.Timestamptz
 	UpdatedAt      time.Time
 	Version        int64
+	DoNotContact   bool
+	NameSource     string
 }
 
 type CustomerFeedback struct {

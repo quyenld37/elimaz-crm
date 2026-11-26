@@ -26,7 +26,7 @@ bảng ghi trong ô.
 |---|---|---|---|
 | 1 | `platform`: quản trị tenant | `platform.tenants` → `platform.tenant_routes` | spec |
 | 2 | `identity` | `identity.users` → `identity.roles` → `identity.role_permissions` → `identity.user_role_grants` → `identity.user_credentials` → `identity.user_second_factors` → `identity.user_sessions` → `identity.service_keys` | spec; `identity.role_permissions`: M0 Task 7; M5 (Task M5-00 viết trước, M5-06 tạo ở 0501): `service_keys` |
-| 3 | `channel` | `channel.channel_accounts` → `channel.send_buckets` → `channel.oauth_sessions` | spec; M4 (Task M2-33 viết khung, M4-03 = Task 143 đã đối chiếu 25/11, khớp): `send_buckets`, `oauth_sessions` |
+| 3 | `channel` | `channel.channel_accounts` → `channel.send_buckets` → `channel.oauth_sessions` | spec; M4 (Task M2-33 viết khung, M4-03 = Task 143 đã đối chiếu 25/11, khớp; M4-05 = Task 145 tạo cả ba bảng ở migration 0401): `send_buckets`, `oauth_sessions`. `AcquireSendToken` chỉ đọc `channel_accounts` (không khóa) rồi ghi `send_buckets` trong transaction riêng; đổi cài đặt Page khóa một dòng `channel_accounts` |
 | 4 | `catalog` | `catalog.imports` → `catalog.sellers` → `catalog.categories` → `catalog.attributes` → `catalog.attribute_values` → `catalog.tags` → `catalog.products` → `catalog.product_attribute_values` → `catalog.product_tags` → `catalog.product_images` → `catalog.variants` → `catalog.barcode_counters` | spec; M1 (Task M1-25 viết trước): `sellers`, `variants`, `barcode_counters` M1-27; `categories`, `attributes`, `attribute_values`, `tags`, `product_attribute_values`, `product_tags` M1-34; `product_images` M1-44; `imports` M1-47 |
 | 5 | `customer` | `customer.customers` → `customer.customer_identities` → `customer.customer_addresses` → `customer.customer_tag_links` → `customer.customer_tag_rules` → `customer.customer_merges` → `customer.customer_imports` → `customer.feedback` → `customer.birthday_profiles` | spec; M2 (Task M2-02 viết trước, M2-03 tạo): `customer_addresses`, `customer_tag_links`, `customer_tag_rules`, `customer_merges`, `customer_imports`; M5 (Task 450 viết trước, M5-43 tạo ở 0523, M5-56 ở 0525): `feedback`, `birthday_profiles` |
 | 6 | `conversation` | `conversation.tags` → `conversation.reply_templates` → `conversation.page_settings` → `conversation.posts` → `conversation.conversations` → `conversation.conversation_tag_links` → `conversation.conversation_assignments` → `conversation.reminders` → `conversation.live_sessions` → `conversation.live_comment_claims` → `conversation.messages` → `conversation.message_revisions` → `conversation.automation_rules` → `conversation.automation_runs` → `conversation.call_logs` → `conversation.presence` | spec; M4 (Task M2-33 viết khung, M4-03 = Task 143 đã đối chiếu 25/11, khớp): `tags`, `reply_templates`, `page_settings`, `posts`, `conversation_tag_links`, `conversation_assignments`, `reminders`, `live_comment_claims`, `message_revisions`, `automation_rules`, `call_logs`, `presence` |
@@ -93,6 +93,13 @@ trước (sự kiện vận đơn đổi đơn và tồn) khóa dòng nhóm trư
   khóa `promotion.birthday_run:<tenant>`) **trước mọi khóa dòng**; không lấy được → `ErrRunInProgress` ngay (không chờ),
   nên không tạo vòng chờ. Sau đó: đọc cài đặt không khóa → chèn `birthday_runs` → mỗi nhóm hạn một savepoint
   (`EnsureWebBatch`: `coupon_batches` → `coupons`, rồi chèn `birthday_gifts`) → cập nhật dòng lượt vừa chèn.
+
+- `customer` tìm-hoặc-tạo theo danh tính kênh (M4 Task 152, 05 mục 1): `customer.Writer.FindOrCreateByIdentity` lấy
+  `pg_advisory_xact_lock` theo (tenant, loại, phạm vi, giá trị) (`queries/customer/channel_identity.sql`
+  `LockChannelIdentity`, khóa `customer.channel_identity:<tenant>:<loại>:<phạm vi>:<giá trị>`) **trước mọi khóa dòng
+  của nhóm 5**; bên gọi (đường tin vào, comment của M4) không giữ dòng nào từ nhóm 5 trở về sau trước khi gọi. Chỉ đường này
+  lấy khóa đó: tin nhắn và comment đầu tiên của cùng một người chạy lần lượt, ra một hồ sơ. Sau đó: đọc chủ danh tính
+  không khóa → (chưa có) tạo khách, danh tính là dòng mới.
 
 ## Luật cho mốc sau (Q-X4, C14)
 
