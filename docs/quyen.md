@@ -143,8 +143,8 @@ Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn đ
 | `web.orders.read` | none | M5 | | Khóa dịch vụ: tra đơn kênh web theo mã đơn web |
 | `web.orders.cancel` | none | M5 | | Khóa dịch vụ: khách tự hủy đơn web |
 | `web.requests.write` | none | M5 | | Khóa dịch vụ: gửi yêu cầu về đơn (đổi, trả, câu hỏi) |
-| `web.coupons.issue` | none | M5 | | Khóa dịch vụ: phát mã giảm giá của website; đọc quà sinh nhật cần gửi (outbox) |
-| `web.birthdays.write` | none | M5 | | Khóa dịch vụ: gửi đăng ký sinh nhật, dừng nhận tin sinh nhật của khách |
+| `web.coupons.issue` | none | M5 | | Khóa dịch vụ: phát mã giảm giá của website; đọc quà sinh nhật cần gửi (outbox); báo quà sinh nhật gửi lỗi (`webBirthdayGiftFailed`: lỗi 1, 2 rời outbox 6 giờ, lần 3 thôi tự gửi; Task 491) |
+| `web.birthdays.write` | none | M5 | | Khóa dịch vụ: gửi đăng ký sinh nhật, dừng nhận tin sinh nhật của khách; nhập hồ sơ sinh nhật cũ của website giữ mã dừng, lúc đăng ký, cờ đơn cũ `legacyDelivered` (`webImportBirthdays`; Task 491) |
 | `web.feedback.write` | none | M5 | | Khóa dịch vụ: gửi góp ý của khách từ form /gop-y (Task 455) |
 | `web.shipping.quote` | none | M5 | | Khóa dịch vụ: báo phí ship cho giỏ hàng |
 | `web.flash.buy` | none | M5 | | Khóa dịch vụ: bấm mua flash sale |

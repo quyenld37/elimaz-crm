@@ -42133,6 +42133,69 @@ func (s *WebBirthdayImportItem) SetLegacyDelivered(val OptBool) {
 	s.LegacyDelivered = val
 }
 
+// Ref: #/components/schemas/WebBirthdayImportRejection
+type WebBirthdayImportRejection struct {
+	// Vị trí mục (từ 0).
+	Index int32 `json:"index"`
+	// Stop_token_taken = mã dừng đã thuộc hồ sơ sinh nhật của khách khác.
+	Reason WebBirthdayImportRejectionReason `json:"reason"`
+}
+
+// GetIndex returns the value of Index.
+func (s *WebBirthdayImportRejection) GetIndex() int32 {
+	return s.Index
+}
+
+// GetReason returns the value of Reason.
+func (s *WebBirthdayImportRejection) GetReason() WebBirthdayImportRejectionReason {
+	return s.Reason
+}
+
+// SetIndex sets the value of Index.
+func (s *WebBirthdayImportRejection) SetIndex(val int32) {
+	s.Index = val
+}
+
+// SetReason sets the value of Reason.
+func (s *WebBirthdayImportRejection) SetReason(val WebBirthdayImportRejectionReason) {
+	s.Reason = val
+}
+
+// Stop_token_taken = mã dừng đã thuộc hồ sơ sinh nhật của khách khác.
+type WebBirthdayImportRejectionReason string
+
+const (
+	WebBirthdayImportRejectionReasonStopTokenTaken WebBirthdayImportRejectionReason = "stop_token_taken"
+)
+
+// AllValues returns all WebBirthdayImportRejectionReason values.
+func (WebBirthdayImportRejectionReason) AllValues() []WebBirthdayImportRejectionReason {
+	return []WebBirthdayImportRejectionReason{
+		WebBirthdayImportRejectionReasonStopTokenTaken,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s WebBirthdayImportRejectionReason) MarshalText() ([]byte, error) {
+	switch s {
+	case WebBirthdayImportRejectionReasonStopTokenTaken:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *WebBirthdayImportRejectionReason) UnmarshalText(data []byte) error {
+	switch WebBirthdayImportRejectionReason(data) {
+	case WebBirthdayImportRejectionReasonStopTokenTaken:
+		*s = WebBirthdayImportRejectionReasonStopTokenTaken
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/WebBirthdayImportReport
 type WebBirthdayImportReport struct {
 	Inserted int32 `json:"inserted"`
@@ -42140,9 +42203,12 @@ type WebBirthdayImportReport struct {
 	Skipped int32 `json:"skipped"`
 	// Hồ sơ đang dừng nhận tin do lần nhập này.
 	Stopped int32 `json:"stopped"`
-	// Vị trí mục (từ 0) không giữ được mã dừng (khách đã có hồ sơ khác mã, hay
-	// mã thuộc khách khác).
+	// Vị trí mục (từ 0) không giữ được mã dừng vì khách của SĐT đã có hồ sơ
+	// khác mã (hồ sơ giữ nguyên; website ghi đã dừng thì hồ sơ đó dừng).
 	Conflicts []int32 `json:"conflicts"`
+	// Mục bị từ chối, không ghi gì (không tạo khách, không hồ sơ), kèm lý do (Task
+	// 510).
+	Rejected []WebBirthdayImportRejection `json:"rejected"`
 }
 
 // GetInserted returns the value of Inserted.
@@ -42165,6 +42231,11 @@ func (s *WebBirthdayImportReport) GetConflicts() []int32 {
 	return s.Conflicts
 }
 
+// GetRejected returns the value of Rejected.
+func (s *WebBirthdayImportReport) GetRejected() []WebBirthdayImportRejection {
+	return s.Rejected
+}
+
 // SetInserted sets the value of Inserted.
 func (s *WebBirthdayImportReport) SetInserted(val int32) {
 	s.Inserted = val
@@ -42183,6 +42254,11 @@ func (s *WebBirthdayImportReport) SetStopped(val int32) {
 // SetConflicts sets the value of Conflicts.
 func (s *WebBirthdayImportReport) SetConflicts(val []int32) {
 	s.Conflicts = val
+}
+
+// SetRejected sets the value of Rejected.
+func (s *WebBirthdayImportReport) SetRejected(val []WebBirthdayImportRejection) {
+	s.Rejected = val
 }
 
 func (*WebBirthdayImportReport) webImportBirthdaysRes() {}

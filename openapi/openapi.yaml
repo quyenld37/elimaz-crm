@@ -16692,7 +16692,7 @@ components:
           description: Khách đã có đơn web giao thành công trên website cũ
     WebBirthdayImportReport:
       type: object
-      required: [inserted, skipped, stopped, conflicts]
+      required: [inserted, skipped, stopped, conflicts, rejected]
       properties:
         inserted:
           type: integer
@@ -16710,7 +16710,26 @@ components:
           items:
             type: integer
             format: int32
-          description: Vị trí mục (từ 0) không giữ được mã dừng (khách đã có hồ sơ khác mã, hay mã thuộc khách khác)
+          description: >-
+            Vị trí mục (từ 0) không giữ được mã dừng vì khách của SĐT đã có hồ sơ khác mã (hồ sơ giữ nguyên; website ghi
+            đã dừng thì hồ sơ đó dừng)
+        rejected:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebBirthdayImportRejection'
+          description: Mục bị từ chối, không ghi gì (không tạo khách, không hồ sơ), kèm lý do (Task 510)
+    WebBirthdayImportRejection:
+      type: object
+      required: [index, reason]
+      properties:
+        index:
+          type: integer
+          format: int32
+          description: Vị trí mục (từ 0)
+        reason:
+          type: string
+          enum: [stop_token_taken]
+          description: stop_token_taken = mã dừng đã thuộc hồ sơ sinh nhật của khách khác
     # --- M4: hộp chat, Live (Task 143). Nội dung tin, comment, tên khách là dữ liệu cá nhân: không ghi log. Không
     # trường nào mang token Page.
     ChannelAccountStatus:

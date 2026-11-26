@@ -56,7 +56,8 @@ func (e *env) giftFailed(code string, now time.Time) (promotion.GiftSendFailure,
 
 // Outbox phân trang theo con trỏ (lúc phát, mã): đi hết trang ra đủ quà, không trùng; con trỏ sai → ErrInvalidInput.
 // Quà gửi lỗi không chặn quà mới: lỗi lần 1, 2 → rời outbox 6 giờ rồi quay lại; lỗi lần 3 → không tự gửi nữa (vẫn ở
-// "Cần nhắn"); trang đầu limit 1 là quà kế tiếp. Quà đã trao: báo lỗi không đổi gì. Mã lạ, mã không phải quà sinh nhật
+// "Cần nhắn"); trang đầu limit 1 là quà kế tiếp; báo lỗi thêm sau khi hết lượt → kết quả như lần 3, Changed false
+// (Task 510: bên gọi không ghi audit). Quà đã trao: báo lỗi không đổi gì. Mã lạ, mã không phải quà sinh nhật
 // → ErrNotFound.
 func TestBirthdayOutbox_PagesAndFailedGiftDoesNotBlock(t *testing.T) {
 	t.Parallel()
@@ -85,7 +86,7 @@ func TestBirthdayOutbox_PagesAndFailedGiftDoesNotBlock(t *testing.T) {
 	if len(todo) != 3 {
 		t.Fatalf("cần nhắn còn quà hết lượt: %d", len(todo))
 	}
-	if f, err := e.giftFailed(head, at); err != nil || f.Failures != 3 || f.RetryAt != nil {
+	if f, err := e.giftFailed(head, at); err != nil || f.Failures != 3 || f.RetryAt != nil || f.Changed || f.Given {
 		t.Fatalf("báo lỗi sau khi hết lượt: %+v %v", f, err)
 	}
 
@@ -95,7 +96,7 @@ func TestBirthdayOutbox_PagesAndFailedGiftDoesNotBlock(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if f, err := e.giftFailed(all[1], bdNow()); err != nil || f.Failures != 0 || f.RetryAt != nil || !f.Given {
+	if f, err := e.giftFailed(all[1], bdNow()); err != nil || f.Failures != 0 || f.RetryAt != nil || !f.Given || f.Changed {
 		t.Fatalf("quà đã trao: %+v %v", f, err)
 	}
 	if _, err := e.giftFailed("KHONGCO-1", bdNow()); !errors.Is(err, promotion.ErrNotFound) {
@@ -174,7 +175,7 @@ func (e *env) failThreeTimes(all []string) time.Time {
 	head, at := all[0], bdNow()
 	for i := 1; i <= 3; i++ {
 		f, err := e.giftFailed(head, at)
-		if err != nil || f.Failures != i || f.Code != head {
+		if err != nil || f.Failures != i || f.Code != head || !f.Changed {
 			t.Fatalf("lỗi lần %d: %+v %v", i, f, err)
 		}
 		if p, _ := e.outbox(at, promotion.OutboxQuery{Limit: 1}); len(p.Items) != 1 || p.Items[0].Code != all[1] {

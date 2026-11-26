@@ -103,8 +103,8 @@ func (h *handler) WebBirthdayGiftFailed(ctx context.Context, params gen.WebBirth
 		if f.RetryAt != nil {
 			body.RetryAt = gen.NewOptDateTime(*f.RetryAt)
 		}
-		if f.Given {
-			return body, nil
+		if !f.Changed {
+			return body, nil // đã trao hay đã hết lượt: không đổi gì, không ghi audit (Task 510)
 		}
 		return body, auditService(ctx, tx, u, "promotion.birthday_gift.send_failed", "promotion.coupon", f.CouponID, nil,
 			map[string]any{"code": f.Code, "failures": f.Failures, "retry": f.RetryAt != nil})
@@ -137,9 +137,15 @@ func (h *handler) WebImportBirthdays(ctx context.Context, req *gen.WebBirthdayIm
 		body := &gen.WebBirthdayImportReport{
 			Inserted: int32(r.Inserted), Skipped: int32(r.Skipped), Stopped: int32(r.Stopped), //nolint:gosec // G115: ≤ 500
 			Conflicts: make([]int32, 0, len(r.Conflicts)),
+			Rejected:  make([]gen.WebBirthdayImportRejection, 0, len(r.Rejected)),
 		}
 		for _, c := range r.Conflicts {
 			body.Conflicts = append(body.Conflicts, int32(c)) //nolint:gosec // G115: < 500
+		}
+		for _, x := range r.Rejected {
+			body.Rejected = append(body.Rejected, gen.WebBirthdayImportRejection{
+				Index: int32(x.Index), Reason: gen.WebBirthdayImportRejectionReason(x.Reason), //nolint:gosec // G115: < 500
+			})
 		}
 		return body, nil
 	})

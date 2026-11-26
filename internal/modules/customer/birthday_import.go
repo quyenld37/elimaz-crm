@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/customer/internal/store"
+	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/logging"
 )
 
@@ -26,7 +27,13 @@ const (
 	defaultImportedName = "Khách website"
 )
 
+// ImportRejectStopTokenTaken là lý do từ chối: mã dừng của mục đã thuộc hồ sơ sinh nhật của khách khác (Task 510).
+const ImportRejectStopTokenTaken = "stop_token_taken"
+
 var stopTokenPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{16,100}$`)
+
+// errStopTokenTaken lùi savepoint của một mục nhập có mã dừng thuộc khách khác (không ra ngoài gói).
+var errStopTokenTaken = errors.New("mã dừng thuộc hồ sơ của khách khác")
 
 // BirthdayImport là một hồ sơ sinh nhật của website: SĐT (khóa tìm khách), tên (chỉ dùng khi tạo khách mới; rỗng →
 // "Khách website"), ngày, tháng, kênh đồng ý, email, mã dừng (giữ nguyên), lúc đăng ký, lúc dừng (nil: chưa dừng), cờ
@@ -43,11 +50,18 @@ type BirthdayImport struct {
 }
 
 // BirthdayImportReport là kết quả một lần nhập: hồ sơ chèn mới, hồ sơ đã có cùng mã dừng (nhập lại), số hồ sơ đang dừng
-// do lần nhập này, vị trí mục (từ 0, tăng dần) không giữ được mã dừng (khách đã có hồ sơ khác mã, hay mã thuộc khách
-// khác).
+// do lần nhập này, vị trí mục (từ 0, tăng dần) không giữ được mã dừng vì khách của SĐT đã có hồ sơ khác mã, mục bị từ
+// chối không ghi gì (theo vị trí tăng dần, kèm lý do).
 type BirthdayImportReport struct {
 	Inserted, Skipped, Stopped int
 	Conflicts                  []int
+	Rejected                   []BirthdayImportRejection
+}
+
+// BirthdayImportRejection là một mục nhập bị từ chối: vị trí (từ 0), lý do (ImportReject…).
+type BirthdayImportRejection struct {
+	Index  int
+	Reason string
 }
 
 // importEntry là một mục đã kiểm: vị trí gốc, SĐT chuẩn hóa, email.
@@ -60,10 +74,11 @@ type importEntry struct {
 }
 
 // ImportBirthdays nhập 1–500 hồ sơ sinh nhật của website trong tx của bên gọi, theo SĐT tăng dần (ADR-46 nhóm 5: khách
-// → birthday_profiles; hai lần nhập trùng SĐT không khóa ngược). Mỗi mục: tìm hay tạo khách theo SĐT (nguồn import);
-// khách chưa có hồ sơ → hồ sơ nguồn import giữ mã dừng, lúc đăng ký, lúc dừng, cờ đơn cũ (audit
-// customer.birthday.import, chỉ tên trường); đã có cùng mã → Skipped; khác mã hay mã thuộc khách khác → Conflicts, hồ sơ
-// giữ nguyên trừ việc website ghi đã dừng thì dừng hồ sơ của khách đó (audit customer.birthday.stop). Đầu vào sai (số
+// → birthday_profiles; hai lần nhập trùng SĐT không khóa ngược). Mỗi mục chạy trong một savepoint: tìm hay tạo khách
+// theo SĐT (nguồn import); khách chưa có hồ sơ → hồ sơ nguồn import giữ mã dừng, lúc đăng ký, lúc dừng, cờ đơn cũ (audit
+// customer.birthday.import, chỉ tên trường); đã có cùng mã → Skipped; đã có hồ sơ khác mã → Conflicts, hồ sơ giữ nguyên
+// trừ việc website ghi đã dừng thì dừng hồ sơ đó (audit customer.birthday.stop); mã dừng thuộc hồ sơ của khách khác →
+// Rejected (ImportRejectStopTokenTaken), savepoint lùi khách vừa tạo, không ghi gì (Task 510). Đầu vào sai (số
 // mục, SĐT hay mã dừng trùng, mã dừng sai mẫu, thiếu lúc đăng ký, ngày, email) → ErrInvalidInput; SĐT sai →
 // ErrInvalidPhone; bên gọi lùi transaction.
 func (w Writer) ImportBirthdays(ctx context.Context, tx pgx.Tx, items []BirthdayImport, a Actor, now time.Time,
@@ -75,13 +90,24 @@ func (w Writer) ImportBirthdays(ctx context.Context, tx pgx.Tx, items []Birthday
 	if err != nil {
 		return BirthdayImportReport{}, err
 	}
-	rep := BirthdayImportReport{Conflicts: []int{}}
+	rep := BirthdayImportReport{Conflicts: []int{}, Rejected: []BirthdayImportRejection{}}
 	for _, e := range entries {
-		if err := w.importBirthday(ctx, tx, e, a, now, &rep); err != nil {
-			return BirthdayImportReport{}, err
+		var one BirthdayImportReport
+		err := db.Savepoint(ctx, tx, func(sp pgx.Tx) error { return w.importBirthday(ctx, sp, e, a, now, &one) })
+		switch {
+		case errors.Is(err, errStopTokenTaken):
+			rep.Rejected = append(rep.Rejected, BirthdayImportRejection{Index: e.pos, Reason: ImportRejectStopTokenTaken})
+			continue
+		case err != nil:
+			return BirthdayImportReport{}, fmt.Errorf("nhập hồ sơ sinh nhật mục %d: %w", e.pos, err)
 		}
+		rep.Inserted += one.Inserted
+		rep.Skipped += one.Skipped
+		rep.Stopped += one.Stopped
+		rep.Conflicts = append(rep.Conflicts, one.Conflicts...)
 	}
 	slices.Sort(rep.Conflicts)
+	slices.SortFunc(rep.Rejected, func(a, b BirthdayImportRejection) int { return cmp.Compare(a.Index, b.Index) })
 	return rep, nil
 }
 
@@ -120,7 +146,8 @@ func importEntries(items []BirthdayImport) ([]importEntry, error) {
 	return out, nil
 }
 
-// importBirthday nhập một mục và cộng vào rep.
+// importBirthday nhập một mục và cộng vào rep (chỉ khi không lỗi); mã dừng thuộc khách khác → errStopTokenTaken để bên
+// gọi lùi savepoint.
 func (w Writer) importBirthday(ctx context.Context, tx pgx.Tx, e importEntry, a Actor, now time.Time,
 	rep *BirthdayImportReport,
 ) error {
@@ -161,8 +188,7 @@ func (w Writer) importBirthday(ctx context.Context, tx pgx.Tx, e importEntry, a 
 	have, err := q.BirthdayProfileToken(ctx, customerID)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
-		rep.Conflicts = append(rep.Conflicts, e.pos) // mã dừng đã thuộc hồ sơ của khách khác
-		return nil
+		return errStopTokenTaken // khách chưa có hồ sơ mà không chèn được: mã dừng đã thuộc hồ sơ của khách khác
 	case err != nil:
 		return fmt.Errorf("đọc hồ sơ sinh nhật có sẵn: %w", err)
 	case have.StopToken == e.StopToken:

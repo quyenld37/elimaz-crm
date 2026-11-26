@@ -4901,9 +4901,24 @@ export type WebBirthdayImportReport = {
      */
     stopped: number;
     /**
-     * Vị trí mục (từ 0) không giữ được mã dừng (khách đã có hồ sơ khác mã, hay mã thuộc khách khác)
+     * Vị trí mục (từ 0) không giữ được mã dừng vì khách của SĐT đã có hồ sơ khác mã (hồ sơ giữ nguyên; website ghi đã dừng thì hồ sơ đó dừng)
      */
     conflicts: Array<number>;
+    /**
+     * Mục bị từ chối, không ghi gì (không tạo khách, không hồ sơ), kèm lý do (Task 510)
+     */
+    rejected: Array<WebBirthdayImportRejection>;
+};
+
+export type WebBirthdayImportRejection = {
+    /**
+     * Vị trí mục (từ 0)
+     */
+    index: number;
+    /**
+     * stop_token_taken = mã dừng đã thuộc hồ sơ sinh nhật của khách khác
+     */
+    reason: 'stop_token_taken';
 };
 
 export type ChannelAccountStatus = 'active' | 'degraded' | 'disconnected';
