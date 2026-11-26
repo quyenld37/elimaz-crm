@@ -6,9 +6,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"net/http"
 	"testing"
 
 	"elimaz.com.vn/crm/internal/adapters/facebook"
+	"elimaz.com.vn/crm/internal/modules/channel"
+	"elimaz.com.vn/crm/internal/testkit/fakegraph"
 )
 
 const cdnHost = "scontent.fsgn5-1.fbcdn.net"
@@ -138,5 +141,40 @@ func TestBlockedIP(t *testing.T) {
 		if facebook.IsBlockedIP(ip) {
 			t.Errorf("%s không được chặn", ip)
 		}
+	}
+}
+
+// Lỗi tải mang sentinel chung của channel để module (không nhập adapter) xếp mục đính kèm (Task 155): máy lạ, địa
+// chỉ nội bộ, quá số lần chuyển → ErrDownloadBlocked và máy giả không nhận yêu cầu nào; CDN trả 403/404/410 →
+// ErrDownloadUnavailable; quá cỡ (26 MiB) → ErrDownloadTooLarge; 500 → không sentinel nào (lỗi tạm, thử lại).
+func TestDownload_ChannelSentinels(t *testing.T) {
+	t.Parallel()
+	e := dlEnv(t, map[string]string{cdnHost: "127.0.0.1", "private.fbcdn.net": "10.0.0.5"})
+	big := make([]byte, 26<<20)
+	copy(big, jpegBytes())
+	e.fg.AddFile("/big.jpg", big, "image/jpeg")
+	before := len(e.fg.Calls(""))
+	for _, u := range []string{"https://evil.example/a.jpg", e.at("private.fbcdn.net", "/a.jpg"), "https://10.0.0.5/a.jpg"} {
+		if _, _, err := e.c.Download(t.Context(), u, facebook.MaxDownload); !errors.Is(err, channel.ErrDownloadBlocked) {
+			t.Errorf("%s: %v, mong ErrDownloadBlocked", u, err)
+		}
+	}
+	if n := len(e.fg.Calls("")) - before; n != 0 {
+		t.Errorf("tải bị chặn mà máy giả nhận %d yêu cầu", n)
+	}
+	for _, status := range []int{http.StatusForbidden, http.StatusNotFound, http.StatusGone} {
+		e.fg.FailNext("gone.jpg", fakegraph.GraphErrorSpec{HTTPStatus: status, RawBody: "x"})
+		if _, _, err := e.c.Download(t.Context(), e.at(cdnHost, "/gone.jpg"), facebook.MaxDownload); !errors.Is(err, channel.ErrDownloadUnavailable) {
+			t.Errorf("CDN %d: %v, mong ErrDownloadUnavailable", status, err)
+		}
+	}
+	if _, _, err := e.c.Download(t.Context(), e.at(cdnHost, "/big.jpg"), facebook.MaxDownload); !errors.Is(err, channel.ErrDownloadTooLarge) {
+		t.Errorf("26 MiB: %v, mong ErrDownloadTooLarge", err)
+	}
+	e.fg.FailNext("busy.jpg", fakegraph.GraphErrorSpec{HTTPStatus: http.StatusInternalServerError, RawBody: "x"})
+	_, _, err := e.c.Download(t.Context(), e.at(cdnHost, "/busy.jpg"), facebook.MaxDownload)
+	if err == nil || errors.Is(err, channel.ErrDownloadBlocked) || errors.Is(err, channel.ErrDownloadUnavailable) ||
+		errors.Is(err, channel.ErrDownloadTooLarge) {
+		t.Errorf("CDN 500 phải là lỗi tạm không sentinel: %v", err)
 	}
 }

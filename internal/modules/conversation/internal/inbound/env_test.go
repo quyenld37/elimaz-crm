@@ -319,9 +319,15 @@ func deref(p *string) string {
 // texts chạy câu q (một cột chữ) bằng chủ bảng trong ngữ cảnh tenant A; trả mọi giá trị.
 func (e *env) texts(q string, args ...any) []string {
 	e.t.Helper()
+	return queryTexts(e.t, e.staff, e.tenant, q, args...)
+}
+
+// queryTexts chạy câu q (một cột chữ) bằng chủ bảng trong ngữ cảnh tenant; trả mọi giá trị.
+func queryTexts(t *testing.T, s *testkit.Staff, tenant uuid.UUID, q string, args ...any) []string {
+	t.Helper()
 	var out []string
-	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
-		rows, err := tx.Query(e.t.Context(), q, args...)
+	s.Exec(t, tenant, func(tx pgx.Tx) error {
+		rows, err := tx.Query(t.Context(), q, args...)
 		if err != nil {
 			return err //nolint:wrapcheck // test
 		}

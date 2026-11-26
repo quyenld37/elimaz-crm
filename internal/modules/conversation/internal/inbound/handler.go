@@ -142,7 +142,7 @@ func (h *handler) thread(ctx context.Context, tx pgx.Tx, acc channel.ChannelAcco
 		return uuid.Nil, false, fmt.Errorf("ghi hội thoại inbox: %w", err)
 	}
 	if cc.Created {
-		if err := OnNewCustomer(ctx, tx, cc.CustomerID, row.ID); err != nil {
+		if err := OnNewCustomer(ctx, tx, h.d.Queue, acc.TenantID, cc.CustomerID, row.ID); err != nil {
 			return uuid.Nil, false, err
 		}
 	}

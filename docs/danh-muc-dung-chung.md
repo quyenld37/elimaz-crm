@@ -603,6 +603,8 @@ type Purpose struct {
 
 	Preset int
 
+	AnyType bool
+
 	MinWidth int
 }
 func M1Purposes() []Purpose

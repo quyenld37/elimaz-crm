@@ -176,7 +176,7 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	cash.RegisterFilePurposes()         // cod_statement (M3, Task M3-04, 0306)
 	order.RegisterFilePurposes()        // order_request_photo (M5, Task 195, 0504)
 	content.RegisterFilePurposes()      // web_banner (M5, Task 453, 0521)
-	conversation.RegisterFilePurposes() // chat_outgoing (M4, Task 156, 0413)
+	conversation.RegisterFilePurposes() // chat_outgoing (M4, Task 156, 0413); chat_image, chat_attachment, chat_avatar (Task 155, 0404)
 	if cfg.Role == config.RoleAPI || cfg.Role == config.RoleWorker {
 		if err := files.CheckPurposes(ctx, d); err != nil {
 			return fmt.Errorf("kiểm mục đích tệp: %w", err)

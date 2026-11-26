@@ -35,13 +35,15 @@ const (
 	originSystem            = "system"
 )
 
-// pendingAttachment là một mục đính kèm chờ tải (Task 155 chép về kho rồi đổi status).
+// pendingAttachment là một mục đính kèm chờ tải. URL (đường dẫn có chữ ký của kênh, dữ liệu cá nhân) chỉ nằm trong mục
+// tới khi lệnh tải xong (stored hay lỗi thì xóa; tệp task-155, Quyết định 4); không bao giờ trả ra API.
 type pendingAttachment struct {
 	Index     int     `json:"index"`
 	Type      string  `json:"type"`
 	Status    string  `json:"status"`
 	FileID    *string `json:"fileId"`
 	StickerID string  `json:"stickerId,omitempty"`
+	URL       string  `json:"url,omitempty"`
 }
 
 // messageReceived ghi tin khách gửi theo thứ tự khóa của đường vào: Page (nhóm 3) → khách (nhóm 5) → hội thoại →
@@ -81,7 +83,7 @@ func (h *handler) messageReceived(ctx context.Context, tx pgx.Tx, e webhooks.Inb
 		return fmt.Errorf("cập nhật hội thoại sau tin vào: %w", err)
 	}
 	if len(p.Attachments) > 0 {
-		if err := OnInboundAttachments(ctx, tx, msgID, p.Attachments); err != nil {
+		if err := OnInboundAttachments(ctx, tx, h.d.Queue, acc.TenantID, msgID, p.Attachments); err != nil {
 			return err
 		}
 	}
@@ -132,7 +134,7 @@ func syntheticID(kind, user string, at time.Time) string {
 func pendingAttachments(refs []channel.AttachmentRef) ([]byte, error) {
 	out := make([]pendingAttachment, 0, len(refs))
 	for i, r := range refs {
-		out = append(out, pendingAttachment{Index: i, Type: r.Type, Status: "pending", StickerID: r.StickerID})
+		out = append(out, pendingAttachment{Index: i, Type: r.Type, Status: attPending, StickerID: r.StickerID, URL: r.URL})
 	}
 	b, err := json.Marshal(out)
 	if err != nil {

@@ -43,9 +43,9 @@ var (
 	ErrSendInvalid = send.ErrInvalidInput
 	// ErrChannelReadOnly: Page ở chế độ chỉ xem (409 channel_read_only).
 	ErrChannelReadOnly = send.ErrReadOnly
-	// ErrAttachmentNotReady: ảnh chưa xử lý xong (422 attachment_not_ready).
+	// ErrAttachmentNotReady: ảnh chưa xử lý xong (422 attachment_not_ready; gửi ảnh, và AttachmentURL của Task 155).
 	ErrAttachmentNotReady = send.ErrAttachmentNotReady
-	// ErrAttachmentRejected: tệp sai mục đích hay bị từ chối (422 attachment_rejected).
+	// ErrAttachmentRejected: tệp sai mục đích hay bị kho tệp từ chối (422 attachment_rejected; gửi ảnh, AttachmentURL).
 	ErrAttachmentRejected = send.ErrAttachmentRejected
 )
 
@@ -77,7 +77,3 @@ func OutgoingImageFilePurpose() files.Purpose {
 	// (mục đích không nhận loại nào).
 	return files.Purpose{Key: OutgoingImagePurpose, Bucket: files.BucketOriginals}
 }
-
-// RegisterFilePurposes đăng ký mục đích tệp của conversation (chat_outgoing) vào sổ của tiến trình; cmd/crm gọi lúc
-// khởi động, trước files.CheckPurposes. Gọi lại nhiều lần không sao.
-func RegisterFilePurposes() { files.RegisterPurpose(OutgoingImageFilePurpose()) }

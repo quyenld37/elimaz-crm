@@ -32,12 +32,14 @@ const (
 	maxRedirects = 3
 )
 
-// Lỗi của Download.
+// Lỗi của Download. Mỗi lỗi vĩnh viễn bọc thêm lỗi chung của channel (Task 155): ErrHostNotAllowed, ErrPrivateAddress,
+// ErrTooManyRedirects → channel.ErrDownloadBlocked; ErrTooLarge → channel.ErrDownloadTooLarge; ErrDownloadStatus với
+// 403, 404, 410 → channel.ErrDownloadUnavailable (mã khác: lỗi tạm).
 var (
-	ErrHostNotAllowed   = errors.New("facebook: tệp không nằm trên máy chủ của Meta (hoặc không phải https)")
-	ErrPrivateAddress   = errors.New("facebook: địa chỉ tệp trỏ vào mạng nội bộ")
-	ErrTooLarge         = errors.New("facebook: tệp quá lớn")
-	ErrTooManyRedirects = errors.New("facebook: quá nhiều lần chuyển hướng")
+	ErrHostNotAllowed   = fmt.Errorf("facebook: tệp không nằm trên máy chủ của Meta (hoặc không phải https): %w", channel.ErrDownloadBlocked)
+	ErrPrivateAddress   = fmt.Errorf("facebook: địa chỉ tệp trỏ vào mạng nội bộ: %w", channel.ErrDownloadBlocked)
+	ErrTooLarge         = fmt.Errorf("facebook: tệp quá lớn: %w", channel.ErrDownloadTooLarge)
+	ErrTooManyRedirects = fmt.Errorf("facebook: quá nhiều lần chuyển hướng: %w", channel.ErrDownloadBlocked)
 	ErrDownloadStatus   = errors.New("facebook: máy chủ tệp trả lỗi")
 )
 
@@ -109,7 +111,12 @@ func (d *downloader) download(ctx context.Context, rawURL string, maxBytes int64
 		return nil, channel.DownloadInfo{}, fmt.Errorf("tải tệp đính kèm: %w", urlerr.Strip(err))
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
+	switch resp.StatusCode {
+	case http.StatusOK:
+	case http.StatusForbidden, http.StatusNotFound, http.StatusGone:
+		return nil, channel.DownloadInfo{}, fmt.Errorf("tải tệp đính kèm: %w: %w: HTTP %d", ErrDownloadStatus,
+			channel.ErrDownloadUnavailable, resp.StatusCode)
+	default:
 		return nil, channel.DownloadInfo{}, fmt.Errorf("tải tệp đính kèm: %w: HTTP %d", ErrDownloadStatus, resp.StatusCode)
 	}
 	if resp.ContentLength > maxBytes {

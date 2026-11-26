@@ -2,6 +2,7 @@ package channel
 
 import (
 	"context"
+	"errors"
 	"io"
 	"iter"
 	"time"
@@ -91,7 +92,20 @@ type CommentPoller interface {
 	PollPageComments(ctx context.Context, acc ChannelAccount, cred Credentials, since time.Time) ([]webhooks.InboundEvent, error)
 }
 
-// AttachmentDownloader (tùy chọn) tải tệp đính kèm, chỉ từ máy chủ của kênh, tối đa max byte.
+// Lỗi chung của AttachmentDownloader (mỗi adapter bọc lỗi riêng của mình bằng một trong ba lỗi này, để module xếp tệp
+// mà không nhập adapter; Task 155). Lỗi khác (mạng, máy chủ tệp 5xx) là lỗi tạm, thử lại được.
+var (
+	// ErrDownloadBlocked: địa chỉ không thuộc máy chủ được phép của kênh, trỏ vào mạng nội bộ, hay chuyển hướng quá
+	// nhiều lần — không gửi yêu cầu nào tới máy đó.
+	ErrDownloadBlocked = errors.New("channel: địa chỉ tệp không được phép")
+	// ErrDownloadUnavailable: máy chủ tệp của kênh báo tệp không còn hay không được đọc (403, 404, 410).
+	ErrDownloadUnavailable = errors.New("channel: tệp không còn trên máy chủ của kênh")
+	// ErrDownloadTooLarge: tệp lớn hơn trần bên gọi đặt.
+	ErrDownloadTooLarge = errors.New("channel: tệp quá lớn")
+)
+
+// AttachmentDownloader (tùy chọn) tải tệp đính kèm, chỉ từ máy chủ của kênh, tối đa max byte; lỗi bọc
+// ErrDownloadBlocked, ErrDownloadUnavailable, ErrDownloadTooLarge khi là lỗi vĩnh viễn.
 type AttachmentDownloader interface {
 	Download(ctx context.Context, rawURL string, maxBytes int64) (io.ReadCloser, DownloadInfo, error)
 }

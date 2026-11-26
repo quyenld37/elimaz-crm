@@ -20,6 +20,43 @@ func testExportPurpose() files.Purpose {
 	return files.Purpose{Key: "test_export", Bucket: files.BucketPrivate, AllowedTypes: []string{"text/csv"}, MaxBytes: mib}
 }
 
+// testAnyTypePurpose: tệp máy chủ ghi nhận mọi loại (như tệp khách gửi trong chat, M4 Task 155).
+func testAnyTypePurpose() files.Purpose {
+	return files.Purpose{Key: "test_any", Bucket: files.BucketPrivate, AnyType: true, MaxBytes: mib}
+}
+
+// Mục đích AnyType (Task 155): Register nhận mọi loại đã nhận dạng (PDF, HTML, loại lạ) trong giới hạn dung lượng;
+// quá MaxBytes vẫn ErrTooLarge; mục đích thường vẫn từ chối loại ngoài danh sách.
+func TestRegister_AnyType(t *testing.T) {
+	e := newEnv(t)
+	files.RegisterPurpose(testAnyTypePurpose())
+	files.RegisterPurpose(testExportPurpose())
+	for _, r := range [][3]string{{"test_any", "private", "standard"}, {"test_export", "private", "standard"}} {
+		if err := e.addPurposeRow(r[0], r[1], r[2]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, ct := range []string{"application/pdf", "text/html; charset=utf-8", "application/x-la"} {
+		id := uuid.Must(uuid.NewV7())
+		if _, err := e.register(e.a, files.NewFile{
+			ID: id, Purpose: "test_any", Key: files.ServerKey(e.a, id), Size: 10, ContentType: ct, FileName: "t.bin",
+		}); err != nil {
+			t.Fatalf("AnyType loại %q: %v", ct, err)
+		}
+	}
+	id := uuid.Must(uuid.NewV7())
+	if _, err := e.register(e.a, files.NewFile{
+		ID: id, Purpose: "test_any", Key: files.ServerKey(e.a, id), Size: mib + 1, ContentType: "application/pdf", FileName: "t.pdf",
+	}); !errors.Is(err, files.ErrTooLarge) {
+		t.Fatalf("AnyType quá cỡ: muốn ErrTooLarge, nhận %v", err)
+	}
+	if _, err := e.register(e.a, files.NewFile{
+		ID: id, Purpose: "test_export", Key: files.ServerKey(e.a, id), Size: 10, ContentType: "application/pdf", FileName: "t.pdf",
+	}); !errors.Is(err, files.ErrTypeNotAllowed) {
+		t.Fatalf("mục đích thường loại ngoài danh sách: muốn ErrTypeNotAllowed, nhận %v", err)
+	}
+}
+
 // addPurposeRow chèn dòng file_purposes bằng chủ bảng (mốc sau làm bằng một dòng INSERT trong migration).
 func (e *env) addPurposeRow(key, bucket, mode string) error {
 	_, err := e.staff.Owner.Pool.Exec(e.t.Context(),
