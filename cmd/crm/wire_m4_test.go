@@ -10,8 +10,8 @@ import (
 
 // wireM4: kênh nhắn tin giả fakechat (Task 145) có ngoài production, là nguồn webhook duy nhất của M4 lúc này (adapter
 // Facebook chưa hiện thực); production không có kênh nào. Lệnh: chỉ đăng ký, hủy đăng ký webhook của Page (Task 149);
-// lịch duy nhất là conversation.reminders (Task 169) cùng handler của nó; chưa có handler vào, luồng nền; ingest vẫn
-// dựng được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng → lỗi khởi động.
+// lịch là conversation.presence_cleanup (Task 163) và conversation.reminders (Task 169), mỗi lịch một handler cùng Kind;
+// chưa có handler vào, luồng nền; ingest vẫn dựng được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng → lỗi khởi động.
 func TestWireM4_Frame(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
@@ -42,12 +42,24 @@ func TestWireM4_Frame(t *testing.T) {
 		if !slices.Equal(cmds, []string{channel.SubscribePageKind, channel.UnsubscribePageKind}) {
 			t.Errorf("%s: lệnh M4 = %v", c.cfg.Env, cmds)
 		}
-		if len(p.Schedules) != 1 || p.Schedules[0].Name != "conversation.reminders" || !p.Schedules[0].PerTenant ||
-			len(p.Jobs) != 1 || p.Jobs[0].Kind().Name != p.Schedules[0].Kind.Name {
-			t.Errorf("%s: lịch, việc nền của M4: %+v, %d handler", c.cfg.Env, p.Schedules, len(p.Jobs))
-		}
+		checkM4Schedules(t, c.cfg.Env, p)
 	}
 	if _, err := wireM4(config.Config{FieldEncKeys: "sai"}, m4Deps{}); err == nil {
 		t.Error("FIELD_ENC_KEYS sai dạng phải là lỗi khởi động")
+	}
+}
+
+// checkM4Schedules: lịch của M4 đúng tên, đúng thứ tự, chạy theo từng tenant, mỗi lịch một handler cùng Kind.
+func checkM4Schedules(t *testing.T, env string, p m4Parts) {
+	t.Helper()
+	want := []string{"conversation.presence_cleanup", "conversation.reminders"}
+	if len(p.Schedules) != len(want) || len(p.Jobs) != len(want) {
+		t.Errorf("%s: lịch, việc nền của M4: %+v, %d handler", env, p.Schedules, len(p.Jobs))
+		return
+	}
+	for i, name := range want {
+		if p.Schedules[i].Name != name || !p.Schedules[i].PerTenant || p.Jobs[i].Kind().Name != p.Schedules[i].Kind.Name {
+			t.Errorf("%s: lịch %d = %+v, việc %q; muốn %s", env, i, p.Schedules[i], p.Jobs[i].Kind().Name, name)
+		}
 	}
 }
