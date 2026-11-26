@@ -52,6 +52,9 @@ func TestWireM4_Frame(t *testing.T) {
 			wantCmds = append(wantCmds, "command.fb.fetch_post") // Task 154: đọc bài của comment (kênh đọc được bài)
 		}
 		wantCmds = append(wantCmds, conversation.SendMessageKind) // Task 156: gửi tin, mọi cấu hình
+		if slices.Contains(c.keys, "facebook") {
+			wantCmds = append(wantCmds, "command.fb.fetch_history") // Task 164: lịch sử tin (kênh đọc được lịch sử)
+		}
 		if cmds := m4CommandKinds(p); !slices.Equal(cmds, wantCmds) {
 			t.Errorf("%s: lệnh M4 = %v", c.cfg.Env, cmds)
 		}
@@ -87,7 +90,7 @@ func checkM4Schedules(t *testing.T, env string, p m4Parts) {
 	t.Helper()
 	want := []string{
 		channel.HealthSchedule, channel.SilenceSchedule, channel.BackfillSchedule, channel.GraphVersionSchedule,
-		"conversation.presence_cleanup", "conversation.reminders", "channel.comment_poll",
+		"conversation.presence_cleanup", "conversation.reminders", "channel.comment_poll", "conversation.retention",
 	}
 	if len(p.Schedules) != len(want) || len(p.Jobs) != len(want) {
 		t.Errorf("%s: lịch, việc nền của M4: %+v, %d handler", env, p.Schedules, len(p.Jobs))

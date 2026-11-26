@@ -166,4 +166,11 @@ Commit 1/2 (cấu trúc: `deps.PendingAttachments`, `deps.AdapterAs`): **Kết l
 định dạng JSON đính kèm, chuỗi bọc lỗi chép nguyên; đủ 3 chỗ gọi tên cũ đã đổi (grep `pendingAttachment` chỉ còn
 deps.go); `canFetchPosts` trả cùng kết quả kể cả registry nil; bản index tự build, vet, test inbound `ok 6.4s`.
 
-Commit 2/2 (hành vi): CHƯA REVIEW
+Commit 2/2 (hành vi): **Kết luận: ĐẠT** — không phát hiện phải sửa. Đã soát: thứ tự khóa (hội thoại id tăng →
+revisions → tin → nhãn, phân công, hội thoại → files; ngoại lệ đã ghi ở ADR-46); `DeleteEmptyConversations` chạy sau
+khi xóa tin, hội thoại đã khóa nên tin mới không chen vào, khóa ngoại kiểm cuối câu, reminders/call_logs loại trong
+điều kiện, presence cascade; trigger cấp câu lệnh `RETURN NULL` không bỏ lệnh xóa, UPDATE/TRUNCATE vẫn chặn; hàm chạy
+lại gán lại biến; RLS; migration chỉ nới; `last_error` chỉ mã lý do, `jobs.result` không API nào trả. Ghi chú không bắt
+buộc của reviewer: (1) `markFiles` kiểm tham chiếu không khóa — chưa có đường gắn lại tệp của tin cũ (trừ mẫu trả lời,
+đã kiểm), nhớ khi làm chuyển tiếp ảnh; (2) hai index tạo trong transaction, không CONCURRENTLY — M4 chưa có dữ liệu
+thật; (3) OnDone lỗi vĩnh viễn ở một tin làm kẹt cả lô — phòng xa, chưa có ca thực tế.
