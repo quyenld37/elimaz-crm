@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"elimaz.com.vn/crm/internal/modules/customer"
+	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -267,5 +268,64 @@ func TestAdminUnitsConstraints(t *testing.T) {
 		LEFT JOIN customer.admin_units p ON p.code = w.parent_code AND p.level = 'province'
 		WHERE w.level = 'ward' AND p.code IS NULL`); n != 0 {
 		t.Fatalf("%d xã không có tỉnh cha", n)
+	}
+}
+
+// Đơn vị hành chính thử của e2e website (Task 218): chủ bảng chèn khi chưa có mã, chạy lại không chèn thêm; mã đã có
+// với cấp, tên hay cha khác → trả mã đó trong conflicts, không ghi gì; crm_app không ghi được.
+func TestEnsureFixtureAdminUnits(t *testing.T) {
+	t.Parallel()
+	s := testkit.OpenStaff(t)
+	units := []customer.AdminUnit{
+		{Code: "W101", Level: customer.AdminProvince, Name: "Tỉnh/thành thử nghiệm A"},
+		{Code: "W10101", Level: customer.AdminWard, ParentCode: "W101", Name: "Phường thử nghiệm A"},
+	}
+	ensure := func(us []customer.AdminUnit) (int, []string) {
+		var (
+			n         int
+			conflicts []string
+		)
+		if err := s.Owner.RetryTx(t.Context(), db.TxOptions{}, func(tx pgx.Tx) error {
+			var err error
+			n, conflicts, err = customer.EnsureFixtureAdminUnits(t.Context(), tx, us)
+			return err //nolint:wrapcheck // test
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return n, conflicts
+	}
+	if n, c := ensure(units); n != 2 || c != nil {
+		t.Fatalf("lần đầu: mong chèn 2, có %d, %v", n, c)
+	}
+	if n, c := ensure(units); n != 0 || c != nil {
+		t.Fatalf("chạy lại: mong chèn 0, có %d, %v", n, c)
+	}
+	var name, search string
+	if err := s.Owner.Pool.QueryRow(t.Context(),
+		"SELECT name, name_search FROM customer.admin_units WHERE code = 'W10101' AND parent_code = 'W101' AND level = 'ward'",
+	).Scan(&name, &search); err != nil || name != "Phường thử nghiệm A" || search != "phuong thu nghiem a" {
+		t.Fatalf("xã đã chèn sai: %q %q %v", name, search, err)
+	}
+	for _, bad := range [][]customer.AdminUnit{
+		{{Code: "W101", Level: customer.AdminProvince, Name: "Tên khác"}, {Code: "W202", Level: customer.AdminProvince, Name: "B"}},
+		{{Code: "W10101", Level: customer.AdminWard, ParentCode: "W999", Name: "Phường thử nghiệm A"}},
+		{{Code: "W10101", Level: customer.AdminProvince, Name: "Phường thử nghiệm A"}},
+	} {
+		if n, c := ensure(bad); n != 0 || !slices.Equal(c, []string{bad[0].Code}) {
+			t.Errorf("%+v: mong xung đột %s, không chèn; có %d, %v", bad, bad[0].Code, n, c)
+		}
+	}
+	var n int
+	if err := s.Owner.Pool.QueryRow(t.Context(), "SELECT count(*) FROM customer.admin_units WHERE code = 'W202'").Scan(&n); err != nil || n != 0 {
+		t.Fatalf("lần lỗi không được ghi gì: %d %v", n, err)
+	}
+	tenant := s.Tenant(t, "A")
+	err := tenancy.WithTenant(t.Context(), s.App, tenant, func(tx pgx.Tx) error {
+		_, _, err := customer.EnsureFixtureAdminUnits(t.Context(), tx, []customer.AdminUnit{{Code: "W303", Level: customer.AdminProvince, Name: "C"}})
+		return err //nolint:wrapcheck // test
+	})
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != "42501" {
+		t.Fatalf("crm_app phải bị từ chối (42501), có %v", err)
 	}
 }

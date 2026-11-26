@@ -1,0 +1,855 @@
+{
+	"version": 1,
+	"namespace": "6f1d3c2a-8b47-4e59-9a0c-2d5e7f81b3c4",
+	"seller": {
+		"id": "1248f35f-9fee-5414-b090-d68c1376ac20",
+		"key": "elimaz-e2e",
+		"name": "ELIMAZ (dữ liệu thử nghiệm)"
+	},
+	"categories": [
+		{
+			"id": "cbd8e385-435e-5b4e-98c6-34f57a357808",
+			"key": "test-shirts",
+			"name": "Sơ mi nữ",
+			"slug": "so-mi-nu",
+			"parentId": null,
+			"position": 0,
+			"hasProducts": true
+		},
+		{
+			"id": "ec5bb5b9-227c-5471-a6d9-99b7f0b9394e",
+			"key": "test-pants",
+			"name": "Quần dài nữ",
+			"slug": "quan-dai-nu",
+			"parentId": null,
+			"position": 1,
+			"hasProducts": true
+		},
+		{
+			"id": "b09cd008-a0e2-5237-bbae-206dcd563d6d",
+			"key": "test-skirts",
+			"name": "Chân váy nữ",
+			"slug": "chan-vay-nu",
+			"parentId": null,
+			"position": 2,
+			"hasProducts": true
+		},
+		{
+			"id": "5f809c5b-9a37-56a5-89d3-1c7cdad74b2f",
+			"key": "test-nightwear",
+			"name": "Đồ mặc nhà và đồ ngủ nữ",
+			"slug": "do-mac-nha-va-do-ngu-nu",
+			"parentId": null,
+			"position": 3,
+			"hasProducts": true
+		},
+		{
+			"id": "14508472-558e-5a69-995c-b8655ee95319",
+			"key": "test-dresses",
+			"name": "Đầm công sở nữ",
+			"slug": "dam-cong-so-nu",
+			"parentId": null,
+			"position": 4,
+			"hasProducts": false
+		},
+		{
+			"id": "394c856b-e56b-5f3b-acfa-a0a1b7f6c4d6",
+			"key": "test-vests",
+			"name": "Áo vest nữ",
+			"slug": "ao-vest-nu",
+			"parentId": null,
+			"position": 5,
+			"hasProducts": false
+		}
+	],
+	"products": [
+		{
+			"id": "37ff56de-6c71-5211-b190-cdb2ff3a6d60",
+			"key": "test-skirt",
+			"sellerId": "1248f35f-9fee-5414-b090-d68c1376ac20",
+			"code": "ECV26.002",
+			"name": "Chân váy chữ A xòe",
+			"status": "active",
+			"position": 0,
+			"categoryIds": [
+				"b09cd008-a0e2-5237-bbae-206dcd563d6d"
+			],
+			"fixtureSlug": "chan-vay-chu-a-xoe",
+			"storefrontSlug": "chan-vay-chu-a-xoe-ecv26-002",
+			"attributes": [
+				{
+					"name": "Xuất xứ",
+					"value": "Việt Nam",
+					"position": 1
+				}
+			],
+			"images": [
+				{
+					"position": 0,
+					"color": "Xanh than",
+					"file": "public/media/fixture/product-4.jpg",
+					"sha256": "f409fa5fbc423ac0886e85a2f095be0134803f08382095b067bd0cd43ebac4c2"
+				},
+				{
+					"position": 1,
+					"color": "Đen",
+					"file": "public/media/fixture/product-5.jpg",
+					"sha256": "8d40b7125826d908b97ef909ba1878e0cf3f6aec886d650d4ac25eab2c950ba1"
+				}
+			],
+			"variants": [
+				{
+					"id": "57e43b88-f6ff-5069-9412-e6470dc8aa56",
+					"key": "test-skirt-navy-xl",
+					"sku": "test-skirt-navy-xl",
+					"barcode": "",
+					"color": "Xanh than",
+					"size": "XL",
+					"price": 499000,
+					"stock": 3
+				},
+				{
+					"id": "8b76a0a1-ed32-5d57-9419-84589c830330",
+					"key": "test-skirt-navy-l",
+					"sku": "test-skirt-navy-l",
+					"barcode": "",
+					"color": "Xanh than",
+					"size": "L",
+					"price": 499000,
+					"stock": 0
+				},
+				{
+					"id": "19161856-0f00-5eb1-9e12-ea0b68b49a4a",
+					"key": "test-skirt-black-m",
+					"sku": "test-skirt-black-m",
+					"barcode": "",
+					"color": "Đen",
+					"size": "M",
+					"price": 499000,
+					"stock": 5
+				}
+			]
+		},
+		{
+			"id": "f5a249e7-c177-5d37-8d71-e01c7f57bc7d",
+			"key": "test-shirt",
+			"sellerId": "1248f35f-9fee-5414-b090-d68c1376ac20",
+			"code": "EA26.150",
+			"name": "Sơ mi cổ đức dài tay",
+			"status": "active",
+			"position": 1,
+			"categoryIds": [
+				"cbd8e385-435e-5b4e-98c6-34f57a357808"
+			],
+			"fixtureSlug": "so-mi-co-duc-dai-tay",
+			"storefrontSlug": "so-mi-co-duc-dai-tay-ea26-150",
+			"attributes": [],
+			"images": [
+				{
+					"position": 0,
+					"color": "Hồng",
+					"file": "public/media/fixture/product-1.jpg",
+					"sha256": "ee1dff220d8fa03bdfaab94b72137f418918159a6143cc03844340cfb4eab9de"
+				},
+				{
+					"position": 1,
+					"color": "Cam",
+					"file": "public/media/fixture/product-6.jpg",
+					"sha256": "1bb0a6c166276d77bebc5e00965c51777193162d97acbf224e973cc4f7bc15ad"
+				}
+			],
+			"variants": [
+				{
+					"id": "3b50a8f8-4044-5157-8a56-c0a60771fea2",
+					"key": "test-shirt-pink-m",
+					"sku": "test-shirt-pink-m",
+					"barcode": "",
+					"color": "Hồng",
+					"size": "M",
+					"price": 399000,
+					"stock": 5
+				},
+				{
+					"id": "8bd8a1e0-2257-57ed-a851-f5b88fd5bf37",
+					"key": "test-shirt-orange-l",
+					"sku": "test-shirt-orange-l",
+					"barcode": "",
+					"color": "Cam",
+					"size": "L",
+					"price": 399000,
+					"stock": 2
+				}
+			]
+		},
+		{
+			"id": "422c4b44-6b7a-575a-b7d7-3fcb5f876b7f",
+			"key": "test-pants",
+			"sellerId": "1248f35f-9fee-5414-b090-d68c1376ac20",
+			"code": "EQ26.002",
+			"name": "Quần suông khóa sườn",
+			"status": "active",
+			"position": 2,
+			"categoryIds": [
+				"ec5bb5b9-227c-5471-a6d9-99b7f0b9394e"
+			],
+			"fixtureSlug": "quan-suong-khoa-suon",
+			"storefrontSlug": "quan-suong-khoa-suon-eq26-002",
+			"attributes": [],
+			"measureCm": {
+				"length": 88,
+				"width": 20
+			},
+			"images": [
+				{
+					"position": 0,
+					"color": "Nâu",
+					"file": "public/media/fixture/product-7.jpg",
+					"sha256": "b2f310baebd45f51b7171d8301e8a4372b163802f8a350dbd2ef183be121ab99"
+				}
+			],
+			"variants": [
+				{
+					"id": "fbc527e6-05b1-5a44-bcec-fb753233a957",
+					"key": "test-pants-brown-m",
+					"sku": "test-pants-brown-m",
+					"barcode": "",
+					"color": "Nâu",
+					"size": "M",
+					"price": 499000,
+					"stock": 4
+				}
+			]
+		},
+		{
+			"id": "4f691699-0948-5d8d-9e46-b162a33bd588",
+			"key": "test-nightwear",
+			"sellerId": "1248f35f-9fee-5414-b090-d68c1376ac20",
+			"code": "BD2026",
+			"name": "Bộ đồ ngủ cao cấp",
+			"status": "active",
+			"position": 3,
+			"categoryIds": [
+				"5f809c5b-9a37-56a5-89d3-1c7cdad74b2f"
+			],
+			"fixtureSlug": "bo-do-ngu-cao-cap",
+			"storefrontSlug": "bo-do-ngu-cao-cap-bd2026",
+			"attributes": [],
+			"measureCm": {
+				"length": 30,
+				"width": 25,
+				"height": 3
+			},
+			"images": [],
+			"variants": []
+		},
+		{
+			"id": "c0340b9b-493f-58a4-a31f-85d77fc8b6e2",
+			"key": "test-shirt-collar",
+			"sellerId": "1248f35f-9fee-5414-b090-d68c1376ac20",
+			"code": "EA26.149",
+			"name": "Sơ mi cổ sen màu be",
+			"status": "active",
+			"position": 4,
+			"categoryIds": [
+				"cbd8e385-435e-5b4e-98c6-34f57a357808"
+			],
+			"fixtureSlug": "so-mi-co-sen-mau-be",
+			"storefrontSlug": "so-mi-co-sen-mau-be-ea26-149",
+			"attributes": [],
+			"images": [
+				{
+					"position": 0,
+					"color": "Be",
+					"file": "public/media/fixture/product-2.jpg",
+					"sha256": "e2708bccf1d942f5e36cd87d3e9cbc644024fc3dfd27f08adf90d4468bf6fba1"
+				}
+			],
+			"variants": [
+				{
+					"id": "5f62fe54-bfaf-5525-8868-4a88e48c9308",
+					"key": "test-shirt-collar-0-s",
+					"sku": "test-shirt-collar-0-s",
+					"barcode": "",
+					"color": "Be",
+					"size": "S",
+					"price": 399000,
+					"stock": 5
+				},
+				{
+					"id": "f79ecc77-c946-54af-87c8-e24b7fb79ae6",
+					"key": "test-shirt-collar-0-m",
+					"sku": "test-shirt-collar-0-m",
+					"barcode": "",
+					"color": "Be",
+					"size": "M",
+					"price": 399000,
+					"stock": 5
+				},
+				{
+					"id": "d1218214-205d-51b4-b026-527b20d48f2b",
+					"key": "test-shirt-collar-0-l",
+					"sku": "test-shirt-collar-0-l",
+					"barcode": "",
+					"color": "Be",
+					"size": "L",
+					"price": 399000,
+					"stock": 5
+				}
+			]
+		},
+		{
+			"id": "86ad174e-ba5c-5b2f-9a09-f9f15ebe05d4",
+			"key": "test-shirt-brown",
+			"sellerId": "1248f35f-9fee-5414-b090-d68c1376ac20",
+			"code": "EA26.148",
+			"name": "Sơ mi cổ đức màu nâu",
+			"status": "active",
+			"position": 5,
+			"categoryIds": [
+				"cbd8e385-435e-5b4e-98c6-34f57a357808"
+			],
+			"fixtureSlug": "so-mi-co-duc-mau-nau",
+			"storefrontSlug": "so-mi-co-duc-mau-nau-ea26-148",
+			"attributes": [
+				{
+					"name": "Chất liệu",
+					"value": "Thô Hàn mềm pha linen thoáng mát, đứng form, ít nhăn khi mặc cả ngày ở văn phòng",
+					"position": 1
+				},
+				{
+					"name": "Form dáng",
+					"value": "Slim",
+					"position": 2
+				},
+				{
+					"name": "Kiểu cổ",
+					"value": "Cổ đức",
+					"position": 3
+				},
+				{
+					"name": "Họa tiết",
+					"value": "Kẻ sọc",
+					"position": 4
+				}
+			],
+			"images": [
+				{
+					"position": 0,
+					"color": "Nâu",
+					"file": "public/media/fixture/product-3.jpg",
+					"sha256": "970bc921a3e58b24fe0fbd025f89fd64d8f976846823b2eeab6eb995120741b6"
+				}
+			],
+			"variants": [
+				{
+					"id": "b683cc5a-3ae0-5b17-a009-474c86f72895",
+					"key": "test-shirt-brown-0-s",
+					"sku": "test-shirt-brown-0-s",
+					"barcode": "",
+					"color": "Nâu",
+					"size": "S",
+					"price": 399000,
+					"stock": 5
+				},
+				{
+					"id": "9741193f-d9d2-599f-87db-8430a7266010",
+					"key": "test-shirt-brown-0-m",
+					"sku": "test-shirt-brown-0-m",
+					"barcode": "",
+					"color": "Nâu",
+					"size": "M",
+					"price": 399000,
+					"stock": 5
+				},
+				{
+					"id": "a1818902-472c-5ea7-bda8-c2d8a3037098",
+					"key": "test-shirt-brown-0-l",
+					"sku": "test-shirt-brown-0-l",
+					"barcode": "",
+					"color": "Nâu",
+					"size": "L",
+					"price": 399000,
+					"stock": 5
+				}
+			]
+		},
+		{
+			"id": "e7087777-1be6-5d67-80f7-51029deb432b",
+			"key": "test-shirt-147",
+			"sellerId": "1248f35f-9fee-5414-b090-d68c1376ac20",
+			"code": "EA26.147",
+			"name": "Sơ mi cổ đức EA26.147",
+			"status": "active",
+			"position": 6,
+			"categoryIds": [
+				"cbd8e385-435e-5b4e-98c6-34f57a357808"
+			],
+			"fixtureSlug": "so-mi-co-duc-ea26-147",
+			"storefrontSlug": "so-mi-co-duc-ea26-147-ea26-147",
+			"attributes": [
+				{
+					"name": "Chất liệu",
+					"value": "Tơ Hàn",
+					"position": 1
+				},
+				{
+					"name": "Form dáng",
+					"value": "Regular",
+					"position": 2
+				},
+				{
+					"name": "Kiểu cổ",
+					"value": "Cổ đức",
+					"position": 3
+				},
+				{
+					"name": "Kiểu tay",
+					"value": "Tay dài măng-sét cài cúc",
+					"position": 4
+				},
+				{
+					"name": "Họa tiết",
+					"value": "Trơn màu",
+					"position": 5
+				}
+			],
+			"images": [
+				{
+					"position": 0,
+					"color": "Xanh",
+					"file": "public/media/fixture/product-8.jpg",
+					"sha256": "2f60ed4418950615e1300967279e5bdc26313d43cffa7fd770853f45eabb4d01"
+				},
+				{
+					"position": 1,
+					"color": "Xanh",
+					"file": "public/media/fixture/product-2.jpg",
+					"sha256": "e2708bccf1d942f5e36cd87d3e9cbc644024fc3dfd27f08adf90d4468bf6fba1"
+				},
+				{
+					"position": 2,
+					"color": "Xanh",
+					"file": "public/media/fixture/product-3.jpg",
+					"sha256": "970bc921a3e58b24fe0fbd025f89fd64d8f976846823b2eeab6eb995120741b6"
+				},
+				{
+					"position": 3,
+					"color": "Vàng",
+					"file": "public/media/fixture/product-9.jpg",
+					"sha256": "2c93ce8e32bbe094ad4f2383d933ccdf186f7e36f8bb9a85e1ba6d8438e8c081"
+				},
+				{
+					"position": 4,
+					"color": "Vàng",
+					"file": "public/media/fixture/product-4.jpg",
+					"sha256": "f409fa5fbc423ac0886e85a2f095be0134803f08382095b067bd0cd43ebac4c2"
+				},
+				{
+					"position": 5,
+					"color": "Cam",
+					"file": "public/media/fixture/product-10.jpg",
+					"sha256": "fc904274907ae96988b4ad1fcc0af5634bb8bbddcf1bf963c75034e343d1d679"
+				}
+			],
+			"variants": [
+				{
+					"id": "9a65e4ad-49bc-5dae-8d7f-362015a06c1e",
+					"key": "test-shirt-147-0-s",
+					"sku": "test-shirt-147-0-s",
+					"barcode": "",
+					"color": "Xanh",
+					"size": "S",
+					"price": 399000,
+					"stock": 5
+				},
+				{
+					"id": "a1ce5398-3e2a-5962-920c-8255c1053e80",
+					"key": "test-shirt-147-0-m",
+					"sku": "test-shirt-147-0-m",
+					"barcode": "",
+					"color": "Xanh",
+					"size": "M",
+					"price": 399000,
+					"stock": 5
+				},
+				{
+					"id": "39c8d23f-9b51-534d-b4d0-0f88a32cab63",
+					"key": "test-shirt-147-0-l",
+					"sku": "test-shirt-147-0-l",
+					"barcode": "",
+					"color": "Xanh",
+					"size": "L",
+					"price": 399000,
+					"stock": 5
+				},
+				{
+					"id": "e0580ab6-bf0b-56eb-aa16-cf3335f9f301",
+					"key": "test-shirt-147-1-s",
+					"sku": "test-shirt-147-1-s",
+					"barcode": "",
+					"color": "Vàng",
+					"size": "S",
+					"price": 399000,
+					"stock": 5
+				},
+				{
+					"id": "028d63f4-d448-50d0-bfd1-4bfd817f3756",
+					"key": "test-shirt-147-1-m",
+					"sku": "test-shirt-147-1-m",
+					"barcode": "",
+					"color": "Vàng",
+					"size": "M",
+					"price": 399000,
+					"stock": 5
+				},
+				{
+					"id": "430c424b-7848-5167-a956-b4b7d381dd6b",
+					"key": "test-shirt-147-1-l",
+					"sku": "test-shirt-147-1-l",
+					"barcode": "",
+					"color": "Vàng",
+					"size": "L",
+					"price": 399000,
+					"stock": 5
+				},
+				{
+					"id": "7208ddf1-e1a5-5a92-80b2-edf7023bc301",
+					"key": "test-shirt-147-2-s",
+					"sku": "test-shirt-147-2-s",
+					"barcode": "",
+					"color": "Cam",
+					"size": "S",
+					"price": 399000,
+					"stock": 5
+				},
+				{
+					"id": "226b28ab-c56d-5f79-b2d6-306dc3a581ce",
+					"key": "test-shirt-147-2-m",
+					"sku": "test-shirt-147-2-m",
+					"barcode": "",
+					"color": "Cam",
+					"size": "M",
+					"price": 399000,
+					"stock": 5
+				},
+				{
+					"id": "18aec895-920f-5056-97e9-891a09299b56",
+					"key": "test-shirt-147-2-l",
+					"sku": "test-shirt-147-2-l",
+					"barcode": "",
+					"color": "Cam",
+					"size": "L",
+					"price": 399000,
+					"stock": 5
+				}
+			]
+		},
+		{
+			"id": "939860ca-0478-5993-a012-63cc627e3bbd",
+			"key": "test-pants-plain",
+			"sellerId": "1248f35f-9fee-5414-b090-d68c1376ac20",
+			"code": "EQ26.001",
+			"name": "Quần suông trơn",
+			"status": "active",
+			"position": 7,
+			"categoryIds": [
+				"ec5bb5b9-227c-5471-a6d9-99b7f0b9394e"
+			],
+			"fixtureSlug": "quan-suong-tron",
+			"storefrontSlug": "quan-suong-tron-eq26-001",
+			"attributes": [],
+			"images": [
+				{
+					"position": 0,
+					"color": "Nâu",
+					"file": "public/media/fixture/product-11.jpg",
+					"sha256": "e3fd530571cdac33c12c5363d39ce969fc1343c5b4145b2e12b7d5ae6848e3c0"
+				},
+				{
+					"position": 1,
+					"color": "Ghi",
+					"file": "public/media/fixture/product-12.jpg",
+					"sha256": "37aa51d15c4090f5b6092cae46fb92391ba7eb666a3f0bf9e3ab9791056d23c8"
+				},
+				{
+					"position": 2,
+					"color": "Đen",
+					"file": "public/media/fixture/product-13.jpg",
+					"sha256": "097ee3230b787431568570332083fd405a7ce62182387bbd1a1834dff13571ec"
+				},
+				{
+					"position": 3,
+					"color": "Trắng kem",
+					"file": "public/media/fixture/product-14.jpg",
+					"sha256": "875000f3484e1c6bae7e07b5fe0a1fe451bb8f2ffab9e3aa206c797fbb8188ce"
+				}
+			],
+			"variants": [
+				{
+					"id": "3ee2fb69-326f-5832-a502-a4c59ba49a5c",
+					"key": "test-pants-plain-0-s",
+					"sku": "test-pants-plain-0-s",
+					"barcode": "",
+					"color": "Nâu",
+					"size": "S",
+					"price": 499000,
+					"stock": 5
+				},
+				{
+					"id": "7064d776-f7be-579c-881d-61e3fc98aa32",
+					"key": "test-pants-plain-0-m",
+					"sku": "test-pants-plain-0-m",
+					"barcode": "",
+					"color": "Nâu",
+					"size": "M",
+					"price": 499000,
+					"stock": 5
+				},
+				{
+					"id": "53176f8a-fcaa-5162-be0a-3aa1ac06f3a6",
+					"key": "test-pants-plain-0-l",
+					"sku": "test-pants-plain-0-l",
+					"barcode": "",
+					"color": "Nâu",
+					"size": "L",
+					"price": 499000,
+					"stock": 5
+				},
+				{
+					"id": "a569e9fc-6d5c-595a-b0bb-71f343388006",
+					"key": "test-pants-plain-1-s",
+					"sku": "test-pants-plain-1-s",
+					"barcode": "",
+					"color": "Ghi",
+					"size": "S",
+					"price": 499000,
+					"stock": 5
+				},
+				{
+					"id": "ad549855-5a83-5445-96de-0e3220a32915",
+					"key": "test-pants-plain-1-m",
+					"sku": "test-pants-plain-1-m",
+					"barcode": "",
+					"color": "Ghi",
+					"size": "M",
+					"price": 499000,
+					"stock": 5
+				},
+				{
+					"id": "f86e59ba-2a6d-5193-add9-35be55a2a2d3",
+					"key": "test-pants-plain-1-l",
+					"sku": "test-pants-plain-1-l",
+					"barcode": "",
+					"color": "Ghi",
+					"size": "L",
+					"price": 499000,
+					"stock": 5
+				},
+				{
+					"id": "778b7862-6de2-5327-9c90-9256f43c2fa3",
+					"key": "test-pants-plain-2-s",
+					"sku": "test-pants-plain-2-s",
+					"barcode": "",
+					"color": "Đen",
+					"size": "S",
+					"price": 499000,
+					"stock": 5
+				},
+				{
+					"id": "7ee22dc0-f86b-5efc-8f84-2f7f7fc1c78b",
+					"key": "test-pants-plain-2-m",
+					"sku": "test-pants-plain-2-m",
+					"barcode": "",
+					"color": "Đen",
+					"size": "M",
+					"price": 499000,
+					"stock": 5
+				},
+				{
+					"id": "2388c662-0c44-5396-b090-fa5422a16b7c",
+					"key": "test-pants-plain-2-l",
+					"sku": "test-pants-plain-2-l",
+					"barcode": "",
+					"color": "Đen",
+					"size": "L",
+					"price": 499000,
+					"stock": 5
+				},
+				{
+					"id": "4f9894f0-e216-54e7-acab-d6e334db6952",
+					"key": "test-pants-plain-3-s",
+					"sku": "test-pants-plain-3-s",
+					"barcode": "",
+					"color": "Trắng kem",
+					"size": "S",
+					"price": 499000,
+					"stock": 5
+				},
+				{
+					"id": "ff6df52c-791a-56b7-a134-a7a7596ee573",
+					"key": "test-pants-plain-3-m",
+					"sku": "test-pants-plain-3-m",
+					"barcode": "",
+					"color": "Trắng kem",
+					"size": "M",
+					"price": 499000,
+					"stock": 5
+				},
+				{
+					"id": "402c474d-de32-57a6-a35e-e8e7ec929320",
+					"key": "test-pants-plain-3-l",
+					"sku": "test-pants-plain-3-l",
+					"barcode": "",
+					"color": "Trắng kem",
+					"size": "L",
+					"price": 499000,
+					"stock": 5
+				}
+			]
+		},
+		{
+			"id": "801c06b1-5d8b-54ad-9846-44918093fbd7",
+			"key": "test-skirt-long",
+			"sellerId": "1248f35f-9fee-5414-b090-d68c1376ac20",
+			"code": "ECV26.001",
+			"name": "Chân váy dáng dài cạp cao",
+			"status": "active",
+			"position": 8,
+			"categoryIds": [
+				"b09cd008-a0e2-5237-bbae-206dcd563d6d"
+			],
+			"fixtureSlug": "chan-vay-dang-dai-cap-cao",
+			"storefrontSlug": "chan-vay-dang-dai-cap-cao-ecv26-001",
+			"attributes": [
+				{
+					"name": "Chất liệu",
+					"value": "Chéo Hàn nhập",
+					"position": 1
+				},
+				{
+					"name": "Chất liệu",
+					"value": "Tơ Hàn",
+					"position": 2
+				},
+				{
+					"name": "Độ dài",
+					"value": "Qua gối",
+					"position": 3
+				}
+			],
+			"images": [
+				{
+					"position": 0,
+					"color": "Xanh than",
+					"file": "public/media/fixture/product-15.jpg",
+					"sha256": "0866a00939fc3c4ba773db684fa644178597f70c35d2581a61285c6410801f35"
+				},
+				{
+					"position": 1,
+					"color": "Đen",
+					"file": "public/media/fixture/product-16.jpg",
+					"sha256": "60c3dfd9ece91fbf71a0c1b7557a2c966bb26a43b4f8d63cf647f3c45976cbdb"
+				}
+			],
+			"variants": [
+				{
+					"id": "592151b4-dfed-50f8-84c1-89ef437678f5",
+					"key": "test-skirt-long-0-s",
+					"sku": "test-skirt-long-0-s",
+					"barcode": "",
+					"color": "Xanh than",
+					"size": "S",
+					"price": 499000,
+					"stock": 5
+				},
+				{
+					"id": "91a866b8-d8c0-54f9-b8bf-682c14939523",
+					"key": "test-skirt-long-0-m",
+					"sku": "test-skirt-long-0-m",
+					"barcode": "",
+					"color": "Xanh than",
+					"size": "M",
+					"price": 499000,
+					"stock": 5
+				},
+				{
+					"id": "8ce25684-f856-5d9c-8d84-dc3d5ab8b7e4",
+					"key": "test-skirt-long-0-l",
+					"sku": "test-skirt-long-0-l",
+					"barcode": "",
+					"color": "Xanh than",
+					"size": "L",
+					"price": 499000,
+					"stock": 5
+				},
+				{
+					"id": "78fab0ed-d278-5e8e-ac5f-5dd2a3dde2b5",
+					"key": "test-skirt-long-1-s",
+					"sku": "test-skirt-long-1-s",
+					"barcode": "",
+					"color": "Đen",
+					"size": "S",
+					"price": 499000,
+					"stock": 5
+				},
+				{
+					"id": "4f6048ef-5fb5-5674-8a20-871b8bb6445f",
+					"key": "test-skirt-long-1-m",
+					"sku": "test-skirt-long-1-m",
+					"barcode": "",
+					"color": "Đen",
+					"size": "M",
+					"price": 499000,
+					"stock": 5
+				},
+				{
+					"id": "b79843f4-f438-5ee5-a360-87fcdb8cdf5e",
+					"key": "test-skirt-long-1-l",
+					"sku": "test-skirt-long-1-l",
+					"barcode": "",
+					"color": "Đen",
+					"size": "L",
+					"price": 499000,
+					"stock": 5
+				}
+			]
+		}
+	],
+	"coupons": [
+		{
+			"code": "ELIMAZTHU10",
+			"kind": "percent",
+			"value": 10,
+			"maxDiscount": 50000,
+			"minSubtotal": 300000,
+			"startsAt": "2026-01-01T00:00:00.000Z",
+			"endsAt": "2027-01-01T00:00:00.000Z",
+			"usageLimit": 100,
+			"combinableWithSale": false,
+			"channel": "web",
+			"productIds": []
+		}
+	],
+	"locations": [
+		{
+			"code": "101",
+			"name": "Tỉnh/thành thử nghiệm A",
+			"wards": [
+				{
+					"code": "10101",
+					"name": "Phường thử nghiệm A"
+				}
+			]
+		},
+		{
+			"code": "202",
+			"name": "Tỉnh/thành thử nghiệm B",
+			"wards": [
+				{
+					"code": "20201",
+					"name": "Phường thử nghiệm B"
+				}
+			]
+		}
+	]
+}

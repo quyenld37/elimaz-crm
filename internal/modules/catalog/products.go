@@ -55,7 +55,7 @@ func (w Writer) CreateProduct(ctx context.Context, tx pgx.Tx, in ProductInput, a
 	}
 	q := store.New(tx)
 	row, err := q.InsertProduct(ctx, store.InsertProductParams{
-		TenantID: actor.TenantID, SellerID: p.SellerID, Code: p.Code, Name: p.Name, NameSearch: textnorm.Fold(p.Name),
+		ID: in.ID, TenantID: actor.TenantID, SellerID: p.SellerID, Code: p.Code, Name: p.Name, NameSearch: textnorm.Fold(p.Name),
 		Description: p.Description, Article: stored, Status: string(p.Status),
 	})
 	if err != nil {

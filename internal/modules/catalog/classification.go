@@ -53,8 +53,9 @@ type Category struct {
 	Version    int64
 }
 
-// CategoryInput là danh mục khi tạo. Slug rỗng → sinh từ tên (bỏ dấu, chữ thường, gạch nối).
+// CategoryInput là danh mục khi tạo. Slug rỗng → sinh từ tên (bỏ dấu, chữ thường, gạch nối). ID: như VariantInput.ID.
 type CategoryInput struct {
+	ID         uuid.UUID
 	ParentID   *uuid.UUID
 	Name, Slug string
 	Position   int32
@@ -144,7 +145,7 @@ func (w Writer) CreateCategory(ctx context.Context, tx pgx.Tx, in CategoryInput,
 		return Category{}, ErrCategoryTooDeep
 	}
 	row, err := q.InsertCategory(ctx, store.InsertCategoryParams{
-		TenantID: actor.TenantID, ParentID: in.ParentID, Name: name, Slug: slug, Depth: int16(depth),
+		ID: in.ID, TenantID: actor.TenantID, ParentID: in.ParentID, Name: name, Slug: slug, Depth: int16(depth),
 		Position: in.Position,
 	})
 	if err != nil {

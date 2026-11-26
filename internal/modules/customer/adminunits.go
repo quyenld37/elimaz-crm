@@ -6,8 +6,10 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/customer/internal/store"
+	"elimaz.com.vn/crm/internal/platform/textnorm"
 )
 
 // AdminLevel là cấp của đơn vị hành chính (cột admin_units.level): hai cấp hiện hành từ 01/07/2025 (kế hoạch M2, Q15).
@@ -109,4 +111,47 @@ func ValidateUnits(ctx context.Context, tx pgx.Tx, provinceCode, wardCode string
 		return AdminUnitPair{}, ErrWardNotInProvince
 	}
 	return pair, nil
+}
+
+// EnsureFixtureAdminUnits chèn các đơn vị hành chính thử (tỉnh trước xã) của bộ e2e website (lệnh seed-web-fixture,
+// Task 218) khi mã chưa có, trả số đơn vị đã chèn; chạy lại không chèn thêm. Mã đã có mà khác cấp, tên hay tỉnh cha:
+// trả các mã đó trong conflicts và không chèn gì (không đè danh mục thật; bên gọi quyết định lỗi). tx phải là
+// transaction của chủ bảng: crm_app chỉ đọc bảng này (lỗi quyền 42501). Khi nào không dùng: danh mục thật (chỉ
+// migration ghi, tools/adminunits).
+func EnsureFixtureAdminUnits(ctx context.Context, tx pgx.Tx, units []AdminUnit) (inserted int, conflicts []string, err error) {
+	q := store.New(tx)
+	codes := make([]string, 0, len(units))
+	for _, u := range units {
+		codes = append(codes, u.Code)
+	}
+	rows, err := q.GetAdminUnits(ctx, codes)
+	if err != nil {
+		return 0, nil, fmt.Errorf("đọc đơn vị hành chính đã có: %w", err)
+	}
+	have := make(map[string]AdminUnit, len(rows))
+	for _, r := range rows {
+		have[r.Code] = AdminUnit{Code: r.Code, Level: AdminLevel(r.Level), ParentCode: r.ParentCode.String, Name: r.Name}
+	}
+	for _, u := range units {
+		if h, ok := have[u.Code]; ok && h != u {
+			conflicts = append(conflicts, u.Code)
+		}
+	}
+	if len(conflicts) > 0 {
+		return 0, conflicts, nil
+	}
+	for _, u := range units {
+		if _, ok := have[u.Code]; ok {
+			continue
+		}
+		n, err := q.InsertFixtureAdminUnit(ctx, store.InsertFixtureAdminUnitParams{
+			Code: u.Code, Level: string(u.Level), ParentCode: pgtype.Text{String: u.ParentCode, Valid: u.ParentCode != ""},
+			Name: u.Name, NameSearch: textnorm.Fold(u.Name),
+		})
+		if err != nil {
+			return 0, nil, fmt.Errorf("chèn đơn vị hành chính thử %s: %w", u.Code, err)
+		}
+		inserted += int(n)
+	}
+	return inserted, nil, nil
 }

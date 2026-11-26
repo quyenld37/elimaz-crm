@@ -2,9 +2,10 @@
 -- tests/arch/sellerfilter_test.go, Task M1-37).
 
 -- name: InsertVariant :one
+-- id rỗng (uuid.Nil) → uuidv7() như mặc định của cột (id đặt trước: lệnh seed-web-fixture, Task 218).
 INSERT INTO catalog.variants
-    (tenant_id, seller_id, product_id, sku, barcode, color, color_hex, size, price, cost_price)
-VALUES (@tenant_id, @seller_id, @product_id, @sku, @barcode, @color, sqlc.narg(color_hex), @size, @price,
+    (id, tenant_id, seller_id, product_id, sku, barcode, color, color_hex, size, price, cost_price)
+VALUES (coalesce(nullif(@id::uuid, '00000000-0000-0000-0000-000000000000'), uuidv7()), @tenant_id, @seller_id, @product_id, @sku, @barcode, @color, sqlc.narg(color_hex), @size, @price,
         sqlc.narg(cost_price))
 RETURNING id, status, version;
 

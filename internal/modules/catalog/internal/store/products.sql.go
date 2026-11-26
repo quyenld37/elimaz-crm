@@ -95,12 +95,13 @@ func (q *Queries) GetProductCategory(ctx context.Context, arg GetProductCategory
 
 const insertProduct = `-- name: InsertProduct :one
 
-INSERT INTO catalog.products (tenant_id, seller_id, code, name, name_search, description, article, status)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO catalog.products (id, tenant_id, seller_id, code, name, name_search, description, article, status)
+VALUES (coalesce(nullif($1::uuid, '00000000-0000-0000-0000-000000000000'), uuidv7()), $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING id, version
 `
 
 type InsertProductParams struct {
+	ID          uuid.UUID
 	TenantID    uuid.UUID
 	SellerID    uuid.UUID
 	Code        string
@@ -118,8 +119,10 @@ type InsertProductRow struct {
 
 // Mẫu sản phẩm (kế hoạch M1, Task M1-27). Chạy trong tenancy.WithTenant. Mọi câu đọc, khóa, sửa có seller_id (ADR-29;
 // tests/arch/sellerfilter_test.go, Task M1-37).
+// id rỗng (uuid.Nil) → uuidv7() như mặc định của cột (id đặt trước: lệnh seed-web-fixture, Task 218).
 func (q *Queries) InsertProduct(ctx context.Context, arg InsertProductParams) (InsertProductRow, error) {
 	row := q.db.QueryRow(ctx, insertProduct,
+		arg.ID,
 		arg.TenantID,
 		arg.SellerID,
 		arg.Code,

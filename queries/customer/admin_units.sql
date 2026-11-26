@@ -28,3 +28,10 @@ SELECT code, parent_code::text AS parent_code, name
 FROM customer.admin_units
 WHERE level = 'ward'
 ORDER BY parent_code, name_search, code;
+
+-- name: InsertFixtureAdminUnit :execrows
+-- Đơn vị hành chính thử của e2e website (lệnh seed-web-fixture, Task 218): chỉ chủ bảng ghi được (crm_app chỉ SELECT);
+-- mã đã có thì không đổi gì (bên gọi đọc lại để kiểm tên, cấp, cha).
+INSERT INTO customer.admin_units (code, level, parent_code, name, name_search, effective_from, source)
+VALUES (@code, @level, sqlc.narg(parent_code), @name, @name_search, DATE '2025-07-01', 'web-fixture')
+ON CONFLICT (code) DO NOTHING;
