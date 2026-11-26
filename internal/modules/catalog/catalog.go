@@ -56,15 +56,18 @@ type ArticleImage = article.Image
 type ArticleImageVariant = article.ImageVariant
 
 // VariantInput là một biến thể khi tạo. Barcode rỗng → CRM sinh EAN-13 tiền tố 2; ColorHex rỗng → không có;
-// CostPrice nil → không có giá nhập. SKU chuẩn hóa viết hoa.
+// CostPrice nil → không có giá nhập. SKU chuẩn hóa viết hoa. ID rỗng → database sinh (uuidv7); khác rỗng → tạo đúng id
+// đó (lệnh seed-web-fixture, Task 218: id UUID v5 mà website tính từ id fixture). Đường HTTP luôn để rỗng.
 type VariantInput struct {
+	ID                                  uuid.UUID
 	SKU, Barcode, Color, ColorHex, Size string
 	Price                               int64
 	CostPrice                           *int64
 }
 
-// ProductInput là một mẫu khi tạo. Status rỗng → draft. Article rỗng → bài viết rỗng.
+// ProductInput là một mẫu khi tạo. Status rỗng → draft. Article rỗng → bài viết rỗng. ID: như VariantInput.ID.
 type ProductInput struct {
+	ID                      uuid.UUID
 	SellerID                uuid.UUID
 	Code, Name, Description string
 	Article                 json.RawMessage

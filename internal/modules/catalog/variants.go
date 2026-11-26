@@ -176,7 +176,7 @@ func (w Writer) insertVariant(ctx context.Context, tx pgx.Tx, tenantID, sellerID
 		v.Barcode = code
 	}
 	row, err := q.InsertVariant(ctx, store.InsertVariantParams{
-		TenantID: tenantID, SellerID: sellerID, ProductID: productID, Sku: v.SKU, Barcode: v.Barcode, Color: v.Color,
+		ID: v.ID, TenantID: tenantID, SellerID: sellerID, ProductID: productID, Sku: v.SKU, Barcode: v.Barcode, Color: v.Color,
 		ColorHex: optText(v.ColorHex), Size: v.Size, Price: v.Price, CostPrice: v.CostPrice,
 	})
 	if err != nil {
@@ -262,7 +262,7 @@ func weightParam(w *int) pgtype.Int4 {
 func normalizeVariant(v VariantInput) (VariantInput, error) {
 	sku, ok := normalizeCode(v.SKU)
 	out := VariantInput{
-		SKU: sku, Barcode: strings.TrimSpace(v.Barcode), Color: strings.TrimSpace(v.Color),
+		ID: v.ID, SKU: sku, Barcode: strings.TrimSpace(v.Barcode), Color: strings.TrimSpace(v.Color),
 		ColorHex: strings.ToUpper(strings.TrimSpace(v.ColorHex)), Size: strings.TrimSpace(v.Size), Price: v.Price,
 		CostPrice: v.CostPrice,
 	}

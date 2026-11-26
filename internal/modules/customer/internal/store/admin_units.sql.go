@@ -49,6 +49,36 @@ func (q *Queries) GetAdminUnits(ctx context.Context, codes []string) ([]GetAdmin
 	return items, nil
 }
 
+const insertFixtureAdminUnit = `-- name: InsertFixtureAdminUnit :execrows
+INSERT INTO customer.admin_units (code, level, parent_code, name, name_search, effective_from, source)
+VALUES ($1, $2, $3, $4, $5, DATE '2025-07-01', 'web-fixture')
+ON CONFLICT (code) DO NOTHING
+`
+
+type InsertFixtureAdminUnitParams struct {
+	Code       string
+	Level      string
+	ParentCode pgtype.Text
+	Name       string
+	NameSearch string
+}
+
+// Đơn vị hành chính thử của e2e website (lệnh seed-web-fixture, Task 218): chỉ chủ bảng ghi được (crm_app chỉ SELECT);
+// mã đã có thì không đổi gì (bên gọi đọc lại để kiểm tên, cấp, cha).
+func (q *Queries) InsertFixtureAdminUnit(ctx context.Context, arg InsertFixtureAdminUnitParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertFixtureAdminUnit,
+		arg.Code,
+		arg.Level,
+		arg.ParentCode,
+		arg.Name,
+		arg.NameSearch,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const listAdminProvinces = `-- name: ListAdminProvinces :many
 
 SELECT code, name

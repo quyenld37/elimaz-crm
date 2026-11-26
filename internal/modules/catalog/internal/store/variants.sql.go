@@ -88,13 +88,14 @@ func (q *Queries) GetVariantProductID(ctx context.Context, arg GetVariantProduct
 const insertVariant = `-- name: InsertVariant :one
 
 INSERT INTO catalog.variants
-    (tenant_id, seller_id, product_id, sku, barcode, color, color_hex, size, price, cost_price)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-        $10)
+    (id, tenant_id, seller_id, product_id, sku, barcode, color, color_hex, size, price, cost_price)
+VALUES (coalesce(nullif($1::uuid, '00000000-0000-0000-0000-000000000000'), uuidv7()), $2, $3, $4, $5, $6, $7, $8, $9, $10,
+        $11)
 RETURNING id, status, version
 `
 
 type InsertVariantParams struct {
+	ID        uuid.UUID
 	TenantID  uuid.UUID
 	SellerID  uuid.UUID
 	ProductID uuid.UUID
@@ -115,8 +116,10 @@ type InsertVariantRow struct {
 
 // Biến thể màu/size (kế hoạch M1, Task M1-27). Chạy trong tenancy.WithTenant. Mọi câu đọc, khóa, sửa có seller_id (ADR-29;
 // tests/arch/sellerfilter_test.go, Task M1-37).
+// id rỗng (uuid.Nil) → uuidv7() như mặc định của cột (id đặt trước: lệnh seed-web-fixture, Task 218).
 func (q *Queries) InsertVariant(ctx context.Context, arg InsertVariantParams) (InsertVariantRow, error) {
 	row := q.db.QueryRow(ctx, insertVariant,
+		arg.ID,
 		arg.TenantID,
 		arg.SellerID,
 		arg.ProductID,

@@ -2,8 +2,9 @@
 -- tests/arch/sellerfilter_test.go, Task M1-37).
 
 -- name: InsertProduct :one
-INSERT INTO catalog.products (tenant_id, seller_id, code, name, name_search, description, article, status)
-VALUES (@tenant_id, @seller_id, @code, @name, @name_search, @description, @article, @status)
+-- id rỗng (uuid.Nil) → uuidv7() như mặc định của cột (id đặt trước: lệnh seed-web-fixture, Task 218).
+INSERT INTO catalog.products (id, tenant_id, seller_id, code, name, name_search, description, article, status)
+VALUES (coalesce(nullif(@id::uuid, '00000000-0000-0000-0000-000000000000'), uuidv7()), @tenant_id, @seller_id, @code, @name, @name_search, @description, @article, @status)
 RETURNING id, version;
 
 -- name: GetProduct :one

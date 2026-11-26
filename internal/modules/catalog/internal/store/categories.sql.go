@@ -95,12 +95,13 @@ func (q *Queries) CategorySubtree(ctx context.Context, arg CategorySubtreeParams
 
 const insertCategory = `-- name: InsertCategory :one
 
-INSERT INTO catalog.categories (tenant_id, parent_id, name, slug, depth, position)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO catalog.categories (id, tenant_id, parent_id, name, slug, depth, position)
+VALUES (coalesce(nullif($1::uuid, '00000000-0000-0000-0000-000000000000'), uuidv7()), $2, $3, $4, $5, $6, $7)
 RETURNING id, parent_id, name, slug, depth, position, status, version
 `
 
 type InsertCategoryParams struct {
+	ID       uuid.UUID
 	TenantID uuid.UUID
 	ParentID *uuid.UUID
 	Name     string
@@ -122,8 +123,10 @@ type InsertCategoryRow struct {
 
 // Danh mục dạng cây tối đa 3 cấp (kế hoạch M1, Task M1-34). Chạy trong tenancy.WithTenant. Danh mục dùng chung cả
 // cửa hàng (không có seller_id, spec 05). Khóa theo ADR-46 nhóm 4: danh mục trước mẫu.
+// id rỗng (uuid.Nil) → uuidv7() như mặc định của cột (id đặt trước: lệnh seed-web-fixture, Task 218).
 func (q *Queries) InsertCategory(ctx context.Context, arg InsertCategoryParams) (InsertCategoryRow, error) {
 	row := q.db.QueryRow(ctx, insertCategory,
+		arg.ID,
 		arg.TenantID,
 		arg.ParentID,
 		arg.Name,

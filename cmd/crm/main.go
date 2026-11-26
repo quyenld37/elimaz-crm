@@ -1,6 +1,8 @@
 // Lệnh crm là tệp chạy duy nhất của CRM. CRM_ROLE chọn vai trò: ingest, api, worker, migrate.
 // `crm healthcheck` kiểm tiến trình cùng cấu hình đang sống (dùng trong image không có shell).
 // `crm seed-dev <email>` (CRM_ROLE=migrate) dựng tenant, chủ shop và định tuyến email cho máy dev.
+// `crm seed-web-fixture --file <json> --staff-email <email>` (CRM_ROLE=migrate, không production) dựng danh mục mẫu
+// của bộ e2e website.
 // `crm recompute-customer-stats <mã khách>` (mọi vai trò, bằng DATABASE_URL) tính lại chỉ số khách cho gốc hiện tại.
 package main
 
@@ -104,10 +106,11 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 			_, _ = fmt.Fprintf(stderr, "mã khách %q không phải UUID; cách gọi: `crm %s <mã khách>`\n", args[1], recomputeCommand)
 			return exitConfig
 		}
-	case isServiceKeyCommand(args):
+	case isServiceKeyCommand(args), isSeedFixtureCommand(args):
 	case len(args) > 0:
 		_, _ = fmt.Fprintf(stderr, "lệnh lạ %q; chỉ có `crm`, `crm healthcheck`, `crm seed-dev <email>`, "+
-			"`crm %s <mã khách>` hoặc `crm %s create|revoke …`\n", args, recomputeCommand, serviceKeyCommand)
+			"`crm %s <mã khách>`, `crm %s create|revoke …` hoặc `crm %s --file … --staff-email …`\n", args,
+			recomputeCommand, serviceKeyCommand, seedFixtureCommand)
 		return exitConfig
 	}
 
@@ -127,8 +130,8 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 			return exitFail
 		}
 		return exitOK
-	case isServiceKeyCommand(args):
-		return serviceKeyExit(runServiceKey(ctx, cfg, args[1:], stdout, logger), stderr)
+	case isServiceKeyCommand(args), isSeedFixtureCommand(args):
+		return runDevCommand(ctx, cfg, args, stdout, stderr, logger)
 	case len(args) == 2 && args[0] == recomputeCommand:
 		if err := runRecompute(ctx, cfg, uuid.MustParse(args[1]), stdout, logger); err != nil {
 			_, _ = fmt.Fprintln(stderr, recomputeCommand+":", err)

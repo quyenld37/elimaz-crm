@@ -369,6 +369,38 @@ sequence (`ord.order_code_seq`, `ord.return_code_seq`), không có bảng bộ �
   không ghi đè image của nhau). `make app-down` gỡ ba vai trò, giữ database. `make image-check` kiểm cả đường.
 - Kịch bản đi trọn: `make demo-mot-don` (mục "Chạy lát mỏng" ở trên).
 
+## Danh mục mẫu cho e2e website (`crm seed-web-fixture`, Task 218)
+
+Bộ e2e của website ở nguồn CRM (`apps/storefront-crm`, `playwright.crm.config.ts`) cần đúng danh mục fixture của
+website trong CRM, đúng id (UUID v5 của id fixture, website tự tính). Chỉ dev, test, staging: `CRM_ENV=production` →
+thoát 2, không đọc tệp, không mở database.
+
+```
+# 1. Website xuất tệp (chỉ ghi tệp, không gọi gì)
+cd apps/storefront-crm && npx jiti scripts/export-fixture-for-crm.ts --out /tmp/elimaz-fixture.json
+# 2. CRM đã migrate và seed-dev (nhân viên có email ở tenant cần seed); chạy bằng chủ bảng. Biến bắt buộc như vai trò
+#    migrate: CRM_ENV (dev|test|staging), DATABASE_URL, DATABASE_OWNER_URL (cùng biến của docker/compose.dev.yml)
+CRM_ROLE=migrate go run ./cmd/crm seed-web-fixture --file /tmp/elimaz-fixture.json --staff-email <email nhân viên>
+# in (lần đầu, tệp mẫu 27/11): seed-web-fixture: tenant <mã>; tạo admin_unit 4, attribute 7, attribute_value 11,
+#   category 6, coupon 1, product 9, variant 39; sửa stock 38; ảnh chưa seed: 19
+# chạy lại cùng tệp: seed-web-fixture: tenant <mã>; tạo 0; sửa 0; ảnh chưa seed: 19
+```
+
+- Ghi một transaction qua public API (danh mục, thuộc tính, mẫu, biến thể, phân loại, mã giảm, tồn, địa giới thử);
+  lỗi giữa chừng → không ghi gì. Người làm của audit là nhân viên `--staff-email`; tenant là tenant của nhân viên đó;
+  mẫu thuộc người bán mặc định của tenant (người bán đường web dùng), `seller.id` của tệp chỉ để kiểm.
+- Chạy lại cùng tệp: `tạo 0; sửa 0`. Tệp đã sửa giá, tồn (ca WB02): sửa đúng phần đổi, phát `price.changed`,
+  `stock.changed` như nhân viên sửa. Tồn đặt **tuyệt đối**: số có thể bán ở kho MAIN = `stock` của tệp (phiếu điều
+  chỉnh "seed-web-fixture"); giữ hàng của đơn cũ không bị nhả. Mã giảm còn đúng `usageLimit` lượt sau mỗi lần seed
+  (số lượt tối đa = `usageLimit` + số đã dùng).
+- Thoát 2: production, sai cách gọi, không phải `CRM_ROLE=migrate`, tệp sai (version ≠ 1, id không phải UUID v5 dưới
+  `namespace`, tham chiếu lạ, sku/mã trùng, giá ≤ 0, tồn âm…). Thoát 1: lỗi database, mã địa giới thử trùng đơn vị đã
+  có khác tên (`customer: mã đơn vị hành chính đã có…`), dữ liệu cùng id đã khác ở chỗ không sửa được (mã mẫu) → dùng
+  database mới.
+- Bộ đệm địa giới của web giữ 1 ngày: seed trước khi bật `api`, hoặc xóa khóa địa giới ở `valkey-cache` của máy e2e.
+- Chưa làm (tệp task 218): ảnh sản phẩm (cần kho tệp và worker xử lý ảnh), hãng giao hàng hiện trên web (bật trên màn
+  "Hãng trên website" sau `seed-dev`), giữ thứ tự biến thể của fixture (web xếp theo id).
+
 ## Đọc cảnh báo và việc phải làm (Task 19, Task 20)
 
 Cảnh báo đến Telegram: `urgent` vào kênh gấp, nhắc lại mỗi 30 phút khi còn; `normal` vào kênh thường, cùng key 10 phút

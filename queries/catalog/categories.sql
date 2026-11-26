@@ -2,8 +2,9 @@
 -- cửa hàng (không có seller_id, spec 05). Khóa theo ADR-46 nhóm 4: danh mục trước mẫu.
 
 -- name: InsertCategory :one
-INSERT INTO catalog.categories (tenant_id, parent_id, name, slug, depth, position)
-VALUES (@tenant_id, sqlc.narg(parent_id), @name, @slug, @depth, @position)
+-- id rỗng (uuid.Nil) → uuidv7() như mặc định của cột (id đặt trước: lệnh seed-web-fixture, Task 218).
+INSERT INTO catalog.categories (id, tenant_id, parent_id, name, slug, depth, position)
+VALUES (coalesce(nullif(@id::uuid, '00000000-0000-0000-0000-000000000000'), uuidv7()), @tenant_id, sqlc.narg(parent_id), @name, @slug, @depth, @position)
 RETURNING id, parent_id, name, slug, depth, position, status, version;
 
 -- name: ShareLockCategory :one
