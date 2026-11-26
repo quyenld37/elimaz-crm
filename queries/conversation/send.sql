@@ -15,11 +15,13 @@ FROM conversation.conversations
 WHERE id = @id;
 
 -- name: InsertOutgoingMessage :one
--- Tin nhân viên gửi, chờ lệnh gửi (queued); sent_at là lúc bấm gửi (đồng hồ của API) tới khi kênh xác nhận.
+-- Tin nhân viên gửi, chờ lệnh gửi (queued); sent_at là lúc bấm gửi (đồng hồ của API) tới khi kênh xác nhận. origin
+-- staff; nhân viên gửi lại tin tự động (Task 497) thì giữ origin automation và nút trả lời nhanh của tin cũ.
 INSERT INTO conversation.messages (tenant_id, conversation_id, channel_account_id, client_ref, direction, kind, origin,
-                                   body, attachments, sender_staff_id, send_status, sent_at)
+                                   body, attachments, quick_replies, sender_staff_id, send_status, sent_at)
 VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, @conversation_id, @channel_account_id, @client_ref,
-        'out', 'message', 'staff', sqlc.narg(body)::text, @attachments, @sender_staff_id, 'queued', @sent_at)
+        'out', 'message', @origin, sqlc.narg(body)::text, @attachments, sqlc.narg(quick_replies)::jsonb,
+        @sender_staff_id, 'queued', @sent_at)
 RETURNING id;
 
 -- name: InsertAutomatedMessage :one
@@ -126,14 +128,14 @@ FROM conversation.messages
 WHERE id = @id;
 
 -- name: LockRecoverableMessage :one
--- Khóa tin nhân viên/tự động gửi ra (sau khi đã khóa hội thoại) để gửi lại hay bỏ: trạng thái, lý do, nội dung, ảnh,
--- nguồn, mã lệnh.
-SELECT id, conversation_id, channel_account_id, origin, body, attachments, send_status, fail_reason, sent_at,
-       command_job_id
+-- Khóa tin nhân viên/tự động gửi ra (sau khi đã khóa hội thoại) để gửi lại hay bỏ: tin thường, câu trả lời comment,
+-- tin riêng (Task 497); trạng thái, lý do, nội dung, ảnh, nút trả lời nhanh, nguồn, loại, comment cha, bài, mã lệnh.
+SELECT id, conversation_id, channel_account_id, origin, kind, parent_external_id, post_id, body, attachments,
+       quick_replies, send_status, fail_reason, sent_at, command_job_id
 FROM conversation.messages
 WHERE id = @id
   AND direction = 'out'
-  AND kind = 'message'
+  AND kind IN ('message', 'comment', 'private_reply')
   AND origin IN ('staff', 'automation')
 FOR UPDATE;
 
@@ -143,7 +145,7 @@ SELECT conversation_id
 FROM conversation.messages
 WHERE id = @id
   AND direction = 'out'
-  AND kind = 'message'
+  AND kind IN ('message', 'comment', 'private_reply')
   AND origin IN ('staff', 'automation');
 
 -- name: MarkMessageDiscarded :execrows

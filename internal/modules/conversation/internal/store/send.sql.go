@@ -157,7 +157,7 @@ SELECT conversation_id
 FROM conversation.messages
 WHERE id = $1
   AND direction = 'out'
-  AND kind = 'message'
+  AND kind IN ('message', 'comment', 'private_reply')
   AND origin IN ('staff', 'automation')
 `
 
@@ -220,9 +220,10 @@ func (q *Queries) InsertAutomatedMessage(ctx context.Context, arg InsertAutomate
 
 const insertOutgoingMessage = `-- name: InsertOutgoingMessage :one
 INSERT INTO conversation.messages (tenant_id, conversation_id, channel_account_id, client_ref, direction, kind, origin,
-                                   body, attachments, sender_staff_id, send_status, sent_at)
+                                   body, attachments, quick_replies, sender_staff_id, send_status, sent_at)
 VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, $3,
-        'out', 'message', 'staff', $4::text, $5, $6, 'queued', $7)
+        'out', 'message', $4, $5::text, $6, $7::jsonb,
+        $8, 'queued', $9)
 RETURNING id
 `
 
@@ -230,20 +231,25 @@ type InsertOutgoingMessageParams struct {
 	ConversationID   uuid.UUID
 	ChannelAccountID uuid.UUID
 	ClientRef        pgtype.UUID
+	Origin           string
 	Body             pgtype.Text
 	Attachments      []byte
+	QuickReplies     []byte
 	SenderStaffID    pgtype.UUID
 	SentAt           time.Time
 }
 
-// Tin nhân viên gửi, chờ lệnh gửi (queued); sent_at là lúc bấm gửi (đồng hồ của API) tới khi kênh xác nhận.
+// Tin nhân viên gửi, chờ lệnh gửi (queued); sent_at là lúc bấm gửi (đồng hồ của API) tới khi kênh xác nhận. origin
+// staff; nhân viên gửi lại tin tự động (Task 497) thì giữ origin automation và nút trả lời nhanh của tin cũ.
 func (q *Queries) InsertOutgoingMessage(ctx context.Context, arg InsertOutgoingMessageParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, insertOutgoingMessage,
 		arg.ConversationID,
 		arg.ChannelAccountID,
 		arg.ClientRef,
+		arg.Origin,
 		arg.Body,
 		arg.Attachments,
+		arg.QuickReplies,
 		arg.SenderStaffID,
 		arg.SentAt,
 	)
@@ -354,12 +360,12 @@ func (q *Queries) LockOutgoingMessage(ctx context.Context, id uuid.UUID) (LockOu
 }
 
 const lockRecoverableMessage = `-- name: LockRecoverableMessage :one
-SELECT id, conversation_id, channel_account_id, origin, body, attachments, send_status, fail_reason, sent_at,
-       command_job_id
+SELECT id, conversation_id, channel_account_id, origin, kind, parent_external_id, post_id, body, attachments,
+       quick_replies, send_status, fail_reason, sent_at, command_job_id
 FROM conversation.messages
 WHERE id = $1
   AND direction = 'out'
-  AND kind = 'message'
+  AND kind IN ('message', 'comment', 'private_reply')
   AND origin IN ('staff', 'automation')
 FOR UPDATE
 `
@@ -369,16 +375,20 @@ type LockRecoverableMessageRow struct {
 	ConversationID   uuid.UUID
 	ChannelAccountID uuid.UUID
 	Origin           string
+	Kind             string
+	ParentExternalID pgtype.Text
+	PostID           pgtype.UUID
 	Body             pgtype.Text
 	Attachments      []byte
+	QuickReplies     []byte
 	SendStatus       pgtype.Text
 	FailReason       pgtype.Text
 	SentAt           time.Time
 	CommandJobID     pgtype.UUID
 }
 
-// Khóa tin nhân viên/tự động gửi ra (sau khi đã khóa hội thoại) để gửi lại hay bỏ: trạng thái, lý do, nội dung, ảnh,
-// nguồn, mã lệnh.
+// Khóa tin nhân viên/tự động gửi ra (sau khi đã khóa hội thoại) để gửi lại hay bỏ: tin thường, câu trả lời comment,
+// tin riêng (Task 497); trạng thái, lý do, nội dung, ảnh, nút trả lời nhanh, nguồn, loại, comment cha, bài, mã lệnh.
 func (q *Queries) LockRecoverableMessage(ctx context.Context, id uuid.UUID) (LockRecoverableMessageRow, error) {
 	row := q.db.QueryRow(ctx, lockRecoverableMessage, id)
 	var i LockRecoverableMessageRow
@@ -387,8 +397,12 @@ func (q *Queries) LockRecoverableMessage(ctx context.Context, id uuid.UUID) (Loc
 		&i.ConversationID,
 		&i.ChannelAccountID,
 		&i.Origin,
+		&i.Kind,
+		&i.ParentExternalID,
+		&i.PostID,
 		&i.Body,
 		&i.Attachments,
+		&i.QuickReplies,
 		&i.SendStatus,
 		&i.FailReason,
 		&i.SentAt,

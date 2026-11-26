@@ -169,7 +169,7 @@ func insertAction(ctx context.Context, tx pgx.Tx, u identity.AuthUser, r actionR
 	if err != nil {
 		return Message{}, fmt.Errorf("ghi tin %s: %w", r.kind, err)
 	}
-	if err := queueOutgoing(ctx, tx, r.jobQueue, r.jobKind, r.acc.TenantID, r.conv, id, deps.Snippet(r.text, false), now); err != nil {
+	if err := queueOutgoing(ctx, tx, r.jobQueue, r.jobKind, origin, r.acc.TenantID, r.conv, id, deps.Snippet(r.text, false), now); err != nil {
 		return Message{}, err
 	}
 	parent := r.parent.ID
@@ -179,15 +179,21 @@ func insertAction(ctx context.Context, tx pgx.Tx, u identity.AuthUser, r actionR
 	}, nil
 }
 
-// queueOutgoing là phần sau khi chèn tin queued id của hội thoại conv (đã khóa): cập nhật mốc, đoạn trích snip của hội
-// thoại, ghi lệnh kind (DedupeKey = mã tin, payload chỉ mã tin), gắn mã lệnh vào tin.
-func queueOutgoing(ctx context.Context, tx pgx.Tx, jq queue.JobQueue, kind queue.Kind, tenant, conv, id uuid.UUID,
+// queueOutgoing là phần sau khi chèn tin queued id nguồn origin của hội thoại conv (đã khóa): cập nhật mốc, đoạn trích
+// snip của hội thoại (tin tự động không đổi mốc tin nhân viên, Task 497), ghi lệnh kind (DedupeKey = mã tin, payload
+// chỉ mã tin), gắn mã lệnh vào tin.
+func queueOutgoing(ctx context.Context, tx pgx.Tx, jq queue.JobQueue, kind queue.Kind, origin string, tenant, conv, id uuid.UUID,
 	snip string, now time.Time,
 ) error {
 	q := store.New(tx)
-	if err := q.BumpConversationOutbound(ctx, store.BumpConversationOutboundParams{
-		At: now, Snippet: pgtype.Text{String: snip, Valid: snip != ""}, ID: conv,
-	}); err != nil {
+	text := pgtype.Text{String: snip, Valid: snip != ""}
+	var err error
+	if origin == originAuto {
+		err = q.BumpConversationAutomated(ctx, store.BumpConversationAutomatedParams{At: now, Snippet: text, ID: conv})
+	} else {
+		err = q.BumpConversationOutbound(ctx, store.BumpConversationOutboundParams{At: now, Snippet: text, ID: conv})
+	}
+	if err != nil {
 		return fmt.Errorf("cập nhật hội thoại sau khi gửi: %w", err)
 	}
 	jobID, _, err := jq.Enqueue(ctx, tx, kind, queue.NewJob{

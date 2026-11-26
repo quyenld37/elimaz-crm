@@ -121,11 +121,16 @@ func (f *fuEnv) staffSays(conv, page uuid.UUID, at time.Time) (id uuid.UUID) {
 			f.tenant, conv, page, f.user, at).Scan(&id); err != nil {
 			return err //nolint:wrapcheck // test
 		}
-		_, err := tx.Exec(f.t.Context(), `UPDATE conversation.conversations SET last_staff_message_at = $2,
-			last_message_at = GREATEST(last_message_at, $2) WHERE id = $1`, conv, at)
-		return err //nolint:wrapcheck // test
+		return f.bumpStaff(tx, conv, at)
 	})
 	return id
+}
+
+// bumpStaff đẩy mốc tin nhân viên, tin cuối của hội thoại conv tới at (như BumpConversationOutbound).
+func (f *fuEnv) bumpStaff(tx pgx.Tx, conv uuid.UUID, at time.Time) error {
+	_, err := tx.Exec(f.t.Context(), `UPDATE conversation.conversations SET last_staff_message_at = $2,
+		last_message_at = GREATEST(last_message_at, $2) WHERE id = $1`, conv, at)
+	return err //nolint:wrapcheck // test
 }
 
 // sweep chạy lịch nhắn lại một lần (một tx tenant) và trả số lượt vừa ghi lệnh.
@@ -381,17 +386,7 @@ func TestFollowUps_GatesAndConcurrency(t *testing.T) {
 func TestFollowUps_InDoubtDropped(t *testing.T) {
 	t.Parallel()
 	f, a := newFuEnvWithA(t)
-	f.fg.DropAfterRead(pageExt + "/messages")
-	if n := f.sweep(); n != 1 {
-		t.Fatalf("%d lệnh", n)
-	}
-	f.drain()
-	if runs := f.fuRuns(a); len(runs) != 1 || runs[0] != string(automation.OutcomeDropped) {
-		t.Fatalf("in_doubt: lượt %v", runs)
-	}
-	if _, st := f.autoMessages(a); len(st) != 1 || st[0] != "discarded/auto_dropped" {
-		t.Fatalf("in_doubt: tin %v", st)
-	}
+	f.droppedFollowUp(a)
 	if calls := len(f.fg.Calls(pageExt + "/messages")); calls != 1 {
 		t.Fatalf("in_doubt: Meta nhận %d lần gọi, muốn 1", calls)
 	}
@@ -471,5 +466,64 @@ func TestFollowUps_BatchNotStarved(t *testing.T) {
 	fresh, _ := f.inbox(f.page, "psid-new", "Chị Mới", 5*time.Hour, 4*time.Hour)
 	if n := f.sweep(); n != 1 || len(f.fuRuns(fresh)) != 1 {
 		t.Fatalf("hội thoại mới: %d lệnh, lượt %v", n, f.fuRuns(fresh))
+	}
+}
+
+// pageSays chèn tin Page gửi ngoài CRM (origin page_external, như echo đọc qua hỏi bù hay Business Suite: không mã
+// CRM) lúc at vào hội thoại conv, mã kênh mid, và đẩy mốc như đường vào (inbound/echo.go).
+func (f *fuEnv) pageSays(conv, page uuid.UUID, mid string, at time.Time) {
+	f.t.Helper()
+	f.staff.Exec(f.t, f.tenant, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(f.t.Context(), `INSERT INTO conversation.messages (tenant_id, conversation_id,
+			channel_account_id, external_id, direction, kind, origin, body, sent_at)
+			VALUES ($1, $2, $3, $4, 'out', 'message', 'page_external', 'Dạ Chị An ơi, shop nhắn lại mình nhé ạ', $5)`,
+			f.tenant, conv, page, mid, at); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		return f.bumpStaff(tx, conv, at)
+	})
+}
+
+// droppedFollowUp: Meta đọc tin nhắn lại của hội thoại conv rồi rớt kết nối → lệnh in_doubt, lượt dropped, tin
+// discarded/auto_dropped.
+func (f *fuEnv) droppedFollowUp(conv uuid.UUID) {
+	f.t.Helper()
+	f.fg.DropAfterRead(pageExt + "/messages")
+	if n := f.sweep(); n != 1 {
+		f.t.Fatalf("%d lệnh", n)
+	}
+	f.drain()
+	if runs := f.fuRuns(conv); len(runs) != 1 || runs[0] != string(automation.OutcomeDropped) {
+		f.t.Fatalf("in_doubt: lượt %v", runs)
+	}
+	if _, st := f.autoMessages(conv); len(st) != 1 || st[0] != "discarded/auto_dropped" {
+		f.t.Fatalf("in_doubt: tin %v", st)
+	}
+}
+
+// Task 497: tin nhắn lại tự động không rõ đã gửi (bỏ, auto_dropped) mà Meta đã nhận; echo của nó tới không có mã CRM
+// (hỏi bù: dòng page_external, không ghép được theo mid vì CRM chưa có mid) → không coi là tin người thật: 4 giờ sau
+// không có lượt thứ hai, Meta không nhận thêm. Đối chứng: tin Page gửi ngoài CRM ở hội thoại không có tin tự động bị bỏ
+// vẫn được nhắn lại.
+func TestFollowUps_EchoOfDroppedAutoNotStaff(t *testing.T) {
+	t.Parallel()
+	f, a := newFuEnvWithA(t)
+	f.droppedFollowUp(a)
+	f.pageSays(a, f.page, "m_poll_echo_1", f.now().Add(time.Second))
+	f.advance(4 * time.Hour)
+	b, _ := f.inbox(f.page, "psid-b", "Chị Bình", 5*time.Hour, 0)
+	f.pageSays(b, f.page, "m_bs_reply_b", f.now().Add(-4*time.Hour))
+	if n := f.sweep(); n != 1 {
+		t.Fatalf("sau echo không mã: %d lệnh, muốn 1 (chỉ hội thoại đối chứng)", n)
+	}
+	f.drain()
+	if runs := f.fuRuns(a); len(runs) != 1 {
+		t.Fatalf("hội thoại có tin tự động bị bỏ: lượt %v, muốn 1", runs)
+	}
+	if runs := f.fuRuns(b); len(runs) != 1 || runs[0] != string(automation.OutcomeDone) {
+		t.Fatalf("đối chứng: lượt %v", runs)
+	}
+	if n := len(f.fg.Calls(pageExt + "/messages")); n != 2 {
+		t.Fatalf("Meta nhận %d lần gửi, muốn 2 (một tin bị bỏ của A, một tin của B)", n)
 	}
 }
