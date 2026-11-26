@@ -14,6 +14,7 @@ import { createRealtimeClient, type RealtimeState } from "../realtime/client";
 import { watchApiLive } from "./apiHealth";
 import { Banner } from "./Banner";
 import { Layout } from "./Layout";
+import { RealtimeStateContext } from "./realtimeState";
 
 export interface AppProps {
   /** Thay QueryClient (test). */
@@ -59,15 +60,17 @@ function Shell({ screens }: { screens: readonly Screen[] }) {
 
   const grants = me.data?.grants ?? [];
   return (
-    <Layout
-      screens={screens}
-      grants={grants}
-      email={me.data?.email ?? ""}
-      banner={<Banner realtime={realtime} apiDown={apiDown} />}
-    >
-      {/* Chưa đọc được /api/v1/me (đang tải, API tạm ngừng, phiên hết hạn): không định tuyến với quyền rỗng, vì sẽ báo
+    <RealtimeStateContext value={realtime}>
+      <Layout
+        screens={screens}
+        grants={grants}
+        email={me.data?.email ?? ""}
+        banner={<Banner realtime={realtime} apiDown={apiDown} />}
+      >
+        {/* Chưa đọc được /api/v1/me (đang tải, API tạm ngừng, phiên hết hạn): không định tuyến với quyền rỗng, vì sẽ báo
           nhầm "chưa được giao màn hình" hay "không tìm thấy"; băng báo nói lý do. */}
-      {me.data !== undefined && <AppRoutes screens={screens} grants={grants} />}
-    </Layout>
+        {me.data !== undefined && <AppRoutes screens={screens} grants={grants} />}
+      </Layout>
+    </RealtimeStateContext>
   );
 }

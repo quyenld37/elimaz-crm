@@ -37,7 +37,7 @@ export type Error = {
     statementId?: string;
     quote?: WebQuote;
     /**
-     * Chỉ có ở item_unavailable — biến thể không bán được trên web, theo thứ tự gửi (Task 194)
+     * Chỉ có ở item_unavailable — biến thể không bán được trên web, theo thứ tự gửi (Task 194); ở out_of_stock — đúng một phần tử, biến thể của variantId (chốt comment live đọc mảng, Task 172)
      */
     variantIds?: Array<string>;
     denyReason?: SendDenyReason;
@@ -489,6 +489,10 @@ export type CreateOrderRequest = {
      * Nhân viên phụ trách
      */
     careBy?: string;
+    /**
+     * Lên đơn trong khung chat (M4, Task 176): đơn lưu hội thoại này; máy chủ tự lấy Page của hội thoại, người bán của Page (áp làm người bán của đơn, ADR-29) và kênh facebook (thay channel đã gửi). Cần conversation.read trên Page của hội thoại, không thì 404 not_found. Khách của đơn phải là customerId cùng nhóm hồ sơ với khách của hội thoại (Task 501); gửi customer (khách mới, tìm theo SĐT) hay customerId nhóm khác → 422 conversation_customer_mismatch.
+     */
+    conversationId?: string;
     channel?: OrderChannel;
     externalRef?: string;
     /**
@@ -4857,6 +4861,32 @@ export type ChannelAccount = {
     subscribedFields: Array<string>;
     tokenCheckedAt?: string;
     version: number;
+    features?: ChannelFeatures;
+};
+
+/**
+ * Tính năng kênh hỗ trợ (theo adapter của kênh; chủ shop 26/11): màn hình ẩn phần kênh không có
+ */
+export type ChannelFeatures = {
+    /**
+     * Tin nhắn hộp thư
+     */
+    messages: boolean;
+    comments: boolean;
+    liveComments: boolean;
+    /**
+     * Nhắn riêng người comment
+     */
+    privateReply: boolean;
+    hideComment: boolean;
+    /**
+     * Nút trả lời nhanh
+     */
+    quickReplies: boolean;
+    /**
+     * Thẻ nhân viên (Human Agent)
+     */
+    humanAgent: boolean;
 };
 
 export type ChannelAccountList = {
@@ -4933,6 +4963,35 @@ export type ChatCustomerRef = {
 export type ChatPostRef = {
     id: string;
     snippet?: string;
+    /**
+     * Giờ đăng bài trên kênh (chưa đọc được bài → không có)
+     */
+    postedAt?: string;
+    /**
+     * Đường dẫn bài trên kênh ("Mở bài")
+     */
+    permalink?: string;
+    /**
+     * Ảnh bài đã chép về CRM (Task 501); đường dẫn 5 phút lấy bằng getAttachmentUrl của hội thoại comment trên bài
+     */
+    imageFileId?: string;
+};
+
+export type PagePost = {
+    id: string;
+    /**
+     * Mã bài trên kênh (giá trị của exceptPostIds, postIds trong quy tắc tự động)
+     */
+    externalId: string;
+    kind: 'post' | 'live' | 'ad' | 'unknown';
+    snippet?: string;
+    postedAt?: string;
+    permalink?: string;
+};
+
+export type PagePostPage = {
+    items: Array<PagePost>;
+    nextCursor?: string;
 };
 
 export type ConversationSummary = {
@@ -4948,6 +5007,10 @@ export type ConversationSummary = {
     lastSnippet?: string;
     post?: ChatPostRef;
     hasOpenDraft: boolean;
+    /**
+     * Khách tiềm năng mới (CH08, Task 501): hồ sơ khách được tạo tự động từ chính hội thoại này (người lạ nhắn, comment lần đầu), chưa gộp vào hồ sơ khác và chưa có đơn nào (kể cả đơn nháp)
+     */
+    newLead?: boolean;
     version: number;
 };
 
@@ -5074,6 +5137,10 @@ export type ChatMessage = {
     sendStatus?: MessageSendStatus;
     failReason?: string;
     isHidden: boolean;
+    /**
+     * Chỉ khi isHidden (Task 501): ai ẩn lần gần nhất — tự ẩn vì có SĐT (auto_phone), tự ẩn mọi comment (auto_all), tự ẩn không rõ chế độ (automation, comment ẩn trước Task 501), nhân viên trong CRM (staff), ẩn trên Facebook ngoài CRM (page_external). Không có: chưa rõ (ẩn sẵn khi CRM đọc về)
+     */
+    hiddenReason?: 'auto_phone' | 'auto_all' | 'automation' | 'staff' | 'page_external';
     removed: boolean;
     editedCount: number;
     privateReply?: ChatPrivateReplyRef;
@@ -5359,6 +5426,10 @@ export type FollowUpItem = {
     pageId: string;
     customer: ChatCustomerRef;
     lastStaffMessageAt: string;
+    /**
+     * Đoạn đầu (tối đa 120 ký tự) tin người thật cuối của Page, hiện là Bạn: … (Task 501); tin ảnh → không có
+     */
+    lastStaffSnippet?: string;
     windowEndsAt: string;
 };
 
@@ -5550,6 +5621,14 @@ export type RemindAllowed = {
 
 export type PendingDraft = {
     orderId: string;
+    /**
+     * Hội thoại comment chứa comment được chốt (Task 501)
+     */
+    conversationId: string;
+    /**
+     * Hộp thư của khách trên Page của phiên (nơi tin xin địa chỉ được gửi, khách trả địa chỉ); chưa có → không có (màn mở conversationId)
+     */
+    inboxConversationId?: string;
     orderCode: string;
     customer: ChatCustomerRef;
     items: Array<LiveDraftItem>;
@@ -13770,6 +13849,42 @@ export type ListChannelAccountsResponses = {
 };
 
 export type ListChannelAccountsResponse = ListChannelAccountsResponses[keyof ListChannelAccountsResponses];
+
+export type ListPagePostsData = {
+    body?: never;
+    path: {
+        /**
+         * Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+         */
+        id: string;
+    };
+    query?: {
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/channels/{id}/posts';
+};
+
+export type ListPagePostsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListPagePostsError = ListPagePostsErrors[keyof ListPagePostsErrors];
+
+export type ListPagePostsResponses = {
+    /**
+     * listPagePosts
+     */
+    200: PagePostPage;
+};
+
+export type ListPagePostsResponse = ListPagePostsResponses[keyof ListPagePostsResponses];
 
 export type SetChannelSendModeData = {
     body: SetChannelSendModeRequest;

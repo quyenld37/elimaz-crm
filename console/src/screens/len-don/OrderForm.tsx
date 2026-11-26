@@ -60,6 +60,15 @@ export interface OrderFormProps {
   onCreated?: (order: Order) => void;
   /** Sửa đơn có sẵn thay vì tạo (Task 85). */
   edit?: OrderEdit;
+  /** Lên đơn trong khung chat (M4, Task 176): đơn lưu hội thoại này (máy chủ tự lấy Page, người bán, kênh). */
+  conversationId?: string;
+  /** Nguồn đơn tự điền từ bối cảnh hội thoại (M4); vẫn đổi được ở ô Nguồn đơn. */
+  initialTrafficSourceId?: string;
+  /**
+   * Lên đơn cạnh khung chat (M4, Task 501, HV26): tin khách có địa chỉ. Có thì dưới địa chỉ có nút label, bấm chép
+   * nguyên văn text vào ô "Số nhà, đường" để nhân viên sửa (không tự tách tỉnh, xã).
+   */
+  addressFromMessage?: { label: string; text: string } | undefined;
 }
 
 export interface OrderEdit {
@@ -69,6 +78,11 @@ export interface OrderEdit {
   onSaved: (order: Order) => void;
   /** Bấm "Tải lại đơn" sau 409 version_conflict: bên gọi đọc lại đơn và dựng lại form. */
   onReload: () => void;
+  /**
+   * Hoàn tất đơn nháp cạnh khung chat (M4, Task 176, LV04): nút "Lưu và xác nhận", kiểm địa chỉ như lúc xác nhận; không
+   * đổi gì thì không gửi updateOrder mà gọi onSaved với đơn đang có (bên gọi xác nhận đơn bằng confirmOrder).
+   */
+  confirmAfterSave?: boolean;
 }
 
 export const TEXT_VERSION_CONFLICT = "Đơn đã thay đổi, tải lại để xem bản mới.";
@@ -148,7 +162,14 @@ const draftOf = (o: Order): LineDraft[] =>
 
 const moneyOrEmpty = (v: number | undefined) => ((v ?? 0) > 0 ? moneyInput(v) : "");
 
-export function OrderForm({ initialCustomer, onCreated, edit }: OrderFormProps) {
+export function OrderForm({
+  initialCustomer,
+  onCreated,
+  edit,
+  conversationId,
+  initialTrafficSourceId,
+  addressFromMessage,
+}: OrderFormProps) {
   const id = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const customerRef = useRef<HTMLInputElement>(null);
@@ -176,7 +197,7 @@ export function OrderForm({ initialCustomer, onCreated, edit }: OrderFormProps) 
   const [ship, setShip] = useState(() => (eo === undefined ? "" : moneyInput(eo.shippingFee)));
   const [couponText, setCouponText] = useState(eo?.couponCode ?? "");
   const [couponCode, setCouponCode] = useState(eo?.couponCode ?? "");
-  const [sourceId, setSourceId] = useState<string | null>(eo?.trafficSourceId ?? null);
+  const [sourceId, setSourceId] = useState<string | null>(eo?.trafficSourceId ?? initialTrafficSourceId ?? null);
   const [carrierNote, setCarrierNote] = useState(eo?.carrierNote ?? "");
   const [lastEdit, setLastEdit] = useState<EditBody | null>(null);
   const [created, setCreated] = useState<Order | null>(null);
@@ -282,12 +303,15 @@ export function OrderForm({ initialCustomer, onCreated, edit }: OrderFormProps) 
   };
   const extraBlock = !inputsOk ? TEXT_BAD_MONEY : after.error;
   const block = (intent: Intent) => saveBlock(form, intent) ?? extraBlock;
-  // Sửa đơn: đơn đã xác nhận cần địa chỉ đủ như lúc xác nhận; không đổi gì thì không gửi.
+  // Sửa đơn: đơn đã xác nhận (hay đơn nháp sắp hoàn tất) cần địa chỉ đủ như lúc xác nhận; không đổi gì thì không gửi
+  // (hoàn tất nháp không đổi gì thì xác nhận luôn).
+  const confirmAfter = edit?.confirmAfterSave === true;
   const editReq = eo === undefined || scope === undefined ? null : buildUpdate(form, eo, scope);
   const editBlock =
     eo === undefined
       ? null
-      : (block(eo.status === "confirmed" ? "confirmed" : "new") ?? (editReq === null ? TEXT_NO_CHANGE : null));
+      : (block(eo.status === "confirmed" || confirmAfter ? "confirmed" : "new") ??
+        (editReq === null && !confirmAfter ? TEXT_NO_CHANGE : null));
 
   const variantIds = [...new Set(lines.map((l) => l.variantId))].sort();
   const dupKey = customerId ?? (customer?.kind === "new" ? phoneOrNull : null);
@@ -333,7 +357,7 @@ export function OrderForm({ initialCustomer, onCreated, edit }: OrderFormProps) 
     setShip("");
     setCouponText("");
     setCouponCode("");
-    setSourceId(null);
+    setSourceId(initialTrafficSourceId ?? null);
     setCarrierNote("");
   };
 
@@ -367,12 +391,17 @@ export function OrderForm({ initialCustomer, onCreated, edit }: OrderFormProps) 
 
   const save = (intent: Intent) => {
     if (eo !== undefined) {
-      if (editWrite.pending || editBlock !== null || editReq === null) return;
+      if (editWrite.pending || editBlock !== null) return;
+      if (editReq === null) {
+        if (edit?.confirmAfterSave === true) edit.onSaved(eo);
+        return;
+      }
       void sendEdit({ id: eo.id, req: editReq });
       return;
     }
     if (write.pending || block(intent) !== null) return;
-    void send(buildRequest(form, intent), intent);
+    const req = buildRequest(form, intent);
+    void send(conversationId === undefined ? req : { ...req, conversationId }, intent);
   };
 
   const saveRef = useRef(save);
@@ -562,6 +591,18 @@ export function OrderForm({ initialCustomer, onCreated, edit }: OrderFormProps) 
             phoneIsCustomers={phoneIsCustomers}
             onPhoneIsCustomers={setPhoneIsCustomers}
           />
+          {addressFromMessage !== undefined && (
+            <button
+              type="button"
+              className="btn btn-quiet"
+              style={{ marginTop: 8 }}
+              onClick={() => {
+                setAddress({ ...address, line: addressFromMessage.text });
+              }}
+            >
+              {addressFromMessage.label}
+            </button>
+          )}
           {!can("address") && <p className="reason">{TEXT_LOCKED}</p>}
         </fieldset>
         <fieldset className="lock" disabled={!can("lines")}>
@@ -854,7 +895,7 @@ export function OrderForm({ initialCustomer, onCreated, edit }: OrderFormProps) 
                 save("new");
               }}
             >
-              {btnText("new", "Lưu thay đổi")}
+              {btnText("new", confirmAfter ? "Lưu và xác nhận" : "Lưu thay đổi")}
             </button>
             {busy && attempt > 1 ? (
               <p className="reason">Mạng chập chờn. Đang gửi lại đúng thay đổi này, không lưu hai lần.</p>

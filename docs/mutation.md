@@ -12,7 +12,7 @@ Thư mục: `make mutation` đọc thẳng `HIGH_RISK_DIRS` của hook (một ng
 `idempotency`, `platform/db`, `platform/webhooks`, `modules/identity`, `modules/inventory`; riêng `internal/httpapi` chỉ
 `guard.go` (mọi tệp khác của gói bị loại, tính lúc chạy). `TestMakeMutation_CoversHighRiskDirs` và
 `TestMakeMutation_SingleSourceAndFileEntries` giữ luật này. Ba gói `platform/db`, `platform/webhooks`,
-`modules/inventory` chưa có lần chạy nào (lượt CI theo lịch hoặc `make mutation` sẽ đo).
+`modules/inventory` chưa có lần chạy nào (lượt `mutation` của CI, chạy bằng tay, hoặc `make mutation` sẽ đo).
 
 ## Lần chạy 18/11/2026 (máy dev, `GOFLAGS=-count=1`, 2 lượt song song)
 
@@ -26,8 +26,8 @@ Thư mục: `make mutation` đọc thẳng `HIGH_RISK_DIRS` của hook (một ng
 | `internal/httpapi/guard.go` | 6 | 1 | 0 | 0 | 85,71% | 100% (7/7) | 1 phút 17 s |
 
 "Sau test thêm": mỗi đột biến được tính là bị giết đã được cài tay vào mã và chạy đúng test mới → đỏ (lệnh ở phần
-"Test thêm"); chưa chạy lại cả lượt gremlins của hai gói này (queue mất một giờ). Lượt theo lịch của CI (`mutation`, chủ
-nhật) chạy lại toàn bộ.
+"Test thêm"); chưa chạy lại cả lượt gremlins của hai gói này (queue mất một giờ). Lượt `mutation` của CI (chạy bằng tay
+từ Task 493) chạy lại toàn bộ.
 
 Bẫy đã gặp: chạy gremlins khi kết quả `go test` còn trong cache thì thời gian đo ban đầu gần 0, mọi đột biến thành "quá
 hạn" và hiệu quả hiện 100% giả (lần chạy đầu 18/11). `make mutation` đặt `GOFLAGS=-count=1`.
@@ -174,7 +174,7 @@ Ba điều chỉnh khi đọc số của gremlins v0.6.0 (giữ cho các lần c
    biến này được cài tay từng cái (cùng phép đổi của gremlins) và chạy test của gói; kết quả ghi trong bảng (cột "cài
    tay").
 3. Test cần libvips và `prlimit` (Linux) tự bỏ qua trên máy dev macOS: số của `internal/imager` đo **không** có các test
-   đó. Lượt CI theo lịch (Linux, có libvips) có thể giết thêm, không bớt.
+   đó. Lượt `mutation` của CI (Linux, có libvips) có thể giết thêm, không bớt.
 
 | Mục | Gremlins: giết / sống / không phủ (không biên dịch) | Cài tay (không phủ) | Hiệu quả trước test thêm | Sau test thêm | Thời gian |
 |---|---|---|---|---|---|
@@ -195,7 +195,7 @@ Ghi chú cho các dòng mới (đo đêm 19–20/11):
 
 - **Phần chưa chạy.** Từ 01:39 ngày 20/11 máy dev vào trạng thái ngủ ("Dark Wake Thermal Emergency", `pmset -g log`), chỉ
   thức khoảng một phút mỗi 15 phút, nên lượt `inventory` dừng ở 203/248 đột biến và phần 2 của `platform/files` ở
-  333/351 (18 đột biến cuối của `verify.go` chưa chạy). Hiệu quả trên tính trên phần đã chạy; lượt CI theo lịch sẽ đo đủ
+  333/351 (18 đột biến cuối của `verify.go` chưa chạy). Hiệu quả trên tính trên phần đã chạy; lượt `mutation` của CI sẽ đo đủ
   khi các thư mục này vào `HIGH_RISK_DIRS`.
 - **`platform/files`** chạy thành hai phần (phần 1 bị dừng giữa chừng; phần 2 giữ 9 tệp `process`, `process_private`,
   `purpose`, `regenerate`, `register`, `s3store`, `store`, `upload`, `verify`), số trong bảng là hợp của hai phần.

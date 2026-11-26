@@ -17,6 +17,7 @@ import (
 	"elimaz.com.vn/crm/internal/httpapi/web"
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/channel"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/order"
@@ -24,6 +25,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/fieldcrypt"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/observability"
@@ -79,6 +81,11 @@ type Deps struct {
 	// CouponGuard giới hạn số lần nhập mã giảm giá sai ở báo giá, tạo đơn web (Task 482; cmd/crm nối NewCouponGuard
 	// trên Valkey gate). nil → bộ đếm trong tiến trình với FallbackMax của cache.DefaultLimits(), secret ngẫu nhiên.
 	CouponGuard *CouponGuard
+	// Channels là bộ adapter kênh nhắn tin (cmd/crm nối wireM4().Channels); ChannelKeys giải mã, mã hóa token Page và
+	// token người dùng trong phiên đăng nhập (FIELD_ENC_KEYS). Một trong hai nil, hay chưa có adapter Facebook có
+	// Connector → route kết nối Page trả 503 retry_later (Task 149).
+	Channels    *channel.Registry
+	ChannelKeys *fieldcrypt.Keyring
 
 	limiter        *userLimiter  // một bộ đếm chung cho mọi route của nhân viên (prepare)
 	serviceLimiter *userLimiter  // bộ đếm dự phòng của khóa dịch vụ khi RateLimiter nil (prepare)

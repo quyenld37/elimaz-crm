@@ -27,7 +27,9 @@ import (
 	"elimaz.com.vn/crm/internal/imager"
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/channel"
 	"elimaz.com.vn/crm/internal/modules/content"
+	"elimaz.com.vn/crm/internal/modules/conversation"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
@@ -170,10 +172,11 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	// Mốc sau gọi files.RegisterPurpose ở đây, trước lần kiểm này: customer_import (M2, Task M2-13), carrier_label và
 	// cod_statement (M3, Task M3-04).
 	customer.RegisterFilePurposes()
-	fulfillment.RegisterFilePurposes() // carrier_label (M3, Task M3-04, 0306)
-	cash.RegisterFilePurposes()        // cod_statement (M3, Task M3-04, 0306)
-	order.RegisterFilePurposes()       // order_request_photo (M5, Task 195, 0504)
-	content.RegisterFilePurposes()     // web_banner (M5, Task 453, 0521)
+	fulfillment.RegisterFilePurposes()  // carrier_label (M3, Task M3-04, 0306)
+	cash.RegisterFilePurposes()         // cod_statement (M3, Task M3-04, 0306)
+	order.RegisterFilePurposes()        // order_request_photo (M5, Task 195, 0504)
+	content.RegisterFilePurposes()      // web_banner (M5, Task 453, 0521)
+	conversation.RegisterFilePurposes() // chat_outgoing (M4, Task 156, 0413); chat_image, chat_attachment, chat_avatar (Task 155, 0404)
 	if cfg.Role == config.RoleAPI || cfg.Role == config.RoleWorker {
 		if err := files.CheckPurposes(ctx, d); err != nil {
 			return fmt.Errorf("kiểm mục đích tệp: %w", err)
@@ -201,6 +204,10 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		spool := &webhooks.Spool{Dir: cfg.SpoolDir}
 		drainer := &webhooks.Drainer{Spool: spool, DB: d, Metrics: reg, Logger: logger}
 		wg.Go(func() { drainer.Run(fctx) })
+		// Tệp tạm của yêu cầu xóa dữ liệu của Meta (Task 179), cùng nhịp.
+		if err := startDataDeletionDrainer(fctx, &wg, cfg, d, logger); err != nil {
+			return err
+		}
 	}
 	var hub *realtime.PGHub
 	if cfg.Role == config.RoleAPI {
@@ -300,7 +307,9 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	for _, fn := range mods.M3.Cleanups {
 		cleanup.RegisterTenantCleanup(fn)
 	}
-	for _, s := range slices.Concat(mods.Schedules, mods.M3.Schedules, mods.M4.Schedules) {
+	// Lịch platform.data_deletion (Task 179): xóa dữ liệu đăng nhập Facebook theo yêu cầu của Meta, không tenant, 60 s.
+	for _, s := range slices.Concat(mods.Schedules, mods.M3.Schedules, mods.M4.Schedules,
+		[]schedules.Schedule{dataDeletionProcessor().Schedule()}) {
 		if err := plan.Define(s); err != nil {
 			return fmt.Errorf("định nghĩa lịch %s: %w", s.Name, err)
 		}
@@ -334,7 +343,7 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 		// Áp bản nhập Excel (Task M1-47b): ghi mẫu, biến thể bằng Writer của catalog (sự kiện qua cùng sổ, báo hiệu).
 		catalog.NewImportApplier(catalog.Writer{Events: mods.Events, Queue: queue.NewQueue(), Realtime: hub})),
 		mods.Handlers...)
-	handlers = append(handlers, mods.M4.Jobs...)
+	handlers = append(append(handlers, mods.M4.Jobs...), dataDeletionProcessor())
 	w := queue.NewWorker(d, handlers, queue.WorkerOptions{
 		WorkerID: metrics.ProcessName(cfg.Role) + "/" + uuid.NewString(), // mỗi lần chạy một mã giữ chỗ riêng
 		Metrics:  reg, Logger: logger, Role: string(cfg.Role),
@@ -372,8 +381,8 @@ func startBackground(ctx context.Context, wg *sync.WaitGroup, runs []func(contex
 	}
 }
 
-// alertSchedules định nghĩa hai lịch của cảnh báo (Task 19): platform.alerts mỗi 60 s (CheckRules) và platform.digest
-// (tin tổng kết 08:00 giờ Việt Nam); trả hai lệnh đó cùng hai lệnh cảnh báo của kho (cùng Alerter) để đăng
+// alertSchedules định nghĩa các lịch của cảnh báo: platform.alerts mỗi 60 s (CheckRules, Task 19), platform.digest
+// (tin tổng kết 08:00 giờ Việt Nam) và channel.data_use_checkup (nhắc Data Use Checkup, Task 179); trả hai lệnh đó cùng hai lệnh cảnh báo của kho (cùng Alerter) để đăng
 // ký vào Runner. Gửi Telegram nên là lệnh, không phải handler transactional.
 func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logger *slog.Logger) ([]commands.Handler, error) {
 	alerter := observability.NewTelegramAlerter(d, cfg, nil, logger)
@@ -381,9 +390,12 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 		BackupExpected: cfg.BackupExpected, FileSyncExpected: cfg.FileSyncExpected, DBDiskBudgetBytes: cfg.DBDiskBudgetBytes, ConnBudget: cfg.DBConnBudget,
 	}, logger)
 	digest := alertjobs.NewDigestCommand(d, alerter, logger)
+	// Nhắc Data Use Checkup hằng năm của app Meta (Task 179): lịch hằng ngày, gửi khi còn ≤ 30 ngày, 7 ngày một lần.
+	checkup := channel.NewDataUseCheckupCommand(d, alerter, cfg.Meta.DataUseCheckupDue, nil, logger)
 	for _, s := range []schedules.Schedule{
 		{Name: alertjobs.AlertsSchedule, Every: alertjobs.AlertsEvery, Kind: alerts.Kind()},
 		{Name: alertjobs.DigestSchedule, Every: alertjobs.DigestEvery, Kind: digest.Kind()},
+		{Name: channel.DataUseCheckupSchedule, Every: channel.DataUseCheckupEvery, Kind: checkup.Kind()},
 	} {
 		if err := plan.Define(s); err != nil {
 			return nil, fmt.Errorf("định nghĩa lịch %s: %w", s.Name, err)
@@ -394,14 +406,23 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 	// đồng bộ vận đơn (tồn thiếu khi áp, Task M3-11): lệnh do lệnh tra fulfillment.refresh_status ghi. Cảnh báo tiền COD
 	// đã về rồi hãng sửa thành hoàn (Task M3-29): lệnh do consumer cash ghi. Cảnh báo lệch sổ COD sau đối chiếu đêm
 	// (Task M3-33): lệnh do lệnh cash.reconcile ghi.
-	return []commands.Handler{
+	return append([]commands.Handler{
 		alerts, digest, inventory.NewShortageAlertCommand(alerter, logger), inventory.NewStockMismatchCommand(alerter, logger),
 		fulfillment.NewAuthAlertCommand(alerter, logger), fulfillment.NewTrackAlertCommand(d, alerter, logger),
 		cash.NewRemittedReturnedAlertCommand(alerter),
 		cash.NewReconcileAlertCommand(alerter),
 		// Cảnh báo đơn kẹt mỗi ngày (Task M3-20): lệnh do lịch fulfillment.stuck ghi.
 		fulfillment.NewStuckAlertCommand(d, alerter, logger),
-	}, nil
+		// Cảnh báo Page bắt đầu gửi thật (kế hoạch M4, Task 145): lệnh do channel.Writer.SetSendMode ghi.
+		channel.NewSendModeAlertCommand(alerter, logger),
+		channel.NewSubscribeAlertCommand(alerter, logger),
+		// Cảnh báo phiên live (Task 171): luồng comment hỏng (do nguồn comment ghi) và đối chiếu cuối phiên thiếu comment
+		// (do lệnh command.fb.live_reconcile ghi).
+		conversation.NewLiveAlertCommand(alerter, logger),
+		checkup,
+		// Cảnh báo sức khỏe kênh (Task 150), gồm channel.auth_alert do channel.Writer.ReportTokenInvalid (Task 156, gửi tin
+		// nhận lỗi token) và kiểm sức khỏe mất quyền cùng ghi.
+	}, channel.HealthAlertCommands(alerter, logger)...), nil
 }
 
 // diskPaths: đĩa mỗi tiến trình tự đo cho luật disk:<process> (gauge disk_used_pct): "/" của container, thư mục tệp
@@ -495,7 +516,7 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 			return err
 		}
 		defer web.stop() // sau khi máy chủ HTTP tắt: ghi nốt last_used_at, đóng Valkey
-		wc, err := newWebCache(ctx, cfg, d, hub, reg, logger)
+		wc, err := newWebCache(ctx, cfg, d, hub, reg, logger, 0)
 		if err != nil {
 			return err
 		}
@@ -507,6 +528,7 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 			Fulfillment: mods.M3.Fulfillment.Service,
 			ServiceKeys: web.keys, RateLimiter: web.limiter, ReadCache: wc.rc, WebOrderLimiter: web.orderLimiter,
 			CouponGuard: web.couponGuard,
+			Channels:    mods.M4.Channels, ChannelKeys: mods.M4.Keys,
 		})
 	} else {
 		h, err := ingestHandler(cfg, d, reg, logger)
@@ -564,6 +586,10 @@ func ingestHandler(cfg config.Config, d *db.DB, reg *metrics.Registry, logger *s
 	mux := http.NewServeMux()
 	observability.NewHealth(d.Pool).Register(mux)
 	in.Register(mux)
+	// Callback xóa dữ liệu của Meta (Task 179): đường cụ thể hơn POST /hooks/{source}/{routeKey} nên thắng.
+	if err := registerDataDeletion(mux, cfg, d, logger); err != nil {
+		return nil, err
+	}
 	return mux, nil
 }
 

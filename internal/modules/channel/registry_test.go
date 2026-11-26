@@ -2,6 +2,7 @@ package channel_test
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"testing"
 
@@ -42,10 +43,35 @@ func TestRegistry(t *testing.T) {
 	}
 }
 
-// Khung Task 143: chưa vùng nào có lệnh, lịch.
-func TestWiringEmpty(t *testing.T) {
+// Task 149: vùng đăng ký webhook có hai lệnh (đăng ký, hủy đăng ký); Task 150: sức khỏe kênh thêm ba lệnh chỉ đọc và
+// bốn lịch (mỗi lịch một việc nền cùng Kind; channel.graph_version không theo tenant).
+func TestWiringCommands(t *testing.T) {
 	t.Parallel()
-	if len(channel.CommandHandlers(channel.Deps{})) != 0 || len(channel.Schedules(channel.Deps{})) != 0 {
-		t.Error("khung channel chưa được có lệnh, lịch")
+	var names []string
+	for _, h := range channel.CommandHandlers(channel.Deps{}) {
+		names = append(names, h.Kind().Name)
+	}
+	if !slices.Equal(names, []string{
+		channel.SubscribePageKind, channel.UnsubscribePageKind, channel.HealthCheckKind,
+		channel.BackfillKind, channel.CommentPollKind,
+	}) {
+		t.Errorf("lệnh của channel = %v", names)
+	}
+	var sch, jobs []string
+	for _, s := range channel.Schedules(channel.Deps{}) {
+		sch = append(sch, fmt.Sprintf("%s %s %v %v", s.Name, s.Kind.Name, s.Every, s.PerTenant))
+	}
+	for _, h := range channel.JobHandlers(channel.Deps{}) {
+		jobs = append(jobs, h.Kind().Name)
+	}
+	want := []string{
+		"channel.health task.channel.health 1h0m0s true", "channel.silence task.channel.silence 5m0s true",
+		"channel.backfill task.channel.backfill 10m0s true", "channel.graph_version task.channel.graph_version 24h0m0s false",
+	}
+	if !slices.Equal(sch, want) || !slices.Equal(jobs, []string{
+		"task.channel.health", "task.channel.silence",
+		"task.channel.backfill", "task.channel.graph_version",
+	}) {
+		t.Errorf("lịch = %v, việc nền = %v", sch, jobs)
 	}
 }

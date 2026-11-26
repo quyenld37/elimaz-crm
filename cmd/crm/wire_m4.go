@@ -36,7 +36,9 @@ type m4Deps struct {
 // m4Parts là phần của M4 mà tiến trình đăng ký: bộ adapter kênh; nguồn webhook (mỗi adapter là một nguồn) cho ingest
 // và việc tách gói; handler vào, lệnh, việc nền, lịch, luồng nền cho worker.
 type m4Parts struct {
-	Channels   *channel.Registry
+	Channels *channel.Registry
+	// Keys là khóa mã hóa token của kênh (FIELD_ENC_KEYS; nil khi chưa đặt): api dùng khi kết nối Page (Task 149).
+	Keys       *fieldcrypt.Keyring
 	Sources    []webhooks.Source
 	Inbound    []webhooks.InboundHandler
 	Commands   []commands.Handler
@@ -66,9 +68,10 @@ func wireM4(cfg config.Config, d m4Deps) (m4Parts, error) {
 	}
 	p := m4Parts{
 		Channels:   reg,
+		Keys:       keys,
 		Inbound:    conversation.InboundHandlers(vd),
 		Commands:   background.Collect(channel.CommandHandlers(cd), conversation.CommandHandlers(vd)),
-		Jobs:       conversation.JobHandlers(vd),
+		Jobs:       background.Collect(channel.JobHandlers(cd), conversation.JobHandlers(vd)),
 		Schedules:  background.Collect(channel.Schedules(cd), conversation.Schedules(vd)),
 		Background: conversation.Background(vd),
 	}

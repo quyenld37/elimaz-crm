@@ -105,6 +105,9 @@ type Config struct {
 	// Hãng vận chuyển giả (ingest, worker), chỉ ngoài production (Q2). Có FakeCarrierURL thì bí mật bắt buộc, ≥ 32 ký tự.
 	FakeCarrierURL           string
 	FakeCarrierWebhookSecret string
+	// FakeChatWebhookSecret là bí mật chữ ký webhook của kênh nhắn tin giả fakechat (FAKECHAT_WEBHOOK_SECRET, ≥ 32 ký tự
+	// khi đặt; ingest, api, worker), chỉ ngoài production (kế hoạch M4, Task 145). Rỗng: webhook kênh giả luôn bị từ chối.
+	FakeChatWebhookSecret logging.Secret
 	// CarrierWebhookSecrets là bí mật kiểm chữ ký webhook của hãng thật theo khóa hãng (vtp, best, spx), chỉ vai trò
 	// ingest, đọc từ CARRIER_<KEY>_WEBHOOK_SECRET tùy chọn (≥ 32 ký tự khi đặt); nil với vai trò khác.
 	CarrierWebhookSecrets map[string]logging.Secret
@@ -179,6 +182,9 @@ type MetaConfig struct {
 	HooksPublicBaseURL string
 	// worker (META_ATTACHMENT_HOSTS, phân cách dấu phẩy): máy chủ được tải tệp đính kèm của khách (và tên miền con).
 	AttachmentHosts []string
+	// worker (META_DATA_USE_CHECKUP_DUE, YYYY-MM-DD, tùy chọn; Task 179): hạn Data Use Checkup hằng năm của app Meta;
+	// còn ≤ 30 ngày thì lịch channel.data_use_checkup nhắc. Zero: chưa đặt, không nhắc.
+	DataUseCheckupDue time.Time
 }
 
 // LogValue chỉ in các trường không bí mật, để Config ghi vào log được.

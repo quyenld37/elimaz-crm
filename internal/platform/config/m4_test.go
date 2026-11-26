@@ -139,3 +139,37 @@ func TestLoad_M4BadValues(t *testing.T) {
 		t.Errorf("giá trị đặt được: %v %+v", err, cfg)
 	}
 }
+
+// Kênh nhắn tin giả (Task 145): FAKECHAT_WEBHOOK_SECRET tùy chọn ngoài production (có thì ≥ 32 ký tự, đọc ở mọi vai
+// trò chạy); production đặt biến này → lỗi khởi động; không đặt → rỗng.
+func TestLoad_FakeChatSecret(t *testing.T) {
+	t.Parallel()
+	const secret = "fakechat-secret-0123456789-abcdefgh"
+	for role, m := range map[config.Role]map[string]string{
+		config.RoleAPI: apiEnv(), config.RoleWorker: workerEnv(), config.RoleIngest: ingestEnv(),
+	} {
+		cfg, err := config.Load(role, env(with(m, "FAKECHAT_WEBHOOK_SECRET", secret)))
+		if err != nil || string(cfg.FakeChatWebhookSecret) != secret {
+			t.Errorf("%s: %v, bí mật %q", role, err, cfg.FakeChatWebhookSecret)
+		}
+		if cfg, err := config.Load(role, env(m)); err != nil || cfg.FakeChatWebhookSecret != "" {
+			t.Errorf("%s không đặt: %v", role, err)
+		}
+		mustFail(t, role, with(m, "FAKECHAT_WEBHOOK_SECRET", "ngan"), "FAKECHAT_WEBHOOK_SECRET")
+		mustFail(t, role, with(m, "CRM_ENV", "production", "FAKECHAT_WEBHOOK_SECRET", secret), "FAKECHAT_WEBHOOK_SECRET")
+	}
+}
+
+// META_DATA_USE_CHECKUP_DUE (worker, Task 179): tùy chọn, YYYY-MM-DD; sai dạng → lỗi nêu tên biến; vắng → zero.
+func TestLoad_DataUseCheckupDue(t *testing.T) {
+	t.Parallel()
+	mustFail(t, config.RoleWorker, with(workerEnv(), "META_DATA_USE_CHECKUP_DUE", "26/12/2026"), "META_DATA_USE_CHECKUP_DUE")
+	cfg, err := config.Load(config.RoleWorker, env(with(workerEnv(), "META_DATA_USE_CHECKUP_DUE", "2026-12-26")))
+	if err != nil || !cfg.Meta.DataUseCheckupDue.Equal(time.Date(2026, 12, 26, 0, 0, 0, 0, time.UTC)) {
+		t.Errorf("đặt hạn: %v %v", err, cfg.Meta.DataUseCheckupDue)
+	}
+	cfg, err = config.Load(config.RoleWorker, env(workerEnv()))
+	if err != nil || !cfg.Meta.DataUseCheckupDue.IsZero() {
+		t.Errorf("vắng: %v %v", err, cfg.Meta.DataUseCheckupDue)
+	}
+}

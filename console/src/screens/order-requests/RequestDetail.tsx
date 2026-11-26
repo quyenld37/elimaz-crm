@@ -178,7 +178,7 @@ function StateBox({ r, o, canOrder }: { r: OrderRequest; o: Order | undefined; c
         </div>
       )}
       {(r.status === "resolved" || r.status === "rejected") && (
-        <div className="box box-info">
+        <div className="box box-info wrap-any">
           <b>Yêu cầu đã đóng.</b>
           {r.resolvedAt === undefined ? "" : ` ${STATUS_TEXT[r.status]} lúc ${shortTime(r.resolvedAt)}.`}
           {r.outcome?.reason !== undefined && ` Lý do khách thấy: "${r.outcome.reason}"`}

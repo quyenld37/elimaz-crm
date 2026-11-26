@@ -3,7 +3,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Order } from "../../api";
-import { C1, C3, O_OLD, S_MANUAL, V1, V2, installFake, order, renderForm, type Fake } from "./orderTestkit";
+import { C1, C3, O_OLD, S_MANUAL, S_ZALO, V1, V2, installFake, order, renderForm, type Fake } from "./orderTestkit";
 
 let fake: Fake;
 
@@ -395,5 +395,114 @@ describe("gửi đơn (useWriteAction, trạng thái D–H)", () => {
     renderForm({ initialCustomer: { id: C1, code: "KH000231", fullName: "Trần Thị Thu Hà" } });
     expect(await screen.findByText("KH000231", { selector: ".chip" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Đổi khách" })).toBeTruthy();
+  });
+});
+
+describe("lên đơn cạnh khung chat (M4, Task 176)", () => {
+  const CONV = "0195f3b2-0000-7000-8000-000000010001";
+  /** Đơn nháp một dòng, sửa được mọi phần (đơn nháp từ Live). */
+  const draftOf = (p: Partial<Order> = {}): Order =>
+    order({
+      id: O_OLD,
+      status: "draft",
+      version: 3,
+      editScope: {
+        lines: true,
+        discounts: true,
+        coupon: true,
+        address: true,
+        shipping: true,
+        carrierNote: true,
+        careBy: true,
+        trafficSource: true,
+      },
+      items: [
+        {
+          id: "i1",
+          position: 1,
+          variantId: V1,
+          sku: "DAM0123-BE-M",
+          name: "Đầm",
+          qty: 1,
+          unitPrice: 690000,
+          netAmount: 690000,
+        },
+      ],
+      customer: { id: C1, rootId: C1, code: "KH000231", fullName: "Trần Thị Thu Hà" },
+      ...p,
+    });
+
+  it("conversationId đi kèm thân createOrder; nguồn đơn tự điền từ bối cảnh hội thoại", async () => {
+    renderForm({ conversationId: CONV, initialTrafficSourceId: S_ZALO });
+    await pickCustomerByKeys();
+    await addProduct("DAM0123-BE-M");
+    await fillAddress();
+    await waitFor(() => {
+      expect(confirmBtn().disabled).toBe(false);
+    });
+    fireEvent.click(confirmBtn());
+    await waitFor(() => {
+      expect(fake.writes).toHaveLength(1);
+    });
+    expect(fake.writes[0]?.body).toMatchObject({ conversationId: CONV, trafficSourceId: S_ZALO });
+  });
+
+  it("HV26 (Task 501): addressFromMessage → nút 'Lấy địa chỉ từ tin…' chép nguyên văn vào ô Số nhà, đường (sửa tiếp được)", () => {
+    renderForm({
+      addressFromMessage: { label: "Lấy địa chỉ từ tin 09:14 của khách", text: "12 ngõ 45 Trần Duy Hưng" },
+    });
+    const line = screen.getByRole("textbox", { name: "Số nhà, đường *" });
+    expect((line as HTMLInputElement).value).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: "Lấy địa chỉ từ tin 09:14 của khách" }));
+    expect((line as HTMLInputElement).value).toBe("12 ngõ 45 Trần Duy Hưng");
+    fireEvent.change(line, { target: { value: "12 ngõ 45 Trần Duy Hưng, Trung Hòa" } });
+    expect((line as HTMLInputElement).value).toBe("12 ngõ 45 Trần Duy Hưng, Trung Hòa");
+  });
+
+  it("không có addressFromMessage (màn Lên đơn của M2) → không có nút lấy địa chỉ", () => {
+    renderForm();
+    expect(screen.queryByRole("button", { name: /Lấy địa chỉ từ tin/ })).toBeNull();
+  });
+
+  it("không truyền conversationId (màn Lên đơn của M2) → thân không có conversationId", async () => {
+    await readyOrder();
+    fireEvent.click(confirmBtn());
+    await waitFor(() => {
+      expect(fake.writes).toHaveLength(1);
+    });
+    expect(fake.writes[0]?.body).not.toHaveProperty("conversationId");
+  });
+
+  it('hoàn tất đơn nháp đủ địa chỉ, không đổi gì: nút "Lưu và xác nhận" gọi onSaved với đơn đang có, không gửi updateOrder', async () => {
+    const saved: Order[] = [];
+    const draft = draftOf({
+      shipAddress: {
+        name: "Nguyễn Văn Tùng",
+        phone: "0987654321",
+        line: "Số 12 ngõ 68 Trần Thái Tông",
+        provinceCode: "01",
+        wardCode: "00004",
+      },
+      trafficSourceId: S_MANUAL,
+    });
+    renderForm({
+      edit: { order: draft, confirmAfterSave: true, onSaved: (o) => saved.push(o), onReload: () => undefined },
+    });
+    const btn = await screen.findByRole<HTMLButtonElement>("button", { name: "Lưu và xác nhận" });
+    await waitFor(() => {
+      expect(btn.disabled).toBe(false);
+    });
+    fireEvent.click(btn);
+    expect(saved).toEqual([draft]);
+    expect(fake.writes).toHaveLength(0);
+  });
+
+  it("hoàn tất đơn nháp thiếu địa chỉ → nút khóa kèm lý do như khi xác nhận", async () => {
+    const draft = draftOf();
+    renderForm({
+      edit: { order: draft, confirmAfterSave: true, onSaved: () => undefined, onReload: () => undefined },
+    });
+    const btn = await screen.findByRole<HTMLButtonElement>("button", { name: "Lưu và xác nhận" });
+    expect(btn.disabled).toBe(true);
   });
 });

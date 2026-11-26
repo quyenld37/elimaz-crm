@@ -2,6 +2,7 @@ package channel
 
 import (
 	"context"
+	"errors"
 	"io"
 	"iter"
 	"time"
@@ -37,17 +38,20 @@ type Profile struct {
 	Name, AvatarURL string
 }
 
-// PostInfo là thông tin bài viết chứa comment.
+// PostInfo là thông tin bài viết chứa comment. PictureURL: ảnh bài trên máy chủ của kênh (rỗng: bài không ảnh); tải
+// bằng AttachmentDownloader.
 type PostInfo struct {
-	ID, Kind, Permalink, Snippet string
-	CreatedTime                  time.Time
+	ID, Kind, Permalink, Snippet, PictureURL string
+	CreatedTime                              time.Time
 }
 
-// DownloadInfo là thông tin tệp tải từ kênh.
+// DownloadInfo là thông tin tệp tải từ kênh: ContentType nhận dạng bằng nội dung (không tin header), SHA256 là hex
+// của nội dung.
 type DownloadInfo struct {
 	ContentType string
 	Size        int64
 	FileName    string
+	SHA256      string
 }
 
 // LiveVideo là một phiên phát trực tiếp kênh báo đang chạy.
@@ -83,7 +87,26 @@ type HistoryFetcher interface {
 	FetchHistory(ctx context.Context, acc ChannelAccount, cred Credentials, userID string, limit int) ([]webhooks.InboundEvent, error)
 }
 
-// AttachmentDownloader (tùy chọn) tải tệp đính kèm, chỉ từ máy chủ của kênh, tối đa max byte.
+// CommentPoller (tùy chọn) đọc comment mới hơn since trên các bài gần nhất của Page (đọc comment định kỳ khi webhook
+// feed không về, Q4); khóa chống trùng như webhook. Bên gọi ghi bằng webhooks.EnqueueInbound với via = comment_poll.
+type CommentPoller interface {
+	PollPageComments(ctx context.Context, acc ChannelAccount, cred Credentials, since time.Time) ([]webhooks.InboundEvent, error)
+}
+
+// Lỗi chung của AttachmentDownloader (mỗi adapter bọc lỗi riêng của mình bằng một trong ba lỗi này, để module xếp tệp
+// mà không nhập adapter; Task 155). Lỗi khác (mạng, máy chủ tệp 5xx) là lỗi tạm, thử lại được.
+var (
+	// ErrDownloadBlocked: địa chỉ không thuộc máy chủ được phép của kênh, trỏ vào mạng nội bộ, hay chuyển hướng quá
+	// nhiều lần — không gửi yêu cầu nào tới máy đó.
+	ErrDownloadBlocked = errors.New("channel: địa chỉ tệp không được phép")
+	// ErrDownloadUnavailable: máy chủ tệp của kênh báo tệp không còn hay không được đọc (403, 404, 410).
+	ErrDownloadUnavailable = errors.New("channel: tệp không còn trên máy chủ của kênh")
+	// ErrDownloadTooLarge: tệp lớn hơn trần bên gọi đặt.
+	ErrDownloadTooLarge = errors.New("channel: tệp quá lớn")
+)
+
+// AttachmentDownloader (tùy chọn) tải tệp đính kèm, chỉ từ máy chủ của kênh, tối đa max byte; lỗi bọc
+// ErrDownloadBlocked, ErrDownloadUnavailable, ErrDownloadTooLarge khi là lỗi vĩnh viễn.
 type AttachmentDownloader interface {
 	Download(ctx context.Context, rawURL string, maxBytes int64) (io.ReadCloser, DownloadInfo, error)
 }
@@ -97,9 +120,11 @@ type LiveSource interface {
 	CountComments(ctx context.Context, acc ChannelAccount, cred Credentials, videoID string) (int, error)
 }
 
-// Connector (tùy chọn) kết nối Page: đổi mã đăng nhập, liệt kê Page, lấy token Page, đăng ký và hủy webhook.
+// Connector (tùy chọn) kết nối Page: đổi mã đăng nhập, đọc mã người dùng app của token (callback xóa dữ liệu gửi đúng
+// mã này, Task 179), liệt kê Page, lấy token Page, đăng ký và hủy webhook.
 type Connector interface {
 	ExchangeCode(ctx context.Context, code string) (logging.Secret, error)
+	AppUserID(ctx context.Context, userToken logging.Secret) (string, error)
 	ListPages(ctx context.Context, userToken logging.Secret) ([]PageInfo, error)
 	PageToken(ctx context.Context, token logging.Secret, pageID string) (logging.Secret, PageInfo, error)
 	Subscribe(ctx context.Context, acc ChannelAccount, cred Credentials, fields []string) error

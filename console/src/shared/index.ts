@@ -10,6 +10,8 @@ export type { ApiLiveOptions } from "../shell/apiHealth";
 /** Băng báo của khung theo câu chữ spec 04 mục 6. */
 export { Banner, TEXT_API_DOWN, TEXT_RECONNECTING, TEXT_SESSION_EXPIRED } from "../shell/Banner";
 export type { BannerProps } from "../shell/Banner";
+/** Trạng thái lớp realtime của tab cho màn cần nói riêng về nó (băng có nút "Tải lại ngay" của Inbox). */
+export { RealtimeStateContext, useRealtimeState } from "../shell/realtimeState";
 /** Gửi yêu cầu ghi với khóa chống trùng; tự gửi lại cùng khóa khi máy chủ bận (503 retry_later, 409 request_in_progress, mạng). */
 export { TEXT_BUSY, useWriteAction } from "../app/idempotency";
 export type { WriteAction, WriteActionOptions, WriteResult } from "../app/idempotency";

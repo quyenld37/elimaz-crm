@@ -175,6 +175,7 @@ const (
 	ListOrderShipmentsOperation          OperationName = "ListOrderShipments"
 	ListOrderShippingAccountsOperation   OperationName = "ListOrderShippingAccounts"
 	ListOrdersOperation                  OperationName = "ListOrders"
+	ListPagePostsOperation               OperationName = "ListPagePosts"
 	ListPendingDraftsOperation           OperationName = "ListPendingDrafts"
 	ListPermissionsOperation             OperationName = "ListPermissions"
 	ListProductsOperation                OperationName = "ListProducts"

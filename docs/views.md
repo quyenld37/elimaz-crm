@@ -18,7 +18,7 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 
 | View | Cột (theo thứ tự) | Task | Mốc đọc |
 |---|---|---|---|
-| `identity.users_v` (B2-11: bảng của M0, M1 công bố vì Task 26 đã `ALTER` `identity`; không có `email`) | `id, display_name, status` | 26 | M6, M7 |
+| `identity.users_v` (B2-11: bảng của M0, M1 công bố vì Task 26 đã `ALTER` `identity`; không có `email`) | `id, display_name, status` | 26 | M4 (`conversation`: tên người đang xem hội thoại, Task 163), M6, M7 |
 | `catalog.sellers_v` | `seller_id, code, name, kind, status` | 27 | M2–M7 |
 | `catalog.products_v` (M5 Task 190 nối `version`, Task 489 nối `created_at` vào cuối) | `product_id, seller_id, code, name, name_search, description, article, status, category_id, deleted_at, updated_at, version, created_at` | 27, 190, 489 | M2, M5–M7 (`internal/queries/webcatalog`: danh mục cho website; `order` `ProductCategories`: danh mục của mẫu cho báo giá web, Task 192) |
 | `catalog.variants_v` (M5 Task 190 nối `weight_grams` vào cuối, QĐ30) | `variant_id, seller_id, product_id, sku, barcode, product_code, product_name, color, color_hex, size, price, cost_price, variant_status, product_status, sellable, updated_at, weight_grams` | 27, 190 | M2–M7 |
@@ -34,7 +34,7 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 | `inventory.stock_available_v` (view số dư duy nhất; B11: không có `stock_balances_v`, `availability_v`) | `variant_id, warehouse_id, seller_id, on_hand, held, in_transit, damaged, available, updated_at` | 28 | M2–M7 |
 | `inventory.stock_ledger_v` | `ledger_id, variant_id, warehouse_id, bucket, delta, doc_type, doc_id, step, actor_type, actor_id, created_at` | 28 | M6, M7 |
 | `inventory.reconcile_runs_v` | `run_id, ran_at, ok, checked, mismatch_count` | 36 | M6, M7 |
-| `customer.customers_v` (M1 Task 30; M2 Task 60 nối 11 cột sau `created_at`; chỉ số chỉ đúng ở dòng `id = root_id`) | `id, root_id, full_name, created_at, tenant_id, code, lifecycle, birthday, order_count, delivered_count, returned_count, total_spent, last_order_at, updated_at, version` | 30, 60 | M2 trở đi |
+| `customer.customers_v` (M1 Task 30; M2 Task 60 nối 11 cột sau `created_at`; M4 Task 152 nối `do_not_contact`, `name_source` (cờ chỉ đúng ở gốc); chỉ số chỉ đúng ở dòng `id = root_id`) | `id, root_id, full_name, created_at, tenant_id, code, lifecycle, birthday, order_count, delivered_count, returned_count, total_spent, last_order_at, updated_at, version, do_not_contact, name_source` | 30, 60, 152 | M2 trở đi |
 | `ord.orders_v` (M1 Task 30; M2 Task 62 nối 26 cột sau `created_at`; mốc sau nối sau `version`; M3 Task 119 nối `ship_phone_reversed`; M5 Task 196 nối `updated_at`) | `id, tenant_id, code, seller_id, customer_id, status, channel, grand_total, cod_amount, current_shipment_id, created_at, pending_reason, packing_status, payment_status, channel_account_id, traffic_source_id, conversation_id, external_ref, order_type, warehouse_id, ship_phone, address_complete, subtotal, line_discount_total, order_discount, coupon_discount, discount_total, shipping_fee_charged, prepaid_total, created_by, care_by, confirmed_at, cancelled_at, cancel_reason, draft_expires_at, duplicate_suspect, version, ship_phone_reversed, updated_at` | 30, 62, 119, 196 | M2 trở đi (`customer` đọc: ngoại lệ chỉ đọc view, Q19) |
 | `customer.customer_identities_v` (M2, viết trước ở Task 59) | `tenant_id, id, customer_id, kind, scope, value, verified_at, source, created_at` | 60 | M3–M6 |
 | `customer.customer_addresses_v` (chỉ địa chỉ chưa xóa) | `tenant_id, id, customer_id, recipient_name, phone, province_code, ward_code, street, is_default` | 60 | M3, M5 |
@@ -42,7 +42,7 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 | `customer.customer_tag_links_v` | `tenant_id, customer_id, tag_id, source` | 60 | M4, M6 |
 | `customer.birthday_profiles_v` (M5 Task 468; hồ sơ sinh nhật kèm tên, gốc của khách và `delivered_count` của gốc; `phone`, `email`, `stop_token` là dữ liệu cá nhân, không vào log) | `tenant_id, customer_id, root_id, full_name, phone, email, day, month, consent_zalo, consent_mail, stop_token, stopped_at, legacy_delivered, source, created_at, delivered_count` | 468 | M5 (`promotion` chọn khách nhận quà sinh nhật, outbox, danh sách) |
 | `customer.admin_units_v` (danh mục dùng chung, không tenant_id) | `code, level, parent_code, name` | 109 | M3 (fulfillment khớp địa giới theo hãng, ngoại lệ "chỉ đọc view" — Task 109) |
-| `ord.order_items_v` (M2, viết trước ở Task 59) | `id, tenant_id, seller_id, order_id, variant_id, position, sku_snapshot, name_snapshot, quantity, unit_price, line_discount, allocated_order_discount, net_amount` | 62 | M2 (`customer` đọc: ngoại lệ chỉ đọc view, Q19), M3, M5, M6 |
+| `ord.order_items_v` (M2, viết trước ở Task 59) | `id, tenant_id, seller_id, order_id, variant_id, position, sku_snapshot, name_snapshot, quantity, unit_price, line_discount, allocated_order_discount, net_amount` | 62 | M2 (`customer` đọc: ngoại lệ chỉ đọc view, Q19), M3, M4 (`conversation`: dòng đơn nháp của phiên live, Task 172), M5, M6 |
 | `ord.order_status_history_v` (`from_status` của dòng tạo đơn là `''`, kể cả dòng M1 ghi `NULL`) | `id, tenant_id, order_id, from_status, to_status, from_pending, to_pending, actor_type, actor_id, reason, occurred_at, recorded_at` | 62 | M2 (`customer` đọc: ngoại lệ chỉ đọc view, Q19), M6 |
 | `ord.returns_v` | `id, tenant_id, code, order_id, shipment_id, kind, status, refund_amount, replacement_order_id, received_at, created_at` | 62 | M2 (`customer` đọc: ngoại lệ chỉ đọc view, Q19), M3, M6 |
 | `ord.return_items_v` (M3 Task 92 nối ba cột số lượng vào cuối, R11; cộng lại là 0 khi chưa nhận hoặc đúng `quantity`) | `id, tenant_id, return_id, order_item_id, quantity, condition, refund_amount, sellable_qty, damaged_qty, missing_qty` | 62, 92 | M3, M6, P2 |
@@ -54,6 +54,12 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 | `fulfillment.carrier_accounts_v` (không `credential_enc`, `credential_key_id`, `route_key`, `external_account_ref`) | `tenant_id, id, seller_id, carrier_key, mode, environment, name, warehouse_id, status, is_default_for_warehouse, show_on_web, web_sort, last_check_at, last_check_result, created_at, updated_at` | 92 | M3 (cash: khóa hãng của bảng kê, Task 122), M5–M7 |
 | `fulfillment.shipment_events_v` (không `raw`, `event_key`) | `tenant_id, id, shipment_id, source, raw_status, canonical, status, sub_status, occurred_at, recorded_at, applied, ignored_reason, actor_id` | 92, 119 | M3 (`internal/queries`: dòng thời gian đơn), M6, M7 |
 | `fulfillment.locations_v` | `tenant_id, carrier_key, level, our_code, carrier_code, carrier_name, synced_at` | 92 | M5 |
+| `channel.channel_accounts_v` (không `credential_enc`, `credential_kid`) | `id, tenant_id, seller_id, channel, external_id, name, token_kind, status, status_reason, send_mode, human_agent_enabled, subscribed_fields, token_checked_at, last_webhook_at, last_feed_at, blocked_until, version, created_at, updated_at` | 145 | M4 (`conversation`), M6, M7 (Q-X2) |
+| `conversation.conversations_v` (M4 Task 151; Q-X2) | `tenant_id, id, channel_account_id, customer_id, kind, status, assignee_id, post_id, last_message_at, last_customer_message_at, created_at` | 151 | M6, M7, dòng thời gian khách |
+| `conversation.tags_v` (chỉ nhãn chưa xóa; B2-11) | `tenant_id, id, name, color, sort` | 151 | M7 (báo cáo sẵn sàng) |
+| `conversation.reply_templates_v` (chỉ mẫu chưa xóa; không có `body`; B2-11) | `tenant_id, id, channel_account_id, shortcut, title, created_at` | 161 | M7 (báo cáo sẵn sàng) |
+| `conversation.automation_rules_v` (một dòng mỗi (Page, loại) đã lưu; không có `config`; B2-11; M7 thêm cột thì thêm ở cuối, R3) | `tenant_id, id, channel_account_id, kind, enabled, updated_at, version` | 165 | M7 (báo cáo sẵn sàng: mỗi Page có dòng cấu hình) |
+| `conversation.call_logs_v` (Q14; không có `note` — dữ liệu cá nhân) | `tenant_id, id, customer_id, conversation_id, order_id, outcome, callback_at, created_by, created_at` | 169 | hồ sơ khách, dòng thời gian khách (C7), M6, M7 |
 | `cash.cod_balances_v` (tối thiểu; M3 mở rộng) | `shipment_id, account, balance` | 32 | M3 trở đi |
 | `cash.shipment_cod_v` (số dư từng ngăn theo vận đơn, dạng ngang; vận đơn chưa có dòng sổ thì không có dòng) | `tenant_id, shipment_id, to_collect, carrier_holding, shop_received, carrier_fee, sales_clearing` | 93 | M3 trở đi |
 | `cash.cod_transfers_v` (không `idempotency_key`, `actor_id`) | `tenant_id, id, shipment_id, kind, statement_line_id, reverses_transfer_id, reason, actor_type, occurred_at` | 93 | M3, M6, M7 |
@@ -75,6 +81,7 @@ phép lệch nhau. Module chủ của bảng bị trỏ không đổi khóa (c�
 | `ord.orders (tenant_id, current_shipment_id) → fulfillment.shipments (tenant_id, id)` (`orders_current_shipment_fk`; M2 Task 05 để lại cho M3) | vận đơn hiện hành của đơn là vận đơn có thật; đường tạo chèn vận đơn trước rồi gắn | 92 |
 | `fulfillment.shipments (tenant_id, label_file_id)`, `fulfillment.label_batches (tenant_id, file_id) → platform.files (tenant_id, id)` | tem in là tệp có thật | 92 |
 | `cash.cod_statements (tenant_id, carrier_account_id) → fulfillment.carrier_accounts (tenant_id, id)` | bảng kê COD thuộc một tài khoản hãng có thật | 93 |
+| `conversation.page_settings`, `conversation.posts`, `conversation.conversations`, `conversation.messages (tenant_id, channel_account_id) → channel.channel_accounts (tenant_id, id)` (migration 0412) | hội thoại, tin, bài, cài đặt luôn thuộc một Page có thật của shop | 153 |
 | `cash.payments`, `cash.refund_obligations (tenant_id, order_id) → ord.orders (tenant_id, id)`; `cash.refund_obligations (tenant_id, return_id) → ord.returns (tenant_id, id)` | phiếu thu, nghĩa vụ hoàn thuộc đơn (và phiếu trả) có thật | 93 |
 
 ## Hàm tìm công bố
@@ -140,3 +147,4 @@ dưới; `viewsdoc_test` đòi hai tập bằng nhau.
 | `fulfillment.shipments_active_order` | một đơn một vận đơn chưa hủy (B1); đơn đã thuộc đúng một người bán | 31, 92 |
 | `promotion.coupons_code_key` | khách gõ mã ở một ô chung của shop: mã duy nhất trên cả shop, kể cả mã của người bán (05 mục 2) | 63 |
 | `promotion.web_campaigns_link_key` | liên kết `/uu-dai/<tên>-<link_key>` của website là đường dẫn chung của cả shop | 452 |
+| `channel.channel_accounts_external_key` | một Page (kênh, mã Page) chỉ nối một lần trong shop, thuộc đúng một người bán | 145 |

@@ -84,3 +84,16 @@ ON CONFLICT (tenant_id, key) DO NOTHING;
 -- name: GetRoleByKey :one
 -- FOR SHARE: EnsureDefaultRoles đọc customized rồi mới thêm quyền; lần sửa vai trò chạy cùng lúc phải chờ (Task 315).
 SELECT id, customized FROM identity.roles WHERE key = @key FOR SHARE;
+
+-- name: ListStaffWithPermissionAt :many
+-- Nhân viên active có quyền @permission qua một vai trò còn active, ở phạm vi all hoặc đúng (scope_type, scope_id)
+-- (Task 160: người được giao hội thoại của một Page); sắp theo tên hiển thị.
+SELECT DISTINCT u.id, u.email::text AS email, u.display_name, u.status, u.version, u.created_at
+FROM identity.users AS u
+JOIN identity.user_role_grants AS g ON g.tenant_id = u.tenant_id AND g.user_id = u.id
+JOIN identity.roles AS r ON r.tenant_id = g.tenant_id AND r.id = g.role_id AND r.status = 'active'
+JOIN identity.role_permissions AS rp ON rp.tenant_id = g.tenant_id AND rp.role_id = g.role_id
+WHERE u.status = 'active'
+  AND rp.permission = @permission
+  AND ((g.scope_type = 'all' AND g.scope_id = '') OR (g.scope_type = @scope_type AND g.scope_id = @scope_id))
+ORDER BY u.display_name, u.id;

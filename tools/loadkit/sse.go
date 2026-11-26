@@ -104,6 +104,13 @@ func (c *collector) record(i int, id string, at time.Time) {
 	c.lat = append(c.lat, float64(at.Sub(sent).Milliseconds()))
 }
 
+// changed nhận data của một khung changed mà client i đọc lúc at: chỉ đếm khung selftest.pong.
+func (c *collector) changed(i int, data []byte, at time.Time) {
+	if id, ok := pongID(data); ok {
+		c.record(i, id, at)
+	}
+}
+
 func (c *collector) reconnected(i int) {
 	c.mu.Lock()
 	c.clients[i].Reconnects++
@@ -150,9 +157,16 @@ type sseClientOptions struct {
 
 const maxBackoff = 5 * time.Second
 
-// runClient giữ một luồng SSE tới khi ctx hủy: đọc khung changed selftest.pong vào col, mất luồng thì nối lại có lùi
+// frameSink nhận khung changed và biến cố nối của các client SSE; an toàn khi gọi từ nhiều goroutine.
+type frameSink interface {
+	changed(i int, data []byte, at time.Time) // data của khung changed client i đọc lúc at
+	reconnected(i int)                        // client i nối lại được sau lần nối được đầu tiên
+	failed(i int)                             // client i nối hỏng (mạng, mã khác 200)
+}
+
+// runClient giữ một luồng SSE tới khi ctx hủy: đưa mọi khung changed cho col, mất luồng thì nối lại có lùi
 // dần (mỗi lần nối được sau lần nối được đầu tiên tính là Reconnects, nối hỏng tính là Errors).
-func runClient(ctx context.Context, o sseClientOptions, col *collector) {
+func runClient(ctx context.Context, o sseClientOptions, col frameSink) {
 	if o.HTTP == nil {
 		o.HTTP = &http.Client{} // không đặt Timeout: hạn đó cắt cả luồng dài; hủy bằng ctx
 	}
@@ -189,7 +203,7 @@ func runClient(ctx context.Context, o sseClientOptions, col *collector) {
 }
 
 // streamOnce mở một luồng và đọc tới khi luồng đóng; trả true khi đã nhận 200 text/event-stream (lúc đó gọi onOpen).
-func streamOnce(ctx context.Context, o sseClientOptions, col *collector, onOpen func()) bool {
+func streamOnce(ctx context.Context, o sseClientOptions, col frameSink, onOpen func()) bool {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, o.Base+"/api/v1/stream", nil)
 	if err != nil {
 		return false
@@ -215,9 +229,7 @@ func streamOnce(ctx context.Context, o sseClientOptions, col *collector, onOpen 
 		case strings.HasPrefix(line, "event: "):
 			event = strings.TrimPrefix(line, "event: ")
 		case strings.HasPrefix(line, "data: ") && event == realtime.EventChanged:
-			if id, ok := pongID([]byte(strings.TrimPrefix(line, "data: "))); ok {
-				col.record(o.Index, id, time.Now())
-			}
+			col.changed(o.Index, []byte(strings.TrimPrefix(line, "data: ")), time.Now())
 		}
 	}
 	return true

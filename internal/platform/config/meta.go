@@ -44,13 +44,28 @@ func metaRoleVars(role Role) []string {
 func (r *reader) m4(cfg *Config) {
 	r.graph(&cfg.Meta)
 	r.meta(cfg)
+	r.fakeChat(cfg)
 	switch cfg.Role {
 	case RoleAPI:
 		r.filesOriginApart(*cfg)
 	case RoleWorker:
 		cfg.ConversationRetentionMonths = r.integer("CONVERSATION_RETENTION_MONTHS", 24, 6, 60)
+		cfg.Meta.DataUseCheckupDue = r.date("META_DATA_USE_CHECKUP_DUE")
 	case RoleIngest, RoleMigrate:
 	}
+}
+
+// date đọc ngày YYYY-MM-DD tùy chọn (UTC, 00:00); vắng → zero; sai dạng → lỗi nêu tên biến.
+func (r *reader) date(key string) time.Time {
+	v := r.optional(key)
+	if v == "" {
+		return time.Time{}
+	}
+	d, err := time.Parse(time.DateOnly, v)
+	if err != nil {
+		r.problems = append(r.problems, key+" phải là ngày YYYY-MM-DD")
+	}
+	return d
 }
 
 // graph đọc phiên bản, hạn phiên bản, địa chỉ Graph API (có mặc định, không phụ thuộc Enabled).
@@ -166,4 +181,17 @@ func splitList(s string) []string {
 		}
 	}
 	return out
+}
+
+// fakeChat đọc bí mật webhook của kênh nhắn tin giả (Task 145): cấm ở production; ngoài production tùy chọn, có thì
+// ≥ 32 ký tự.
+func (r *reader) fakeChat(cfg *Config) {
+	const key = "FAKECHAT_WEBHOOK_SECRET"
+	switch {
+	case r.optional(key) == "":
+	case cfg.Env == "production":
+		r.problems = append(r.problems, key+" không được đặt ở production")
+	default:
+		cfg.FakeChatWebhookSecret = logging.Secret(r.secret(key))
+	}
 }

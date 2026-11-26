@@ -75,6 +75,8 @@ func m4Operations() [][3]string {
 		{"remindPendingDrafts", "POST /api/v1/live-sessions/{id}/pending-drafts/remind", "live.operate"},
 		{"getLiveCommentContext", "GET /api/v1/live-comments/{id}/context", "conversation.read"},
 		{"claimLiveComment", "POST /api/v1/live-comments/{id}/claim", "live.operate"},
+		// Thêm sau kế hoạch (Task 501, sửa sau gộp M4 đợt 4): danh sách bài của Page cho màn cài đặt.
+		{"listPagePosts", "GET /api/v1/channels/{id}/posts", "conversation.read"},
 	}
 }
 
@@ -82,8 +84,8 @@ func m4Operations() [][3]string {
 // operationId trùng với mốc trước (checkContractOps); mọi quyền nằm trong danh sách quyền (TestRoutesPublicSetAndPermissions).
 func TestM4Contract_Operations(t *testing.T) {
 	t.Parallel()
-	if n := len(m4Operations()); n != 64 {
-		t.Fatalf("bảng kế hoạch M4 có 64 operation (dòng gộp đã tách), bảng test có %d", n)
+	if n := len(m4Operations()); n != 65 {
+		t.Fatalf("bảng M4 có 65 operation (64 của kế hoạch, dòng gộp đã tách, + listPagePosts của Task 501), bảng test có %d", n)
 	}
 	checkContractOps(t, "M4", m4Operations())
 	seen := map[string]bool{}

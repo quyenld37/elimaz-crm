@@ -15403,6 +15403,99 @@ func (s *Server) handleListOrdersRequest(args [0]string, argsEscaped bool, w htt
 	}
 }
 
+// handleListPagePostsRequest handles listPagePosts operation.
+//
+// Bài viết CRM đã gặp trên Page (có comment), mới gặp trước; để chọn bài ngoại
+// lệ tự ẩn, bài của tự trả lời comment (Task 501).
+//
+// GET /api/v1/channels/{id}/posts
+func (s *Server) handleListPagePostsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListPagePostsOperation,
+			ID:   "listPagePosts",
+		}
+	)
+	params, err := decodeListPagePostsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListPagePostsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListPagePostsOperation,
+			OperationSummary: "Bài viết CRM đã gặp trên Page (có comment), mới gặp trước; để chọn bài ngoại lệ tự ẩn, bài của tự trả lời comment (Task 501)",
+			OperationID:      "listPagePosts",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListPagePostsParams
+			Response = ListPagePostsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListPagePostsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListPagePosts(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListPagePosts(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListPagePostsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleListPendingDraftsRequest handles listPendingDrafts operation.
 //
 // Đơn nháp "đã chốt, thiếu địa chỉ" của phiên live (Task 173).

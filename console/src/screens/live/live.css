@@ -1,0 +1,256 @@
+/* Màn Live, Đã chốt thiếu địa chỉ (Task 177; mockup docs/mockups/m4/live.html, thieu-dia-chi.html, m4.css). Chỉ biến
+   của hệ thiết kế (m1.css → styles.css): không màu, cỡ chữ, bo góc mới. Lớp chung (.chip, .box, .toggle, .empty, .tbl,
+   .page-h) ở styles.css; .avatar, .sugg, .stepper, .sum ở len-don.css; .act, .kv ở don.css. Ở đây chỉ lớp m4.css chưa
+   có trong console, gói dưới .live-page để không đụng lớp cùng tên của màn hộp chat (Task 174). */
+
+/* Hai cột: comment | khung chốt 400px; dưới 1200px khung chốt xuống dưới */
+.live-page .live {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  background: var(--paper);
+  align-items: stretch;
+  min-width: 0;
+}
+.live-page .live > * {
+  min-width: 0;
+}
+.live-page .live > * + * {
+  border-left: 1px solid var(--rule);
+}
+@media (max-width: 1199px) {
+  .live-page .live {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .live-page .live > * + * {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+  }
+}
+@media (max-width: 999px) {
+  .live-page .live {
+    border: 0;
+    border-radius: 0;
+  }
+}
+
+.live-page .pane-h {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--rule);
+  min-height: 56px;
+  flex-wrap: wrap;
+}
+.live-page .sec {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--rule);
+  min-width: 0;
+}
+.live-page .sec:last-child {
+  border-bottom: 0;
+}
+.live-page .sec > * {
+  min-width: 0;
+}
+.live-page .sec h3 {
+  font-size: 14px;
+}
+@media (max-width: 999px) {
+  .live-page .pane-h {
+    padding: var(--space-sm) 0;
+  }
+  .live-page .sec {
+    padding: var(--space-md) 0;
+  }
+}
+
+/* Băng hỏi định kỳ */
+.live-page .bnr {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-start;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--r-box);
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.live-page .bnr .grow {
+  min-width: 180px;
+}
+.live-page .bnr-warn {
+  background: var(--soft);
+}
+
+/* Chọn phiên */
+.live-page .sess {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  justify-content: inherit;
+}
+.live-page .sess-a {
+  display: grid;
+  gap: 0;
+  padding: 6px 12px;
+  min-height: var(--field);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  background: var(--paper);
+  color: var(--ink);
+  text-decoration: none;
+  min-width: 0;
+  max-width: 100%;
+}
+.live-page .sess-a[aria-current="true"] {
+  border-color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--buy);
+}
+.live-page .sess-a .ellip {
+  max-width: 280px;
+}
+@media (max-width: 759px) {
+  .live-page .sess-a {
+    flex: 1 1 100%;
+  }
+  .live-page .sess-a .ellip {
+    max-width: 100%;
+  }
+}
+
+/* Số liệu phiên */
+.live-page .lstats {
+  display: flex;
+  gap: var(--space-sm) var(--space-lg);
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--label);
+}
+.live-page .lstats b {
+  color: var(--title);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Danh sách comment ảo: khung cuộn cao cố định, dòng đặt tuyệt đối theo vị trí */
+.live-page .lclist {
+  height: min(640px, 70vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-width: 0;
+}
+.live-page .lc-body {
+  position: relative;
+  width: 100%;
+}
+.live-page .lc-slot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+.live-page .lc {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 2px var(--space-sm);
+  width: 100%;
+  padding: 8px var(--space-md);
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: transparent;
+  align-items: start;
+  min-width: 0;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.live-page .lc .avatar {
+  width: 32px;
+  height: 32px;
+  font-size: 13px;
+  grid-row: span 2;
+}
+.live-page .lc[aria-current="true"] {
+  background: var(--surface);
+  box-shadow: inset 2px 0 0 var(--buy);
+}
+.live-page .lc.is-done {
+  color: var(--muted);
+}
+.live-page .lc-n {
+  font-weight: 600;
+  color: var(--title);
+  font-size: 13px;
+  min-width: 0;
+}
+.live-page .lc-x {
+  overflow-wrap: anywhere;
+  min-width: 0;
+  white-space: pre-line;
+}
+.live-page .lc-t {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+.live-page .lc-m {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  align-items: center;
+  font-size: 12px;
+  min-width: 0;
+}
+.live-page .lc-note {
+  margin: var(--space-sm) var(--space-md);
+}
+@media (max-width: 999px) {
+  .live-page .lc {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+.live-page .newbar {
+  display: flex;
+  justify-content: center;
+  padding: 6px;
+  border-bottom: 1px solid var(--rule);
+}
+
+/* Món trong khung chốt, kết quả nhắc */
+.live-page .olines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+.live-page .olines li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 var(--space-sm);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
+  align-items: center;
+}
+.live-page .olines li:last-child {
+  border-bottom: 0;
+}
+@media (max-width: 759px) {
+  .live-page .res li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (min-width: 760px) {
+  .live-page .tdc td:nth-child(2) {
+    max-width: 220px;
+  }
+}

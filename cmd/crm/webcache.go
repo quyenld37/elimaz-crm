@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"elimaz.com.vn/crm/internal/platform/cache"
 	"elimaz.com.vn/crm/internal/platform/config"
@@ -26,15 +27,17 @@ type webCache struct {
 
 // newWebCache quay số VALKEY_CACHE_URL (trống → Conn nil: mọi lần đọc tải thẳng PostgreSQL có giới hạn, ghi cảnh báo
 // một lần), dựng ReadCache và Invalidator nghe hub (đã Start). Consumer webcache (phát báo hiệu) đăng ký ở newModules.
+// opTimeout là hạn mỗi lệnh Valkey (cache.DialOptions.OpTimeout): main truyền 0 (50 ms, QĐ22); test truyền hạn dài hơn
+// để máy tải không làm lệnh hết hạn rồi rơi về PostgreSQL (Task 498).
 func newWebCache(ctx context.Context, cfg config.Config, d *db.DB, hub *realtime.PGHub, reg *metrics.Registry,
-	logger *slog.Logger,
+	logger *slog.Logger, opTimeout time.Duration,
 ) (webCache, error) {
 	var conn *cache.Conn
 	if cfg.ValkeyCacheURL == "" {
 		logger.Warn("VALKEY_CACHE_URL trống: bộ đệm đọc của website đọc thẳng PostgreSQL (giới hạn số lần tải đồng thời)")
 	} else {
 		var err error
-		if conn, err = cache.Dial(ctx, cfg.ValkeyCacheURL, cache.DialOptions{Name: "cache", Metrics: reg, Tracing: true}); err != nil {
+		if conn, err = cache.Dial(ctx, cfg.ValkeyCacheURL, cache.DialOptions{Name: "cache", OpTimeout: opTimeout, Metrics: reg, Tracing: true}); err != nil {
 			return webCache{}, fmt.Errorf("nối Valkey bộ đệm: %w", err)
 		}
 	}

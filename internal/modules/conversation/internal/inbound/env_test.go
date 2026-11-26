@@ -1,0 +1,399 @@
+package inbound_test
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"io"
+	"log/slog"
+	"net/http"
+	"os"
+	"path/filepath"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	"elimaz.com.vn/crm/internal/adapters/facebook"
+	"elimaz.com.vn/crm/internal/adapters/fake"
+	"elimaz.com.vn/crm/internal/modules/channel"
+	"elimaz.com.vn/crm/internal/modules/conversation/internal/deps"
+	"elimaz.com.vn/crm/internal/modules/conversation/internal/inbound"
+	"elimaz.com.vn/crm/internal/platform/commands"
+	"elimaz.com.vn/crm/internal/platform/config"
+	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/fieldcrypt"
+	"elimaz.com.vn/crm/internal/platform/files"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
+	"elimaz.com.vn/crm/internal/platform/logging"
+	"elimaz.com.vn/crm/internal/platform/metrics"
+	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
+	"elimaz.com.vn/crm/internal/platform/tenancy"
+	"elimaz.com.vn/crm/internal/platform/webhooks"
+	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/testkit/fakegraph"
+)
+
+const (
+	// pageExt1 là mã Page của các fixture Facebook (internal/adapters/facebook/testdata).
+	pageExt1 = "104000000000001"
+	pageExt2 = "104000000000002"
+	// ownAppID là META_APP_ID của CRM trong test (khớp fixture echo_crm.json).
+	ownAppID = "1626301872631379"
+	// businessSuiteAppID là app_id của Meta Business Suite (fixture echo_business_suite.json).
+	businessSuiteAppID = "263902037430900"
+	fakePage           = "fake-page-1"
+	secret32           = "0123456789abcdef0123456789abcdef"
+)
+
+// syncBuffer là bộ đệm log dùng được từ nhiều goroutine.
+type syncBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (s *syncBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p) //nolint:wrapcheck // bộ đệm trong bộ nhớ
+}
+
+func (s *syncBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
+
+// env: database thử, tenant A có Page Facebook 1, 2 và Page kênh giả; handler vào thật của conversation cho hai
+// nguồn facebook, fakechat; worker thật (log mức debug vào logs); bus ghi lại báo hiệu.
+type env struct {
+	t            *testing.T
+	staff        *testkit.Staff
+	tenant       uuid.UUID
+	page1, page2 uuid.UUID
+	fakePage     uuid.UUID
+	bus          *realtimetest.RecordingBus
+	reg          *metrics.Registry
+	logs         *syncBuffer
+	handlers     []queue.Handler
+	// runner chạy lệnh của inbound (fetch_post) khi env dựng với máy Meta giả (newEnvWith); nil: lệnh giữ pending.
+	runner *commands.Runner
+	// deps là phụ thuộc handler vào dùng (lấy lại Parts trong test).
+	deps deps.Deps
+	// files là kho tệp trong bộ nhớ khi env dựng với withCDN (nil: không có kho tệp).
+	files  files.FileStore
+	worker *queue.Worker
+}
+
+// envOptions là tùy chọn của newEnvWith.
+type envOptions struct {
+	cdn   map[string][]byte
+	store files.FileStore
+}
+
+type envOption func(*envOptions)
+
+// withCDN: adapter facebook tải tệp từ bảng cdn (URL → nội dung; URL lạ → lỗi) thay vì mạng (DNS của máy Meta giả
+// không phân giải tên CDN), kho tệp trong bộ nhớ.
+func withCDN(t *testing.T, cdn map[string][]byte) envOption {
+	t.Helper()
+	store := filestest.MemFileStore(t)
+	return func(o *envOptions) { o.cdn, o.store = cdn, store }
+}
+
+// cdnChannel là adapter facebook với Download đọc từ bảng files (loại nhận dạng theo nội dung như adapter thật).
+type cdnChannel struct {
+	*facebook.Channel
+	files map[string][]byte
+}
+
+func (c cdnChannel) Download(_ context.Context, rawURL string, maxBytes int64) (io.ReadCloser, channel.DownloadInfo, error) {
+	b, ok := c.files[rawURL]
+	if !ok {
+		return nil, channel.DownloadInfo{}, errors.New("cdn giả: không có tệp")
+	}
+	if int64(len(b)) > maxBytes {
+		return nil, channel.DownloadInfo{}, errors.New("cdn giả: quá lớn")
+	}
+	sum := sha256.Sum256(b)
+	return io.NopCloser(bytes.NewReader(b)), channel.DownloadInfo{
+		ContentType: http.DetectContentType(b), Size: int64(len(b)), SHA256: hex.EncodeToString(sum[:]),
+	}, nil
+}
+
+func newEnv(t *testing.T) *env {
+	t.Helper()
+	return newEnvWith(t, nil)
+}
+
+// fgToken là token Page 1 trên máy Meta giả (newEnvWith).
+const fgToken = "EAAG-page-1-token"
+
+// newEnvWith là newEnv; fg khác nil: adapter facebook gọi máy Meta giả fg (Page 1 có trên fg với token fgToken, token
+// lưu mã hóa ở tài khoản Page 1), d.Registry có hai adapter (handler vào xếp lệnh đọc bài), worker chạy lệnh của
+// inbound.
+func newEnvWith(t *testing.T, fg *fakegraph.Server, opts ...envOption) *env {
+	t.Helper()
+	staff := testkit.OpenStaff(t)
+	e := &env{t: t, staff: staff, tenant: staff.Tenant(t, "A"), bus: &realtimetest.RecordingBus{}, reg: metrics.NewRegistry(), logs: &syncBuffer{}}
+	e.page1 = staff.ChannelAccount(t, e.tenant, facebook.Key, pageExt1, "Page 1")
+	e.page2 = staff.ChannelAccount(t, e.tenant, facebook.Key, pageExt2, "Page 2")
+	e.fakePage = staff.ChannelAccount(t, e.tenant, fake.Key, fakePage, "Page giả")
+	d := deps.Deps{
+		DB: staff.App, Queue: queue.NewQueue(), Bus: e.bus, Events: events.NewRegistry(), Metrics: e.reg,
+		Config: config.Config{Meta: config.MetaConfig{AppID: ownAppID}},
+	}
+	fbOpts := facebook.Options{AppSecret: logging.Secret(secret32), VerifyToken: logging.Secret(secret32 + secret32)}
+	if fg != nil {
+		fg.AddPage(fakegraph.Page{ID: pageExt1, Name: "Page 1", Token: fgToken})
+		fbOpts.BaseURL, fbOpts.StreamingBaseURL, fbOpts.Version, fbOpts.HTTP = fg.URL(), fg.URL(), "v26.0", fg.Client()
+	}
+	fb, fk := facebook.New(fbOpts), fake.New(secret32)
+	sources := []webhooks.Source{fb, fk}
+	var o envOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
+	var fbAdapter channel.MessagingAdapter = fb
+	if o.cdn != nil {
+		fbAdapter, d.Files, e.files = cdnChannel{Channel: fb, files: o.cdn}, o.store, o.store
+	}
+	if fg != nil {
+		reg, err := channel.NewRegistry(fbAdapter, fk)
+		// Khóa mã hóa token thử: 32 byte của secret32.
+		kr, kerr := fieldcrypt.ParseKeyring(logging.Secret("k1:" + base64.StdEncoding.EncodeToString([]byte(secret32))))
+		if err != nil || kerr != nil {
+			t.Fatal(err, kerr)
+		}
+		d.Registry, d.Keys = reg, kr
+		staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+			return channel.StoreCredentials(t.Context(), tx, d.Keys, e.page1, logging.Secret(fgToken), "page_user")
+		})
+		e.runner = commands.NewRunner(staff.App, inbound.Parts(d).Commands)
+	}
+	e.deps = d
+	hs, err := webhooks.InboundJobHandlers(sources, []webhooks.InboundHandler{inbound.NewHandler(d, facebook.Key), inbound.NewHandler(d, fake.Key)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.handlers = hs
+	e.worker = e.newWorker("w-1")
+	return e
+}
+
+// newWorker dựng một worker của các handler vào, log mức debug vào e.logs.
+func (e *env) newWorker(id string) *queue.Worker {
+	logger := slog.New(slog.NewTextHandler(e.logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	o := queue.WorkerOptions{WorkerID: id, Logger: logger, Metrics: e.reg, Concurrency: 4}
+	if e.runner != nil {
+		o.Commands = e.runner
+	}
+	return queue.NewWorker(e.staff.App, e.handlers, o)
+}
+
+// at là mốc thử cố định (giờ Meta), cộng thêm sec giây.
+func at(sec int) time.Time {
+	return time.Date(2026, 11, 20, 3, 0, 0, 0, time.UTC).Add(time.Duration(sec) * time.Second)
+}
+
+// enqueue ghi một sự kiện vào của nguồn source như webhook đã tách (khóa chống trùng dedupe, thứ tự theo Page + người).
+func (e *env) enqueue(source, typ, dedupe, page, user string, occurred time.Time, payload any) {
+	e.t.Helper()
+	e.enqueueFrom(source, webhooks.ViaWebhook, typ, dedupe, page, user, occurred, payload)
+}
+
+// enqueueFrom như enqueue, sự kiện tới qua đường via (webhook, hỏi bù, đọc comment…).
+func (e *env) enqueueFrom(source, via, typ, dedupe, page, user string, occurred time.Time, payload any) {
+	e.t.Helper()
+	body, err := json.Marshal(payload)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	ev := webhooks.InboundEvent{
+		Type: typ, DedupeKey: dedupe, OrderKey: source + ":" + page + ":" + user, OccurredAt: occurred, Payload: body,
+	}
+	if err := tenancy.WithTenant(e.t.Context(), e.staff.App, e.tenant, func(tx pgx.Tx) error {
+		_, err := webhooks.EnqueueInbound(e.t.Context(), tx, queue.NewQueue(), e.tenant, source, ev, time.Now().UTC(), via)
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+// deliver ghi sự kiện facebook rồi chạy worker tới hết việc tới hạn.
+func (e *env) deliver(typ, dedupe, user string, occurred time.Time, payload any) {
+	e.t.Helper()
+	e.enqueue(facebook.Key, typ, dedupe, pageExt1, user, occurred, payload)
+	e.drain()
+}
+
+func (e *env) drain() {
+	e.t.Helper()
+	testkit.DrainDue(e.t, e.staff.Owner, e.worker)
+}
+
+// message là tin khách user gửi Page 1 lúc sec.
+func message(user, mid, text string, sec int) channel.MessagePayload {
+	return channel.MessagePayload{PageID: pageExt1, UserID: user, MID: mid, Text: text, SentAt: at(sec)}
+}
+
+// receive giao tin khách (khóa chống trùng theo mid).
+func (e *env) receive(user, mid, text string, sec int) {
+	e.t.Helper()
+	e.receiveAt(user, mid, text, at(sec))
+}
+
+// receiveAt giao tin khách lúc when.
+func (e *env) receiveAt(user, mid, text string, when time.Time) {
+	e.t.Helper()
+	p := channel.MessagePayload{PageID: pageExt1, UserID: user, MID: mid, Text: text, SentAt: when}
+	e.deliver(channel.EventMessageReceived, "m:"+mid, user, when, p)
+}
+
+// fixtureEvents tách fixture Facebook name bằng adapter facebook thật.
+func fixtureEvents(t *testing.T, name string) []webhooks.InboundEvent {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "adapters", "facebook", "testdata", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := facebook.New(facebook.Options{AppSecret: logging.Secret(secret32), VerifyToken: logging.Secret(secret32 + secret32)}).Split(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res.Events
+}
+
+// enqueueEvent ghi một sự kiện đã tách của nguồn facebook.
+func (e *env) enqueueEvent(ev webhooks.InboundEvent) {
+	e.t.Helper()
+	if err := tenancy.WithTenant(e.t.Context(), e.staff.App, e.tenant, func(tx pgx.Tx) error {
+		_, err := webhooks.EnqueueInbound(e.t.Context(), tx, queue.NewQueue(), e.tenant, facebook.Key, ev, time.Now().UTC(), webhooks.ViaWebhook)
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+// conv là trạng thái một hội thoại đọc lại bằng chủ bảng.
+type conv struct {
+	ID                          uuid.UUID
+	CustomerID                  uuid.UUID
+	Kind, Status                string
+	Unread                      int
+	Snippet                     *string
+	LastMessageAt               time.Time
+	LastCustomerAt, LastStaffAt *time.Time
+	Version                     int
+}
+
+// conversation đọc hội thoại inbox của PSID user trên Page account.
+func (e *env) conversation(account uuid.UUID, user string) conv {
+	e.t.Helper()
+	var c conv
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		return tx.QueryRow(e.t.Context(), `SELECT id, customer_id, kind, status, unread_count, last_snippet, last_message_at,
+			last_customer_message_at, last_staff_message_at, version FROM conversation.conversations
+			WHERE channel_account_id = $1 AND kind = 'inbox' AND external_thread_ref = $2`, account, user).
+			Scan(&c.ID, &c.CustomerID, &c.Kind, &c.Status, &c.Unread, &c.Snippet, &c.LastMessageAt, &c.LastCustomerAt,
+				&c.LastStaffAt, &c.Version)
+	})
+	return c
+}
+
+// msg là một tin đọc lại bằng chủ bảng.
+type msg struct {
+	ID                            uuid.UUID
+	Direction, Kind, Origin       string
+	Body, SendStatus, ExternalID  *string
+	SentAt                        time.Time
+	DeliveredAt, ReadAt, EditedAt *time.Time
+	Reactions                     []byte
+}
+
+// messages đọc mọi tin của hội thoại id theo sent_at, id.
+func (e *env) messages(id uuid.UUID) []msg {
+	e.t.Helper()
+	var out []msg
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		rows, err := tx.Query(e.t.Context(), `SELECT id, direction, kind, origin, body, send_status, external_id, sent_at,
+			delivered_at, read_at, edited_at, reactions FROM conversation.messages WHERE conversation_id = $1 ORDER BY sent_at, id`, id)
+		if err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var m msg
+			if err := rows.Scan(&m.ID, &m.Direction, &m.Kind, &m.Origin, &m.Body, &m.SendStatus, &m.ExternalID, &m.SentAt,
+				&m.DeliveredAt, &m.ReadAt, &m.EditedAt, &m.Reactions); err != nil {
+				return err //nolint:wrapcheck // test
+			}
+			out = append(out, m)
+		}
+		return rows.Err()
+	})
+	return out
+}
+
+// noDeadJobs đòi không việc nào dead.
+func (e *env) noDeadJobs() {
+	e.t.Helper()
+	if n := e.staff.Count(e.t, "SELECT count(*) FROM platform.jobs WHERE status = 'dead'"); n != 0 {
+		e.t.Fatalf("%d việc dead", n)
+	}
+}
+
+// changedSignals trả báo hiệu conversation.changed đã phát cho hội thoại id.
+func (e *env) changedSignals(id uuid.UUID) []realtime.Signal {
+	var out []realtime.Signal
+	for _, s := range e.bus.Signals() {
+		if s.Topic == deps.TopicConversationChanged && s.Entity.ID == id.String() {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// deref trả chuỗi p trỏ tới, rỗng khi nil.
+func deref(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
+// texts chạy câu q (một cột chữ) bằng chủ bảng trong ngữ cảnh tenant A; trả mọi giá trị.
+func (e *env) texts(q string, args ...any) []string {
+	e.t.Helper()
+	return queryTexts(e.t, e.staff, e.tenant, q, args...)
+}
+
+// queryTexts chạy câu q (một cột chữ) bằng chủ bảng trong ngữ cảnh tenant; trả mọi giá trị.
+func queryTexts(t *testing.T, s *testkit.Staff, tenant uuid.UUID, q string, args ...any) []string {
+	t.Helper()
+	var out []string
+	s.Exec(t, tenant, func(tx pgx.Tx) error {
+		rows, err := tx.Query(t.Context(), q, args...)
+		if err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var v string
+			if err := rows.Scan(&v); err != nil {
+				return err //nolint:wrapcheck // test
+			}
+			out = append(out, v)
+		}
+		return rows.Err()
+	})
+	return out
+}

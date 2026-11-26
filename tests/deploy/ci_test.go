@@ -29,6 +29,10 @@ type workflow struct {
 
 type job struct {
 	If          string            `yaml:"if"`
+	RunsOn      any               `yaml:"runs-on"`
+	Timeout     int               `yaml:"timeout-minutes"`
+	Strategy    map[string]any    `yaml:"strategy"`
+	Outputs     map[string]string `yaml:"outputs"`
 	Needs       any               `yaml:"needs"`
 	Permissions map[string]string `yaml:"permissions"`
 	Env         map[string]string `yaml:"env"`
@@ -37,6 +41,7 @@ type job struct {
 
 type step struct {
 	Name string            `yaml:"name"`
+	If   string            `yaml:"if"`
 	Uses string            `yaml:"uses"`
 	Run  string            `yaml:"run"`
 	With map[string]any    `yaml:"with"`
@@ -45,13 +50,18 @@ type step struct {
 
 func readWorkflow(t *testing.T) workflow {
 	t.Helper()
-	b, err := os.ReadFile(ciWorkflow)
+	return readWorkflowFile(t, ciWorkflow)
+}
+
+func readWorkflowFile(t *testing.T, path string) workflow {
+	t.Helper()
+	b, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("đọc %s: %v", ciWorkflow, err)
+		t.Fatalf("đọc %s: %v", path, err)
 	}
 	var w workflow
 	if err := yaml.Unmarshal(b, &w); err != nil {
-		t.Fatalf("ci.yml không phải YAML hợp lệ: %v", err)
+		t.Fatalf("%s không phải YAML hợp lệ: %v", path, err)
 	}
 	return w
 }
@@ -123,7 +133,7 @@ func TestCI_TriggersAndLeastPermission(t *testing.T) {
 	}
 }
 
-// Lượt theo lịch (mutation, tới 6 giờ) chạy trên main: nếu chung nhóm concurrency với lượt push lên main thì push phải
+// Lượt mutation (tới 6 giờ, chạy bằng tay) trên main: nếu chung nhóm concurrency với lượt push lên main thì push phải
 // chờ hay bị hủy (review Task 23). Nhóm phải tách theo loại sự kiện.
 func TestCI_ConcurrencySeparatesScheduleFromPush(t *testing.T) {
 	w := readWorkflow(t)
@@ -229,22 +239,26 @@ func TestCI_ConsoleE2E(t *testing.T) {
 	}
 }
 
-// Mutation testing vùng cao chạy theo lịch (quá lâu cho mỗi lần push), không chạy ở push hay pull request.
-func TestCI_MutationScheduledOnly(t *testing.T) {
+// Mutation testing vùng cao chỉ chạy bằng tay (workflow_dispatch), không theo lịch: một lượt tới 6 giờ tiêu hết 2.000
+// phút miễn phí mỗi tháng của gói Free (Task 493, chủ shop 26/11). Không chạy ở push hay pull request.
+func TestCI_MutationManualOnly(t *testing.T) {
 	w := readWorkflow(t)
-	if _, ok := w.On["schedule"]; !ok {
-		t.Fatal("ci.yml thiếu lịch (schedule) cho mutation testing")
+	if _, ok := w.On["schedule"]; ok {
+		t.Error("ci.yml không được chạy theo lịch (schedule): mutation chỉ chạy bằng tay")
+	}
+	if _, ok := w.On["workflow_dispatch"]; !ok {
+		t.Fatal("ci.yml thiếu workflow_dispatch cho mutation testing")
 	}
 	j := needJob(t, w, "mutation")
-	if !strings.Contains(j.If, "github.event_name == 'schedule'") {
-		t.Errorf("job mutation chỉ chạy theo lịch, if đang là %q", j.If)
+	if !strings.Contains(j.If, "github.event_name == 'workflow_dispatch'") {
+		t.Errorf("job mutation chỉ chạy bằng tay, if đang là %q", j.If)
 	}
 	if len(runs(j, regexp.MustCompile(`^make mutation\b`))) != 1 {
 		t.Error("job mutation phải chạy make mutation")
 	}
 	for name, other := range w.Jobs {
-		if name != "mutation" && !strings.Contains(other.If, "github.event_name != 'schedule'") {
-			t.Errorf("job %s không được chạy lại theo lịch của mutation (if: github.event_name != 'schedule')", name)
+		if name != "mutation" && !strings.Contains(other.If, "github.event_name != 'workflow_dispatch'") {
+			t.Errorf("job %s không được chạy lại khi bấm chạy mutation (if: github.event_name != 'workflow_dispatch')", name)
 		}
 	}
 }

@@ -1658,6 +1658,16 @@ func (UnimplementedHandler) ListOrders(ctx context.Context, params ListOrdersPar
 	return r, ht.ErrNotImplemented
 }
 
+// ListPagePosts implements listPagePosts operation.
+//
+// Bài viết CRM đã gặp trên Page (có comment), mới gặp trước; để chọn bài ngoại
+// lệ tự ẩn, bài của tự trả lời comment (Task 501).
+//
+// GET /api/v1/channels/{id}/posts
+func (UnimplementedHandler) ListPagePosts(ctx context.Context, params ListPagePostsParams) (r ListPagePostsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListPendingDrafts implements listPendingDrafts operation.
 //
 // Đơn nháp "đã chốt, thiếu địa chỉ" của phiên live (Task 173).

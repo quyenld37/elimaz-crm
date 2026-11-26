@@ -113,8 +113,8 @@ func TestCI_ImagerVipsJob(t *testing.T) {
 	if len(runs(j, regexp.MustCompile(`^make test-imager$`))) != 1 {
 		t.Error("job imager-vips phải chạy make test-imager")
 	}
-	if !strings.Contains(j.If, "github.event_name != 'schedule'") {
-		t.Errorf("job imager-vips chạy ở push và pull request, không theo lịch mutation; if đang là %q", j.If)
+	if !strings.Contains(j.If, "github.event_name != 'workflow_dispatch'") {
+		t.Errorf("job imager-vips chạy ở push và pull request, không chạy khi bấm tay mutation; if đang là %q", j.If)
 	}
 	if !strings.Contains(makeDry(t, "test-imager"), "IMAGER_REQUIRE_VIPS=1") {
 		t.Error("make test-imager phải đặt IMAGER_REQUIRE_VIPS=1 (thiếu libvips thì đỏ, không SKIP)")

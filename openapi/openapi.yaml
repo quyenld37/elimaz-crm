@@ -6052,6 +6052,24 @@ paths:
                 $ref: "#/components/schemas/ChannelAccountList"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/channels/{id}/posts:
+    get:
+      operationId: listPagePosts
+      summary: 'Bài viết CRM đã gặp trên Page (có comment), mới gặp trước; để chọn bài ngoại lệ tự ẩn, bài của tự trả lời comment (Task 501)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/ChannelID"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listPagePosts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PagePostPage"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/channels/{id}/send-mode:
     put:
       operationId: setChannelSendMode
@@ -7963,6 +7981,7 @@ components:
         - attachment_rejected
         - channel_read_only
         - comment_claimed
+        - conversation_customer_mismatch
         - oauth_state_invalid
         - open_draft_exists
         - page_connected_elsewhere
@@ -8011,7 +8030,7 @@ components:
           items:
             type: string
             format: uuid
-          description: Chỉ có ở item_unavailable — biến thể không bán được trên web, theo thứ tự gửi (Task 194)
+          description: Chỉ có ở item_unavailable — biến thể không bán được trên web, theo thứ tự gửi (Task 194); ở out_of_stock — đúng một phần tử, biến thể của variantId (chốt comment live đọc mảng, Task 172)
         denyReason:
           # Chỉ có ở send_not_allowed — lý do chính sách gửi của kênh không cho gửi (M4, Task 156)
           $ref: "#/components/schemas/SendDenyReason"
@@ -8785,6 +8804,15 @@ components:
           type: string
           format: uuid
           description: Nhân viên phụ trách
+        conversationId:
+          type: string
+          format: uuid
+          description: >-
+            Lên đơn trong khung chat (M4, Task 176): đơn lưu hội thoại này; máy chủ tự lấy Page của hội thoại, người bán
+            của Page (áp làm người bán của đơn, ADR-29) và kênh facebook (thay channel đã gửi). Cần conversation.read
+            trên Page của hội thoại, không thì 404 not_found. Khách của đơn phải là customerId cùng nhóm hồ sơ với khách
+            của hội thoại (Task 501); gửi customer (khách mới, tìm theo SĐT) hay customerId nhóm khác → 422
+            conversation_customer_mismatch.
         channel:
           $ref: "#/components/schemas/OrderChannel"
         externalRef:
@@ -16556,6 +16584,31 @@ components:
         version:
           type: integer
           format: int32
+        features:
+          $ref: "#/components/schemas/ChannelFeatures"
+    ChannelFeatures:
+      type: object
+      description: 'Tính năng kênh hỗ trợ (theo adapter của kênh; chủ shop 26/11): màn hình ẩn phần kênh không có'
+      required: [messages, comments, liveComments, privateReply, hideComment, quickReplies, humanAgent]
+      properties:
+        messages:
+          type: boolean
+          description: Tin nhắn hộp thư
+        comments:
+          type: boolean
+        liveComments:
+          type: boolean
+        privateReply:
+          type: boolean
+          description: Nhắn riêng người comment
+        hideComment:
+          type: boolean
+        quickReplies:
+          type: boolean
+          description: Nút trả lời nhanh
+        humanAgent:
+          type: boolean
+          description: Thẻ nhân viên (Human Agent)
     ChannelAccountList:
       type: object
       required: [items]
@@ -16694,6 +16747,50 @@ components:
           format: uuid
         snippet:
           type: string
+        postedAt:
+          type: string
+          format: date-time
+          description: Giờ đăng bài trên kênh (chưa đọc được bài → không có)
+        permalink:
+          type: string
+          format: uri
+          description: Đường dẫn bài trên kênh ("Mở bài")
+        imageFileId:
+          type: string
+          format: uuid
+          description: >-
+            Ảnh bài đã chép về CRM (Task 501); đường dẫn 5 phút lấy bằng getAttachmentUrl của hội thoại comment trên bài
+    PagePost:
+      type: object
+      required: [id, externalId, kind]
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalId:
+          type: string
+          description: Mã bài trên kênh (giá trị của exceptPostIds, postIds trong quy tắc tự động)
+        kind:
+          type: string
+          enum: [post, live, ad, unknown]
+        snippet:
+          type: string
+        postedAt:
+          type: string
+          format: date-time
+        permalink:
+          type: string
+          format: uri
+    PagePostPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PagePost"
+        nextCursor:
+          type: string
     ConversationSummary:
       type: object
       required: [id, pageId, kind, status, customer, tags, unreadCount, lastMessageAt, hasOpenDraft, version]
@@ -16728,6 +16825,11 @@ components:
           $ref: "#/components/schemas/ChatPostRef"
         hasOpenDraft:
           type: boolean
+        newLead:
+          type: boolean
+          description: >-
+            Khách tiềm năng mới (CH08, Task 501): hồ sơ khách được tạo tự động từ chính hội thoại này (người lạ nhắn,
+            comment lần đầu), chưa gộp vào hồ sơ khác và chưa có đơn nào (kể cả đơn nháp)
         version:
           type: integer
           format: int32
@@ -16968,6 +17070,13 @@ components:
           type: string
         isHidden:
           type: boolean
+        hiddenReason:
+          type: string
+          enum: [auto_phone, auto_all, automation, staff, page_external]
+          description: >-
+            Chỉ khi isHidden (Task 501): ai ẩn lần gần nhất — tự ẩn vì có SĐT (auto_phone), tự ẩn mọi comment (auto_all),
+            tự ẩn không rõ chế độ (automation, comment ẩn trước Task 501), nhân viên trong CRM (staff), ẩn trên Facebook
+            ngoài CRM (page_external). Không có: chưa rõ (ẩn sẵn khi CRM đọc về)
         removed:
           type: boolean
         editedCount:
@@ -17591,6 +17700,9 @@ components:
         lastStaffMessageAt:
           type: string
           format: date-time
+        lastStaffSnippet:
+          type: string
+          description: "Đoạn đầu (tối đa 120 ký tự) tin người thật cuối của Page, hiện là Bạn: … (Task 501); tin ảnh → không có"
         windowEndsAt:
           type: string
           format: date-time
@@ -17961,11 +18073,21 @@ components:
           type: string
     PendingDraft:
       type: object
-      required: [orderId, orderCode, customer, items, grandTotal, claimedBy, claimedAt, ask, customerRepliedAfterAsk, canRemind]
+      required: [orderId, orderCode, conversationId, customer, items, grandTotal, claimedBy, claimedAt, ask, customerRepliedAfterAsk, canRemind]
       properties:
         orderId:
           type: string
           format: uuid
+        conversationId:
+          type: string
+          format: uuid
+          description: Hội thoại comment chứa comment được chốt (Task 501)
+        inboxConversationId:
+          type: string
+          format: uuid
+          description: >-
+            Hộp thư của khách trên Page của phiên (nơi tin xin địa chỉ được gửi, khách trả địa chỉ); chưa có → không có
+            (màn mở conversationId)
         orderCode:
           type: string
         customer:

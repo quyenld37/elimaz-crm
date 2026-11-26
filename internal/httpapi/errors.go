@@ -5,12 +5,14 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/ogenerrors"
 	"github.com/ogen-go/ogen/validate"
 
 	"elimaz.com.vn/crm/internal/modules/cash"
+	"elimaz.com.vn/crm/internal/modules/conversation"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
@@ -83,6 +85,17 @@ type errorBody struct {
 	// Chỉ có ở quote_changed (Task 194): báo giá CRM hiện tại (WebQuote); item_unavailable: biến thể không bán được.
 	Quote      json.RawMessage `json:"quote,omitempty"`
 	VariantIDs []string        `json:"variantIds,omitempty"`
+	// Chỉ có ở template_variable_missing (M4 Task 161): tên biến của mẫu thiếu giá trị.
+	Name *string `json:"name,omitempty"`
+	// Chỉ có ở send_not_allowed (M4, Task 156): lý do chính sách gửi của kênh và hạn cửa sổ.
+	DenyReason *string    `json:"denyReason,omitempty"`
+	Until      *time.Time `json:"until,omitempty"`
+	// Chỉ có ở comment_claimed (M4, Task 172): tên hiển thị người đã chốt, đơn nháp và mã đơn của comment.
+	ClaimedBy *string `json:"claimedBy,omitempty"`
+	OrderID   *string `json:"orderId,omitempty"`
+	OrderCode *string `json:"orderCode,omitempty"`
+	// Chỉ có ở open_draft_exists (M4, Task 172): đơn nháp khách đang có trong phiên live (LiveDraftRef).
+	Drafts []liveDraftBody `json:"drafts,omitempty"`
 }
 
 // writeError ghi lỗi theo dạng duy nhất {"error": "<mã>", "request_id": "<id>"}; không bao giờ có vết lỗi.
@@ -162,9 +175,11 @@ func writeDomainError(w http.ResponseWriter, r *http.Request, err error) bool {
 		return true
 	}
 	if code, vid, avail, ok := stockShortage(err); ok {
-		writeErrorBody(w, http.StatusConflict, errorBody{
-			Error: code, RequestID: RequestID(r.Context()), VariantID: &vid, Available: &avail,
-		})
+		body := errorBody{Error: code, RequestID: RequestID(r.Context()), VariantID: &vid, Available: &avail}
+		if code == codeOutOfStock {
+			body.VariantIDs = []string{vid} // chốt comment live đọc mảng (Task 172); một biến thể mỗi lỗi
+		}
+		writeErrorBody(w, http.StatusConflict, body)
 		return true
 	}
 	if body, status, ok := detailedError(err); ok {
@@ -187,7 +202,7 @@ func writeDomainError(w http.ResponseWriter, r *http.Request, err error) bool {
 func domainErrorMappers() []func(error) (int, string, bool) {
 	return []func(error) (int, string, bool){
 		identityError, catalogError, filesError, orderError, customerError, promotionError, inventoryError,
-		queriesError, fulfillmentError, cashError, webError, contentError,
+		queriesError, fulfillmentError, cashError, webError, contentError, channelError, conversationError,
 	}
 }
 
@@ -227,6 +242,13 @@ func detailedError(err error) (errorBody, int, bool) {
 		return errorBody{Error: codeStatementDuplicate, StatementID: &id}, http.StatusConflict, true
 	}
 	if body, status, ok := webOrderDetail(err); ok {
+		return body, status, true
+	}
+	if e, ok := errors.AsType[*conversation.VariableMissingError](err); ok {
+		name := e.Name
+		return errorBody{Error: codeTemplateVariableMissing, Name: &name}, http.StatusUnprocessableEntity, true
+	}
+	if body, status, ok := conversationDetail(err); ok {
 		return body, status, true
 	}
 	if e, ok := errors.AsType[*order.SettingOutOfRangeError](err); ok {

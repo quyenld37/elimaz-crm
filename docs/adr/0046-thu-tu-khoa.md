@@ -26,7 +26,7 @@ bảng ghi trong ô.
 |---|---|---|---|
 | 1 | `platform`: quản trị tenant | `platform.tenants` → `platform.tenant_routes` | spec |
 | 2 | `identity` | `identity.users` → `identity.roles` → `identity.role_permissions` → `identity.user_role_grants` → `identity.user_credentials` → `identity.user_second_factors` → `identity.user_sessions` → `identity.service_keys` | spec; `identity.role_permissions`: M0 Task 7; M5 (Task M5-00 viết trước, M5-06 tạo ở 0501): `service_keys` |
-| 3 | `channel` | `channel.channel_accounts` → `channel.send_buckets` → `channel.oauth_sessions` | spec; M4 (Task M2-33 viết khung, M4-03 = Task 143 đã đối chiếu 25/11, khớp): `send_buckets`, `oauth_sessions` |
+| 3 | `channel` | `channel.channel_accounts` → `channel.send_buckets` → `channel.oauth_sessions` | spec; M4 (Task M2-33 viết khung, M4-03 = Task 143 đã đối chiếu 25/11, khớp; M4-05 = Task 145 tạo cả ba bảng ở migration 0401): `send_buckets`, `oauth_sessions`. `AcquireSendToken` chỉ đọc `channel_accounts` (không khóa) rồi ghi `send_buckets` trong transaction riêng; đổi cài đặt Page khóa một dòng `channel_accounts` |
 | 4 | `catalog` | `catalog.imports` → `catalog.sellers` → `catalog.categories` → `catalog.attributes` → `catalog.attribute_values` → `catalog.tags` → `catalog.products` → `catalog.product_attribute_values` → `catalog.product_tags` → `catalog.product_images` → `catalog.variants` → `catalog.barcode_counters` | spec; M1 (Task M1-25 viết trước): `sellers`, `variants`, `barcode_counters` M1-27; `categories`, `attributes`, `attribute_values`, `tags`, `product_attribute_values`, `product_tags` M1-34; `product_images` M1-44; `imports` M1-47 |
 | 5 | `customer` | `customer.customers` → `customer.customer_identities` → `customer.customer_addresses` → `customer.customer_tag_links` → `customer.customer_tag_rules` → `customer.customer_merges` → `customer.customer_imports` → `customer.feedback` → `customer.birthday_profiles` | spec; M2 (Task M2-02 viết trước, M2-03 tạo): `customer_addresses`, `customer_tag_links`, `customer_tag_rules`, `customer_merges`, `customer_imports`; M5 (Task 450 viết trước, M5-43 tạo ở 0523, M5-56 ở 0525): `feedback`, `birthday_profiles` |
 | 6 | `conversation` | `conversation.tags` → `conversation.reply_templates` → `conversation.page_settings` → `conversation.posts` → `conversation.conversations` → `conversation.conversation_tag_links` → `conversation.conversation_assignments` → `conversation.reminders` → `conversation.live_sessions` → `conversation.live_comment_claims` → `conversation.messages` → `conversation.message_revisions` → `conversation.automation_rules` → `conversation.automation_runs` → `conversation.call_logs` → `conversation.presence` | spec; M4 (Task M2-33 viết khung, M4-03 = Task 143 đã đối chiếu 25/11, khớp): `tags`, `reply_templates`, `page_settings`, `posts`, `conversation_tag_links`, `conversation_assignments`, `reminders`, `live_comment_claims`, `message_revisions`, `automation_rules`, `call_logs`, `presence` |
@@ -59,6 +59,16 @@ trước (sự kiện vận đơn đổi đơn và tồn) khóa dòng nhóm trư
   vận đơn đổi trạng thái đơn; đơn nháp hết hạn nhả suất và trừ lại `flash_sale_claims`) thì khóa dòng nhóm trước
   trước (`SELECT … FROM orders WHERE id = $1 FOR UPDATE`), rồi mới khóa dòng nhóm sau.
 - **Tin vào:** tìm hoặc ghi khách (nhóm 5) trước, rồi mới cập nhật hội thoại (nhóm 6).
+- **Xoay vòng người phụ trách (M4, Task 160):** chạy trong tx của tin vào sau khi dòng `conversation.conversations`
+  mới đã chèn, rồi khóa `conversation.page_settings` của Page — ngược thứ tự bảng của nhóm 6, được phép vì dòng hội
+  thoại vừa chèn chưa đường nào khác chờ được (trừ lần chèn trùng luồng, vốn không giữ `page_settings`) và không đường
+  nào giữ `page_settings` rồi chờ `conversations` (lưu cài đặt Page chỉ khóa `page_settings`). Đường mới nào giữ
+  `page_settings` rồi khóa hội thoại phải xem lại ngoại lệ này. Gắn nhãn: `tags` (FOR SHARE) → `conversation_tag_links`.
+- **Dọn hội thoại theo hạn giữ (M4, Task 164):** khóa trước mọi hội thoại của lô (`FOR UPDATE`, `id` tăng dần), rồi
+  xóa `message_revisions`, `messages`, rồi xóa trong một câu các hội thoại đã khóa còn rỗng kèm
+  `conversation_tag_links`, `conversation_assignments` (sau `messages` — ngược thứ tự bảng của nhóm 6, được phép vì đó
+  chỉ là dòng của hội thoại đang giữ khóa: đường nào thêm nhãn, phân công cũng chờ khóa hội thoại), cuối cùng
+  `platform.files` (12b, `id` tăng dần).
 - **Khách trước hội thoại (C11, M4):** mọi đường của M4 khóa khách (nhóm 5) trước hội thoại (nhóm 6), kể cả đường chốt
   đơn từ comment live (khách gốc → hội thoại theo `id` tăng dần → đơn).
 - Hai đường chính đã khớp bảng: lượt mua flash sale của ADR-40 khóa `flash_sale_claims` (10) → `flash_sale_units`
@@ -93,6 +103,15 @@ trước (sự kiện vận đơn đổi đơn và tồn) khóa dòng nhóm trư
   khóa `promotion.birthday_run:<tenant>`) **trước mọi khóa dòng**; không lấy được → `ErrRunInProgress` ngay (không chờ),
   nên không tạo vòng chờ. Sau đó: đọc cài đặt không khóa → chèn `birthday_runs` → mỗi nhóm hạn một savepoint
   (`EnsureWebBatch`: `coupon_batches` → `coupons`, rồi chèn `birthday_gifts`) → cập nhật dòng lượt vừa chèn.
+
+- `customer` tìm-hoặc-tạo theo danh tính kênh (M4 Task 152, 05 mục 1): `customer.Writer.FindOrCreateByIdentity` lấy
+  `pg_advisory_xact_lock` theo (tenant, loại, phạm vi, giá trị) (`queries/customer/channel_identity.sql`
+  `LockChannelIdentity`, khóa `customer.channel_identity:<tenant>:<loại>:<phạm vi>:<giá trị>`) **trước mọi khóa dòng
+  của nhóm 5**; bên gọi (đường tin vào, comment của M4) không giữ dòng nào từ nhóm 5 trở về sau trước khi gọi. Hai đường
+  lấy khóa đó: đường này (tin nhắn và comment đầu tiên của cùng một người chạy lần lượt, ra một hồ sơ) và
+  `customer.Writer.AttachChannelIdentity` (M4 Task 158, OnDone của lệnh nhắn riêng gắn PSID người nhận cho hồ sơ có
+  sẵn: khóa tư vấn → khóa dòng khách, sau `NoteBlockedUntil` nhóm 3, trước hội thoại, tin nhóm 6). Sau đó: đọc chủ danh
+  tính không khóa → (chưa có) tạo khách, danh tính là dòng mới.
 
 ## Luật cho mốc sau (Q-X4, C14)
 
