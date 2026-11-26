@@ -1,72 +1,78 @@
-// Màn Kênh kết nối và Cài đặt hộp chat (kế hoạch M4 Task 38; mockup docs/mockups/m4/ket-noi-page.html, cai-dat.html).
-// Task 174 dựng đường, mục menu (nhóm "Hộp chat", khung.js) và nạp lười tệp khung; Task 178 làm nội dung. Quyền theo
-// docs/quyen.md: kết nối, chế độ gửi cần channel.manage; cài đặt, nhãn, mẫu cần conversation.settings.
-import { lazy, Suspense } from "react";
+// Màn Kênh kết nối và Cài đặt hộp chat của nhóm "Hộp chat" (kế hoạch M4 Task 178; mockup docs/mockups/m4/
+// ket-noi-page.html, cai-dat.html). Tự đăng ký theo quy ước src/app/loadScreens.ts; đường và chỗ trên menu theo khung
+// của Task 174 (kenh/route.test.tsx). API đọc của các màn cần conversation.read (alsoRequires).
 import type { ScreenRoute } from "../../app/loadScreens";
+import { ChannelsPage } from "./ChannelsPage";
+import { FacebookCallback } from "./FacebookCallback";
+import { InboxSettingsHome, PageSettingsPage, SettingsShell } from "./PageSettingsPage";
+import { TagsPage } from "./TagsPage";
+import { TemplatesPage } from "./TemplatesPage";
 
-const SettingsScreen = lazy(() => import("./index"));
-
-const page = (title: string) => (
-  <Suspense fallback={null}>
-    <SettingsScreen title={title} />
-  </Suspense>
-);
-
-const CHANNELS = "channel.manage";
-const SETTINGS = "conversation.settings";
+const SETTINGS_TABS = ["/settings/pages/:pageId", "/settings/tags", "/settings/templates"];
 
 export const screens: readonly ScreenRoute[] = [
   {
     path: "/settings/channels",
     label: "Kênh kết nối",
     group: "Hộp chat",
-    permission: CHANNELS,
+    permission: "channel.manage",
+    alsoRequires: ["conversation.read"],
+    also: ["/settings/channels/facebook/callback"],
     order: 40,
-    element: page("Kênh kết nối"),
+    element: <ChannelsPage />,
   },
   {
     path: "/settings/inbox",
     label: "Cài đặt hộp chat",
     group: "Hộp chat",
-    permission: SETTINGS,
+    permission: "conversation.settings",
+    alsoRequires: ["conversation.read"],
+    also: SETTINGS_TABS,
     order: 50,
-    element: page("Cài đặt hộp chat"),
+    element: (
+      <SettingsShell>
+        <InboxSettingsHome />
+      </SettingsShell>
+    ),
   },
-  // Trang ẩn: quay về từ Facebook sau khi đăng nhập (Task 149), cài đặt của một Page, nhãn, mẫu trả lời.
   {
     path: "/settings/channels/facebook/callback",
     label: "Kết nối Page Facebook",
     group: "Hộp chat",
-    permission: CHANNELS,
+    permission: "channel.manage",
+    alsoRequires: ["conversation.read"],
     hidden: true,
     order: 930,
-    element: page("Kết nối Page Facebook"),
+    element: <FacebookCallback />,
   },
   {
     path: "/settings/pages/:pageId",
     label: "Cài đặt Page",
     group: "Hộp chat",
-    permission: SETTINGS,
+    permission: "conversation.settings",
+    alsoRequires: ["conversation.read"],
     hidden: true,
     order: 940,
-    element: page("Cài đặt Page"),
+    element: <PageSettingsPage />,
   },
   {
     path: "/settings/tags",
     label: "Nhãn hội thoại",
     group: "Hộp chat",
-    permission: SETTINGS,
+    permission: "conversation.settings",
+    alsoRequires: ["conversation.read"],
     hidden: true,
     order: 950,
-    element: page("Nhãn hội thoại"),
+    element: <TagsPage />,
   },
   {
     path: "/settings/templates",
     label: "Mẫu trả lời",
     group: "Hộp chat",
-    permission: SETTINGS,
+    permission: "conversation.settings",
+    alsoRequires: ["conversation.read"],
     hidden: true,
     order: 960,
-    element: page("Mẫu trả lời"),
+    element: <TemplatesPage />,
   },
 ];
