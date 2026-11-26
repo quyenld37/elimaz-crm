@@ -59,6 +59,11 @@ trước (sự kiện vận đơn đổi đơn và tồn) khóa dòng nhóm trư
   vận đơn đổi trạng thái đơn; đơn nháp hết hạn nhả suất và trừ lại `flash_sale_claims`) thì khóa dòng nhóm trước
   trước (`SELECT … FROM orders WHERE id = $1 FOR UPDATE`), rồi mới khóa dòng nhóm sau.
 - **Tin vào:** tìm hoặc ghi khách (nhóm 5) trước, rồi mới cập nhật hội thoại (nhóm 6).
+- **Xoay vòng người phụ trách (M4, Task 160):** chạy trong tx của tin vào sau khi dòng `conversation.conversations`
+  mới đã chèn, rồi khóa `conversation.page_settings` của Page — ngược thứ tự bảng của nhóm 6, được phép vì dòng hội
+  thoại vừa chèn chưa đường nào khác chờ được (trừ lần chèn trùng luồng, vốn không giữ `page_settings`) và không đường
+  nào giữ `page_settings` rồi chờ `conversations` (lưu cài đặt Page chỉ khóa `page_settings`). Đường mới nào giữ
+  `page_settings` rồi khóa hội thoại phải xem lại ngoại lệ này. Gắn nhãn: `tags` (FOR SHARE) → `conversation_tag_links`.
 - **Khách trước hội thoại (C11, M4):** mọi đường của M4 khóa khách (nhóm 5) trước hội thoại (nhóm 6), kể cả đường chốt
   đơn từ comment live (khách gốc → hội thoại theo `id` tăng dần → đơn).
 - Hai đường chính đã khớp bảng: lượt mua flash sale của ADR-40 khóa `flash_sale_claims` (10) → `flash_sale_units`

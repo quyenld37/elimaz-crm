@@ -4,6 +4,7 @@ package httpapi
 // cho vùng chỉ sửa tệp này và x-error-codes của openapi.yaml khi có mã mới).
 
 import (
+	"errors"
 	"net/http"
 
 	"elimaz.com.vn/crm/internal/modules/conversation"
@@ -12,6 +13,7 @@ import (
 // Mã lỗi chỉ vùng conversation trả.
 const (
 	codeAssigneeNotAllowed = "assignee_not_allowed"
+	codeAlreadyAssigned    = "already_assigned"
 )
 
 // conversationError đổi lỗi nghiệp vụ của hộp chat sang mã HTTP. ErrNotFound: không có, hay trên Page người gọi không
@@ -24,12 +26,21 @@ func conversationError(err error) (status int, code string, ok bool) {
 		{conversation.ErrReminderClosed, http.StatusConflict, codeVersionConflict},
 		{conversation.ErrReminderAssignForbidden, http.StatusForbidden, codeForbidden},
 		{conversation.ErrAssigneeNotAllowed, http.StatusUnprocessableEntity, codeAssigneeNotAllowed},
+		// Người phụ trách, nhãn, cài đặt Page (Task 160): nhãn không có → 404; version cũ → 409; người khác đang nhận →
+		// 409 already_assigned; tên nhãn trùng → 409 already_exists; dữ liệu nhãn, cài đặt sai → 422 invalid_input.
+		{conversation.ErrTagNotFound, http.StatusNotFound, codeNotFound},
+		{conversation.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
+		{conversation.ErrAlreadyAssigned, http.StatusConflict, codeAlreadyAssigned},
+		{conversation.ErrTagNameTaken, http.StatusConflict, codeAlreadyExists},
+		{conversation.ErrInvalidInput, http.StatusUnprocessableEntity, codeInvalidInput},
 	})
 }
 
-// isConversationRefusal: lỗi nghiệp vụ của đường ghi hộp chat (kể cả khách không có của customer) — không lưu theo khóa
-// chống trùng.
+// isConversationRefusal: lỗi nghiệp vụ của đường ghi hộp chat (kể cả khách không có của customer; Page không có của
+// channel, nguồn đơn đã tắt của order và nhãn chung thiếu quyền toàn shop, Task 160) — không lưu theo khóa chống trùng.
 func isConversationRefusal(err error) bool {
 	_, _, ok := conversationError(err)
-	return ok || isCustomerRefusal(err)
+	_, _, chOK := channelError(err)
+	_, _, ordOK := orderError(err)
+	return ok || chOK || ordOK || isCustomerRefusal(err) || errors.Is(err, errForbiddenTarget)
 }
