@@ -54,18 +54,21 @@ func Send(ctx context.Context, tx pgx.Tx, env Env, u identity.AuthUser, conversa
 	if err != nil {
 		return Message{}, err //nolint:wrapcheck // channel đã bọc việc đang làm
 	}
-	if err := allowed(env.Registry, conversationRow(c), acc, in.HumanAgent, now); err != nil {
+	if err := allowed(env.Registry, conversationRow(c), acc, in.HumanAgent, false, now); err != nil {
 		return Message{}, err
 	}
 	atts, err := outgoingAttachments(ctx, tx, in.AttachmentFileID)
 	if err != nil {
 		return Message{}, err
 	}
-	return insert(ctx, tx, env, u, c.ID, acc, in.Text, atts, now)
+	m, _, err := insert(ctx, tx, env, u.UserID, originStaff, c.ID, acc, in.Text, atts, now)
+	return m, err
 }
 
-// allowed hỏi SendPolicy của adapter của Page cho tin thường của nhân viên.
-func allowed(reg *channel.Registry, c conversationRow, acc channel.ChannelAccount, humanAgent bool, now time.Time) error {
+// allowed hỏi SendPolicy của adapter của Page cho tin thường của nhân viên (automated: tin của quy tắc tự động, không
+// bao giờ dùng thẻ nhân viên).
+func allowed(reg *channel.Registry, c conversationRow, acc channel.ChannelAccount, humanAgent, automated bool, now time.Time,
+) error {
 	if acc.SendMode != channel.SendModeEnabled {
 		return ErrReadOnly
 	}
@@ -76,7 +79,7 @@ func allowed(reg *channel.Registry, c conversationRow, acc channel.ChannelAccoun
 	if ad == nil {
 		return &NotAllowedError{Reason: channel.DenyNoPermission}
 	}
-	pol := ad.SendPolicy(state(c, acc, false), now)
+	pol := ad.SendPolicy(state(c, acc, automated), now)
 	switch {
 	case !pol.Allowed:
 		return &NotAllowedError{Reason: pol.Reason, Until: pol.Until}
@@ -109,50 +112,56 @@ func outgoingAttachments(ctx context.Context, tx pgx.Tx, fileID *uuid.UUID) ([]A
 	return []Attachment{{Index: 0, Type: attachImage, Status: attachReady, FileID: &id}}, nil
 }
 
-// insert chèn tin queued, cập nhật hội thoại đã khóa, ghi lệnh gửi (DedupeKey = mã tin), gắn mã lệnh vào tin, báo hiệu.
-func insert(ctx context.Context, tx pgx.Tx, env Env, u identity.AuthUser, convID uuid.UUID, acc channel.ChannelAccount,
-	text string, atts []Attachment, now time.Time,
-) (Message, error) {
+// insert chèn tin queued nguồn origin của người gửi sender (uuid.Nil: tin tự động), cập nhật hội thoại đã khóa, ghi
+// lệnh gửi (Kind theo nguồn: originAuto → command.fb.auto_send; DedupeKey = mã tin), gắn mã lệnh vào tin, báo hiệu. Trả
+// tin và mã lệnh.
+func insert(ctx context.Context, tx pgx.Tx, env Env, sender uuid.UUID, origin string, convID uuid.UUID,
+	acc channel.ChannelAccount, text string, atts []Attachment, now time.Time,
+) (Message, uuid.UUID, error) {
 	q := store.New(tx)
 	raw, err := json.Marshal(atts)
 	if err != nil {
-		return Message{}, fmt.Errorf("mã hóa ảnh gửi kèm: %w", err)
+		return Message{}, uuid.Nil, fmt.Errorf("mã hóa ảnh gửi kèm: %w", err)
 	}
 	ref, err := uuid.NewV7()
 	if err != nil {
-		return Message{}, fmt.Errorf("tạo client_ref: %w", err)
+		return Message{}, uuid.Nil, fmt.Errorf("tạo client_ref: %w", err)
 	}
 	id, err := q.InsertOutgoingMessage(ctx, store.InsertOutgoingMessageParams{
 		ConversationID: convID, ChannelAccountID: acc.ID, ClientRef: pgtype.UUID{Bytes: ref, Valid: true},
 		Body: pgtype.Text{String: text, Valid: text != ""}, Attachments: raw,
-		SenderStaffID: pgtype.UUID{Bytes: u.UserID, Valid: u.UserID != uuid.Nil}, SentAt: now,
+		SenderStaffID: pgtype.UUID{Bytes: sender, Valid: sender != uuid.Nil}, SentAt: now, Origin: origin,
 	})
 	if err != nil {
-		return Message{}, fmt.Errorf("ghi tin gửi: %w", err)
+		return Message{}, uuid.Nil, fmt.Errorf("ghi tin gửi: %w", err)
 	}
 	snip := deps.Snippet(text, len(atts) > 0)
 	if err := q.BumpConversationOutbound(ctx, store.BumpConversationOutboundParams{
 		At: now, Snippet: pgtype.Text{String: snip, Valid: snip != ""}, ID: convID,
 	}); err != nil {
-		return Message{}, fmt.Errorf("cập nhật hội thoại sau khi gửi: %w", err)
+		return Message{}, uuid.Nil, fmt.Errorf("cập nhật hội thoại sau khi gửi: %w", err)
 	}
 	tenant := acc.TenantID
-	jobID, _, err := env.Queue.Enqueue(ctx, tx, CommandKind(), queue.NewJob{
+	kind := CommandKind()
+	if origin == originAuto {
+		kind = AutoCommandKind()
+	}
+	jobID, _, err := env.Queue.Enqueue(ctx, tx, kind, queue.NewJob{
 		TenantID: &tenant, Payload: payload{MessageID: id}, DedupeKey: id.String(),
 	})
 	if err != nil {
-		return Message{}, fmt.Errorf("ghi lệnh gửi tin: %w", err)
+		return Message{}, uuid.Nil, fmt.Errorf("ghi lệnh gửi tin: %w", err)
 	}
 	if err := q.SetMessageCommandJob(ctx, store.SetMessageCommandJobParams{
 		CommandJobID: pgtype.UUID{Bytes: jobID, Valid: true}, ID: id,
 	}); err != nil {
-		return Message{}, fmt.Errorf("gắn lệnh gửi vào tin: %w", err)
+		return Message{}, uuid.Nil, fmt.Errorf("gắn lệnh gửi vào tin: %w", err)
 	}
 	if err := publish(ctx, tx, env.Bus, tenant, acc.ID, convID); err != nil {
-		return Message{}, err
+		return Message{}, uuid.Nil, err
 	}
 	return Message{
-		ID: id, ConversationID: convID, ClientRef: ref, SenderStaffID: u.UserID, Origin: originStaff, Body: text,
+		ID: id, ConversationID: convID, ClientRef: ref, SenderStaffID: sender, Origin: origin, Body: text,
 		Attachments: atts, SendStatus: statusQueued, SentAt: now,
-	}, nil
+	}, jobID, nil
 }

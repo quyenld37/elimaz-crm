@@ -165,7 +165,7 @@ const insertOutgoingMessage = `-- name: InsertOutgoingMessage :one
 INSERT INTO conversation.messages (tenant_id, conversation_id, channel_account_id, client_ref, direction, kind, origin,
                                    body, attachments, sender_staff_id, send_status, sent_at)
 VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, $3,
-        'out', 'message', 'staff', $4::text, $5, $6, 'queued', $7)
+        'out', 'message', $4, $5::text, $6, $7, 'queued', $8)
 RETURNING id
 `
 
@@ -173,18 +173,21 @@ type InsertOutgoingMessageParams struct {
 	ConversationID   uuid.UUID
 	ChannelAccountID uuid.UUID
 	ClientRef        pgtype.UUID
+	Origin           string
 	Body             pgtype.Text
 	Attachments      []byte
 	SenderStaffID    pgtype.UUID
 	SentAt           time.Time
 }
 
-// Tin nhân viên gửi, chờ lệnh gửi (queued); sent_at là lúc bấm gửi (đồng hồ của API) tới khi kênh xác nhận.
+// Tin nhân viên (origin staff) hay quy tắc tự động (origin automation, không người gửi) gửi, chờ lệnh gửi (queued);
+// sent_at là lúc bấm gửi (đồng hồ của API) tới khi kênh xác nhận.
 func (q *Queries) InsertOutgoingMessage(ctx context.Context, arg InsertOutgoingMessageParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, insertOutgoingMessage,
 		arg.ConversationID,
 		arg.ChannelAccountID,
 		arg.ClientRef,
+		arg.Origin,
 		arg.Body,
 		arg.Attachments,
 		arg.SenderStaffID,

@@ -143,7 +143,7 @@ func Resend(ctx context.Context, tx pgx.Tx, env Env, u identity.AuthUser, id uui
 	if !resendable(r.msg) || r.conv.Kind != kindInbox {
 		return ResendResult{}, ErrNotRecoverable
 	}
-	if err := allowed(env.Registry, r.conv, r.acc, false, now); err != nil {
+	if err := allowed(env.Registry, r.conv, r.acc, false, false, now); err != nil {
 		return ResendResult{}, err
 	}
 	var atts []Attachment
@@ -163,7 +163,7 @@ func Resend(ctx context.Context, tx pgx.Tx, env Env, u identity.AuthUser, id uui
 	if err := markDiscarded(ctx, tx, r.msg); err != nil {
 		return ResendResult{}, err
 	}
-	m, err := insert(ctx, tx, env, u, r.conv.ID, r.acc, r.msg.Body.String, atts, now)
+	m, _, err := insert(ctx, tx, env, u.UserID, originStaff, r.conv.ID, r.acc, r.msg.Body.String, atts, now)
 	if err != nil {
 		return ResendResult{}, err
 	}

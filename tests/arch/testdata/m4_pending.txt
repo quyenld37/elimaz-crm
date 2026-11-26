@@ -5,7 +5,6 @@ replyToComment
 sendPrivateReply
 hideComment
 unhideComment
-listFollowUps
 listLiveComments
 listPendingDrafts
 remindPendingDrafts

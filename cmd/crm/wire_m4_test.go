@@ -55,6 +55,7 @@ func TestWireM4_Frame(t *testing.T) {
 		wantCmds = append(wantCmds, conversation.SendMessageKind) // Task 156: gửi tin, mọi cấu hình
 		// Task 165: tự ẩn comment, mọi cấu hình.
 		wantCmds = append(wantCmds, "command.fb.auto_hide_comment")
+		wantCmds = append(wantCmds, conversation.AutoSendKind) // Task 168: gửi tin tự động (nhắn lại), mọi cấu hình
 		if slices.Contains(c.keys, "facebook") {
 			wantCmds = append(wantCmds, "command.fb.live_detect") // Task 170: nhận biết live bằng hỏi định kỳ
 		}
@@ -94,7 +95,7 @@ func checkM4Schedules(t *testing.T, env string, facebook bool, p m4Parts) {
 	t.Helper()
 	want := []string{
 		channel.HealthSchedule, channel.SilenceSchedule, channel.BackfillSchedule, channel.GraphVersionSchedule,
-		conversation.SendRevealSchedule,
+		conversation.SendRevealSchedule, conversation.FollowUpSchedule,
 	}
 	if facebook {
 		want = append(want, "live.detect")

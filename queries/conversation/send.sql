@@ -15,11 +15,12 @@ FROM conversation.conversations
 WHERE id = @id;
 
 -- name: InsertOutgoingMessage :one
--- Tin nhân viên gửi, chờ lệnh gửi (queued); sent_at là lúc bấm gửi (đồng hồ của API) tới khi kênh xác nhận.
+-- Tin nhân viên (origin staff) hay quy tắc tự động (origin automation, không người gửi) gửi, chờ lệnh gửi (queued);
+-- sent_at là lúc bấm gửi (đồng hồ của API) tới khi kênh xác nhận.
 INSERT INTO conversation.messages (tenant_id, conversation_id, channel_account_id, client_ref, direction, kind, origin,
                                    body, attachments, sender_staff_id, send_status, sent_at)
 VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, @conversation_id, @channel_account_id, @client_ref,
-        'out', 'message', 'staff', sqlc.narg(body)::text, @attachments, @sender_staff_id, 'queued', @sent_at)
+        'out', 'message', @origin, sqlc.narg(body)::text, @attachments, @sender_staff_id, 'queued', @sent_at)
 RETURNING id;
 
 -- name: SetMessageCommandJob :exec

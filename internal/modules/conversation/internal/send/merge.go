@@ -105,14 +105,20 @@ func (c sendCommand) OnDone(ctx context.Context, j queue.Job, raw json.RawMessag
 // lý do lệnh đã ghi; blocked_by_user → hội thoại bị chặn; auth → channel.Writer.ReportTokenInvalid, nhóm 3 nên gọi trước khi
 // khóa hội thoại); expired → expired; in_doubt → checking, send_checking_since = now (lịch send_reveal của Task 157 hiện in_doubt sau 60 giây). Báo hiệu khi đổi.
 func (c sendCommand) OnTerminal(ctx context.Context, j queue.Job, status string, tx pgx.Tx) error {
+	return c.settle(ctx, j, status, tx, false)
+}
+
+// settle là phần chung của OnTerminal của lệnh gửi tin nhân viên và tin tự động; automated: in_doubt → tin discarded
+// lý do in_doubt (04 mục 5.3: tin tự động không rõ thì bỏ, không hỏi nhân viên) thay vì checking.
+func (c sendCommand) settle(ctx context.Context, j queue.Job, status string, tx pgx.Tx, automated bool) error {
 	m, ok, err := target(ctx, tx, j)
 	if err != nil || !ok || m.SendStatus.String != statusQueued {
 		return err
 	}
 	now := c.now().UTC()
 	set := store.SettleOutgoingMessageParams{ID: m.ID}
-	switch status {
-	case queue.StatusDead:
+	switch {
+	case status == queue.StatusDead:
 		set.SendStatus = pgtype.Text{String: statusFailed, Valid: true}
 		if m.FailReason.String == reasonAuth {
 			if err := (channel.Writer{Realtime: c.d.Bus}).ReportTokenInvalid(ctx, tx, m.ChannelAccountID); err != nil {
@@ -122,12 +128,15 @@ func (c sendCommand) OnTerminal(ctx context.Context, j queue.Job, status string,
 		if !m.FailReason.Valid {
 			set.FailReason = pgtype.Text{String: reasonRejected, Valid: true}
 		}
-	case queue.StatusExpired:
+	case status == queue.StatusExpired:
 		set.SendStatus = pgtype.Text{String: statusExpired, Valid: true}
 		if !m.FailReason.Valid {
 			set.FailReason = pgtype.Text{String: reasonExpiredQueued, Valid: true}
 		}
-	case queue.StatusInDoubt:
+	case status == queue.StatusInDoubt && automated:
+		set.SendStatus = pgtype.Text{String: statusDiscarded, Valid: true}
+		set.FailReason = pgtype.Text{String: reasonInDoubt, Valid: true}
+	case status == queue.StatusInDoubt:
 		set.SendStatus = pgtype.Text{String: statusChecking, Valid: true}
 		set.SendCheckingSince = pgtype.Timestamptz{Time: now, Valid: true}
 	default:
