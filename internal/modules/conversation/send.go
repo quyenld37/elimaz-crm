@@ -22,7 +22,7 @@ type SendEnv = send.Env
 // viên bấm "Trả lời (nhân viên)".
 type SendInput = send.Input
 
-// Message là tin nhân viên vừa gửi (queued).
+// Message là tin nhân viên vừa gửi (queued) hay vừa bỏ (discarded).
 type Message = send.Message
 
 // Attachment là một mục đính kèm của tin.
@@ -76,4 +76,31 @@ func OutgoingImageFilePurpose() files.Purpose {
 	// M1Purposes là hằng của mã nên không tới đây; nếu M1 bỏ mục đích kia thì TestPurposes_GoMatchesTable của files bắt
 	// (mục đích không nhận loại nào).
 	return files.Purpose{Key: OutgoingImagePurpose, Bucket: files.BucketOriginals}
+}
+
+// Gửi lại, bỏ tin "không rõ đã gửi chưa" (in_doubt) hay "chưa gửi được" (expired, failed lý do tạm) (Task 157; CH18,
+// CH19). Hiện thực ở internal/send; lịch SendRevealSchedule đổi tin checking quá 60 giây sang in_doubt.
+
+// ResendResult là kết quả gửi lại: tin mới (queued); MayDuplicate khi tin cũ "không rõ đã gửi" (khách có thể nhận hai
+// lần).
+type ResendResult = send.ResendResult
+
+// SendRevealSchedule là lịch theo tenant hiện tin "không rõ đã gửi chưa" sau 60 giây chờ echo.
+const SendRevealSchedule = send.RevealSchedule
+
+// ErrMessageNotRecoverable là lỗi: tin không ở trạng thái gửi lại hay bỏ được, hay lệnh của nó đang chạy (409
+// version_conflict: màn hình đang cũ).
+var ErrMessageNotRecoverable = send.ErrNotRecoverable
+
+// ResendMessage gửi lại tin id bằng nhân viên u lúc now (xem send.Resend), trong tx tenant của bên gọi: cần
+// conversation.reply trên Page của hội thoại (không có → ErrNotFound); hỏi lại chế độ chỉ xem, chính sách gửi.
+func ResendMessage(ctx context.Context, tx pgx.Tx, env SendEnv, u identity.AuthUser, id uuid.UUID, now time.Time,
+) (ResendResult, error) {
+	return send.Resend(ctx, tx, env, u, id, now) //nolint:wrapcheck // sentinel của phần
+}
+
+// DiscardMessage bỏ tin id bằng nhân viên u (xem send.Discard), trong tx tenant của bên gọi; trả tin đã bỏ.
+func DiscardMessage(ctx context.Context, tx pgx.Tx, env SendEnv, u identity.AuthUser, id uuid.UUID, now time.Time,
+) (Message, error) {
+	return send.Discard(ctx, tx, env, u, id, now) //nolint:wrapcheck // sentinel của phần
 }

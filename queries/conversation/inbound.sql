@@ -53,20 +53,28 @@ SET last_message_at       = GREATEST(last_message_at, @at),
 WHERE id = @id;
 
 -- name: ConfirmOwnEcho :one
--- Echo của CRM: tin client_ref đang chờ (queued, checking, in_doubt) thành sent với mã ngoài mid, sent_at = mốc của
--- kênh. Không đổi khi mid đã thuộc dòng khác (giữ unique, không vòng thử lại). Trả mã tin, mã hội thoại.
+-- Echo của CRM: tin client_ref chưa sent (queued, checking, in_doubt; cả failed, expired, discarded — sự thật thắng,
+-- Task 157) thành sent với mã ngoài mid, sent_at = mốc của kênh. Không đổi khi mid đã thuộc dòng khác (giữ unique,
+-- không vòng thử lại). Trả mã tin, mã hội thoại, trạng thái trước đó.
+WITH prev AS (SELECT p.id, p.send_status
+              FROM conversation.messages AS p
+              WHERE p.client_ref = @client_ref
+                AND p.channel_account_id = @channel_account_id
+                AND p.send_status IN ('queued', 'checking', 'in_doubt', 'failed', 'expired', 'discarded')
+              FOR UPDATE)
 UPDATE conversation.messages AS m
-SET external_id = @external_id,
-    send_status = 'sent',
-    sent_at     = @sent_at
-WHERE m.client_ref = @client_ref
-  AND m.channel_account_id = @channel_account_id
-  AND m.send_status IN ('queued', 'checking', 'in_doubt')
+SET external_id         = @external_id,
+    send_status         = 'sent',
+    sent_at             = @sent_at,
+    fail_reason         = NULL,
+    send_checking_since = NULL
+FROM prev
+WHERE m.id = prev.id
   AND NOT EXISTS (SELECT 1
                   FROM conversation.messages AS o
                   WHERE o.channel_account_id = @channel_account_id
                     AND o.external_id = @external_id)
-RETURNING m.id, m.conversation_id;
+RETURNING m.id, m.conversation_id, prev.send_status::text AS prev_status;
 
 -- name: MarkDelivered :execrows
 -- Đã nhận tới mốc wm: tin ra (kind message) của hội thoại, gửi từ since tới wm, chưa có delivered_at.

@@ -97,3 +97,71 @@ UPDATE conversation.conversations
 SET blocked_by_user = true,
     updated_at      = now()
 WHERE id = @id;
+
+-- Không rõ đã gửi, chưa gửi được: chờ echo, gửi lại, bỏ (Task 157; kế hoạch M4-17).
+
+-- name: GetSendLookup :one
+-- Tra lại lệnh gửi in_doubt (Looker): tin đã có mã ngoài (echo đã khớp) hay đã sent thì kênh đã nhận.
+SELECT (external_id IS NOT NULL OR send_status = 'sent')::boolean AS confirmed
+FROM conversation.messages
+WHERE id = @id;
+
+-- name: LockRecoverableMessage :one
+-- Khóa tin nhân viên/tự động gửi ra (sau khi đã khóa hội thoại) để gửi lại hay bỏ: trạng thái, lý do, nội dung, ảnh,
+-- nguồn, mã lệnh.
+SELECT id, conversation_id, channel_account_id, origin, body, attachments, send_status, fail_reason, sent_at,
+       command_job_id
+FROM conversation.messages
+WHERE id = @id
+  AND direction = 'out'
+  AND kind = 'message'
+  AND origin IN ('staff', 'automation')
+FOR UPDATE;
+
+-- name: GetRecoverableMessageConversation :one
+-- Hội thoại của tin cần gửi lại hay bỏ (không khóa; khóa hội thoại trước, rồi tin).
+SELECT conversation_id
+FROM conversation.messages
+WHERE id = @id
+  AND direction = 'out'
+  AND kind = 'message'
+  AND origin IN ('staff', 'automation');
+
+-- name: MarkMessageDiscarded :execrows
+-- Nhân viên gửi lại hay bỏ: tin còn ở trạng thái from (đã kiểm khi khóa) thành discarded; 0 dòng = đã đổi.
+UPDATE conversation.messages
+SET send_status         = 'discarded',
+    send_checking_since = NULL
+WHERE id = @id
+  AND send_status = @from_status;
+
+-- name: LockConversationsDueReveal :many
+-- Lịch send_reveal: khóa (mã tăng dần, ADR-46 nhóm 6) các hội thoại có tin checking từ trước mốc before.
+SELECT c.id
+FROM conversation.conversations AS c
+WHERE c.id IN (SELECT m.conversation_id
+               FROM conversation.messages AS m
+               WHERE m.send_status = 'checking'
+                 AND m.send_checking_since < @before
+               LIMIT @lim)
+ORDER BY c.id
+FOR UPDATE OF c;
+
+-- name: RevealInDoubtMessages :many
+-- Tin checking quá 60 giây chưa thấy echo của các hội thoại đã khóa thành in_doubt ("không rõ đã gửi chưa").
+UPDATE conversation.messages
+SET send_status = 'in_doubt'
+WHERE conversation_id = ANY (@conversation_ids::uuid[])
+  AND send_status = 'checking'
+  AND send_checking_since < @before
+RETURNING conversation_id, channel_account_id;
+
+-- name: RelabelExternalEcho :execrows
+-- Echo đọc qua hỏi bù (không app id, không metadata → page_external) mang đúng mã ngoài kênh vừa trả cho lệnh gửi: là
+-- echo của chính tin đó, đổi nhãn thành own_echo_unmatched để DeleteUnmatchedEcho gộp (tệp task-157, Quyết định 5).
+UPDATE conversation.messages
+SET origin = 'own_echo_unmatched'
+WHERE channel_account_id = @channel_account_id
+  AND external_id = @external_id
+  AND origin = 'page_external'
+  AND direction = 'out';

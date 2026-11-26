@@ -17,8 +17,9 @@ import (
 // (Task 153). Lệnh luôn có command.fb.fetch_attachment, command.fb.fetch_profile (Task 155, chỉ đọc) và
 // command.fb.send_message (Task 156; không có adapter thì lệnh từ chối tin còn chờ), thêm command.fb.fetch_post (Task
 // 154), command.fb.live_detect và lịch live.detect (Task 170) khi có adapter Facebook. Phần chạy nền luôn có lịch
-// conversation.presence_cleanup (Task 163), conversation.reminders (Task 169) mỗi 60 s và channel.comment_poll (Task
-// 150, đọc comment định kỳ) mỗi 30 s, theo tenant, đúng một handler cùng Kind.
+// conversation.send_reveal mỗi 15 s (Task 157), conversation.presence_cleanup (Task 163), conversation.reminders (Task
+// 169) mỗi 60 s và channel.comment_poll (Task 150, đọc comment định kỳ) mỗi 30 s, theo tenant, đúng một handler cùng
+// Kind.
 func TestWiring(t *testing.T) {
 	t.Parallel()
 	d := conversation.Deps{}
@@ -91,14 +92,17 @@ func checkCommands(t *testing.T, d conversation.Deps) {
 func checkReminders(t *testing.T, d conversation.Deps) {
 	t.Helper()
 	s, j := conversation.Schedules(d), conversation.JobHandlers(d)
-	want := []string{conversation.PresenceCleanupSchedule, "conversation.reminders", "channel.comment_poll"}
+	want := []string{conversation.SendRevealSchedule, conversation.PresenceCleanupSchedule, "conversation.reminders", "channel.comment_poll"}
 	if len(s) != len(want) || len(j) != len(want) {
 		t.Fatalf("lịch %+v, việc %d", s, len(j))
 	}
 	for i, name := range want {
 		every := time.Minute
-		if name == "channel.comment_poll" {
+		switch name {
+		case "channel.comment_poll":
 			every = 30 * time.Second
+		case conversation.SendRevealSchedule:
+			every = 15 * time.Second
 		}
 		if s[i].Name != name || !s[i].PerTenant || s[i].Every != every || j[i].Kind().Name != s[i].Kind.Name {
 			t.Errorf("lịch %d = %+v, việc %q; muốn %s", i, s[i], j[i].Kind().Name, name)

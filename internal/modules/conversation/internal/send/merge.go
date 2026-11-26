@@ -47,7 +47,8 @@ func lock(ctx context.Context, tx pgx.Tx, m store.GetOutgoingMessageRow) (store.
 }
 
 // OnDone (trong transaction đổi lệnh sang done): kênh xin giãn → NoteBlockedUntil (nhóm 3, trước mọi khóa nhóm 6);
-// khóa hội thoại, tin; xóa dòng own_echo_unmatched cùng mã tin của kênh (echo không metadata tới trước, Q23) và chép
+// khóa hội thoại, tin; xóa dòng own_echo_unmatched cùng mã tin của kênh (echo không metadata tới trước, Q23; cả dòng
+// page_external của echo đọc qua hỏi bù, đổi nhãn trước, Task 157) và chép
 // mốc của kênh, đã nhận, đã xem, cảm xúc của nó; đặt tin sent kèm mã ngoài; báo hiệu. result nil (done do tra lại hay
 // người quyết) → tin sent, giữ mã ngoài đã có.
 func (c sendCommand) OnDone(ctx context.Context, j queue.Job, raw json.RawMessage, tx pgx.Tx) error {
@@ -74,6 +75,12 @@ func (c sendCommand) OnDone(ctx context.Context, j queue.Job, raw json.RawMessag
 	mark := store.MarkOwnMessageSentParams{SentAt: now, ID: m.ID}
 	if res.ExternalID != "" {
 		mark.ExternalID = pgtype.Text{String: res.ExternalID, Valid: true}
+		// Echo đọc qua hỏi bù (page_external, không metadata) cùng mid kênh vừa trả là echo của chính tin này (Task 157).
+		if _, err := q.RelabelExternalEcho(ctx, store.RelabelExternalEchoParams{
+			ChannelAccountID: m.ChannelAccountID, ExternalID: mark.ExternalID,
+		}); err != nil {
+			return fmt.Errorf("nhận echo hỏi bù của tin gửi: %w", err)
+		}
 		echoes, err := q.DeleteUnmatchedEcho(ctx, store.DeleteUnmatchedEchoParams{
 			ChannelAccountID: m.ChannelAccountID, ExternalID: mark.ExternalID,
 		})
@@ -96,7 +103,7 @@ func (c sendCommand) OnDone(ctx context.Context, j queue.Job, raw json.RawMessag
 
 // OnTerminal (trong transaction đổi lệnh sang dead, expired, in_doubt), chỉ đổi tin còn queued: dead → failed (giữ mã
 // lý do lệnh đã ghi; blocked_by_user → hội thoại bị chặn; auth → channel.Writer.ReportTokenInvalid, nhóm 3 nên gọi trước khi
-// khóa hội thoại); expired → expired; in_doubt → checking, send_checking_since = now (Task 157 tiếp). Báo hiệu khi đổi.
+// khóa hội thoại); expired → expired; in_doubt → checking, send_checking_since = now (lịch send_reveal của Task 157 hiện in_doubt sau 60 giây). Báo hiệu khi đổi.
 func (c sendCommand) OnTerminal(ctx context.Context, j queue.Job, status string, tx pgx.Tx) error {
 	m, ok, err := target(ctx, tx, j)
 	if err != nil || !ok || m.SendStatus.String != statusQueued {

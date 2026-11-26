@@ -6,6 +6,7 @@ package httpapi
 import (
 	"errors"
 	"net/http"
+	"slices"
 
 	"elimaz.com.vn/crm/internal/modules/conversation"
 )
@@ -23,10 +24,13 @@ const (
 
 // conversationError đổi lỗi nghiệp vụ của hộp chat sang mã HTTP. ErrNotFound: không có, hay trên Page người gọi không
 // có quyền (PQ04: 404 để không lộ sự tồn tại). Nhắc đã đóng: 409 version_conflict (màn hình đang cũ, tải lại).
-// Bảng chia hai phần, kiểm lần lượt (cùng thứ tự như một bảng): một bảng dài trùng cấu trúc với bảng của vùng order
-// (dupl), dù chỉ là dữ liệu.
 func conversationError(err error) (status int, code string, ok bool) {
-	if st, c, found := matchError(err, []errorMapping{
+	return matchError(err, slices.Concat(chatErrorMappings(), sendErrorMappings()))
+}
+
+// chatErrorMappings: lỗi của hội thoại, nhắc, gọi, live, người phụ trách, nhãn, ghi chú, mẫu trả lời (đúng thứ tự kiểm).
+func chatErrorMappings() []errorMapping {
+	return []errorMapping{
 		{conversation.ErrNotFound, http.StatusNotFound, codeNotFound},
 		{conversation.ErrReminderInvalid, http.StatusBadRequest, codeInvalidInput},
 		{conversation.ErrCallInvalid, http.StatusBadRequest, codeInvalidInput},
@@ -50,10 +54,12 @@ func conversationError(err error) (status int, code string, ok bool) {
 		{conversation.ErrTemplateInvalid, http.StatusUnprocessableEntity, codeInvalidInput},
 		{conversation.ErrUnknownVariable, http.StatusUnprocessableEntity, codeInvalidInput},
 		{conversation.ErrOrderNotOfCustomer, http.StatusUnprocessableEntity, codeInvalidInput},
-	}); found {
-		return st, c, true
 	}
-	return matchError(err, []errorMapping{
+}
+
+// sendErrorMappings: lỗi của đường gửi tin, đổi trạng thái, gửi lại, bỏ tin (kiểm sau chatErrorMappings).
+func sendErrorMappings() []errorMapping {
+	return []errorMapping{
 		// Gửi tin (Task 156): yêu cầu sai → 400; Page chỉ xem → 409; ảnh chưa xong, sai mục đích → 422 (kênh không cho
 		// gửi: thân chi tiết ở conversationDetail). Đường dẫn tệp đính kèm (Task 155) dùng cùng hai lỗi 422.
 		{conversation.ErrSendInvalid, http.StatusBadRequest, codeInvalidInput},
@@ -62,7 +68,9 @@ func conversationError(err error) (status int, code string, ok bool) {
 		{conversation.ErrAttachmentRejected, http.StatusUnprocessableEntity, codeAttachmentRejected},
 		// Đọc hộp chat, đổi trạng thái (Task 159): trạng thái lạ → 422 invalid_input.
 		{conversation.ErrInvalidStatus, http.StatusUnprocessableEntity, codeInvalidInput},
-	})
+		// Gửi lại, bỏ tin (Task 157): trạng thái đã đổi (màn hình đang cũ) hay lệnh đang chạy → 409.
+		{conversation.ErrMessageNotRecoverable, http.StatusConflict, codeVersionConflict},
+	}
 }
 
 // conversationDetail: send_not_allowed kèm denyReason và until (hạn của cửa sổ, hay hạn 7 ngày còn gửi được bằng thẻ

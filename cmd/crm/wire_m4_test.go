@@ -92,7 +92,10 @@ func m4CommandKinds(p m4Parts) []string {
 // có kênh Facebook) ghi lệnh ra ngoài nên handler là lệnh command.fb.live_detect trong p.Commands.
 func checkM4Schedules(t *testing.T, env string, facebook bool, p m4Parts) {
 	t.Helper()
-	want := []string{channel.HealthSchedule, channel.SilenceSchedule, channel.BackfillSchedule, channel.GraphVersionSchedule}
+	want := []string{
+		channel.HealthSchedule, channel.SilenceSchedule, channel.BackfillSchedule, channel.GraphVersionSchedule,
+		conversation.SendRevealSchedule,
+	}
 	if facebook {
 		want = append(want, "live.detect")
 	}

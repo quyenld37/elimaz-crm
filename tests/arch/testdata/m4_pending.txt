@@ -3,8 +3,6 @@
 # không có dòng). Đóng mốc (Task 182) đòi tệp này không còn dòng nào.
 replyToComment
 sendPrivateReply
-resendMessage
-discardMessage
 hideComment
 unhideComment
 listFollowUps
