@@ -69,7 +69,8 @@ func wantM4Commands(facebook bool) []string {
 	}
 	want = append(want, conversation.SendMessageKind, // Task 156: gửi tin, mọi cấu hình
 		conversation.ReplyCommentKind, conversation.PrivateReplyKind, conversation.HideCommentKind, // Task 158
-		"command.fb.auto_hide_comment") // Task 165: tự ẩn comment, mọi cấu hình
+		"command.fb.auto_hide_comment", // Task 165: tự ẩn comment, mọi cấu hình
+		"command.fb.auto_send")         // Task 167: gửi tin tự động (tin chào), mọi cấu hình
 	if facebook {
 		want = append(want, "command.fb.live_detect") // Task 170: nhận biết live bằng hỏi định kỳ
 	}

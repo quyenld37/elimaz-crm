@@ -3,6 +3,7 @@ package httpapi
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -63,5 +64,35 @@ func TestAutomationRulesAPI(t *testing.T) {
 	if n := e.staff.CountIn(t, e.tenant, `SELECT count(*) FROM conversation.automation_rules_v WHERE channel_account_id = $1`,
 		e.page1); n != 1 {
 		t.Fatalf("view = %d dòng", n)
+	}
+}
+
+func greetingBody(buttons []string, version int) string {
+	qrs := make([]string, 0, len(buttons))
+	for _, b := range buttons {
+		qrs = append(qrs, fmt.Sprintf(`{"title":%q,"payload":"P"}`, b))
+	}
+	return fmt.Sprintf(`{"enabled":true,"config":{"kind":"greeting","text":"Dạ shop chào mình","quickReplies":[%s]},"expectedVersion":%d}`,
+		strings.Join(qrs, ","), version)
+}
+
+// [Task 167] Tin chào: 14 nút → 400; tiêu đề 21 ký tự → 400 (hợp đồng GreetingConfig); 2 nút → 200, đọc lại đúng nút.
+func TestGreetingRuleAPI(t *testing.T) {
+	t.Parallel()
+	e := newAssignAPIEnv(t)
+	path := "/api/v1/channels/" + e.page1.String() + "/automation-rules/greeting"
+	fourteen := make([]string, 14)
+	for i := range fourteen {
+		fourteen[i] = "Nút"
+	}
+	expect(t, "14 nút", serveAs(e.srv, e.keys, http.MethodPut, path, cvManager, "g1", greetingBody(fourteen, 0)),
+		http.StatusBadRequest, "")
+	expect(t, "tiêu đề 21 ký tự", serveAs(e.srv, e.keys, http.MethodPut, path, cvManager, "g2",
+		greetingBody([]string{strings.Repeat("ữ", 21)}, 0)), http.StatusBadRequest, "")
+	code, s := e.do(http.MethodPut, path, cvManager, "g3", greetingBody([]string{"Tư vấn size", strings.Repeat("ữ", 20)}, 0))
+	cfg, _ := s["config"].(map[string]any)
+	qrs, _ := cfg["quickReplies"].([]any)
+	if code != http.StatusOK || s["version"] != float64(1) || len(qrs) != 2 {
+		t.Fatalf("lưu: %d %v", code, s)
 	}
 }

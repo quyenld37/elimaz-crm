@@ -41,6 +41,7 @@ const (
 	reasonNoAttachment  = "attachment_gone" // ảnh không còn biến thể công khai
 	reasonInDoubt       = "in_doubt"        // không rõ kênh đã nhận chưa
 	reasonExpiredQueued = "expired"         // quá hạn chờ của lệnh mà chưa gửi được
+	reasonAutoDropped   = "auto_dropped"    // tin tự động không rõ đã gửi hay quá 5 phút: đã bỏ
 )
 
 // failTexts là câu tiếng Việt của từng mã lý do (màn hình hiện dưới tin).
@@ -62,6 +63,7 @@ var failTexts = map[string]string{
 	reasonNoAttachment:                      "Ảnh không còn trên kho tệp",
 	reasonInDoubt:                           "Không rõ tin đã tới khách chưa",
 	reasonExpiredQueued:                     "Quá hạn chờ (tin 3 phút, trả lời comment và nhắn riêng 5 phút) mà chưa gửi được",
+	reasonAutoDropped:                       "Tin tự động không gửi kịp hoặc không rõ đã tới khách, đã bỏ (không gửi lại)",
 }
 
 // FailReasonText trả câu tiếng Việt của mã lý do code (fail_reason của tin); mã lạ → câu chung.

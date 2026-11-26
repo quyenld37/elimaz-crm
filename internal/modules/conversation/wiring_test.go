@@ -68,11 +68,14 @@ func TestWiring(t *testing.T) {
 
 // checkCommands: lệnh của conversation theo thứ tự đăng ký: command.fb.fetch_attachment, command.fb.fetch_profile
 // (luôn có, Task 155), command.fb.fetch_post (khi có adapter Facebook), command.fb.send_message hạn 3 phút, ba lệnh
-// comment của Task 158 (luôn có), command.fb.auto_hide_comment (luôn có, Task 165), command.fb.live_detect (khi có
-// adapter Facebook, Task 170), command.fb.live_reconcile (luôn có, Task 171), command.fb.fetch_history (khi có adapter
-// Facebook, Task 164).
+// comment của Task 158 (luôn có), command.fb.auto_hide_comment (luôn có, Task 165), command.fb.auto_send hạn 5 phút
+// (luôn có, Task 167), command.fb.live_detect (khi có adapter Facebook, Task 170), command.fb.live_reconcile (luôn có,
+// Task 171), command.fb.fetch_history (khi có adapter Facebook, Task 164).
 // autoHideKind là lệnh ẩn comment của quy tắc auto_hide (Task 165).
 const autoHideKind = "command.fb.auto_hide_comment"
+
+// autoSendKind là lệnh gửi tin tự động (tin chào, Task 167).
+const autoSendKind = "command.fb.auto_send"
 
 func checkCommands(t *testing.T, d conversation.Deps) {
 	t.Helper()
@@ -80,7 +83,7 @@ func checkCommands(t *testing.T, d conversation.Deps) {
 	reads := []string{"command.fb.fetch_attachment", "command.fb.fetch_profile"}
 	sends := []string{
 		conversation.SendMessageKind, conversation.ReplyCommentKind, conversation.PrivateReplyKind,
-		conversation.HideCommentKind, autoHideKind,
+		conversation.HideCommentKind, autoHideKind, autoSendKind,
 	}
 	want := append(append(slices.Clone(reads), sends...), "command.fb.live_reconcile")
 	if fb {
@@ -95,6 +98,9 @@ func checkCommands(t *testing.T, d conversation.Deps) {
 			conversation.PrivateReplyKind: 5 * time.Minute, conversation.HideCommentKind: time.Hour,
 		}[h.Kind().Name]; ok && h.Kind().Policy.ExpiresAfter != exp {
 			t.Errorf("lệnh %s hạn %v, mong %v", h.Kind().Name, h.Kind().Policy.ExpiresAfter, exp)
+		}
+		if h.Kind().Name == autoSendKind && (h.Kind().Policy.ExpiresAfter != 5*time.Minute || h.Kind().Policy.Timeout != 30*time.Second) {
+			t.Errorf("lệnh %s: %+v, mong hạn 5 phút, 30 giây mỗi lần", autoSendKind, h.Kind().Policy)
 		}
 	}
 	if !slices.Equal(got, want) {

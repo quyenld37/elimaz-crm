@@ -22,6 +22,24 @@ VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, @conversation_
         'out', 'message', 'staff', sqlc.narg(body)::text, @attachments, @sender_staff_id, 'queued', @sent_at)
 RETURNING id;
 
+-- name: InsertAutomatedMessage :one
+-- Tin do quy tắc tự động gửi (tin chào Task 167, nhắn lại Task 168), chờ lệnh command.fb.auto_send (queued); không có
+-- người gửi; quick_replies NULL khi không có nút.
+INSERT INTO conversation.messages (tenant_id, conversation_id, channel_account_id, client_ref, direction, kind, origin,
+                                   body, attachments, quick_replies, send_status, sent_at)
+VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, @conversation_id, @channel_account_id, @client_ref,
+        'out', 'message', 'automation', @body::text, '[]', sqlc.narg(quick_replies)::jsonb, 'queued', @sent_at)
+RETURNING id;
+
+-- name: BumpConversationAutomated :exec
+-- Tin tự động vừa chèn: mốc tin cuối, đoạn trích; không đổi mốc tin nhân viên (tin tự động không phải nhân viên trả
+-- lời: hội thoại vẫn là khách chờ nhân viên), chưa đọc, trạng thái.
+UPDATE conversation.conversations
+SET last_message_at = GREATEST(last_message_at, @at),
+    last_snippet    = CASE WHEN @at >= last_message_at THEN sqlc.narg(snippet)::text ELSE last_snippet END,
+    updated_at      = now()
+WHERE id = @id;
+
 -- name: SetMessageCommandJob :exec
 -- Gắn mã lệnh gửi vào tin vừa chèn.
 UPDATE conversation.messages
@@ -30,7 +48,8 @@ WHERE id = @id;
 
 -- name: GetOutgoingMessage :one
 -- Tin của một lệnh gửi (không khóa): trạng thái, nội dung, ảnh, mốc bấm gửi.
-SELECT id, conversation_id, channel_account_id, client_ref, origin, body, attachments, send_status, fail_reason, sent_at
+SELECT id, conversation_id, channel_account_id, client_ref, origin, body, attachments, quick_replies, send_status,
+       fail_reason, sent_at
 FROM conversation.messages
 WHERE id = @id;
 

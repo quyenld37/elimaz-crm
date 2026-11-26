@@ -236,11 +236,20 @@ func (c hideCommand) OnDone(ctx context.Context, j queue.Job, _ json.RawMessage,
 
 // OnTerminal ghi kết quả cuối của lượt: dead (từ chối, hết lượt) → failed; in_doubt, expired → dropped (không gửi lại).
 func (hideCommand) OnTerminal(ctx context.Context, j queue.Job, status string, tx pgx.Tx) error {
+	return settleRun(ctx, tx, j.ID, status)
+}
+
+// settleRun ghi kết quả cuối của lệnh tự động jobID vào lượt chạy (cả lệnh gửi tự động command.fb.auto_send): done →
+// done; dead → failed; in_doubt, expired → dropped (04 mục 5.3: không rõ thì bỏ, không gửi lại).
+func settleRun(ctx context.Context, tx pgx.Tx, jobID uuid.UUID, status string) error {
 	out := OutcomeDropped
-	if status == queue.StatusDead {
+	switch status {
+	case commands.StatusDone:
+		out = OutcomeDone
+	case queue.StatusDead:
 		out = OutcomeFailed
 	}
-	return finish(ctx, tx, j.ID, out)
+	return finish(ctx, tx, jobID, out)
 }
 
 // finish ghi kết quả out vào lượt chạy của lệnh jobID.

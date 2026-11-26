@@ -204,6 +204,9 @@ func (c sendCommand) prepare(ctx context.Context, tx pgx.Tx, msgID uuid.UUID, no
 		Purpose: channel.PurposeMessage, RecipientID: conv.ExternalThreadRef, Text: m.Body.String, Mode: pol.Mode,
 		ClientRef: uuid.UUID(m.ClientRef.Bytes).String(),
 	}
+	if cmd.QuickReplies, err = quickReplies(m.QuickReplies); err != nil {
+		return prepared{}, reasonRejected, nil //nolint:nilerr // cột hỏng: không gửi được, ghi lý do vào tin
+	}
 	if cmd.ImageURL, err = c.imageURL(ctx, tx, m.Attachments); err != nil {
 		return prepared{}, "", err
 	}
