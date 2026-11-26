@@ -1,5 +1,6 @@
 # CI của CRM (kế hoạch M0 bản 5, Task 23). Chạy đúng `make ci` như máy dev; dựng image chính một lần, gắn nhãn theo
-# mã commit; chạy test trình duyệt của màn hình; mutation testing vùng cao theo lịch tuần.
+# mã commit; chạy test trình duyệt của màn hình; mutation testing vùng cao chỉ chạy bằng tay (Task 493: lượt tới 6 giờ
+# theo lịch tuần tiêu hết 2.000 phút miễn phí mỗi tháng).
 # Luật của tệp này nằm ở tests/deploy/ci_test.go (chạy trong make ci). Chưa chạy trên GitHub: tạo repo, push, branch
 # protection, đẩy image lên registry cần OK riêng của chủ shop (Task 23 bước 7). Tệp này đặt ở gốc repo apps/crm.
 name: ci
@@ -8,14 +9,13 @@ on:
   push:
     branches: [main]
   pull_request:
-  schedule:
-    - cron: "0 19 * * 6" # chủ nhật 02:00 giờ Việt Nam: mutation testing
+  workflow_dispatch: # bấm tay (gh workflow run ci.yml --ref main): chỉ job mutation chạy
 
 permissions:
   contents: read
 
 concurrency:
-  # Tách theo loại sự kiện: lượt theo lịch (mutation, tới 6 giờ) không chặn hay hủy lượt push lên main.
+  # Tách theo loại sự kiện: lượt bấm tay (mutation, tới 6 giờ) không chặn hay hủy lượt push lên main.
   group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
@@ -26,7 +26,7 @@ env:
 
 jobs:
   ci:
-    if: github.event_name != 'schedule'
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -60,7 +60,7 @@ jobs:
         run: make db-reset
 
   image:
-    if: github.event_name != 'schedule'
+    if: github.event_name != 'workflow_dispatch'
     needs: ci
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -80,7 +80,7 @@ jobs:
   # trên máy không có libvips nên `make ci` không thấy; ở đây IMAGER_REQUIRE_VIPS=1 biến SKIP thành đỏ. Dựng stage
   # `test` của docker/imager/Dockerfile (không phải image chính, nên không đụng luật "image chính dựng một lần").
   imager-vips:
-    if: github.event_name != 'schedule'
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -89,7 +89,7 @@ jobs:
         run: make test-imager
 
   console-e2e:
-    if: github.event_name != 'schedule'
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -103,7 +103,7 @@ jobs:
         run: make console-e2e
 
   mutation:
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
