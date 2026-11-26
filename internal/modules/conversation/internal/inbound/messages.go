@@ -49,7 +49,7 @@ type pendingAttachment struct {
 // messageReceived ghi tin khách gửi theo thứ tự khóa của đường vào: Page (nhóm 3) → khách (nhóm 5) → hội thoại →
 // tin (nhóm 6) → cập nhật hội thoại đã khóa → hook → báo hiệu. Tin trùng (cùng mã ngoài) → dừng, không đổi bộ đếm.
 func (h *handler) messageReceived(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, p channel.MessagePayload) error {
-	acc, convID, inserted, ok, err := h.inbox(ctx, tx, e, p)
+	acc, convID, ok, err := h.inbox(ctx, tx, e, p)
 	if err != nil || !ok {
 		return err
 	}
@@ -87,7 +87,7 @@ func (h *handler) messageReceived(ctx context.Context, tx pgx.Tx, e webhooks.Inb
 			return err
 		}
 	}
-	if err := onInboxMessage(ctx, tx, convID, inserted); err != nil {
+	if err := onInboxMessage(ctx, tx, h.d, e, acc, p, msgID, convID); err != nil {
 		return err
 	}
 	return h.publish(ctx, tx, e, acc, convID)
@@ -95,15 +95,14 @@ func (h *handler) messageReceived(ctx context.Context, tx pgx.Tx, e webhooks.Inb
 
 // referral ghi tin hệ thống "khách đến từ quảng cáo hoặc liên kết"; không đổi mốc, chưa đọc của hội thoại.
 func (h *handler) referral(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, p channel.MessagePayload) error {
-	acc, convID, _, ok, err := h.inbox(ctx, tx, e, p)
-	if err != nil || !ok {
+	acc, convID, ok, err := h.inbox(ctx, tx, e, p)
+	if !ok { // lỗi hay Page không có trong shop (ok luôn false khi có lỗi)
 		return err
 	}
-	at := p.SentAt.UTC()
 	_, err = store.New(tx).InsertInboundMessage(ctx, store.InsertInboundMessageParams{
-		ConversationID: convID, ChannelAccountID: acc.ID, ExternalID: text(syntheticID("referral", p.UserID, at)),
+		ConversationID: convID, ChannelAccountID: acc.ID, ExternalID: text(syntheticID("referral", p.UserID, p.SentAt.UTC())),
 		Direction: dirOut, Kind: kindSystem, Origin: originSystem, Body: text(referralBody), Attachments: []byte("[]"),
-		SentAt: at,
+		SentAt: p.SentAt.UTC(),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
@@ -114,14 +113,14 @@ func (h *handler) referral(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, p
 	return h.publish(ctx, tx, e, acc, convID)
 }
 
-// inbox là account rồi thread cho sự kiện p của khách (mốc p.SentAt); ok = false khi Page không có trong shop.
+// inbox là account rồi thread cho sự kiện p của khách (mốc p.SentAt); ok = false khi Page không có trong shop hay có lỗi.
 func (h *handler) inbox(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, p channel.MessagePayload,
-) (acc channel.ChannelAccount, convID uuid.UUID, inserted, ok bool, err error) {
+) (acc channel.ChannelAccount, convID uuid.UUID, ok bool, err error) {
 	if acc, ok, err = h.account(ctx, tx, e, p.PageID); err != nil || !ok {
-		return acc, uuid.Nil, false, ok, err
+		return acc, uuid.Nil, ok && err == nil, err
 	}
-	convID, inserted, err = h.thread(ctx, tx, acc, p.UserID, p.SentAt.UTC())
-	return acc, convID, inserted, err == nil, err
+	convID, _, err = h.thread(ctx, tx, acc, p.UserID, p.SentAt.UTC())
+	return acc, convID, err == nil, err
 }
 
 // syntheticID là mã ngoài của sự kiện kênh không gửi mid (nút bấm, đến từ quảng cáo): cùng người, cùng mốc → cùng mã,

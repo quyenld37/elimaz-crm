@@ -4,8 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/automation"
 	"elimaz.com.vn/crm/internal/platform/webhooks"
 )
@@ -95,10 +93,7 @@ func TestAutoHide_ReadOnlyAndStale(t *testing.T) {
 	if out, rows, jobs := e.run(stale.CommentID); out != string(automation.OutcomeSkippedStale) || rows != 1 || jobs != 0 {
 		t.Fatalf("cũ: lượt %q, %d dòng, %d lệnh", out, rows, jobs)
 	}
-	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
-		_, err := tx.Exec(t.Context(), `UPDATE channel.channel_accounts SET send_mode = 'read_only'`)
-		return err //nolint:wrapcheck // test
-	})
+	e.setSendMode("read_only")
 	ro := e.comment(postA, userA, "0912345678", time.Now().UTC().Add(-time.Minute))
 	e.deliver(ro)
 	if out, rows, jobs := e.run(ro.CommentID); out != string(automation.OutcomeSkippedReadOnly) || rows != 1 || jobs != 0 {

@@ -25,9 +25,17 @@ func (h *handler) onNewConversation(ctx context.Context, tx pgx.Tx, id uuid.UUID
 	return rr.OnNewConversation(ctx, tx, id) //nolint:wrapcheck // assign đã bọc việc đang làm
 }
 
-// onInboxMessage chạy sau mỗi tin khách mới (inserted: hội thoại vừa tạo): lời chào tự động
-// (automation.OnInboxMessage, Task 167). Khung: không làm gì.
-func onInboxMessage(context.Context, pgx.Tx, uuid.UUID, bool) error { return nil }
+// onInboxMessage chạy sau mỗi tin khách mới msgID của hội thoại hộp thư convID: tin chào tự động
+// (automation.OnInboxMessage, Task 167; chỉ khi khách nhắn Page lần đầu). Sự kiện tới bằng đường lịch sử (ViaHistory)
+// không kích hoạt quy tắc.
+func onInboxMessage(ctx context.Context, tx pgx.Tx, d deps.Deps, e webhooks.Inbound, acc channel.ChannelAccount,
+	p channel.MessagePayload, msgID, convID uuid.UUID,
+) error {
+	return automation.OnInboxMessage(ctx, tx, d, msgID, automation.Trigger{ //nolint:wrapcheck // automation đã bọc
+		Account: acc, ConversationID: convID, OccurredAt: p.SentAt.UTC(), IsHistory: e.Via == webhooks.ViaHistory,
+		Text: p.Text,
+	})
+}
 
 // onCommentCreated chạy sau mỗi comment khách mới msgID (chưa xóa): tự ẩn (Task 165), tự trả lời, tự nhắn riêng
 // (Task 166) qua automation.OnCommentCreated. Sự kiện tới bằng đường lịch sử (ViaHistory) không kích hoạt quy tắc.

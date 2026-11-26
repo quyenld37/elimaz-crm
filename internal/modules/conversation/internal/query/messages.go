@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/modules/channel"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/access"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/assign"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/store"
@@ -43,6 +44,7 @@ type Message struct {
 	Direction, Kind, Origin string
 	Body                    string
 	Attachments             []Attachment
+	QuickReplies            []channel.QuickReply
 	SenderID                *uuid.UUID
 	SenderStaffName         string
 	SenderName              string
@@ -164,6 +166,12 @@ type storedAttachment struct {
 	Name   string  `json:"name"`
 }
 
+// storedQuickReply là một nút của cột messages.quick_replies (tin tự động, Task 167).
+type storedQuickReply struct {
+	Title   string `json:"title"`
+	Payload string `json:"payload"`
+}
+
 func messageOf(r store.ListChatMessagesBeforeRow) (Message, error) {
 	var stored []storedAttachment
 	if err := json.Unmarshal(r.Attachments, &stored); err != nil {
@@ -185,6 +193,15 @@ func messageOf(r store.ListChatMessagesBeforeRow) (Message, error) {
 			}
 		}
 		m.Attachments = append(m.Attachments, att)
+	}
+	if len(r.QuickReplies) > 0 { // cột NULL: tin không có nút
+		var qrs []storedQuickReply
+		if err := json.Unmarshal(r.QuickReplies, &qrs); err != nil {
+			return Message{}, fmt.Errorf("đọc nút trả lời nhanh của tin: %w", err)
+		}
+		for _, q := range qrs {
+			m.QuickReplies = append(m.QuickReplies, channel.QuickReply{Title: q.Title, Payload: q.Payload})
+		}
 	}
 	if r.Kind == kindComment {
 		m.PrivateReply = &PrivateReply{State: PrivateReplyNone}

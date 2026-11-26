@@ -122,12 +122,31 @@ func (e *env) setRule(enabled bool, mode string, except ...string) {
 	if err != nil {
 		e.t.Fatal(err)
 	}
+	if err := e.storeRule(automation.KindAutoHide, enabled, cfg); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+// storeRule lưu quy tắc loại kind của Page với cấu hình cfg (đọc version hiện tại); trả lỗi của SaveRule.
+func (e *env) storeRule(kind string, enabled bool, cfg []byte) error {
+	e.t.Helper()
+	var saveErr error
 	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
-		cur, err := automation.LoadRule(e.t.Context(), tx, e.page, automation.KindAutoHide)
+		cur, err := automation.LoadRule(e.t.Context(), tx, e.page, kind)
 		if err != nil {
 			return err //nolint:wrapcheck // test
 		}
-		_, _, err = automation.SaveRule(e.t.Context(), tx, e.page, automation.KindAutoHide, enabled, cfg, cur.Version, e.user)
+		_, _, saveErr = automation.SaveRule(e.t.Context(), tx, e.page, kind, enabled, cfg, cur.Version, e.user)
+		return nil
+	})
+	return saveErr //nolint:wrapcheck // test
+}
+
+// setSendMode đổi chế độ gửi của Page (enabled, read_only).
+func (e *env) setSendMode(mode string) {
+	e.t.Helper()
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(e.t.Context(), `UPDATE channel.channel_accounts SET send_mode = $1`, mode)
 		return err //nolint:wrapcheck // test
 	})
 }

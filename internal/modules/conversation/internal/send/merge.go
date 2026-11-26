@@ -105,33 +105,51 @@ func (c sendCommand) OnDone(ctx context.Context, j queue.Job, raw json.RawMessag
 // lý do lệnh đã ghi; blocked_by_user → hội thoại bị chặn; auth → channel.Writer.ReportTokenInvalid, nhóm 3 nên gọi trước khi
 // khóa hội thoại); expired → expired; in_doubt → checking, send_checking_since = now (lịch send_reveal của Task 157 hiện in_doubt sau 60 giây). Báo hiệu khi đổi.
 func (c sendCommand) OnTerminal(ctx context.Context, j queue.Job, status string, tx pgx.Tx) error {
-	m, ok, err := target(ctx, tx, j)
-	if err != nil || !ok || m.SendStatus.String != statusQueued {
-		return err
-	}
-	now := c.now().UTC()
+	return c.settle(ctx, j, status, tx, false)
+}
+
+// settleParams là trạng thái mới của tin m khi lệnh kết thúc với status lúc now; ok = false: không đổi.
+func settleParams(m store.GetOutgoingMessageRow, status string, auto bool, now time.Time,
+) (store.SettleOutgoingMessageParams, bool) {
 	set := store.SettleOutgoingMessageParams{ID: m.ID}
-	switch status {
-	case queue.StatusDead:
+	switch {
+	case auto && (status == queue.StatusExpired || status == queue.StatusInDoubt):
+		set.SendStatus = pgtype.Text{String: statusDiscarded, Valid: true}
+		set.FailReason = pgtype.Text{String: reasonAutoDropped, Valid: true}
+	case status == queue.StatusDead:
 		set.SendStatus = pgtype.Text{String: statusFailed, Valid: true}
-		if m.FailReason.String == reasonAuth {
-			if err := (channel.Writer{Realtime: c.d.Bus}).ReportTokenInvalid(ctx, tx, m.ChannelAccountID); err != nil {
-				return err //nolint:wrapcheck // channel đã bọc việc đang làm
-			}
-		}
 		if !m.FailReason.Valid {
 			set.FailReason = pgtype.Text{String: reasonRejected, Valid: true}
 		}
-	case queue.StatusExpired:
+	case status == queue.StatusExpired:
 		set.SendStatus = pgtype.Text{String: statusExpired, Valid: true}
 		if !m.FailReason.Valid {
 			set.FailReason = pgtype.Text{String: reasonExpiredQueued, Valid: true}
 		}
-	case queue.StatusInDoubt:
+	case status == queue.StatusInDoubt:
 		set.SendStatus = pgtype.Text{String: statusChecking, Valid: true}
 		set.SendCheckingSince = pgtype.Timestamptz{Time: now, Valid: true}
 	default:
+		return set, false
+	}
+	return set, true
+}
+
+// settle là thân của OnTerminal; auto (lệnh command.fb.auto_send): expired, in_doubt → discarded với lý do
+// reasonAutoDropped (04 mục 5.3: tin tự động không rõ hay quá hạn thì bỏ, không hỏi nhân viên, không gửi lại).
+func (c sendCommand) settle(ctx context.Context, j queue.Job, status string, tx pgx.Tx, auto bool) error {
+	m, ok, err := target(ctx, tx, j)
+	if err != nil || !ok || m.SendStatus.String != statusQueued {
+		return err
+	}
+	set, ok := settleParams(m, status, auto, c.now().UTC())
+	if !ok {
 		return nil
+	}
+	if status == queue.StatusDead && m.FailReason.String == reasonAuth {
+		if err := (channel.Writer{Realtime: c.d.Bus}).ReportTokenInvalid(ctx, tx, m.ChannelAccountID); err != nil {
+			return err //nolint:wrapcheck // channel đã bọc việc đang làm
+		}
 	}
 	if _, err := lock(ctx, tx, m); err != nil {
 		return err

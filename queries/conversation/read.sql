@@ -13,7 +13,7 @@ SELECT m.id, m.conversation_id, m.direction, m.kind, m.origin, m.body, m.attachm
                               FROM conversation.message_revisions AS r WHERE r.message_id = m.id) AS x
         WHERE x.body IS DISTINCT FROM x.after_body)::int AS edited_count,
        pr.id AS private_reply_id, pr.send_status AS private_reply_status, par.id AS parent_id,
-       m.sent_at, m.delivered_at, m.read_at
+       m.sent_at, m.delivered_at, m.read_at, m.quick_replies
 FROM conversation.messages AS m
 LEFT JOIN identity.users_v AS u ON u.id = m.sender_staff_id
 LEFT JOIN conversation.messages AS pr
@@ -37,7 +37,7 @@ SELECT m.id, m.conversation_id, m.direction, m.kind, m.origin, m.body, m.attachm
                               FROM conversation.message_revisions AS r WHERE r.message_id = m.id) AS x
         WHERE x.body IS DISTINCT FROM x.after_body)::int AS edited_count,
        pr.id AS private_reply_id, pr.send_status AS private_reply_status, par.id AS parent_id,
-       m.sent_at, m.delivered_at, m.read_at
+       m.sent_at, m.delivered_at, m.read_at, m.quick_replies
 FROM conversation.messages AS m
 LEFT JOIN identity.users_v AS u ON u.id = m.sender_staff_id
 LEFT JOIN conversation.messages AS pr

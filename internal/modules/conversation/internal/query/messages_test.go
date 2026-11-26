@@ -296,3 +296,31 @@ func TestMarkRead(t *testing.T) {
 		t.Fatalf("tin của hội thoại khác: lỗi %v", err)
 	}
 }
+
+// [Task 167] Tin chào tự động có nút trả lời nhanh → quickReplies đúng thứ tự (tiêu đề, payload); tin không có nút
+// (cột NULL) → rỗng.
+func TestMessages_QuickReplies(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	u := e.user("nut@elimaz.test", e.pageA, "conversation.read")
+	id := e.conv(conv{page: e.pageA, customer: e.customer("Khách nút", "")})
+	base := time.Date(2026, 11, 20, 3, 0, 0, 0, time.UTC)
+	plain := e.msg(msg{conv: id, page: e.pageA, ext: "mid-n1", at: base})
+	var greet uuid.UUID
+	e.scan(&greet, `INSERT INTO conversation.messages (tenant_id, conversation_id, channel_account_id, direction, kind, origin,
+		body, quick_replies, send_status, sent_at)
+		VALUES (current_setting('app.tenant_id')::uuid, $1, $2, 'out', 'message', 'automation', 'Chào mình',
+		        '[{"title":"Tư vấn size","payload":"SIZE"},{"title":"Xem mẫu mới","payload":"NEW"}]', 'sent', $3)
+		RETURNING id`, id, e.pageA, base.Add(time.Second))
+	p, err := e.messages(u, id, nil, nil, 10)
+	if err != nil || len(p.Items) != 2 || p.Items[0].ID != plain || p.Items[1].ID != greet {
+		t.Fatalf("trang: %v (lỗi %v)", msgIDs(p), err)
+	}
+	if len(p.Items[0].QuickReplies) != 0 {
+		t.Fatalf("tin không nút: %v", p.Items[0].QuickReplies)
+	}
+	qr := p.Items[1].QuickReplies
+	if len(qr) != 2 || qr[0].Title != "Tư vấn size" || qr[0].Payload != "SIZE" || qr[1].Title != "Xem mẫu mới" || qr[1].Payload != "NEW" {
+		t.Fatalf("nút: %+v", qr)
+	}
+}

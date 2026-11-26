@@ -144,6 +144,43 @@ func (q *Queries) GetCommentForHide(ctx context.Context, id uuid.UUID) (GetComme
 	return i, err
 }
 
+const greetingEligible = `-- name: GreetingEligible :one
+SELECT (NOT EXISTS (SELECT 1
+                    FROM conversation.messages AS m
+                    WHERE m.conversation_id = c.id
+                      AND m.id <> $1
+                      AND m.kind <> 'system')
+        AND NOT EXISTS (SELECT 1
+                        FROM conversation.conversations AS o
+                        WHERE o.customer_id = c.customer_id
+                          AND o.channel_account_id = c.channel_account_id
+                          AND o.kind = 'inbox'
+                          AND o.id <> c.id))::boolean AS eligible,
+       c.customer_id
+FROM conversation.conversations AS c
+WHERE c.id = $2
+  AND c.kind = 'inbox'
+`
+
+type GreetingEligibleParams struct {
+	MessageID uuid.UUID
+	ID        uuid.UUID
+}
+
+type GreetingEligibleRow struct {
+	Eligible   bool
+	CustomerID uuid.UUID
+}
+
+// Tin chào (Task 167, Q11): hội thoại hộp thư id là lần đầu khách nhắn Page khi ngoài tin vừa nhận message_id hội thoại
+// chỉ có tin hệ thống (đến từ quảng cáo) và khách không có hội thoại hộp thư nào khác với Page này. Kèm mã khách.
+func (q *Queries) GreetingEligible(ctx context.Context, arg GreetingEligibleParams) (GreetingEligibleRow, error) {
+	row := q.db.QueryRow(ctx, greetingEligible, arg.MessageID, arg.ID)
+	var i GreetingEligibleRow
+	err := row.Scan(&i.Eligible, &i.CustomerID)
+	return i, err
+}
+
 const insertAutomationRun = `-- name: InsertAutomationRun :one
 INSERT INTO conversation.automation_runs (tenant_id, rule_id, external_ref, subject_ref, outcome)
 VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2,
