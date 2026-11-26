@@ -3,6 +3,7 @@ package send
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/channel"
+	"elimaz.com.vn/crm/internal/modules/conversation/internal/access"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/deps"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/store"
 	"elimaz.com.vn/crm/internal/platform/commands"
@@ -159,4 +161,38 @@ func (c AutoCommand) report(ctx context.Context, tx pgx.Tx, jobID uuid.UUID, sta
 		return nil
 	}
 	return c.settled(ctx, tx, jobID, status)
+}
+
+// Automated ghi tin nhắn lại tự động chữ text (Task 168) vào hội thoại hộp thư conversationID lúc now qua EnqueueAuto,
+// trong tx tenant của bên gọi; trả mã lệnh command.fb.auto_send. Khóa hội thoại (ADR-46 nhóm 6; bên gọi đã khóa thì
+// khóa lại không đổi gì); hội thoại không có → access.ErrNotFound; không phải hộp thư, chữ rỗng hay quá dài →
+// ErrInvalidInput; Page chỉ xem → ErrReadOnly; SendPolicy không cho tin tự động (hết cửa sổ, khách chặn, chỉ còn thẻ
+// nhân viên) → *NotAllowedError. Không kiểm quyền người: bên gọi là quy tắc tự động.
+func Automated(ctx context.Context, tx pgx.Tx, d deps.Deps, conversationID uuid.UUID, text string, now time.Time,
+) (uuid.UUID, error) {
+	if err := (Input{Text: text}).validate(); err != nil {
+		return uuid.Nil, err
+	}
+	now = now.UTC()
+	c, err := store.New(tx).LockConversationForSend(ctx, conversationID)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return uuid.Nil, access.ErrNotFound
+	case err != nil:
+		return uuid.Nil, fmt.Errorf("khóa hội thoại để gửi tin tự động: %w", err)
+	case c.Kind != kindInbox:
+		return uuid.Nil, ErrInvalidInput
+	}
+	acc, err := channel.Account(ctx, tx, c.ChannelAccountID)
+	if err != nil {
+		return uuid.Nil, err //nolint:wrapcheck // channel đã bọc việc đang làm
+	}
+	pol, err := policyFor(d.Registry, acc, state(conversationRow(c), acc, true), now)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if pol.Mode == channel.SendHumanAgent {
+		return uuid.Nil, &NotAllowedError{Reason: channel.DenyWindowClosed, Until: pol.Until}
+	}
+	return EnqueueAuto(ctx, tx, d, acc, c.ID, AutoInput{Text: text}, now)
 }

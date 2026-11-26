@@ -71,7 +71,7 @@ func wantM4Commands(facebook bool) []string {
 	want = append(want, conversation.SendMessageKind, // Task 156: gửi tin, mọi cấu hình
 		conversation.ReplyCommentKind, conversation.PrivateReplyKind, conversation.HideCommentKind, // Task 158
 		"command.fb.auto_hide_comment",                                   // Task 165: tự ẩn comment, mọi cấu hình
-		"command.fb.auto_send",                                           // Task 167: gửi tin tự động (tin chào), mọi cấu hình
+		conversation.AutoSendKind,                                        // Task 167, 168: gửi tin tự động (tin chào, nhắn lại)
 		"command.fb.auto_reply_comment", "command.fb.auto_private_reply") // Task 166: tự trả lời comment, tự nhắn riêng
 	if facebook {
 		want = append(want, "command.fb.live_detect") // Task 170: nhận biết live bằng hỏi định kỳ
@@ -109,7 +109,7 @@ func checkM4Schedules(t *testing.T, env string, facebook bool, p m4Parts) {
 	t.Helper()
 	want := []string{
 		channel.HealthSchedule, channel.SilenceSchedule, channel.BackfillSchedule, channel.GraphVersionSchedule,
-		conversation.SendRevealSchedule,
+		conversation.SendRevealSchedule, conversation.FollowUpSchedule,
 	}
 	if facebook {
 		want = append(want, "live.detect")

@@ -8,6 +8,8 @@
 //
 // Tự trả lời comment, tự nhắn riêng (Task 166): autoreply.go, lệnh command.fb.auto_reply_comment,
 // command.fb.auto_private_reply (thân lệnh của gói send), việc chuẩn bị task.conversation.auto_private_reply.
+//
+// Nhắn lại (Task 168, followup.go): danh sách khách chưa trả lời và lịch conversation.follow_up của quy tắc follow_up.
 package automation
 
 import (
@@ -15,14 +17,20 @@ import (
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/send"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/schedules"
 )
 
-// Parts là phần chạy nền của phần automation: lệnh ẩn comment tự động (Task 165); lệnh gửi tin tự động (tin chào,
-// Task 167); lệnh tự trả lời comment, tự nhắn riêng và việc chuẩn bị tin riêng tự động (Task 166).
+// KindAutoSendCommand là lệnh gửi tin tự động (tin chào Task 167, nhắn lại Task 168) vào hội thoại hộp thư.
+const KindAutoSendCommand = send.KindAutoSend
+
+// Parts là phần chạy nền của phần automation: lệnh ẩn comment tự động (Task 165); lệnh gửi tin tự động (tin chào
+// Task 167, nhắn lại Task 168; kết quả cuối ghi vào lượt chạy); lệnh tự trả lời comment, tự nhắn riêng và việc chuẩn
+// bị tin riêng tự động (Task 166); lịch nhắn lại conversation.follow_up và việc của nó (Task 168).
 func Parts(d deps.Deps) deps.Parts {
 	return deps.Parts{
 		Commands: append([]commands.Handler{hideCommand{d: d, now: d.Clock()}, send.NewAutoCommand(d, settleRun)},
 			send.AutoCommands(d, settleRun)...),
-		Jobs: []queue.Handler{prepareHandler{d: d}},
+		Jobs:      []queue.Handler{prepareHandler{d: d}, followUpHandler{d: d}},
+		Schedules: []schedules.Schedule{followUpSchedule()},
 	}
 }
