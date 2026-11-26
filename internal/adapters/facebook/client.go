@@ -30,7 +30,8 @@ const (
 	maxReply = 4 << 20
 	// MetricGraphMs là histogram thời gian một lời gọi Graph, nhãn "<METHOD> <đường dẫn đã bỏ mã>".
 	MetricGraphMs = "graph_ms"
-	// MetricGraphErrors là counter lời gọi Graph lỗi, nhãn là mã lỗi Meta, "http_<mã>", "not_sent" hoặc "transport".
+	// MetricGraphErrors là counter lời gọi Graph lỗi, nhãn là mã lỗi Meta, "http_<mã>", "build", "not_sent" hoặc
+	// "transport".
 	MetricGraphErrors = "graph_errors"
 )
 
@@ -45,6 +46,8 @@ type Options struct {
 	// AttachmentHosts là hậu tố tên máy được phép tải tệp đính kèm (fbcdn.net, fbsbx.com…).
 	AttachmentHosts []string
 	Logger          *slog.Logger
+	// OAuthRedirectURL là redirect_uri đã khai với Meta, dùng khi đổi mã đăng nhập lấy token (ExchangeCode).
+	OAuthRedirectURL string
 }
 
 // Client gọi Meta Graph API: mọi lời gọi có appsecret_proof, hạn 10 s, đọc header mức dùng, phân biệt "chắc chắn
@@ -92,7 +95,7 @@ func (c *Client) do(ctx context.Context, method, path string, token logging.Secr
 	})
 	req, err := c.newRequest(ctx, method, path, token, q, body)
 	if err != nil {
-		return Meta{}, &GraphError{Sent: NotSent, Message: "dựng yêu cầu Graph", err: err}
+		return Meta{}, &GraphError{Sent: NotSent, Message: "dựng yêu cầu Graph", build: true, err: err}
 	}
 	resp, err := c.o.HTTP.Do(req)
 	if err != nil {
@@ -187,6 +190,8 @@ func (c *Client) record(ctx context.Context, method, path string, took time.Dura
 
 func errorLabel(ge *GraphError) string {
 	switch {
+	case ge.build:
+		return "build"
 	case ge.Code != 0:
 		return strconv.Itoa(ge.Code)
 	case ge.HTTPStatus != 0:

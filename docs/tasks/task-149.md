@@ -187,3 +187,26 @@ một đồng hồ); đua ngắt/nối lại khóa dòng và kiểm lại trạn
 token (payload, audit, khóa chống trùng chỉ lưu băm thân); module không nhập `net/http`. Ghi chú không bắt buộc: thêm
 `CanConnect` vào Ảnh hưởng (đã thêm); điều kiện `Lookup` của lệnh hủy, worker thiếu Connector, khe đua ngược — đã ghi ở
 Việc phát hiện thêm; `systemUserToken` rỗng — hợp đồng đã chặn (`minLength: 1`, ogen trả 400 trước handler), không sửa.
+
+## Lượt sửa gộp m4
+
+`git merge --no-commit m4` (m4 tại 9820e65, đã có Task 148 và Task 169).
+
+**Xung đột và cách giải (giữ đủ hai phía):**
+- `cmd/crm/wire_m4_test.go`: 149 kiểm lệnh M4 = [đăng ký, hủy đăng ký Page]; 169 kiểm lịch `conversation.reminders` + 1 handler việc nền. Gộp: Inbound + Background phải rỗng, lệnh đúng hai Kind của 149, lịch và việc nền đúng như 169; chú thích gộp cả hai.
+- `internal/httpapi/errors_snapshot_test.go`: giữ cả 7 dòng lỗi channel (149) và 6 dòng lỗi conversation (169).
+
+**Mã trùng (jscpd):** `facebook.SubscribedFields()` (148, `internal/adapters/facebook/health.go`) trùng 6 dòng với `channel.WebhookFields()` (149, `internal/modules/channel/connect.go`), cùng danh sách 11 trường webhook. Module `channel` không được nhập adapter, adapter đã nhập `channel`, nên giữ một nguồn là `channel.WebhookFields()`: xóa `facebook.SubscribedFields`, đổi 2 chỗ dùng trong adapter (`health.go` HealthCheck, `connect.go` Subscribe) và 4 chỗ trong `health_test.go`. Không đổi hành vi (hai danh sách giống hệt, cùng thứ tự).
+
+**Bằng chứng:**
+| Kiểm | Lệnh | Kết quả |
+|---|---|---|
+| Build | `go build ./...` | qua |
+| Vet | `go vet ./cmd/crm/ ./internal/httpapi/ ./internal/modules/channel/... ./internal/adapters/facebook/...` | qua |
+| Lint | `golangci-lint run` 4 thư mục trên | `0 issues.` |
+| Mã trùng | `make jscpd` | trước sửa `Found 1 clones (1 new)`; sau sửa `Found 0 clones.` |
+| Danh mục | `make catalog-check` | không chênh |
+| Test | `go test -race -count=1 ./cmd/crm/ ./internal/httpapi/ ./internal/modules/channel/... ./internal/adapters/facebook/...` | `ok` cả 4 gói (cmd/crm 18.2s, httpapi 41.1s, channel 5.0s, facebook 15.3s) |
+| Kiến trúc | `go test -count=1 ./tests/arch/` | `ok` 108.0s |
+
+**Reviewer (lượt gộp):** ĐẠT, không có phát hiện phải sửa. Giải xung đột giữ đủ hai phía (wire_m4_test: lệnh của 149 + lịch, việc nền của 169; errors_snapshot: 7 dòng channel + 6 dòng conversation); hai danh sách 11 trường giống hệt cùng thứ tự nên thay không đổi hành vi; không còn chỗ dùng `facebook.SubscribedFields` (chỉ còn trong lịch sử `docs/tasks/task-148.md`).

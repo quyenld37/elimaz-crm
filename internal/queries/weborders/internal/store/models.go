@@ -545,6 +545,31 @@ type ContentLookSet struct {
 	UpdatedAt *time.Time
 }
 
+type ConversationCallLog struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	CustomerID     uuid.UUID
+	ConversationID pgtype.UUID
+	OrderID        pgtype.UUID
+	Outcome        string
+	Note           pgtype.Text
+	CallbackAt     *time.Time
+	CreatedBy      uuid.UUID
+	CreatedAt      time.Time
+}
+
+type ConversationCallLogsV struct {
+	TenantID       uuid.UUID
+	ID             uuid.UUID
+	CustomerID     uuid.UUID
+	ConversationID pgtype.UUID
+	OrderID        pgtype.UUID
+	Outcome        string
+	CallbackAt     *time.Time
+	CreatedBy      uuid.UUID
+	CreatedAt      time.Time
+}
+
 type ConversationConversation struct {
 	ID                    uuid.UUID
 	TenantID              uuid.UUID
@@ -670,6 +695,21 @@ type ConversationPost struct {
 	Snippet          pgtype.Text
 	CreatedTime      *time.Time
 	FetchedAt        *time.Time
+}
+
+type ConversationReminder struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	ConversationID uuid.UUID
+	UserID         uuid.UUID
+	RemindAt       time.Time
+	Note           pgtype.Text
+	Status         string
+	Source         string
+	CreatedBy      uuid.UUID
+	FiredAt        *time.Time
+	Version        int32
+	CreatedAt      time.Time
 }
 
 type ConversationTag struct {
