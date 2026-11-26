@@ -10,7 +10,8 @@ import (
 
 // wireM4: kênh nhắn tin giả fakechat (Task 145) có ngoài production; kênh Facebook khi Meta bật và có app secret (Task
 // 148, nối ở Task 153); production không cấu hình Meta thì không có kênh nào. Mỗi nguồn có đúng một handler vào của
-// conversation (Task 153); lệnh: chỉ đăng ký, hủy đăng ký webhook của Page (Task 149); chưa có luồng nền; lịch là
+// conversation (Task 153); lệnh: đăng ký, hủy đăng ký webhook của Page (Task 149), đọc bài khi có kênh Facebook
+// (Task 154); chưa có luồng nền; lịch là
 // conversation.presence_cleanup (Task 163) và conversation.reminders (Task 169), mỗi lịch một handler cùng Kind; ingest
 // vẫn dựng được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng → lỗi khởi động.
 func TestWireM4_Frame(t *testing.T) {
@@ -41,7 +42,11 @@ func TestWireM4_Frame(t *testing.T) {
 		if len(p.Background) != 0 {
 			t.Errorf("%s: khung M4 chưa được có luồng nền: %+v", c.cfg.Env, p)
 		}
-		if cmds := m4CommandKinds(p); !slices.Equal(cmds, []string{channel.SubscribePageKind, channel.UnsubscribePageKind}) {
+		wantCmds := []string{channel.SubscribePageKind, channel.UnsubscribePageKind}
+		if slices.Contains(c.keys, "facebook") {
+			wantCmds = append(wantCmds, "command.fb.fetch_post") // Task 154: đọc bài của comment (kênh đọc được bài)
+		}
+		if cmds := m4CommandKinds(p); !slices.Equal(cmds, wantCmds) {
 			t.Errorf("%s: lệnh M4 = %v", c.cfg.Env, cmds)
 		}
 		checkM4Schedules(t, c.cfg.Env, p)

@@ -2,6 +2,7 @@ package inbound_test
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"log/slog"
 	"os"
@@ -18,8 +19,10 @@ import (
 	"elimaz.com.vn/crm/internal/modules/channel"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/deps"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/inbound"
+	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/fieldcrypt"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/queue"
@@ -28,6 +31,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/platform/webhooks"
 	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/testkit/fakegraph"
 )
 
 const (
@@ -72,10 +76,25 @@ type env struct {
 	reg          *metrics.Registry
 	logs         *syncBuffer
 	handlers     []queue.Handler
-	worker       *queue.Worker
+	// runner chạy lệnh của inbound (fetch_post) khi env dựng với máy Meta giả (newEnvWith); nil: lệnh giữ pending.
+	runner *commands.Runner
+	// deps là phụ thuộc handler vào dùng (lấy lại Parts trong test).
+	deps   deps.Deps
+	worker *queue.Worker
 }
 
 func newEnv(t *testing.T) *env {
+	t.Helper()
+	return newEnvWith(t, nil)
+}
+
+// fgToken là token Page 1 trên máy Meta giả (newEnvWith).
+const fgToken = "EAAG-page-1-token"
+
+// newEnvWith là newEnv; fg khác nil: adapter facebook gọi máy Meta giả fg (Page 1 có trên fg với token fgToken, token
+// lưu mã hóa ở tài khoản Page 1), d.Registry có hai adapter (handler vào xếp lệnh đọc bài), worker chạy lệnh của
+// inbound.
+func newEnvWith(t *testing.T, fg *fakegraph.Server) *env {
 	t.Helper()
 	staff := testkit.OpenStaff(t)
 	e := &env{t: t, staff: staff, tenant: staff.Tenant(t, "A"), bus: &realtimetest.RecordingBus{}, reg: metrics.NewRegistry(), logs: &syncBuffer{}}
@@ -86,7 +105,27 @@ func newEnv(t *testing.T) *env {
 		DB: staff.App, Queue: queue.NewQueue(), Bus: e.bus, Events: events.NewRegistry(), Metrics: e.reg,
 		Config: config.Config{Meta: config.MetaConfig{AppID: ownAppID}},
 	}
-	sources := []webhooks.Source{facebook.New(facebook.Options{AppSecret: logging.Secret(secret32), VerifyToken: logging.Secret(secret32 + secret32)}), fake.New(secret32)}
+	fbOpts := facebook.Options{AppSecret: logging.Secret(secret32), VerifyToken: logging.Secret(secret32 + secret32)}
+	if fg != nil {
+		fg.AddPage(fakegraph.Page{ID: pageExt1, Name: "Page 1", Token: fgToken})
+		fbOpts.BaseURL, fbOpts.StreamingBaseURL, fbOpts.Version, fbOpts.HTTP = fg.URL(), fg.URL(), "v26.0", fg.Client()
+	}
+	fb, fk := facebook.New(fbOpts), fake.New(secret32)
+	sources := []webhooks.Source{fb, fk}
+	if fg != nil {
+		reg, err := channel.NewRegistry(fb, fk)
+		// Khóa mã hóa token thử: 32 byte của secret32.
+		kr, kerr := fieldcrypt.ParseKeyring(logging.Secret("k1:" + base64.StdEncoding.EncodeToString([]byte(secret32))))
+		if err != nil || kerr != nil {
+			t.Fatal(err, kerr)
+		}
+		d.Registry, d.Keys = reg, kr
+		staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+			return channel.StoreCredentials(t.Context(), tx, d.Keys, e.page1, logging.Secret(fgToken), "page_user")
+		})
+		e.runner = commands.NewRunner(staff.App, inbound.Parts(d).Commands)
+	}
+	e.deps = d
 	hs, err := webhooks.InboundJobHandlers(sources, []webhooks.InboundHandler{inbound.NewHandler(d, facebook.Key), inbound.NewHandler(d, fake.Key)})
 	if err != nil {
 		t.Fatal(err)
@@ -99,7 +138,11 @@ func newEnv(t *testing.T) *env {
 // newWorker dựng một worker của các handler vào, log mức debug vào e.logs.
 func (e *env) newWorker(id string) *queue.Worker {
 	logger := slog.New(slog.NewTextHandler(e.logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	return queue.NewWorker(e.staff.App, e.handlers, queue.WorkerOptions{WorkerID: id, Logger: logger, Metrics: e.reg, Concurrency: 4})
+	o := queue.WorkerOptions{WorkerID: id, Logger: logger, Metrics: e.reg, Concurrency: 4}
+	if e.runner != nil {
+		o.Commands = e.runner
+	}
+	return queue.NewWorker(e.staff.App, e.handlers, o)
 }
 
 // at là mốc thử cố định (giờ Meta), cộng thêm sec giây.

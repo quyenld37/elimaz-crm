@@ -17,7 +17,6 @@ setConversationStatus
 getAttachmentUrl
 replyToComment
 sendPrivateReply
-listMessageRevisions
 resendMessage
 discardMessage
 hideComment
