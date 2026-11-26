@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/channel"
+	"elimaz.com.vn/crm/internal/modules/conversation/internal/deps"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/store"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/webhooks"
@@ -161,7 +162,7 @@ func (h *handler) bumpForComment(ctx context.Context, tx pgx.Tx, p channel.Comme
 		return nil
 	}
 	q := store.New(tx)
-	snip := text(snippet(p.Text, p.PhotoURL != ""))
+	snip := text(deps.Snippet(p.Text, p.PhotoURL != ""))
 	if p.FromPage {
 		if err := q.BumpConversationOutbound(ctx, store.BumpConversationOutboundParams{At: at, Snippet: snip, ID: convID}); err != nil {
 			return fmt.Errorf("cập nhật hội thoại sau comment của Page: %w", err)

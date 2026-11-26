@@ -37,7 +37,7 @@ func newHarness() *harness {
 	return &harness{a: fake.New(secret), fx: map[string][]fake.Event{
 		"messages": {
 			ev("e1", "message", func(e *fake.Event) { e.MID, e.Text = "m1", "còn size M không" }),
-			ev("e2", "echo", func(e *fake.Event) { e.MID, e.Metadata = "m2", "ref-1" }),
+			ev("e2", "echo", func(e *fake.Event) { e.MID, e.Metadata, e.AppID = "m2", "ref-1", fake.Key }),
 			ev("e3", "delivered", func(e *fake.Event) { e.MIDs = []string{"m2"} }),
 			ev("e4", "read", nil),
 			ev("e5", "reaction", func(e *fake.Event) { e.MID, e.Reaction, e.Action = "m2", "love", "react" }),
@@ -144,7 +144,7 @@ func TestSplit_Payload(t *testing.T) {
 	if err := json.Unmarshal(r.Events[0].Payload, &m); err != nil || m.Text != "còn size M không" || m.MID != "m1" || m.IsEcho || !m.SentAt.Equal(t0()) {
 		t.Fatalf("tin vào = %+v, %v", m, err)
 	}
-	if err := json.Unmarshal(r.Events[1].Payload, &m); err != nil || !m.IsEcho || m.Metadata != "ref-1" {
+	if err := json.Unmarshal(r.Events[1].Payload, &m); err != nil || !m.IsEcho || m.Metadata != "ref-1" || m.EchoAppID != fake.Key {
 		t.Fatalf("echo = %+v, %v", m, err)
 	}
 	if r.Events[0].Route.Kind != fake.RouteKind {

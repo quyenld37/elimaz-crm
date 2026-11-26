@@ -79,11 +79,16 @@ func NewSendModeAlertCommand(a observability.Alerter, logger *slog.Logger) comma
 // NewSubscribeAlertCommand trả lệnh SubscribeAlertKind: cảnh báo gấp key "channel-subscribe:<accountId>", văn bản có
 // tên Page, kênh, mã tài khoản (không token); như NewSendModeAlertCommand.
 func NewSubscribeAlertCommand(a observability.Alerter, logger *slog.Logger) commands.Handler { //nolint:ireturn // Runner nhận Handler
+	return urgentPageAlert(SubscribeAlertKind, "channel-subscribe:", "không đăng ký nhận tin được", a, logger)
+}
+
+// urgentPageAlert là lệnh cảnh báo gấp theo Page: key = keyPrefix + mã tài khoản, văn bản "Page <tên> (<kênh>, tài
+// khoản <mã>) <problem>: quản trị cần kết nối lại Page" (không token).
+func urgentPageAlert(kind, keyPrefix, problem string, a observability.Alerter, logger *slog.Logger) accountAlert {
 	return accountAlert{
-		kind: SubscribeAlertKind, key: "channel-subscribe:", severity: severityUrgent, a: a, log: logger,
+		kind: kind, key: keyPrefix, severity: severityUrgent, a: a, log: logger,
 		text: func(p alertPayload) string {
-			return fmt.Sprintf("Page %s (%s, tài khoản %s) không đăng ký nhận tin được: quản trị cần kết nối lại Page",
-				p.Name, p.Channel, p.AccountID)
+			return fmt.Sprintf("Page %s (%s, tài khoản %s) %s: quản trị cần kết nối lại Page", p.Name, p.Channel, p.AccountID, problem)
 		},
 	}
 }

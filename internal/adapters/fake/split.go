@@ -12,15 +12,18 @@ import (
 // Event là một sự kiện trong gói webhook kênh giả. Type: message, echo, delivered, read, reaction, edit, comment,
 // live, policy; loại khác vào Skipped. ID duy nhất mỗi sự kiện (khóa chống trùng).
 type Event struct {
-	ID          string    `json:"id"`
-	Type        string    `json:"type"`
-	PageID      string    `json:"pageId"`
-	UserID      string    `json:"userId,omitempty"`
-	MID         string    `json:"mid,omitempty"`
-	MIDs        []string  `json:"mids,omitempty"`
-	Text        string    `json:"text,omitempty"`
-	QuickReply  string    `json:"quickReply,omitempty"`
-	Metadata    string    `json:"metadata,omitempty"`
+	ID         string   `json:"id"`
+	Type       string   `json:"type"`
+	PageID     string   `json:"pageId"`
+	UserID     string   `json:"userId,omitempty"`
+	MID        string   `json:"mid,omitempty"`
+	MIDs       []string `json:"mids,omitempty"`
+	Text       string   `json:"text,omitempty"`
+	QuickReply string   `json:"quickReply,omitempty"`
+	Metadata   string   `json:"metadata,omitempty"`
+	// AppID là ứng dụng đã gửi tin của echo: "fakechat" (khóa kênh giả) = tin của CRM; rỗng hay khác = Page gửi ngoài CRM
+	// (cùng quy ước với đường vào, tệp task-153 Quyết định 3).
+	AppID       string    `json:"appId,omitempty"`
 	Reaction    string    `json:"reaction,omitempty"`
 	PostID      string    `json:"postId,omitempty"`
 	CommentID   string    `json:"commentId,omitempty"`
@@ -74,10 +77,14 @@ func (*Chat) Split(raw []byte) (webhooks.SplitResult, error) {
 func normalize(e Event) (typ, order string, payload any, ok bool) {
 	at := e.At.UTC()
 	msg := func(echo bool) channel.MessagePayload {
-		return channel.MessagePayload{
+		p := channel.MessagePayload{
 			PageID: e.PageID, UserID: e.UserID, MID: e.MID, Text: e.Text, QuickReplyPayload: e.QuickReply,
 			Metadata: e.Metadata, IsEcho: echo, SentAt: at,
 		}
+		if echo {
+			p.EchoAppID = e.AppID
+		}
+		return p
 	}
 	user := "user:" + e.UserID
 	switch e.Type {

@@ -4,6 +4,7 @@ package deps
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"elimaz.com.vn/crm/internal/modules/channel"
@@ -39,6 +40,14 @@ type Deps struct {
 	Config config.Config
 }
 
+// Clock là đồng hồ của Deps: Now, hoặc time.Now khi Now nil.
+func (d Deps) Clock() func() time.Time {
+	if d.Now == nil {
+		return time.Now
+	}
+	return d.Now
+}
+
 // Parts là phần chạy nền một phần của conversation khai; phần tử nil được bỏ khi gom.
 type Parts struct {
 	Inbound    []webhooks.InboundHandler
@@ -54,3 +63,24 @@ const (
 	TopicConversationChanged = "conversation.changed"
 	EntityConversation       = "conversation"
 )
+
+const (
+	// snippetRunes là độ dài đoạn trích tin cuối của hội thoại.
+	snippetRunes = 80
+	// attachmentSnippet là đoạn trích của tin chỉ có tệp đính kèm.
+	attachmentSnippet = "[Tệp đính kèm]"
+)
+
+// Snippet là đoạn trích tin cuối của hội thoại (cột last_snippet; tin vào, echo, tin nhân viên gửi đều dùng):
+// snippetRunes ký tự đầu của nội dung (bỏ khoảng trắng hai đầu); không có chữ mà có đính kèm → attachmentSnippet;
+// không gì → rỗng (NULL).
+func Snippet(body string, hasAttachments bool) string {
+	s := strings.TrimSpace(body)
+	if s == "" && hasAttachments {
+		return attachmentSnippet
+	}
+	if r := []rune(s); len(r) > snippetRunes {
+		return string(r[:snippetRunes])
+	}
+	return s
+}

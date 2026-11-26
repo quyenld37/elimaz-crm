@@ -1,6 +1,7 @@
 package conversation_test
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -11,15 +12,18 @@ import (
 	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
-// Không có bộ adapter: không handler vào, lệnh, luồng nền. Có bộ adapter: mỗi adapter đúng một handler vào cùng khóa
-// (Task 153). Phần chạy nền luôn có lịch conversation.presence_cleanup (Task 163) và conversation.reminders (Task 169),
-// mỗi lịch theo tenant, 60 s, đúng một handler cùng Kind.
+// Không có bộ adapter: không handler vào, luồng nền. Có bộ adapter: mỗi adapter đúng một handler vào cùng khóa
+// (Task 153). Lệnh luôn có command.fb.send_message (Task 156; không có adapter thì lệnh từ chối tin còn chờ), thêm
+// command.fb.fetch_post khi có adapter đọc được bài (Task 154). Phần chạy nền luôn có lịch
+// conversation.presence_cleanup (Task 163) và conversation.reminders (Task 169), mỗi lịch theo tenant, 60 s, đúng một
+// handler cùng Kind.
 func TestWiring(t *testing.T) {
 	t.Parallel()
 	d := conversation.Deps{}
-	if n := len(conversation.InboundHandlers(d)) + len(conversation.CommandHandlers(d)) + len(conversation.Background(d)); n != 0 {
-		t.Errorf("không bộ adapter mà có %d handler vào, lệnh, luồng nền", n)
+	if n := len(conversation.InboundHandlers(d)) + len(conversation.Background(d)); n != 0 {
+		t.Errorf("không bộ adapter mà có %d handler vào, luồng nền", n)
 	}
+	checkCommands(t, d)
 	checkReminders(t, d)
 	reg, err := channel.NewRegistry(fake.New("0123456789abcdef0123456789abcdef"))
 	if err != nil {
@@ -30,9 +34,10 @@ func TestWiring(t *testing.T) {
 	if len(hs) != 1 || hs[0].Source() != fake.Key {
 		t.Errorf("handler vào: %d, mong 1 của %s", len(hs), fake.Key)
 	}
-	if n := len(conversation.CommandHandlers(d)) + len(conversation.Background(d)); n != 0 {
-		t.Errorf("lệnh, luồng nền: %d, mong 0", n)
+	if n := len(conversation.Background(d)); n != 0 {
+		t.Errorf("luồng nền: %d, mong 0", n)
 	}
+	checkCommands(t, d)
 	checkReminders(t, d)
 	// Có adapter đọc được bài (facebook, Task 154): thêm đúng lệnh command.fb.fetch_post.
 	reg, err = channel.NewRegistry(fake.New("0123456789abcdef0123456789abcdef"), facebook.New(facebook.Options{}))
@@ -40,8 +45,27 @@ func TestWiring(t *testing.T) {
 		t.Fatal(err)
 	}
 	d.Registry = reg
-	if cmds := conversation.CommandHandlers(d); len(cmds) != 1 || cmds[0].Kind().Name != "command.fb.fetch_post" {
+	if cmds := conversation.CommandHandlers(d); len(cmds) != 2 || cmds[0].Kind().Name != "command.fb.fetch_post" {
 		t.Errorf("lệnh khi có adapter đọc bài: %d", len(cmds))
+	}
+	checkCommands(t, d)
+}
+
+// checkCommands: lệnh cuối của conversation là command.fb.send_message, hạn 3 phút; ngoài nó chỉ có
+// command.fb.fetch_post khi có adapter đọc được bài.
+func checkCommands(t *testing.T, d conversation.Deps) {
+	t.Helper()
+	cs := conversation.CommandHandlers(d)
+	want := 1
+	if d.Registry != nil && slices.Contains(d.Registry.Keys(), facebook.Key) {
+		want = 2
+	}
+	if len(cs) != want {
+		t.Fatalf("lệnh: %d, mong %d", len(cs), want)
+	}
+	last := cs[len(cs)-1].Kind()
+	if last.Name != conversation.SendMessageKind || last.Policy.ExpiresAfter != 3*time.Minute {
+		t.Errorf("lệnh cuối: %s, mong %s hạn 3 phút", last.Name, conversation.SendMessageKind)
 	}
 }
 

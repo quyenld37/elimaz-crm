@@ -52,11 +52,7 @@ func NewHandler(d deps.Deps, source string) webhooks.InboundHandler { //nolint:i
 	if source == sourceFacebook {
 		own = d.Config.Meta.AppID
 	}
-	now := d.Now
-	if now == nil {
-		now = time.Now
-	}
-	return &handler{d: d, source: source, ownAppID: own, now: now}
+	return &handler{d: d, source: source, ownAppID: own, now: d.Clock()}
 }
 
 func (h *handler) Source() string { return h.source }

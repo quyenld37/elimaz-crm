@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/ogenerrors"
@@ -86,6 +87,9 @@ type errorBody struct {
 	VariantIDs []string        `json:"variantIds,omitempty"`
 	// Chỉ có ở template_variable_missing (M4 Task 161): tên biến của mẫu thiếu giá trị.
 	Name *string `json:"name,omitempty"`
+	// Chỉ có ở send_not_allowed (M4, Task 156): lý do chính sách gửi của kênh và hạn cửa sổ.
+	DenyReason *string    `json:"denyReason,omitempty"`
+	Until      *time.Time `json:"until,omitempty"`
 }
 
 // writeError ghi lỗi theo dạng duy nhất {"error": "<mã>", "request_id": "<id>"}; không bao giờ có vết lỗi.
@@ -235,6 +239,9 @@ func detailedError(err error) (errorBody, int, bool) {
 	if e, ok := errors.AsType[*conversation.VariableMissingError](err); ok {
 		name := e.Name
 		return errorBody{Error: codeTemplateVariableMissing, Name: &name}, http.StatusUnprocessableEntity, true
+	}
+	if body, status, ok := conversationDetail(err); ok {
+		return body, status, true
 	}
 	if e, ok := errors.AsType[*order.SettingOutOfRangeError](err); ok {
 		field := string(e.Field)

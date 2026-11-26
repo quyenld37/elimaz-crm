@@ -288,3 +288,20 @@ func TestSend_Outcomes(t *testing.T) {
 		t.Error("Detail chứa token")
 	}
 }
+
+// Tin đã gửi khi Meta báo mức dùng ≥ 80% → RetryAfter > 0 (bên gọi giãn lần gửi sau, spec 02 mục 6); dưới 80% → 0
+// (tệp task-156, Quyết định 5).
+func TestSend_SlowDownHint(t *testing.T) {
+	t.Parallel()
+	e := newOutEnv(t)
+	for _, tc := range []struct {
+		pct  int
+		slow bool
+	}{{85, true}, {79, false}} {
+		e.fg.SetUsagePct(tc.pct)
+		out := e.send(t, channel.OutboundCommand{Purpose: channel.PurposeMessage, RecipientID: testPSID, Text: "chào", Mode: channel.SendStandard})
+		if out.Status != channel.OutcomeSent || (out.RetryAfter > 0) != tc.slow {
+			t.Errorf("mức dùng %d%%: %+v", tc.pct, out)
+		}
+	}
+}

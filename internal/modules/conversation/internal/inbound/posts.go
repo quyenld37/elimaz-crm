@@ -127,11 +127,7 @@ type fetchPost struct {
 }
 
 func newFetchPost(d deps.Deps) fetchPost {
-	now := d.Now
-	if now == nil {
-		now = time.Now
-	}
-	return fetchPost{d: d, now: now}
+	return fetchPost{d: d, now: d.Clock()}
 }
 
 func (fetchPost) Kind() queue.Kind       { return fetchPostKind() }
