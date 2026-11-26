@@ -49,7 +49,11 @@ func (h *handler) echo(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, p cha
 	if err != nil {
 		return err
 	}
-	atts, err := pendingAttachments(p.Attachments)
+	refs := p.Attachments
+	if origin == originOwnEchoUnmatched {
+		refs = withoutURLs(refs) // ảnh CRM vừa gửi: đã có tệp, Task 156 gộp rồi xóa dòng này (tệp task-155, Quyết định 5)
+	}
+	atts, err := pendingAttachments(refs)
 	if err != nil {
 		return err
 	}
@@ -69,9 +73,19 @@ func (h *handler) echo(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, p cha
 		return fmt.Errorf("cập nhật hội thoại sau tin Page gửi: %w", err)
 	}
 	if len(p.Attachments) > 0 {
-		if err := OnInboundAttachments(ctx, tx, msgID, p.Attachments); err != nil {
+		if err := OnInboundAttachments(ctx, tx, h.d.Queue, acc.TenantID, msgID, refs); err != nil {
 			return err
 		}
 	}
 	return h.publish(ctx, tx, e, acc, convID)
+}
+
+// withoutURLs là bản sao refs không có URL (mục giữ pending, không lệnh tải).
+func withoutURLs(refs []channel.AttachmentRef) []channel.AttachmentRef {
+	out := make([]channel.AttachmentRef, len(refs))
+	for i, r := range refs {
+		r.URL = ""
+		out[i] = r
+	}
+	return out
 }

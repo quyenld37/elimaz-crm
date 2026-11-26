@@ -62,11 +62,13 @@ type Chat struct {
 	mu       sync.Mutex
 	behavior string
 	sent     []SentMessage
+
+	cdn *cdn // tệp, hồ sơ trong bộ nhớ (fetch.go)
 }
 
 // New dựng kênh giả với bí mật webhook secret (rỗng: mọi chữ ký sai).
 func New(secret string) *Chat {
-	return &Chat{secret: secret, now: time.Now, behavior: "ok"}
+	return &Chat{secret: secret, now: time.Now, behavior: "ok", cdn: newCDN()}
 }
 
 // Key là khóa kênh giả (fakechat).

@@ -17,8 +17,8 @@ const (
 	codeTemplateVariableMissing = "template_variable_missing" // kèm name (detailedError, errors.go)
 	codeChannelReadOnly         = "channel_read_only"         // Page chỉ xem (Task 156, MO03)
 	codeSendNotAllowed          = "send_not_allowed"          // chính sách gửi của kênh không cho (Task 156, CH09)
-	codeAttachmentNotReady      = "attachment_not_ready"      // ảnh gửi kèm chưa xử lý xong (Task 156)
-	codeAttachmentRejected      = "attachment_rejected"       // tệp gửi kèm sai mục đích hay bị từ chối (Task 156)
+	codeAttachmentNotReady      = "attachment_not_ready"      // ảnh gửi kèm, tệp đính kèm chưa xử lý xong (Task 156, 155)
+	codeAttachmentRejected      = "attachment_rejected"       // tệp sai mục đích hay bị kho tệp từ chối (Task 156, 155)
 )
 
 // conversationError đổi lỗi nghiệp vụ của hộp chat sang mã HTTP. ErrNotFound: không có, hay trên Page người gọi không
@@ -49,7 +49,7 @@ func conversationError(err error) (status int, code string, ok bool) {
 		{conversation.ErrUnknownVariable, http.StatusUnprocessableEntity, codeInvalidInput},
 		{conversation.ErrOrderNotOfCustomer, http.StatusUnprocessableEntity, codeInvalidInput},
 		// Gửi tin (Task 156): yêu cầu sai → 400; Page chỉ xem → 409; ảnh chưa xong, sai mục đích → 422 (kênh không cho
-		// gửi: thân chi tiết ở conversationDetail).
+		// gửi: thân chi tiết ở conversationDetail). Đường dẫn tệp đính kèm (Task 155) dùng cùng hai lỗi 422.
 		{conversation.ErrSendInvalid, http.StatusBadRequest, codeInvalidInput},
 		{conversation.ErrChannelReadOnly, http.StatusConflict, codeChannelReadOnly},
 		{conversation.ErrAttachmentNotReady, http.StatusUnprocessableEntity, codeAttachmentNotReady},

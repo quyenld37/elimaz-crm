@@ -138,7 +138,7 @@ func (h *handler) afterCommentInserted(ctx context.Context, tx pgx.Tx, e webhook
 		return err
 	}
 	if len(refs) > 0 {
-		if err := OnInboundAttachments(ctx, tx, msgID, refs); err != nil {
+		if err := OnInboundAttachments(ctx, tx, h.d.Queue, acc.TenantID, msgID, refs); err != nil {
 			return err
 		}
 	}
@@ -204,7 +204,7 @@ func (h *handler) commentThread(ctx context.Context, tx pgx.Tx, e webhooks.Inbou
 		return uuid.Nil, uuid.Nil, false, fmt.Errorf("ghi hội thoại comment: %w", err)
 	}
 	if cc.Created {
-		if err := OnNewCustomer(ctx, tx, cc.CustomerID, row.ID); err != nil {
+		if err := OnNewCustomer(ctx, tx, h.d.Queue, acc.TenantID, cc.CustomerID, row.ID); err != nil {
 			return uuid.Nil, uuid.Nil, false, err
 		}
 	}
