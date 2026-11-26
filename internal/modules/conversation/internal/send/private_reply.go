@@ -111,14 +111,9 @@ func inboxOf(ctx context.Context, tx pgx.Tx, id uuid.UUID) (store.GetConversatio
 	case err != nil:
 		return th, uuid.Nil, fmt.Errorf("đọc hội thoại comment: %w", err)
 	}
-	inbox, err := q.FindInboxForCommenter(ctx, store.FindInboxForCommenterParams{
-		ChannelAccountID: th.ChannelAccountID, ThreadRef: commenterOf(th.ExternalThreadRef), CustomerID: th.CustomerID,
-	})
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		return th, uuid.Nil, nil
-	case err != nil:
-		return th, uuid.Nil, fmt.Errorf("tìm hội thoại hộp thư của khách: %w", err)
+	inbox, err := findInbox(ctx, q, th)
+	if err != nil || inbox == uuid.Nil {
+		return th, inbox, err
 	}
 	if bytes.Compare(inbox[:], th.ID[:]) < 0 {
 		if _, err := q.LockConversationForSend(ctx, inbox); err != nil {
@@ -126,6 +121,36 @@ func inboxOf(ctx context.Context, tx pgx.Tx, id uuid.UUID) (store.GetConversatio
 		}
 	}
 	return th, inbox, nil
+}
+
+// findInbox trả hội thoại hộp thư sẽ nhận tin riêng của hội thoại comment th (đúng khóa luồng = mã người comment,
+// không có thì hộp thư mới nhất của khách trên Page); uuid.Nil khi chưa có. Không khóa.
+func findInbox(ctx context.Context, q *store.Queries, th store.GetConversationThreadRow) (uuid.UUID, error) {
+	inbox, err := q.FindInboxForCommenter(ctx, store.FindInboxForCommenterParams{
+		ChannelAccountID: th.ChannelAccountID, ThreadRef: commenterOf(th.ExternalThreadRef), CustomerID: th.CustomerID,
+	})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return uuid.Nil, nil
+	case err != nil:
+		return uuid.Nil, fmt.Errorf("tìm hội thoại hộp thư của khách: %w", err)
+	}
+	return inbox, nil
+}
+
+// InboxFor trả hội thoại hộp thư sẽ nhận tin riêng của hội thoại comment id (uuid.Nil: chưa có), không khóa: bên gọi
+// khóa cùng hội thoại comment theo id tăng dần trước khi gọi AskAddress (chốt comment live, Task 172). Không có hội
+// thoại → access.ErrNotFound.
+func InboxFor(ctx context.Context, tx pgx.Tx, id uuid.UUID) (uuid.UUID, error) {
+	q := store.New(tx)
+	th, err := q.GetConversationThread(ctx, id)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return uuid.Nil, access.ErrNotFound
+	case err != nil:
+		return uuid.Nil, fmt.Errorf("đọc hội thoại comment: %w", err)
+	}
+	return findInbox(ctx, q, th)
 }
 
 // ensureInbox khóa hội thoại hộp thư inbox có id lớn hơn hội thoại comment th (sau khi đã khóa th), hay tạo hộp thư

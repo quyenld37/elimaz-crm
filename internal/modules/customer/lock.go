@@ -1,6 +1,7 @@
 package customer
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -21,8 +22,8 @@ type lockedRoot struct {
 	doNotContact     bool
 }
 
-// LockRoot khóa FOR UPDATE dòng customer.customers của hồ sơ đại diện (gốc) của customerID tới hết transaction của bên
-// gọi và trả mã gốc (ADR-46 nhóm 5, đầu nhóm). Đường M4 gọi trước khi khóa hội thoại (C11: khách trước hội thoại).
+// LockRoot khóa FOR NO KEY UPDATE dòng customer.customers của hồ sơ đại diện (gốc) của customerID — và của chính
+// customerID khi là hồ sơ con, theo id tăng dần — tới hết transaction của bên gọi và trả mã gốc (ADR-46 nhóm 5, đầu nhóm; không chặn FOR KEY SHARE của câu kiểm khóa ngoại, Task 172). Đường M4 gọi trước khi khóa hội thoại (C11: khách trước hội thoại).
 // Gốc đọc lại dưới khóa; gộp hay hoàn tác song song làm gốc đổi → khóa lại (tối đa 3 lần, quá thì lỗi). Không có
 // (hay của tenant khác) → ErrNotFound.
 func LockRoot(ctx context.Context, tx pgx.Tx, customerID uuid.UUID) (uuid.UUID, error) {
@@ -54,17 +55,28 @@ func lockRootOnce(ctx context.Context, tx pgx.Tx, customerID uuid.UUID) (lockedR
 	if err != nil {
 		return lockedRoot{}, err
 	}
-	row, err := store.New(tx).LockCustomerRow(ctx, root)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return lockedRoot{}, ErrNotFound
+	// ADR-46 (trong một bảng theo khóa chính tăng dần): hồ sơ con khác gốc cũng bị khóa, theo id tăng dần cùng gốc —
+	// cùng thứ tự với lockPair của đơn và LockCustomers của gộp, hoàn tác gộp (Task 172: hồ sơ con có id nhỏ hơn gốc mà
+	// khóa sau gốc thì chờ ngược nhau).
+	child := customerID != root
+	if child && bytes.Compare(customerID[:], root[:]) < 0 {
+		if _, err := lockCustomerRow(ctx, tx, customerID); err != nil {
+			return lockedRoot{}, err
+		}
 	}
+	row, err := lockCustomerRow(ctx, tx, root)
 	if err != nil {
-		return lockedRoot{}, fmt.Errorf("khóa hồ sơ đại diện: %w", err)
+		return lockedRoot{}, err
 	}
 	if row.RootID != root { // gốc vừa bị gộp vào hồ sơ khác
 		return lockedRoot{}, errLockRetry
 	}
-	if customerID != root {
+	if child {
+		if bytes.Compare(customerID[:], root[:]) > 0 {
+			if _, err := lockCustomerRow(ctx, tx, customerID); err != nil {
+				return lockedRoot{}, err
+			}
+		}
 		again, err := RootOf(ctx, tx, customerID)
 		if err != nil {
 			return lockedRoot{}, err
@@ -74,4 +86,16 @@ func lockRootOnce(ctx context.Context, tx pgx.Tx, customerID uuid.UUID) (lockedR
 		}
 	}
 	return lockedRoot{tenantID: row.TenantID, rootID: root, doNotContact: row.DoNotContact}, nil
+}
+
+// lockCustomerRow khóa dòng khách id (FOR NO KEY UPDATE, LockCustomerRow); không có → ErrNotFound.
+func lockCustomerRow(ctx context.Context, tx pgx.Tx, id uuid.UUID) (store.LockCustomerRowRow, error) {
+	row, err := store.New(tx).LockCustomerRow(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return row, ErrNotFound
+	}
+	if err != nil {
+		return row, fmt.Errorf("khóa hồ sơ khách: %w", err)
+	}
+	return row, nil
 }

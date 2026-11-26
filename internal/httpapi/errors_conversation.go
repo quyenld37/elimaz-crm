@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"slices"
+	"time"
 
 	"elimaz.com.vn/crm/internal/modules/conversation"
 )
@@ -21,6 +22,9 @@ const (
 	codeAttachmentNotReady      = "attachment_not_ready"      // ảnh gửi kèm, tệp đính kèm chưa xử lý xong (Task 156, 155)
 	codeAttachmentRejected      = "attachment_rejected"       // tệp sai mục đích hay bị kho tệp từ chối (Task 156, 155)
 	codePrivateReplyUsed        = "private_reply_used"        // comment đã được nhắn riêng (Task 158, CH05)
+	codeCommentClaimed          = "comment_claimed"           // comment live đã có đơn (Task 172, LV07), kèm claimedBy…
+	codeOpenDraftExists         = "open_draft_exists"         // khách đã có đơn nháp trong phiên (Task 172, LV09), kèm drafts
+	codeSellerMismatch          = "seller_mismatch"           // hàng không thuộc người bán của Page (Task 172, ADR-29)
 )
 
 // conversationError đổi lỗi nghiệp vụ của hộp chat sang mã HTTP. ErrNotFound: không có, hay trên Page người gọi không
@@ -74,12 +78,25 @@ func sendErrorMappings() []errorMapping {
 		// Comment (Task 158): đã nhắn riêng → 409; không phải comment của khách trong hội thoại → 422.
 		{conversation.ErrPrivateReplyUsed, http.StatusConflict, codePrivateReplyUsed},
 		{conversation.ErrNotCustomerComment, http.StatusUnprocessableEntity, codeInvalidInput},
+		// Chốt comment live (Task 172): yêu cầu, mốc sai → 400; đã chốt, khách có nháp → 409 kèm chi tiết
+		// (conversationDetail); hàng khác người bán của Page → 422; đơn chọn đã không còn nháp → 409 (màn hình cũ); đơn
+		// không của khách trong phiên → 422.
+		{conversation.ErrClaimInvalid, http.StatusBadRequest, codeInvalidInput},
+		{conversation.ErrCursorInvalid, http.StatusBadRequest, codeInvalidInput},
+		{conversation.ErrCommentClaimed, http.StatusConflict, codeCommentClaimed},
+		{conversation.ErrOpenDraftExists, http.StatusConflict, codeOpenDraftExists},
+		{conversation.ErrSellerMismatch, http.StatusUnprocessableEntity, codeSellerMismatch},
+		{conversation.ErrDraftNotOpen, http.StatusConflict, codeVersionConflict},
+		{conversation.ErrDraftMismatch, http.StatusUnprocessableEntity, codeInvalidInput},
 	}
 }
 
 // conversationDetail: send_not_allowed kèm denyReason và until (hạn của cửa sổ, hay hạn 7 ngày còn gửi được bằng thẻ
 // nhân viên); chỉ mã, mốc, không nội dung.
 func conversationDetail(err error) (errorBody, int, bool) {
+	if body, ok := liveClaimDetail(err); ok {
+		return body, http.StatusConflict, true
+	}
 	e, ok := errors.AsType[*conversation.SendNotAllowedError](err)
 	if !ok {
 		return errorBody{}, 0, false
@@ -103,4 +120,48 @@ func isConversationRefusal(err error) bool {
 	_, missing := errors.AsType[*conversation.VariableMissingError](err)
 	_, _, detailed := conversationDetail(err)
 	return ok || chOK || ordOK || missing || detailed || isCustomerRefusal(err) || errors.Is(err, errForbiddenTarget)
+}
+
+// liveDraftBody là một đơn nháp trong thân lỗi open_draft_exists (dạng LiveDraftRef của openapi).
+type liveDraftBody struct {
+	OrderID    string          `json:"orderId"`
+	Code       string          `json:"code"`
+	Items      []liveDraftItem `json:"items"`
+	GrandTotal int64           `json:"grandTotal"`
+	Version    int64           `json:"version"`
+	ExpiresAt  *time.Time      `json:"expiresAt,omitempty"`
+}
+
+type liveDraftItem struct {
+	VariantID string `json:"variantId"`
+	Name      string `json:"name"`
+	Quantity  int32  `json:"quantity"`
+}
+
+// liveClaimDetail: comment_claimed kèm tên người chốt, đơn, mã đơn; open_draft_exists kèm các đơn nháp (Task 172).
+// Không dữ liệu cá nhân của khách.
+func liveClaimDetail(err error) (errorBody, bool) {
+	if e, ok := errors.AsType[*conversation.CommentClaimedError](err); ok {
+		by, id, code := e.ByName, e.OrderID.String(), e.OrderCode
+		return errorBody{Error: codeCommentClaimed, ClaimedBy: &by, OrderID: &id, OrderCode: &code}, true
+	}
+	if e, ok := errors.AsType[*conversation.OpenDraftExistsError](err); ok {
+		body := errorBody{Error: codeOpenDraftExists, Drafts: make([]liveDraftBody, 0, len(e.Drafts))}
+		for _, d := range e.Drafts {
+			body.Drafts = append(body.Drafts, liveDraftOut(d))
+		}
+		return body, true
+	}
+	return errorBody{}, false
+}
+
+func liveDraftOut(d conversation.LiveDraft) liveDraftBody {
+	out := liveDraftBody{
+		OrderID: d.OrderID.String(), Code: d.Code, GrandTotal: d.GrandTotal, Version: d.Version, ExpiresAt: d.ExpiresAt,
+		Items: make([]liveDraftItem, 0, len(d.Items)),
+	}
+	for _, it := range d.Items {
+		out.Items = append(out.Items, liveDraftItem{VariantID: it.VariantID.String(), Name: it.Name, Quantity: it.Qty})
+	}
+	return out
 }

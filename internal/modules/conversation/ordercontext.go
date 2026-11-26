@@ -50,16 +50,25 @@ func OrderContext(ctx context.Context, tx pgx.Tx, actor identity.AuthUser, id uu
 		ChannelAccountID: c.ChannelAccountID, ConversationID: c.ID, CustomerID: c.CustomerID, SellerID: page.SellerID,
 		TrafficSourceID: autoSource(s, c.Kind, start),
 	}
-	if out.TrafficSourceID != nil {
-		err := order.ActiveSource(ctx, tx, *out.TrafficSourceID)
-		switch {
-		case errors.Is(err, order.ErrTrafficSourceInactive):
-			out.TrafficSourceID = nil
-		case err != nil:
-			return OrderContextResult{}, fmt.Errorf("đọc nguồn đơn tự điền: %w", err)
-		}
+	if out.TrafficSourceID, err = activeSource(ctx, tx, out.TrafficSourceID); err != nil {
+		return OrderContextResult{}, err
 	}
 	return out, nil
+}
+
+// activeSource trả id khi nguồn đơn id còn bật (order.ActiveSource); nil hay đã tắt → nil.
+func activeSource(ctx context.Context, tx pgx.Tx, id *uuid.UUID) (*uuid.UUID, error) {
+	if id == nil {
+		return nil, nil
+	}
+	err := order.ActiveSource(ctx, tx, *id)
+	switch {
+	case errors.Is(err, order.ErrTrafficSourceInactive):
+		return nil, nil
+	case err != nil:
+		return nil, fmt.Errorf("đọc nguồn đơn tự điền: %w", err)
+	}
+	return id, nil
 }
 
 // autoSource chọn nguồn đơn tự điền từ cài đặt s cho hội thoại loại kind; liveStart khác nil: comment trên bài live
