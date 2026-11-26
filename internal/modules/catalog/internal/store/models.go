@@ -712,6 +712,31 @@ type ConversationReminder struct {
 	CreatedAt      time.Time
 }
 
+type ConversationReplyTemplate struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	ChannelAccountID *uuid.UUID
+	Shortcut         string
+	Title            string
+	Body             string
+	AttachmentFileID *uuid.UUID
+	QuickReplies     []byte
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	CreatedBy        *uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type ConversationReplyTemplatesV struct {
+	TenantID         uuid.UUID
+	ID               uuid.UUID
+	ChannelAccountID *uuid.UUID
+	Shortcut         string
+	Title            string
+	CreatedAt        time.Time
+}
+
 type ConversationTag struct {
 	ID        uuid.UUID
 	TenantID  uuid.UUID

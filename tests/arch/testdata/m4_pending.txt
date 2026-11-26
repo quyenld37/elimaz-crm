@@ -25,7 +25,6 @@ assignConversation
 listConversationAssignments
 addConversationTag
 removeConversationTag
-addConversationNote
 getPresence
 setPresence
 listMessageRevisions
@@ -37,11 +36,6 @@ listConversationTags
 createConversationTag
 updateConversationTag
 deleteConversationTag
-listReplyTemplates
-createReplyTemplate
-updateReplyTemplate
-deleteReplyTemplate
-renderReplyTemplate
 listFollowUps
 listLiveSessions
 endLiveSessionManually

@@ -11,6 +11,7 @@ import (
 	"github.com/ogen-go/ogen/validate"
 
 	"elimaz.com.vn/crm/internal/modules/cash"
+	"elimaz.com.vn/crm/internal/modules/conversation"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
@@ -83,6 +84,8 @@ type errorBody struct {
 	// Chỉ có ở quote_changed (Task 194): báo giá CRM hiện tại (WebQuote); item_unavailable: biến thể không bán được.
 	Quote      json.RawMessage `json:"quote,omitempty"`
 	VariantIDs []string        `json:"variantIds,omitempty"`
+	// Chỉ có ở template_variable_missing (M4 Task 161): tên biến của mẫu thiếu giá trị.
+	Name *string `json:"name,omitempty"`
 }
 
 // writeError ghi lỗi theo dạng duy nhất {"error": "<mã>", "request_id": "<id>"}; không bao giờ có vết lỗi.
@@ -228,6 +231,10 @@ func detailedError(err error) (errorBody, int, bool) {
 	}
 	if body, status, ok := webOrderDetail(err); ok {
 		return body, status, true
+	}
+	if e, ok := errors.AsType[*conversation.VariableMissingError](err); ok {
+		name := e.Name
+		return errorBody{Error: codeTemplateVariableMissing, Name: &name}, http.StatusUnprocessableEntity, true
 	}
 	if e, ok := errors.AsType[*order.SettingOutOfRangeError](err); ok {
 		field := string(e.Field)

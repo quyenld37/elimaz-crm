@@ -4,6 +4,7 @@ package httpapi
 // cho vùng chỉ sửa tệp này và x-error-codes của openapi.yaml khi có mã mới).
 
 import (
+	"errors"
 	"net/http"
 
 	"elimaz.com.vn/crm/internal/modules/conversation"
@@ -11,7 +12,8 @@ import (
 
 // Mã lỗi chỉ vùng conversation trả.
 const (
-	codeAssigneeNotAllowed = "assignee_not_allowed"
+	codeAssigneeNotAllowed      = "assignee_not_allowed"
+	codeTemplateVariableMissing = "template_variable_missing" // kèm name (detailedError, errors.go)
 )
 
 // conversationError đổi lỗi nghiệp vụ của hộp chat sang mã HTTP. ErrNotFound: không có, hay trên Page người gọi không
@@ -24,12 +26,21 @@ func conversationError(err error) (status int, code string, ok bool) {
 		{conversation.ErrReminderClosed, http.StatusConflict, codeVersionConflict},
 		{conversation.ErrReminderAssignForbidden, http.StatusForbidden, codeForbidden},
 		{conversation.ErrAssigneeNotAllowed, http.StatusUnprocessableEntity, codeAssigneeNotAllowed},
+		// Ghi chú, mẫu trả lời (Task 161).
+		{conversation.ErrNoteInvalid, http.StatusBadRequest, codeInvalidInput},
+		{conversation.ErrTemplateForbidden, http.StatusForbidden, codeForbidden},
+		{conversation.ErrShortcutTaken, http.StatusConflict, codeAlreadyExists},
+		{conversation.ErrTemplateVersionConflict, http.StatusConflict, codeVersionConflict},
+		{conversation.ErrTemplateInvalid, http.StatusUnprocessableEntity, codeInvalidInput},
+		{conversation.ErrUnknownVariable, http.StatusUnprocessableEntity, codeInvalidInput},
+		{conversation.ErrOrderNotOfCustomer, http.StatusUnprocessableEntity, codeInvalidInput},
 	})
 }
 
-// isConversationRefusal: lỗi nghiệp vụ của đường ghi hộp chat (kể cả khách không có của customer) — không lưu theo khóa
-// chống trùng.
+// isConversationRefusal: lỗi nghiệp vụ của đường ghi hộp chat (kể cả khách không có của customer, biến của mẫu thiếu
+// giá trị) — không lưu theo khóa chống trùng.
 func isConversationRefusal(err error) bool {
 	_, _, ok := conversationError(err)
-	return ok || isCustomerRefusal(err)
+	_, missing := errors.AsType[*conversation.VariableMissingError](err)
+	return ok || missing || isCustomerRefusal(err)
 }
