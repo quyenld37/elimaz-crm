@@ -406,14 +406,19 @@ func parseChaos(r io.Reader) ([]chaosEvent, error) {
 	return out, nil
 }
 
+// renderVerdicts in tiêu đề bài mode, bảng chấm vs và dòng mở đầu "Số đo khác".
+func renderVerdicts(b *strings.Builder, mode string, vs []verdict) {
+	fmt.Fprintf(b, "### Bài %s\n\n| Tiêu chí | Ngưỡng | Đo được | Kết quả |\n|---|---|---|---|\n", mode)
+	for _, v := range vs {
+		fmt.Fprintf(b, "| %s | %s | %s | %s |\n", v.Name, v.Want, v.Got, v.Status)
+	}
+	b.WriteString("\nSố đo khác:\n\n")
+}
+
 // renderMarkdown in bảng chấm, số đo khác và CPU, bộ nhớ theo dịch vụ.
 func renderMarkdown(in reportInput, vs []verdict) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "### Bài %s\n\n| Tiêu chí | Ngưỡng | Đo được | Kết quả |\n|---|---|---|---|\n", in.Mode)
-	for _, v := range vs {
-		fmt.Fprintf(&b, "| %s | %s | %s | %s |\n", v.Name, v.Want, v.Got, v.Status)
-	}
-	b.WriteString("\nSố đo khác:\n\n")
+	renderVerdicts(&b, in.Mode, vs)
 	for _, m := range []struct{ label, metric, stat string }{
 		{"webhook gửi được (200)", "webhook_ok", "count"},
 		{"webhook p99 (ms)", "webhook_ms", "p(99)"},
