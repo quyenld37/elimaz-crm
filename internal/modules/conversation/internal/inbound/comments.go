@@ -138,7 +138,7 @@ func (h *handler) afterCommentInserted(ctx context.Context, tx pgx.Tx, e webhook
 		return err
 	}
 	if len(refs) > 0 {
-		if err := OnInboundAttachments(ctx, tx, h.d.Queue, acc.TenantID, msgID, refs); err != nil {
+		if err := deps.EnqueueAttachmentFetches(ctx, tx, h.d.Queue, acc.TenantID, msgID, refs); err != nil {
 			return err
 		}
 	}
