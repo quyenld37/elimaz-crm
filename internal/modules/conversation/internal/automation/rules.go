@@ -117,12 +117,17 @@ func ListRules(ctx context.Context, tx pgx.Tx, pageID uuid.UUID) ([]Rule, error)
 
 // SaveRule lưu quy tắc loại kind của Page pageID (bên gọi đã kiểm quyền, Page có thật) khi expectedVersion khớp (0:
 // chưa có dòng). config phải là JSON có "kind" = kind; auto_hide kiểm thêm chế độ và số bài ngoại lệ (các loại khác
-// đã được hợp đồng kiểm lược đồ). Trả bản trước (mặc định khi chưa có) và bản sau.
+// đã được hợp đồng kiểm lược đồ; auto_reply_comment kiểm thêm giới hạn và mẫu của tin riêng). Trả bản trước (mặc định khi chưa có) và bản sau.
 func SaveRule(ctx context.Context, tx pgx.Tx, pageID uuid.UUID, kind string, enabled bool, config json.RawMessage,
 	expectedVersion int32, by uuid.UUID,
 ) (before, after Rule, err error) {
 	if err := validConfig(kind, config); err != nil {
 		return Rule{}, Rule{}, err
+	}
+	if kind == KindAutoReplyComment {
+		if err := validReplyConfig(ctx, tx, pageID, config); err != nil {
+			return Rule{}, Rule{}, err
+		}
 	}
 	q := store.New(tx)
 	before = defaultRule(pageID, kind)

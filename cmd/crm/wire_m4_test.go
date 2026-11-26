@@ -7,6 +7,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/channel"
 	"elimaz.com.vn/crm/internal/modules/conversation"
 	"elimaz.com.vn/crm/internal/platform/config"
+	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
 // wireM4: kênh nhắn tin giả fakechat (Task 145) có ngoài production; kênh Facebook khi Meta bật và có app secret (Task
@@ -54,8 +55,8 @@ func TestWireM4_Frame(t *testing.T) {
 		}
 		wantCmds = append(wantCmds, conversation.SendMessageKind, // Task 156: gửi tin, mọi cấu hình
 			conversation.ReplyCommentKind, conversation.PrivateReplyKind, conversation.HideCommentKind) // Task 158
-		// Task 165: tự ẩn comment, mọi cấu hình.
-		wantCmds = append(wantCmds, "command.fb.auto_hide_comment")
+		// Task 165: tự ẩn comment; Task 166: tự trả lời comment, tự nhắn riêng; mọi cấu hình.
+		wantCmds = append(wantCmds, "command.fb.auto_hide_comment", "command.fb.auto_reply_comment", "command.fb.auto_private_reply")
 		if slices.Contains(c.keys, "facebook") {
 			wantCmds = append(wantCmds, "command.fb.live_detect") // Task 170: nhận biết live bằng hỏi định kỳ
 		}
@@ -105,8 +106,15 @@ func checkM4Schedules(t *testing.T, env string, facebook bool, p m4Parts) {
 	if facebook {
 		jobs--
 	}
-	if len(p.Schedules) != len(want) || len(p.Jobs) != jobs {
-		t.Errorf("%s: lịch, việc nền của M4: %+v, %d handler", env, p.Schedules, len(p.Jobs))
+	// Việc không có lịch: chuẩn bị tin riêng tự động (Task 166), đúng một handler, không tính vào cặp lịch–việc.
+	scheduled := slices.DeleteFunc(slices.Clone(p.Jobs), func(h queue.Handler) bool {
+		return h.Kind().Name == "task.conversation.auto_private_reply"
+	})
+	if len(p.Jobs)-len(scheduled) != 1 {
+		t.Errorf("%s: việc chuẩn bị tin riêng tự động: %d handler, muốn 1", env, len(p.Jobs)-len(scheduled))
+	}
+	if len(p.Schedules) != len(want) || len(scheduled) != jobs {
+		t.Errorf("%s: lịch, việc nền của M4: %+v, %d handler", env, p.Schedules, len(scheduled))
 		return
 	}
 	j := 0
@@ -123,8 +131,8 @@ func checkM4Schedules(t *testing.T, env string, facebook bool, p m4Parts) {
 			}
 			continue
 		}
-		if p.Jobs[j].Kind().Name != s.Kind.Name {
-			t.Errorf("%s: lịch %d = %+v, việc %q; muốn %s", env, i, s, p.Jobs[j].Kind().Name, name)
+		if scheduled[j].Kind().Name != s.Kind.Name {
+			t.Errorf("%s: lịch %d = %+v, việc %q; muốn %s", env, i, s, scheduled[j].Kind().Name, name)
 		}
 		j++
 	}

@@ -16,7 +16,8 @@ import (
 // OnCommentCreated chạy các quy tắc tự động cho comment khách mới msgID (hook của đường comment vào, Task 154; chạy
 // trong tx của sự kiện, sau khi chèn tin). Task 165: tự ẩn (auto_hide) — chế độ phone_only ẩn comment có SĐT, all ẩn
 // mọi comment của khách, trừ bài trong exceptPostIds; qua Run với ExternalRef "hide:<comment_id>" rồi ghi lệnh
-// command.fb.auto_hide_comment. Comment của Page, tin lịch sử không bao giờ kích hoạt (Run).
+// command.fb.auto_hide_comment. Task 166: tự trả lời comment, tự nhắn riêng (auto_reply_comment, autoreply.go). Comment
+// của Page, tin lịch sử không bao giờ kích hoạt (Run).
 func OnCommentCreated(ctx context.Context, tx pgx.Tx, d deps.Deps, msgID uuid.UUID, t Trigger) error {
 	t.Kind = TriggerCommentCreated
 	if t.CustomerID == uuid.Nil && t.ConversationID != uuid.Nil {
@@ -26,7 +27,10 @@ func OnCommentCreated(ctx context.Context, tx pgx.Tx, d deps.Deps, msgID uuid.UU
 		}
 		t.CustomerID = c
 	}
-	return autoHide(ctx, tx, d, msgID, t)
+	if err := autoHide(ctx, tx, d, msgID, t); err != nil {
+		return err
+	}
+	return autoReply(ctx, tx, d, msgID, t)
 }
 
 // autoHide áp quy tắc auto_hide của Page cho comment msgID.

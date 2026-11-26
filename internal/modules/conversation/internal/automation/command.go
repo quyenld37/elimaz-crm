@@ -236,11 +236,7 @@ func (c hideCommand) OnDone(ctx context.Context, j queue.Job, _ json.RawMessage,
 
 // OnTerminal ghi kết quả cuối của lượt: dead (từ chối, hết lượt) → failed; in_doubt, expired → dropped (không gửi lại).
 func (hideCommand) OnTerminal(ctx context.Context, j queue.Job, status string, tx pgx.Tx) error {
-	out := OutcomeDropped
-	if status == queue.StatusDead {
-		out = OutcomeFailed
-	}
-	return finish(ctx, tx, j.ID, out)
+	return finish(ctx, tx, j.ID, terminalOutcome(status))
 }
 
 // finish ghi kết quả out vào lượt chạy của lệnh jobID.

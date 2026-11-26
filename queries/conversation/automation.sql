@@ -59,6 +59,18 @@ UPDATE conversation.automation_runs
 SET outcome = @outcome
 WHERE command_job_id = @command_job_id;
 
+-- name: CountRecentAutomationRuns :one
+-- Số lượt enqueued|done khác external_ref của cùng quy tắc, cùng subject_ref, external_ref cùng tiền tố prefix, ghi
+-- trong hours giờ gần nhất (đồng hồ database; giới hạn mỗi người mỗi bài của auto_reply_comment, Task 166).
+SELECT count(*)::int
+FROM conversation.automation_runs
+WHERE rule_id = @rule_id
+  AND subject_ref = @subject_ref::text
+  AND starts_with(external_ref, @prefix::text)
+  AND external_ref <> @external_ref::text
+  AND outcome IN ('enqueued', 'done')
+  AND created_at > now() - make_interval(hours => @hours::int);
+
 -- name: GetAutomationRunByJob :one
 -- Lượt chạy của lệnh job_id (đọc kết quả, test).
 SELECT id, rule_id, external_ref, outcome

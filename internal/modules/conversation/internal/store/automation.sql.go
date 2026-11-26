@@ -27,6 +27,40 @@ func (q *Queries) ConversationCustomer(ctx context.Context, id uuid.UUID) (uuid.
 	return customer_id, err
 }
 
+const countRecentAutomationRuns = `-- name: CountRecentAutomationRuns :one
+SELECT count(*)::int
+FROM conversation.automation_runs
+WHERE rule_id = $1
+  AND subject_ref = $2::text
+  AND starts_with(external_ref, $3::text)
+  AND external_ref <> $4::text
+  AND outcome IN ('enqueued', 'done')
+  AND created_at > now() - make_interval(hours => $5::int)
+`
+
+type CountRecentAutomationRunsParams struct {
+	RuleID      uuid.UUID
+	SubjectRef  string
+	Prefix      string
+	ExternalRef string
+	Hours       int32
+}
+
+// Số lượt enqueued|done khác external_ref của cùng quy tắc, cùng subject_ref, external_ref cùng tiền tố prefix, ghi
+// trong hours giờ gần nhất (đồng hồ database; giới hạn mỗi người mỗi bài của auto_reply_comment, Task 166).
+func (q *Queries) CountRecentAutomationRuns(ctx context.Context, arg CountRecentAutomationRunsParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countRecentAutomationRuns,
+		arg.RuleID,
+		arg.SubjectRef,
+		arg.Prefix,
+		arg.ExternalRef,
+		arg.Hours,
+	)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const finishAutomationRun = `-- name: FinishAutomationRun :execrows
 UPDATE conversation.automation_runs
 SET outcome = $1
