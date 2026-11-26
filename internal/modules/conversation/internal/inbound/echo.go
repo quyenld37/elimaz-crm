@@ -49,9 +49,9 @@ func (h *handler) echo(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, p cha
 	if err != nil {
 		return err
 	}
-	atts, err := pendingAttachments(p.Attachments)
+	atts, err := deps.PendingAttachments(p.Attachments)
 	if err != nil {
-		return err
+		return err //nolint:wrapcheck // deps đã bọc việc đang làm
 	}
 	msgID, err := q.InsertInboundMessage(ctx, store.InsertInboundMessageParams{
 		ConversationID: convID, ChannelAccountID: acc.ID, ExternalID: text(p.MID), Direction: dirOut, Kind: kindMessage,

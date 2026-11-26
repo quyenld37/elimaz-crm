@@ -90,9 +90,9 @@ func (h *handler) insertComment(ctx context.Context, tx pgx.Tx, e webhooks.Inbou
 	if p.PhotoURL != "" {
 		refs = []channel.AttachmentRef{{Type: "image", URL: p.PhotoURL}}
 	}
-	atts, err := pendingAttachments(refs)
+	atts, err := deps.PendingAttachments(refs)
 	if err != nil {
-		return err
+		return err //nolint:wrapcheck // deps đã bọc việc đang làm
 	}
 	dir, origin := dirIn, originCustomer
 	if p.FromPage {

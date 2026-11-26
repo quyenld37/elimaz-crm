@@ -2,7 +2,6 @@ package inbound
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -35,15 +34,6 @@ const (
 	originSystem            = "system"
 )
 
-// pendingAttachment là một mục đính kèm chờ tải (Task 155 chép về kho rồi đổi status).
-type pendingAttachment struct {
-	Index     int     `json:"index"`
-	Type      string  `json:"type"`
-	Status    string  `json:"status"`
-	FileID    *string `json:"fileId"`
-	StickerID string  `json:"stickerId,omitempty"`
-}
-
 // messageReceived ghi tin khách gửi theo thứ tự khóa của đường vào: Page (nhóm 3) → khách (nhóm 5) → hội thoại →
 // tin (nhóm 6) → cập nhật hội thoại đã khóa → hook → báo hiệu. Tin trùng (cùng mã ngoài) → dừng, không đổi bộ đếm.
 func (h *handler) messageReceived(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, p channel.MessagePayload) error {
@@ -60,9 +50,9 @@ func (h *handler) messageReceived(ctx context.Context, tx pgx.Tx, e webhooks.Inb
 	if payload == "" {
 		payload = p.PostbackPayload
 	}
-	atts, err := pendingAttachments(p.Attachments)
+	atts, err := deps.PendingAttachments(p.Attachments)
 	if err != nil {
-		return err
+		return err //nolint:wrapcheck // deps đã bọc việc đang làm
 	}
 	q := store.New(tx)
 	msgID, err := q.InsertInboundMessage(ctx, store.InsertInboundMessageParams{
@@ -126,19 +116,6 @@ func (h *handler) inbox(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, p ch
 // nên giao lại vẫn chống trùng bằng messages_external_key.
 func syntheticID(kind, user string, at time.Time) string {
 	return kind + ":" + user + ":" + strconv.FormatInt(at.UnixMilli(), 10)
-}
-
-// pendingAttachments là danh sách đính kèm chờ tải của tin (JSON mảng, rỗng → []).
-func pendingAttachments(refs []channel.AttachmentRef) ([]byte, error) {
-	out := make([]pendingAttachment, 0, len(refs))
-	for i, r := range refs {
-		out = append(out, pendingAttachment{Index: i, Type: r.Type, Status: "pending", StickerID: r.StickerID})
-	}
-	b, err := json.Marshal(out)
-	if err != nil {
-		return nil, fmt.Errorf("mã hóa danh sách đính kèm: %w", err)
-	}
-	return b, nil
 }
 
 // text là pgtype.Text, chuỗi rỗng → NULL.

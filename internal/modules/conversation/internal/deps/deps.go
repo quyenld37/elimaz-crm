@@ -4,6 +4,8 @@ package deps
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -83,4 +85,42 @@ func Snippet(body string, hasAttachments bool) string {
 		return string(r[:snippetRunes])
 	}
 	return s
+}
+
+// pendingAttachment là một mục đính kèm chờ tải (Task 155 chép về kho rồi đổi status).
+type pendingAttachment struct {
+	Index     int     `json:"index"`
+	Type      string  `json:"type"`
+	Status    string  `json:"status"`
+	FileID    *string `json:"fileId"`
+	StickerID string  `json:"stickerId,omitempty"`
+}
+
+// PendingAttachments là danh sách đính kèm chờ tải của tin (JSON mảng, rỗng → []): mọi đường ghi tin từ kênh (tin vào,
+// echo, comment, tin lịch sử) dùng chung định dạng này.
+func PendingAttachments(refs []channel.AttachmentRef) ([]byte, error) {
+	out := make([]pendingAttachment, 0, len(refs))
+	for i, r := range refs {
+		out = append(out, pendingAttachment{Index: i, Type: r.Type, Status: "pending", StickerID: r.StickerID})
+	}
+	b, err := json.Marshal(out)
+	if err != nil {
+		return nil, fmt.Errorf("mã hóa danh sách đính kèm: %w", err)
+	}
+	return b, nil
+}
+
+// AdapterAs trả adapter của kênh key trong r dưới dạng năng lực tùy chọn T (channel.PostFetcher,
+// channel.HistoryFetcher…); false khi không có bộ adapter, không có kênh hay adapter không hiện thực T.
+func AdapterAs[T any](r *channel.Registry, key string) (T, bool) { //nolint:ireturn // năng lực tùy chọn của adapter là interface
+	var zero T
+	if r == nil {
+		return zero, false
+	}
+	a, ok := r.Get(key)
+	if !ok {
+		return zero, false
+	}
+	t, ok := a.(T)
+	return t, ok
 }
