@@ -96,7 +96,7 @@ fuzz-xlsx: ## Fuzz xlsx.Read 60 s trên byte ngẫu nhiên: không panic, không
 
 # ---- Cổng kiểm (Task 3). `make ci` là lưới cuối; CI trên máy chủ git chạy đúng lệnh này.
 # Task 4 thêm sinh mã sqlc và sqlc vet; Task 6 thêm ogen, bảng route, oasdiff.
-.PHONY: mutation ci-tools ci build vet lint test vuln catalog catalog-check jscpd test-guard gitleaks gen gen-check sqlc-vet oasdiff console-deps console-check
+.PHONY: mutation ci-tools ci build vet lint test test-part vuln catalog catalog-check jscpd test-guard gitleaks gen gen-check sqlc-vet oasdiff console-deps console-check
 
 ci: build vet lint gen-check sqlc-vet test vuln oasdiff catalog-check jscpd test-guard gitleaks console-check ## Toàn bộ cổng kiểm phần đã có
 
@@ -155,6 +155,14 @@ lint: ## golangci-lint theo .golangci.yml
 test: ## Mọi test, có -race, với PostgreSQL dev (make db-up trước)
 	go test -race -count=1 ./...
 
+# Một phần của test từ xa (Task 493, .github/workflows/test-remote.yml): qua make để có đủ biến test như make test
+# (CRM_TEST_DATABASE_URL, cổng kho S3…). RACE: gói chạy -race; PLAIN: gói chạy test thường.
+test-part: ## Test một phần của CI từ xa: make test-part RACE="<gói…>" PLAIN="<gói…>" (make db-up trước)
+	@rc=0; \
+	if [ -n "$(RACE)" ]; then go test -race -count=1 -timeout 30m $(RACE) || rc=1; fi; \
+	if [ -n "$(PLAIN)" ]; then go test -count=1 -timeout 30m $(PLAIN) || rc=1; fi; \
+	exit $$rc
+
 vuln:
 	govulncheck ./...
 
@@ -170,7 +178,7 @@ jscpd: ## Chỉ báo đoạn trùng mới so với mốc nền jscpd-baseline.js
 test-guard: ## Test không bị xóa, tắt, nới mà không ghi lý do (so với main)
 	scripts/agent/test-guard.sh main
 
-# ---- Mutation testing vùng rủi ro cao (Task 23; ADR-25). Không nằm trong `ci` (vài giờ trên máy dev); CI chạy theo lịch.
+# ---- Mutation testing vùng rủi ro cao (Task 23; ADR-25). Không nằm trong `ci` (vài giờ trên máy dev); CI chạy bằng tay (Task 493).
 # GOFLAGS=-count=1: gremlins đặt hạn mỗi lượt theo thời gian chạy test đo lúc đầu; kết quả test lấy từ cache thì hạn gần 0
 # và mọi đột biến thành TIMED OUT (không tính vào hiệu quả, điểm 100% giả).
 # Một nguồn danh sách (Task 392): đọc thẳng HIGH_RISK_DIRS của hook trong scripts/agent/lib.sh, không chép lại ở đây.
@@ -192,11 +200,12 @@ mutation: ## Đột biến mã vùng cao bằng gremlins (.gremlins.yaml, ngư�
 	exit $$rc
 
 # ---- Công cụ cho máy CI (Task 23): đúng phiên bản ghim ở tools/versions.mk.
-ci-tools: ## Cài golangci-lint, govulncheck, sqlc, ogen, gitleaks, gremlins, jscpd đã ghim (máy CI; máy dev đã có)
+ci-tools: ## Cài golangci-lint, govulncheck, sqlc, ogen, oasdiff, gitleaks, gremlins, jscpd đã ghim (máy CI; máy dev đã có)
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(strip $(GOLANGCI_VERSION))
 	go install golang.org/x/vuln/cmd/govulncheck@$(strip $(GOVULNCHECK_VERSION))
 	go install github.com/sqlc-dev/sqlc/cmd/sqlc@$(strip $(SQLC_VERSION))
 	go install github.com/ogen-go/ogen/cmd/ogen@$(strip $(OGEN_VERSION))
+	go install github.com/oasdiff/oasdiff@$(strip $(OASDIFF_VERSION))
 	go install github.com/zricethezav/gitleaks/v8@$(strip $(GITLEAKS_VERSION))
 	go install github.com/go-gremlins/gremlins/cmd/gremlins@$(strip $(GREMLINS_VERSION))
 	npm install -g --no-audit --no-fund jscpd@$(strip $(JSCPD_VERSION))

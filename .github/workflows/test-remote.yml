@@ -1,0 +1,181 @@
+# Cổng kiểm và test của một task chạy từ xa (Task 493, chủ shop OK 26/11): nhiều phiên song song không xếp hàng một lượt
+# test của máy dev. Chỉ chạy bằng tay qua scripts/ci/remote-test.sh (đẩy commit tạm lên ci/<worktree> rồi gh workflow
+# run), không chạy theo push. Gói Free 2.000 phút/tháng, runner 2 lõi: chia gói tối đa 6 phần, ít gói thì ít phần; không
+# dựng image, không e2e, không Playwright. Luật của tệp này: tests/deploy/remote_ci_test.go.
+name: test-remote
+
+on:
+  # GitHub chỉ cho bấm chạy (workflow_dispatch) workflow đã biết; tệp này chưa có trên main (không push main khi chưa có
+  # OK riêng) nên một lần push nhánh ci/dang-ky làm GitHub biết nó. Lượt push đó bỏ qua mọi job (0 phút). Khi tệp đã lên
+  # main thì bỏ khối push này.
+  push:
+    branches: [ci/dang-ky]
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "sha/ref để so (oasdiff, test-guard, gen-check…); tổ tiên của nhánh chạy"
+        required: true
+        type: string
+      packages:
+        description: "ALL (mọi gói trừ tests/e2e) hoặc danh sách gói/mẫu gói cách bằng khoảng trắng; rỗng: không test"
+        required: false
+        default: ""
+        type: string
+      race_packages:
+        description: "gói chạy -race (ALL hoặc danh sách); còn lại chạy test thường"
+        required: false
+        default: ""
+        type: string
+      static:
+        description: "'true' chạy cổng tĩnh (static-gates.sh)"
+        required: false
+        default: "true"
+        type: string
+      task_file:
+        description: "tệp task cho test-guard (docs/tasks/task-NN.md)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-remote-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  COMPOSE_PROJECT: crm-ci
+  GOTOOLCHAIN: local
+  NODE_VERSION: "26"
+
+jobs:
+  static:
+    if: github.event_name == 'workflow_dispatch' && inputs.static == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      BASE: ${{ inputs.base }}
+      TASK_FILE: ${{ inputs.task_file }}
+    steps:
+      - name: Lấy mã (cả lịch sử — gitleaks, oasdiff và test-guard so với base)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Khóa cache công cụ (băm đúng các lệnh của make ci-tools)
+        id: toolkey
+        run: echo "key=$(make -n --no-print-directory ci-tools | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+      - name: Cache công cụ đã ghim
+        id: tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/bin
+            ~/.npm-global
+          key: ci-tools-${{ runner.os }}-${{ steps.toolkey.outputs.key }}
+      - name: Cache golangci-lint
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/golangci-lint
+          key: golangci-${{ runner.os }}-${{ hashFiles('go.sum', '.golangci.yml') }}-${{ github.run_id }}
+          restore-keys: golangci-${{ runner.os }}-${{ hashFiles('go.sum', '.golangci.yml') }}-
+      - name: Cài công cụ đã ghim (make ci-tools, bỏ qua khi cache trúng)
+        run: scripts/ci/install-tools.sh "${{ steps.tools.outputs.cache-hit }}"
+      - name: PostgreSQL 18, Jaeger, SeaweedFS của compose dev (sqlc-vet, tests/arch)
+        run: make db-up
+      - name: Cổng tĩnh
+        run: |
+          scripts/ci/static-gates.sh "$BASE" 2>&1 | tee static.log
+          ok=${PIPESTATUS[0]}
+          { echo '### Cổng tĩnh'; echo '```'; grep -E '^(== |STATIC )' static.log | grep -v ' giây$' | tail -40; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit "$ok"
+
+  plan:
+    if: github.event_name == 'workflow_dispatch' && inputs.packages != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.split.outputs.matrix }}
+      count: ${{ steps.split.outputs.count }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Chia gói thành tối đa 6 phần cân bằng (scripts/ci/test-times.txt)
+        id: split
+        env:
+          PACKAGES: ${{ inputs.packages }}
+          RACE: ${{ inputs.race_packages }}
+          STATIC: ${{ inputs.static }}
+        run: |
+          set -o pipefail
+          # ALL: mọi gói trừ tests/e2e (e2e chỉ chạy khi xong toàn bộ task); tests/arch đã chạy ở job static thì bỏ ở đây.
+          skip='/tests/e2e$'; [ "$STATIC" = true ] && skip='/tests/(e2e|arch)$'
+          expand() { if [ "$1" = ALL ]; then go list ./... | grep -E -v "$skip"; elif [ -n "$1" ]; then go list $1; fi; }
+          pkgs=$(expand "$PACKAGES") || exit 1
+          race=$(expand "$RACE" | tr '\n' ' ') || exit 1
+          m=$(printf '%s\n' "$pkgs" | python3 scripts/ci/split_packages.py --times scripts/ci/test-times.txt \
+            --max-parts 6 --min-seconds 120 --race "$race")
+          echo "matrix=$m" >> "$GITHUB_OUTPUT"
+          echo "count=$(printf '%s' "$m" | jq length)" >> "$GITHUB_OUTPUT"
+          printf '%s' "$m" | jq -r '.[] | "phần \(.part): ~\(.seconds) s, race: \(.race | split(" ") | map(select(. != "")) | length) gói, thường: \(.plain | split(" ") | map(select(. != "")) | length) gói"'
+
+  test:
+    needs: plan
+    if: needs.plan.outputs.count != '0'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: test (${{ matrix.part }})
+    steps:
+      - name: Lấy mã (cả lịch sử — test của tests/deploy đọc git)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+      - name: Khóa cache công cụ (băm đúng các lệnh của make ci-tools)
+        id: toolkey
+        run: echo "key=$(make -n --no-print-directory ci-tools | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+      - name: Cache công cụ đã ghim
+        id: tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/bin
+            ~/.npm-global
+          key: ci-tools-${{ runner.os }}-${{ steps.toolkey.outputs.key }}
+      - name: Cài công cụ đã ghim (oasdiff, sqlc… cho test của tools/, tests/; bỏ qua khi cache trúng)
+        run: scripts/ci/install-tools.sh "${{ steps.tools.outputs.cache-hit }}"
+      - name: PostgreSQL 18, Jaeger, SeaweedFS của compose dev; kéo sẵn image Valkey
+        # testkit.StartValkey lấy mã container từ đầu ra gộp của `docker run -d`: máy chưa có image thì dòng "Pulling…"
+        # lẫn vào và test đầu tiên đỏ "docker port valkey" (lượt ALL 26/11; việc phát hiện thêm của Task 493).
+        run: |
+          make db-up
+          docker compose -p "$COMPOSE_PROJECT" -f docker/compose.dev.yml --profile valkey pull -q valkey-cache
+      - name: go test (qua make để có đủ biến test như make test)
+        env:
+          RACE: ${{ matrix.race }}
+          PLAIN: ${{ matrix.plain }}
+        run: |
+          make --no-print-directory test-part RACE="$RACE" PLAIN="$PLAIN" 2>&1 | tee test.log
+          rc=${PIPESTATUS[0]}
+          {
+            echo "### Phần ${{ matrix.part }}"
+            if [ "$rc" != 0 ]; then echo '```'; grep -E -- '^(--- FAIL|FAIL|panic:)' test.log | head -80; echo '```'; fi
+            echo '<details><summary>thời gian từng gói</summary>'; echo; echo '```'
+            grep -E '^(ok|FAIL)[[:space:]]' test.log | awk '{print $2, $3}' | sed 's/s$//'; echo '```'; echo '</details>'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
