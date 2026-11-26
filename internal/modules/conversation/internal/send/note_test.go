@@ -17,7 +17,7 @@ import (
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
-// noteEnv: tenant có hội thoại conv trên Page page (mã ngẫu nhiên: messages không có khóa ngoại tới channel_accounts),
+// noteEnv: tenant có hội thoại conv trên Page page (Page thật: conversations có khóa ngoại tới channel_accounts),
 // nhân viên sale (đọc, trả lời Page), viewer (chỉ đọc Page).
 type noteEnv struct {
 	t            *testing.T
@@ -31,7 +31,8 @@ type noteEnv struct {
 func newNoteEnv(t *testing.T) *noteEnv {
 	t.Helper()
 	s := testkit.OpenStaff(t)
-	e := &noteEnv{t: t, staff: s, tenant: s.Tenant(t, "A"), page: uuid.New(), bus: &realtimetest.RecordingBus{}}
+	e := &noteEnv{t: t, staff: s, tenant: s.Tenant(t, "A"), bus: &realtimetest.RecordingBus{}}
+	e.page = s.ChannelAccount(t, e.tenant, "fakechat", "page-note", "Page ghi chú")
 	s.Exec(t, e.tenant, func(tx pgx.Tx) error {
 		return tx.QueryRow(t.Context(), `WITH k AS (
 				INSERT INTO customer.customers (tenant_id, full_name, name_search)

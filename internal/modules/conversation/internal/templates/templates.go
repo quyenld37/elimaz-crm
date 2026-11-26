@@ -303,6 +303,20 @@ func apply(cur Template, p Patch) Template {
 	return next
 }
 
+// UsableOnPage báo mẫu id còn sống và dùng được trên Page pageID (mẫu chung, hay mẫu riêng của đúng Page đó); đọc không
+// khóa (ADR-46 nhóm 6: bên gọi có thể đã khóa page_settings, đứng sau reply_templates). Dùng cho mẫu xin địa chỉ của cài
+// đặt Page (Task 160).
+func UsableOnPage(ctx context.Context, tx pgx.Tx, id, pageID uuid.UUID) (bool, error) {
+	row, err := store.New(tx).GetReplyTemplate(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("đọc mẫu trả lời: %w", err)
+	}
+	return !row.ChannelAccountID.Valid || uuid.UUID(row.ChannelAccountID.Bytes) == pageID, nil
+}
+
 func lockTemplate(ctx context.Context, q *store.Queries, id uuid.UUID) (Template, error) {
 	row, err := q.LockReplyTemplate(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {

@@ -47,3 +47,10 @@ type Parts struct {
 	Schedules  []schedules.Schedule
 	Background []func(context.Context) error
 }
+
+// Báo hiệu "hội thoại đổi" (Global Constraints "Báo hiệu realtime" của M4): chủ đề và loại thực thể; phần nào của
+// module phát cũng dùng đúng hai hằng này (gói gốc công bố lại chủ đề là conversation.TopicConversationChanged).
+const (
+	TopicConversationChanged = "conversation.changed"
+	EntityConversation       = "conversation"
+)

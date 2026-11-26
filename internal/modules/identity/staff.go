@@ -493,3 +493,20 @@ func StaffHas(ctx context.Context, tx pgx.Tx, userID uuid.UUID, p Permission) (b
 	}
 	return Can(fresh, p, nil), nil
 }
+
+// StaffWithPermissionAt trả nhân viên đang hoạt động của tenant trong tx có quyền p (qua vai trò còn active) ở phạm vi
+// all hoặc đúng target, sắp theo tên hiển thị (Task 160: người được giao hội thoại của một Page). Không đọc grant từ
+// bộ nhớ: đọc trong tx nên khóa tài khoản, gỡ quyền có hiệu lực ngay.
+func StaffWithPermissionAt(ctx context.Context, tx pgx.Tx, p Permission, target Scope) ([]User, error) {
+	rows, err := store.New(tx).ListStaffWithPermissionAt(ctx, store.ListStaffWithPermissionAtParams{
+		Permission: string(p), ScopeType: target.Type, ScopeID: target.ID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("liệt kê nhân viên có quyền %s: %w", p, err)
+	}
+	out := make([]User, 0, len(rows))
+	for _, u := range rows {
+		out = append(out, User{ID: u.ID, Email: u.Email, DisplayName: u.DisplayName, Status: u.Status, Version: u.Version, CreatedAt: u.CreatedAt})
+	}
+	return out, nil
+}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
@@ -166,13 +165,4 @@ func mapAll[T, U any](in []T, f func(T) U) []U {
 		out = append(out, f(v))
 	}
 	return out
-}
-
-// optNilUUID: không gửi hay null → nil; có giá trị → con trỏ tới giá trị.
-func optNilUUID(o gen.OptNilUUID) *uuid.UUID {
-	if !o.Set || o.Null {
-		return nil
-	}
-	v := o.Value
-	return &v
 }

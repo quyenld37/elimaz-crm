@@ -87,7 +87,8 @@ func seedChatTimeline(t *testing.T) chatTimelineFixture {
 	s := testkit.OpenStaff(t)
 	tenant := s.Tenant(t, "A")
 	user := s.User(t, tenant, "sale@elimaz.test", "active")
-	p1, p2 := uuid.New(), uuid.New()
+	p1 := s.ChannelAccount(t, tenant, "facebook", "page-1", "Page 1")
+	p2 := s.ChannelAccount(t, tenant, "facebook", "page-2", "Page 2")
 	f := chatTimelineFixture{staff: s, tenant: tenant, user: user, p1: p1, calls: make([]uuid.UUID, 3)}
 	a, b, inbox, comment, calls := &f.a, &f.b, &f.inbox, &f.comment, f.calls
 	ctx := t.Context()

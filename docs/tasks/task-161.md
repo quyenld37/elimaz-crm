@@ -151,7 +151,10 @@ gộp m4 1d343e8): `ok …/internal/templates 6.480s`, `ok …/internal/send 6.1
 
 ## Test bị xóa hoặc tắt
 
-(không có)
+- (Lượt sửa gộp m4) `TestPageSettings` (`internal/modules/conversation/pagesettings_test.go`), ca `{"mẫu xin địa chỉ",
+  tmpl, conversation.ErrInvalidInput}` và biến `tmpl`: ca này của Task 160 kiểm chốt "mọi mẫu xin địa chỉ đều bị từ chối
+  vì chưa có bảng mẫu"; chốt đã gỡ nên ca không còn đúng. Thay bằng `TestPageSettings_AskAddressTemplate` (mẫu không có,
+  đã xóa, của Page khác → `ErrInvalidInput`; mẫu chung, mẫu của Page, bỏ mẫu → lưu được).
 
 ## Khác kế hoạch
 
@@ -170,13 +173,14 @@ gộp m4 1d343e8): `ok …/internal/templates 6.480s`, `ok …/internal/send 6.1
 1. `conversation.page_settings.ask_address_template_id` chưa có khóa ngoại tới `conversation.reply_templates` (0402 ghi
    "thêm khi bảng đích có"). Không thêm ở 0405 vì bảng `page_settings` thuộc Task 160 đang làm song song (test của 160
    có thể chèn mã mẫu ngẫu nhiên). Đề xuất: Task 160 (hay task gộp sau) thêm khóa ngoại và chặn xóa mẫu đang là mẫu xin
-   địa chỉ của một Page.
+   địa chỉ của một Page. (Lượt sửa gộp m4: vẫn chưa có khóa ngoại; Go đã kiểm mẫu còn sống và đúng Page lúc lưu cài đặt.
+   Khi thêm khóa ngoại: xóa mềm không vi phạm khóa ngoại, nên nơi dùng mẫu vẫn phải tự kiểm như hiện nay.)
 2. `tests/arch` `TestLintNotBlockedByOtherRunners` treo > 6 phút khi máy đang bận (chờ golangci-lint của phiên khác);
    các test kiến trúc còn lại chạy xanh với `-skip` (xem bằng chứng). Việc công cụ, không thuộc task này.
 
 ## Reviewer
 
-Kết luận: ĐẠT (lượt 2).
+Kết luận: ĐẠT (lượt 2). Lượt sửa gộp m4: ĐẠT (lượt 2, xem cuối tệp).
 
 - Lượt 1: CẦN SỬA — mục Ảnh hưởng ghi tên không có trong mã (`NoteInput`, `Message`, `ErrTemplateNotFound`), thiếu
   `Note`, `ErrNoteInvalid`, `ErrUnknownVariable`. Đã sửa tệp task (không đổi mã); thêm dòng mã sinh `models.go`,
@@ -186,3 +190,63 @@ Kết luận: ĐẠT (lượt 2).
   phát hiện thêm; ci-task chạy đủ `tests/arch` xanh); kết quả hiển thị mẫu (có tên khách) được lưu theo khóa chống
   trùng như các đường ghi khác, không vào log; người có quyền chỉ ở Page A sửa mẫu Page B nhận 403 (biết mẫu tồn tại) —
   mẫu là tài nguyên của shop, chấp nhận được.
+
+## Lượt sửa gộp m4
+
+`git merge --no-commit m4` (m4 tại 7b93b02, đã có Task 153 tin nhắn vào và Task 160 người phụ trách, nhãn, cài đặt Page).
+
+**Xung đột và cách giải (giữ đủ hai phía):**
+- `internal/httpapi/errors_conversation.go`: const giữ cả `codeAlreadyAssigned` (160) và `codeTemplateVariableMissing`
+  (161). `errorMapping`: 5 dòng của 160 (nhãn, version, đã nhận, tên nhãn trùng, dữ liệu sai) rồi 7 dòng của 161 (ghi
+  chú, mẫu). Các sentinel là giá trị khác nhau (`ErrVersionConflict` của assign ≠ `ErrTemplateVersionConflict`,
+  `ErrInvalidInput` ≠ `ErrTemplateInvalid`), không cái nào bọc cái kia, nên thứ tự giữa hai nhóm không đổi kết quả.
+  `isConversationRefusal` gộp điều kiện hai bên: lỗi conversation, channel, order, `*VariableMissingError`, customer,
+  `errForbiddenTarget`.
+- `internal/httpapi/errors_snapshot_test.go`: giữ 5 dòng 160 và 7 dòng 161, cùng thứ tự với `errorMapping`.
+- `tests/arch/testdata/m4_pending.txt`: bỏ mọi thao tác 160 đã làm (claim/assign/listConversationAssignments, nhãn,
+  presence) và 161 đã làm (`addConversationNote`, 5 thao tác mẫu trả lời).
+
+**Trùng tên (build):** `optNilUUID` khai ở cả `handlers_page_settings.go` (160) và `handlers_templates.go` (161), cùng
+nghĩa (không gửi hay null → nil). Xóa bản của 161, `handlers_templates.go` dùng bản của 160 (2 chỗ gọi); không đổi hành vi.
+
+**Bỏ chốt 422 mẫu xin địa chỉ của Task 160:** `validSettingsShape` không còn từ chối mọi `AskAddressTemplateID`. Thêm
+`templates.UsableOnPage(ctx, tx, id, pageID)` (gói nội bộ `conversation/internal/templates`, đọc `GetReplyTemplate` có
+sẵn, không khóa — ADR-46 nhóm 6: reply_templates đứng trước page_settings mà bên gọi đã khóa); `checkReferences` gọi nó
+khi mẫu khác nil: mẫu không có, đã xóa mềm, hay riêng của Page khác → `ErrInvalidInput` (422 invalid_input như cũ);
+mẫu chung hay mẫu riêng của đúng Page → lưu được. Test mới `TestPageSettings_AskAddressTemplate`; ca "mẫu xin địa chỉ"
+cũ trong `TestPageSettings` bỏ (nó kiểm chốt đã gỡ). Đã thử tạm cho `UsableOnPage` luôn trả true → test mới đỏ (3 ca
+lỗi không ra `ErrInvalidInput`), rồi trả lại mã thật. Còn lại (không đổi): không có khóa ngoại database
+`page_settings.ask_address_template_id → reply_templates`; xóa mẫu sau khi đã chọn thì cài đặt giữ id cũ, Render trả
+`ErrNotFound` — lần lưu cài đặt sau sẽ bị từ chối tới khi chọn mẫu khác hay bỏ mẫu.
+
+**Test gãy do m4:** migration `0412_conversation_inbound.sql` (Task 153) thêm khóa ngoại `conversations →
+channel_accounts`; `send/note_test.go` dùng Page ngẫu nhiên → 23503. Sửa: `newNoteEnv` tạo Page thật bằng
+`testkit.Staff.ChannelAccount`. Không đổi điều test kiểm.
+
+**Mã trùng (jscpd):** `handlers_templates_test.go` (dựng khách + hội thoại bằng SQL viết tay) trùng 7 dòng với
+`handlers_presence_test.go` (160). Thay bằng `customer.Create` + `testkit.Staff.Conversation` có sẵn; tên khách vẫn "Lan".
+
+**Bằng chứng:**
+| Kiểm | Lệnh | Kết quả |
+|---|---|---|
+| Build | `go build ./...` | qua |
+| Vet | `go vet ./internal/modules/conversation/... ./internal/httpapi/` | qua |
+| Lint | `golangci-lint run ./internal/httpapi/... ./internal/modules/conversation/...` | `0 issues.` |
+| Mã sinh | `make gen` rồi `git status` | không tệp sinh nào đổi |
+| Danh mục | `make catalog-check` | không chênh |
+| Mã trùng | `make jscpd` | trước sửa `Found 1 clones (1 new)`; sau sửa `Found 0 clones.` |
+| Test conversation | `go test -race -count=1 ./internal/modules/conversation/...` | `ok` 7 gói có test (gốc 21.2s, send 2.2s, templates 3.0s…); trước sửa note_test: `send` FAIL 23503 |
+| Mẫu xin địa chỉ | `go test -race -count=1 ./internal/modules/conversation/ -run PageSettings -v` | `PASS: TestPageSettings`, `PASS: TestPageSettings_AskAddressTemplate` |
+| Test httpapi | `go test -race -count=1 ./internal/httpapi/ -run 'DomainError\|Errors\|Template\|Tag\|Settings\|Note'` rồi cả gói `go test -race -count=1 ./internal/httpapi/` | `ok` 5.5s; cả gói `ok` 45.1s |
+| Kiến trúc | `go test -count=1 ./tests/arch/` | `ok` 54.5s (lần đầu đỏ: funlen `TestPageSettings` 57 > 50 và nolint thừa → tách test riêng) |
+
+**Reviewer (lượt gộp):** lượt 1 CẦN SỬA — chỉ tệp task: mục "Test bị xóa hoặc tắt" chưa ghi ca "mẫu xin địa chỉ" bị bỏ
+khỏi `TestPageSettings`; mã đúng (sentinel riêng nên thứ tự errorMapping không đổi kết quả, chốt cũ xóa hẳn, đọc mẫu
+không khóa đúng ADR-46 nhóm 6). Đã thêm dòng đó và ghi chú khóa ngoại vào Việc phát hiện thêm mục 1.
+Lượt 2 (lượt gộp): **ĐẠT** — không còn phát hiện phải sửa; mã đã stage không đổi so với lượt 1, tệp task đủ mục.
+
+**Hook Stop (lượt gộp):** lần chạy đầu đỏ 3 test ngoài phần sửa (`TestCallbacksAPI_List`: DROP DATABASE 55006 khi Docker
+chung bận; `TestOrderRequestAPI_WebAndStaffFlow`: imager trả 500; `TestS3Store_DeleteKeepsVersion`). Chạy lại riêng:
+`go test -race -count=1 ./internal/httpapi/ -run 'TestCallbacksAPI_List|TestOrderRequestAPI_WebAndStaffFlow'` → `ok`
+3.1s; `go test -count=1 ./internal/platform/files/ -run TestS3Store_DeleteKeepsVersion` → `ok` 0.5s. Không thuộc lượt gộp
+(không tệp nào của các test đó bị chạm), do máy chung bận.

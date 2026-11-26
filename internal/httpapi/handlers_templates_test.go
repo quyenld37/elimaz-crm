@@ -6,6 +6,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
+	"elimaz.com.vn/crm/internal/modules/customer"
+	"elimaz.com.vn/crm/internal/platform/tenancy"
 )
 
 const tplPageAdmin = "qtv-page-a@elimaz.test"
@@ -22,17 +25,14 @@ func newTplAPIEnv(t *testing.T) *tplAPIEnv {
 	e := &tplAPIEnv{chAPIEnv: newChAPIEnv(t)}
 	e.staff.Grant(t, e.tenant, e.staff.User(t, e.tenant, tplPageAdmin, "active"),
 		[]string{"conversation.read", "conversation.settings"}, "page", e.pageA.String())
-	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
-		var cust uuid.UUID
-		if err := tx.QueryRow(t.Context(), `INSERT INTO customer.customers (tenant_id, full_name, name_search, name_source)
-			VALUES (current_setting('app.tenant_id')::uuid, 'Lan', 'lan', 'channel') RETURNING id`).Scan(&cust); err != nil {
-			return err //nolint:wrapcheck // test
-		}
-		return tx.QueryRow(t.Context(), `INSERT INTO conversation.conversations
-			(tenant_id, channel_account_id, customer_id, kind, external_thread_ref, last_message_at)
-			VALUES (current_setting('app.tenant_id')::uuid, $1, $2, 'inbox', 'psid-1', now()) RETURNING id`,
-			e.pageA, cust).Scan(&e.conv)
-	})
+	var cust uuid.UUID
+	if err := tenancy.WithTenant(t.Context(), e.staff.Owner, e.tenant, func(tx pgx.Tx) (err error) {
+		cust, err = customer.Create(t.Context(), tx, "Lan")
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		t.Fatalf("tạo khách: %v", err)
+	}
+	e.conv = e.staff.Conversation(t, e.tenant, e.pageA, cust, "psid-1")
 	return e
 }
 
