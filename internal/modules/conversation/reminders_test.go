@@ -90,14 +90,11 @@ func TestFireDueReminders(t *testing.T) {
 	clock := at(14, 59, 30)
 	bus := &realtimetest.RecordingBus{}
 	deps := conversation.Deps{DB: e.staff.App, Bus: bus, Now: func() time.Time { return clock }}
-	handlers := conversation.JobHandlers(deps)
-	if len(handlers) != 1 {
-		t.Fatalf("handler: %d", len(handlers))
-	}
+	handler := jobFor(t, deps, "conversation.reminders")
 	run := func() {
 		t.Helper()
 		e.mustTx(func(tx pgx.Tx) error {
-			_, err := handlers[0].Handle(t.Context(), queue.Job{TenantID: &e.tenant}, tx)
+			_, err := handler.Handle(t.Context(), queue.Job{TenantID: &e.tenant}, tx)
 			return err //nolint:wrapcheck // test
 		})
 	}

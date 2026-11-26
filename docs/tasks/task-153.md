@@ -246,3 +246,28 @@ Kết luận: ĐẠT
 | Mã trùng | `make jscpd` | Found 0 clones (so mốc nền, 0 mới) |
 
 **Reviewer (lượt sửa gộp m4):** ĐẠT. Không có phát hiện phải sửa. `Source` dùng lại `Adapter` vẫn trả nil thật khi tắt (`source_test.go:39`); hai hàm phụ trong `wire_m4_test.go` giữ đúng điều kiện của 153 (handler vào theo nguồn) và 149 (lệnh Page đúng thứ tự); mã sinh channel lấy nguyên từ m4, không cần `make gen`.
+
+## Lượt sửa gộp m4 (lần 3, Task 163)
+
+Gộp lần ba (m4 tại c3e8613, có Task 163 presence_cleanup) vào task-153.
+
+**Xung đột và cách giải (giữ đủ hai bên):**
+- `cmd/crm/wire_m4_test.go`: giữ `m4InboundSources`, `m4CommandKinds` (153/149: handler vào mỗi nguồn, lệnh Page) và `checkM4Schedules` của 163 (lịch `conversation.presence_cleanup` + `conversation.reminders`); gộp lời chú thích.
+- `internal/modules/conversation/wiring_test.go`: giữ phần 153 (có bộ adapter fake → đúng 1 handler vào) và gọi `checkReminders` hai lần; thân `checkReminders` lấy bản m4 (kiểm hai lịch theo thứ tự); giữ `TestPresenceTopic`, `jobFor` của 163.
+
+**Lỗi sau gộp (không xung đột chữ):** test của 163 chèn `conversation.conversations` với mã Page ngẫu nhiên, vi phạm khóa ngoại `conversations_channel_account_fk` do 153 thêm. Sửa fixture dùng `testkit.Staff.ChannelAccount` (Page là tài khoản kênh thật): `internal/modules/conversation/internal/presence/presence_test.go` (Page, Page khác của tenant A, Page của tenant B), `internal/httpapi/handlers_presence_test.go`.
+
+**Bằng chứng:**
+| Lệnh | Kết quả |
+|---|---|
+| `go build ./...` | qua |
+| `go vet` cmd/crm, conversation/..., httpapi | qua |
+| `go test -race -count=1 ./cmd/crm/` (gồm WireM4) | `ok elimaz.com.vn/crm/cmd/crm 6.017s` |
+| `go test -race -count=1 ./internal/modules/conversation/...` (gồm Wiring) | ok conversation, access, inbound, presence (7.4s) |
+| `go test -race -count=1 ./internal/httpapi/` | `ok 52.818s` (lần chạy chung trước đó `TestCouponGuard_ValkeyDownFallback` trượt một lần, chạy lại riêng và cả gói đều qua; không liên quan gộp) |
+| `go test -race -count=1 ./internal/queries/` | `ok 166.586s` |
+| `go test -count=1 ./tests/arch/` | `ok 80.567s` |
+| `golangci-lint run` cmd/crm, conversation, httpapi | `0 issues.` |
+| `make jscpd` | `Found 0 clones.` |
+
+**Reviewer (lần 3):** ĐẠT, không phát hiện ảnh hưởng tính đúng. Đã đối chiếu: wire_m4_test giữ đủ kiểm của 149 (lệnh Page), 153 (handler vào mỗi nguồn), 163+169 (hai lịch, theo tenant, handler cùng Kind); wiring_test giữ ca có/không bộ adapter và TestPresenceTopic, jobFor; fixture presence đúng tenant (Page A, Page khác của A, Page của B). Mã sinh, migration giống hệt m4.

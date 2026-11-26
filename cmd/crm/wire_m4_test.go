@@ -10,9 +10,9 @@ import (
 
 // wireM4: kênh nhắn tin giả fakechat (Task 145) có ngoài production; kênh Facebook khi Meta bật và có app secret (Task
 // 148, nối ở Task 153); production không cấu hình Meta thì không có kênh nào. Mỗi nguồn có đúng một handler vào của
-// conversation (Task 153); lệnh: chỉ đăng ký, hủy đăng ký webhook của Page (Task 149); chưa có luồng nền; lịch duy nhất
-// là conversation.reminders (Task 169) cùng handler của nó; ingest vẫn dựng được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng
-// → lỗi khởi động.
+// conversation (Task 153); lệnh: chỉ đăng ký, hủy đăng ký webhook của Page (Task 149); chưa có luồng nền; lịch là
+// conversation.presence_cleanup (Task 163) và conversation.reminders (Task 169), mỗi lịch một handler cùng Kind; ingest
+// vẫn dựng được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng → lỗi khởi động.
 func TestWireM4_Frame(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
@@ -44,10 +44,7 @@ func TestWireM4_Frame(t *testing.T) {
 		if cmds := m4CommandKinds(p); !slices.Equal(cmds, []string{channel.SubscribePageKind, channel.UnsubscribePageKind}) {
 			t.Errorf("%s: lệnh M4 = %v", c.cfg.Env, cmds)
 		}
-		if len(p.Schedules) != 1 || p.Schedules[0].Name != "conversation.reminders" || !p.Schedules[0].PerTenant ||
-			len(p.Jobs) != 1 || p.Jobs[0].Kind().Name != p.Schedules[0].Kind.Name {
-			t.Errorf("%s: lịch, việc nền của M4: %+v, %d handler", c.cfg.Env, p.Schedules, len(p.Jobs))
-		}
+		checkM4Schedules(t, c.cfg.Env, p)
 	}
 	if _, err := wireM4(config.Config{FieldEncKeys: "sai"}, m4Deps{}); err == nil {
 		t.Error("FIELD_ENC_KEYS sai dạng phải là lỗi khởi động")
@@ -71,4 +68,19 @@ func m4CommandKinds(p m4Parts) []string {
 		out = append(out, h.Kind().Name)
 	}
 	return out
+}
+
+// checkM4Schedules: lịch của M4 đúng tên, đúng thứ tự, chạy theo từng tenant, mỗi lịch một handler cùng Kind.
+func checkM4Schedules(t *testing.T, env string, p m4Parts) {
+	t.Helper()
+	want := []string{"conversation.presence_cleanup", "conversation.reminders"}
+	if len(p.Schedules) != len(want) || len(p.Jobs) != len(want) {
+		t.Errorf("%s: lịch, việc nền của M4: %+v, %d handler", env, p.Schedules, len(p.Jobs))
+		return
+	}
+	for i, name := range want {
+		if p.Schedules[i].Name != name || !p.Schedules[i].PerTenant || p.Jobs[i].Kind().Name != p.Schedules[i].Kind.Name {
+			t.Errorf("%s: lịch %d = %+v, việc %q; muốn %s", env, i, p.Schedules[i], p.Jobs[i].Kind().Name, name)
+		}
+	}
 }

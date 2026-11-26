@@ -26,8 +26,6 @@ listConversationAssignments
 addConversationTag
 removeConversationTag
 addConversationNote
-getPresence
-setPresence
 listMessageRevisions
 resendMessage
 discardMessage

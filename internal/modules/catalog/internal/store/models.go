@@ -697,6 +697,14 @@ type ConversationPost struct {
 	FetchedAt        pgtype.Timestamptz
 }
 
+type ConversationPresence struct {
+	TenantID       uuid.UUID
+	ConversationID uuid.UUID
+	UserID         uuid.UUID
+	State          string
+	ExpiresAt      time.Time
+}
+
 type ConversationReminder struct {
 	ID             uuid.UUID
 	TenantID       uuid.UUID
