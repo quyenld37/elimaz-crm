@@ -21,7 +21,7 @@ import (
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
-// env: database thử; tenant A có một Page (mã ngẫu nhiên), một hội thoại trên Page đó, một hội thoại trên Page khác;
+// env: database thử; tenant A có một Page, một hội thoại trên Page đó, một hội thoại trên Page khác;
 // tenant B có một hội thoại. An và Bình có conversation.read trên Page; Cường chỉ có trên Page khác.
 type env struct {
 	t0              time.Time
@@ -38,13 +38,16 @@ type env struct {
 func newEnv(t *testing.T) *env {
 	t.Helper()
 	s := testkit.OpenStaff(t)
-	e := &env{ // hai Page ngẫu nhiên, giờ gốc cố định
-		t: t, staff: s, a: s.Tenant(t, "A"), b: s.Tenant(t, "B"), page: uuid.New(), otherPage: uuid.New(),
+	e := &env{ // giờ gốc cố định
+		t: t, staff: s, a: s.Tenant(t, "A"), b: s.Tenant(t, "B"),
 		bus: &realtimetest.RecordingBus{}, t0: time.Date(2026, 11, 26, 9, 0, 0, 0, time.UTC),
 	}
+	// Page là tài khoản kênh thật: hội thoại có khóa ngoại tới channel.channel_accounts (Task 153).
+	e.page = s.ChannelAccount(t, e.a, "facebook", "page-a", "Page A")
+	e.otherPage = s.ChannelAccount(t, e.a, "facebook", "page-khac", "Page khác")
 	e.conv = e.conversation(e.a, e.page)
 	e.otherConv = e.conversation(e.a, e.otherPage)
-	e.convB = e.conversation(e.b, uuid.New())
+	e.convB = e.conversation(e.b, s.ChannelAccount(t, e.b, "facebook", "page-b", "Page B"))
 	e.an = e.user("an@elimaz.test", "An", e.page)
 	e.binh = e.user("binh@elimaz.test", "Bình", e.page)
 	e.cuong = e.user("cuong@elimaz.test", "Cường", e.otherPage)

@@ -3,5 +3,14 @@ package inbound
 
 import "elimaz.com.vn/crm/internal/modules/conversation/internal/deps"
 
-// Parts là phần chạy nền của phần inbound. Khung của Task 143: chưa có phần nào.
-func Parts(_ deps.Deps) deps.Parts { return deps.Parts{} }
+// Parts là phần chạy nền của phần inbound: một handler sự kiện vào cho mỗi adapter trong d.Registry (Task 153).
+func Parts(d deps.Deps) deps.Parts {
+	var p deps.Parts
+	if d.Registry == nil {
+		return p
+	}
+	for _, k := range d.Registry.Keys() {
+		p.Inbound = append(p.Inbound, NewHandler(d, k))
+	}
+	return p
+}

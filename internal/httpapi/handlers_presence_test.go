@@ -49,9 +49,11 @@ func newPresenceEnv(t *testing.T) *presenceEnv {
 	t.Helper()
 	e := &presenceEnv{
 		t: t, staff: testkit.OpenStaff(t), keys: cfaccesstest.AccessKeyServer(t), bus: &realtimetest.RecordingBus{},
-		reg: metrics.NewRegistry(), page: uuid.New(), now: time.Date(2026, 11, 26, 9, 0, 0, 0, time.UTC),
+		reg: metrics.NewRegistry(), now: time.Date(2026, 11, 26, 9, 0, 0, 0, time.UTC),
 	}
 	e.tenant = e.staff.Tenant(t, "A")
+	// Page là tài khoản kênh thật: hội thoại có khóa ngoại tới channel.channel_accounts (Task 153).
+	e.page = e.staff.ChannelAccount(t, e.tenant, "facebook", "page-pres", "Page A")
 	e.anID = e.user(presAn, "An", "page", e.page.String())
 	e.user(presBinh, "Bình", "page", e.page.String())
 	e.user(presCuong, "Cường", "page", uuid.NewString())

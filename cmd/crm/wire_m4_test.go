@@ -8,10 +8,11 @@ import (
 	"elimaz.com.vn/crm/internal/platform/config"
 )
 
-// wireM4: kênh nhắn tin giả fakechat (Task 145) có ngoài production, là nguồn webhook duy nhất của M4 lúc này (adapter
-// Facebook chưa hiện thực); production không có kênh nào. Lệnh: chỉ đăng ký, hủy đăng ký webhook của Page (Task 149);
-// lịch là conversation.presence_cleanup (Task 163) và conversation.reminders (Task 169), mỗi lịch một handler cùng Kind;
-// chưa có handler vào, luồng nền; ingest vẫn dựng được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng → lỗi khởi động.
+// wireM4: kênh nhắn tin giả fakechat (Task 145) có ngoài production; kênh Facebook khi Meta bật và có app secret (Task
+// 148, nối ở Task 153); production không cấu hình Meta thì không có kênh nào. Mỗi nguồn có đúng một handler vào của
+// conversation (Task 153); lệnh: chỉ đăng ký, hủy đăng ký webhook của Page (Task 149); chưa có luồng nền; lịch là
+// conversation.presence_cleanup (Task 163) và conversation.reminders (Task 169), mỗi lịch một handler cùng Kind; ingest
+// vẫn dựng được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng → lỗi khởi động.
 func TestWireM4_Frame(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
@@ -21,6 +22,8 @@ func TestWireM4_Frame(t *testing.T) {
 		{config.Config{Env: "production"}, nil},
 		{config.Config{Env: "dev"}, []string{"fakechat"}},
 		{config.Config{Env: "dev", Meta: config.MetaConfig{Enabled: true}}, []string{"fakechat"}},
+		{config.Config{Env: "dev", Meta: config.MetaConfig{Enabled: true, AppSecret: "s"}}, []string{"facebook", "fakechat"}},
+		{config.Config{Env: "production", Meta: config.MetaConfig{Enabled: true, AppSecret: "s"}}, []string{"facebook"}},
 	} {
 		p, err := wireM4(c.cfg, m4Deps{})
 		if err != nil {
@@ -32,14 +35,13 @@ func TestWireM4_Frame(t *testing.T) {
 		if len(p.Sources) != len(c.keys) {
 			t.Errorf("%s: %d nguồn webhook, muốn %d", c.cfg.Env, len(p.Sources), len(c.keys))
 		}
-		if len(p.Inbound)+len(p.Background) != 0 {
-			t.Errorf("%s: khung M4 chưa được có handler vào, luồng nền: %+v", c.cfg.Env, p)
+		if inbound := m4InboundSources(p); !slices.Equal(inbound, c.keys) && len(inbound)+len(c.keys) != 0 {
+			t.Errorf("%s: handler vào của nguồn %v, muốn %v", c.cfg.Env, inbound, c.keys)
 		}
-		var cmds []string
-		for _, h := range p.Commands {
-			cmds = append(cmds, h.Kind().Name)
+		if len(p.Background) != 0 {
+			t.Errorf("%s: khung M4 chưa được có luồng nền: %+v", c.cfg.Env, p)
 		}
-		if !slices.Equal(cmds, []string{channel.SubscribePageKind, channel.UnsubscribePageKind}) {
+		if cmds := m4CommandKinds(p); !slices.Equal(cmds, []string{channel.SubscribePageKind, channel.UnsubscribePageKind}) {
 			t.Errorf("%s: lệnh M4 = %v", c.cfg.Env, cmds)
 		}
 		checkM4Schedules(t, c.cfg.Env, p)
@@ -47,6 +49,25 @@ func TestWireM4_Frame(t *testing.T) {
 	if _, err := wireM4(config.Config{FieldEncKeys: "sai"}, m4Deps{}); err == nil {
 		t.Error("FIELD_ENC_KEYS sai dạng phải là lỗi khởi động")
 	}
+}
+
+// m4InboundSources trả nguồn của các handler vào của M4, đã sắp xếp.
+func m4InboundSources(p m4Parts) []string {
+	var out []string
+	for _, h := range p.Inbound {
+		out = append(out, h.Source())
+	}
+	slices.Sort(out)
+	return out
+}
+
+// m4CommandKinds trả tên loại lệnh của M4 theo thứ tự đăng ký.
+func m4CommandKinds(p m4Parts) []string {
+	var out []string
+	for _, h := range p.Commands {
+		out = append(out, h.Kind().Name)
+	}
+	return out
 }
 
 // checkM4Schedules: lịch của M4 đúng tên, đúng thứ tự, chạy theo từng tenant, mỗi lịch một handler cùng Kind.

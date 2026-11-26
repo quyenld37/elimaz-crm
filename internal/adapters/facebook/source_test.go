@@ -9,8 +9,8 @@ import (
 	"elimaz.com.vn/crm/internal/platform/logging"
 )
 
-// Source(cfg): adapter đầy đủ dựng từ cfg.Meta chỉ khi kênh Meta bật và có app secret; Key là "facebook". Adapter(cfg)
-// (đăng ký vào channel.Registry) vẫn nil tới khi có handler inbound.facebook (Task 153; tệp task 148, Quyết định 1).
+// Source(cfg), Adapter(cfg): adapter đầy đủ dựng từ cfg.Meta chỉ khi kênh Meta bật và có app secret, không thì nil thật;
+// Key là "facebook". Adapter được nối vào channel.Registry từ Task 153 (tệp task 148, Quyết định 1).
 func TestSource(t *testing.T) {
 	t.Parallel()
 	on := config.Config{Meta: config.MetaConfig{
@@ -39,9 +39,12 @@ func TestSource(t *testing.T) {
 		if s := facebook.Source(cfg); s != nil {
 			t.Errorf("%s: nguồn phải nil (không phải nil có kiểu), được %T", name, s)
 		}
+		if a := facebook.Adapter(cfg); a != nil {
+			t.Errorf("%s: Adapter phải nil (không phải nil có kiểu), được %T", name, a)
+		}
 	}
-	if facebook.Adapter(on) != nil {
-		t.Error("Adapter vẫn nil tới khi có handler inbound.facebook (Task 153)")
+	if a := facebook.Adapter(on); a == nil || a.Key() != facebook.Key {
+		t.Errorf("Meta bật: Adapter = %v, muốn adapter khóa %q", a, facebook.Key)
 	}
 	if f := inbound(testAppSecret, "").Features(); !f.Comments || !f.LiveComments || !f.PrivateReply ||
 		!f.HideComment || !f.QuickReplies || !f.HumanAgent {

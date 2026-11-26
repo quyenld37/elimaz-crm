@@ -64,6 +64,13 @@ func explainSeed(a, b, pageA1, pageA2, pageB uuid.UUID) testkit.Seed {
 			fmt.Sprintf(`INSERT INTO identity.users (tenant_id, email, display_name)
 				SELECT current_setting('app.tenant_id')::uuid, 'nv' || g || '@%s.test', 'nv ' || g
 				FROM generate_series(1, %d) AS g`, c.tag, c.users),
+			`INSERT INTO catalog.sellers (tenant_id, code, name, kind)
+				VALUES (current_setting('app.tenant_id')::uuid, 'ELIMAZ', 'ELIMAZ', 'own')`,
+			// Page là tài khoản kênh thật (khóa ngoại 0412, Task 153).
+			fmt.Sprintf(`INSERT INTO channel.channel_accounts (id, tenant_id, seller_id, channel, external_id, name)
+				SELECT p, s.tenant_id, s.id, 'facebook', p::text, 'Page'
+				FROM unnest(%s) AS p, catalog.sellers AS s
+				WHERE s.tenant_id = current_setting('app.tenant_id')::uuid AND s.code = 'ELIMAZ'`, c.pages),
 			fmt.Sprintf(`INSERT INTO conversation.posts (tenant_id, channel_account_id, external_id, kind)
 				SELECT current_setting('app.tenant_id')::uuid, (%s)[1 + g %% cardinality(%s)], 'post-' || g, 'live'
 				FROM generate_series(1, %d) AS g`, c.pages, c.pages, c.posts),

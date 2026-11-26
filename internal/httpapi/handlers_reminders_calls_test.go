@@ -48,9 +48,11 @@ func newChatAPIEnv(t *testing.T) *chatAPIEnv {
 	t.Helper()
 	s := testkit.OpenStaff(t)
 	e := &chatAPIEnv{
-		t: t, staff: s, keys: cfaccesstest.AccessKeyServer(t), tenant: s.Tenant(t, "A"), pageA: uuid.New(), pageB: uuid.New(),
+		t: t, staff: s, keys: cfaccesstest.AccessKeyServer(t), tenant: s.Tenant(t, "A"),
 		now: time.Now().UTC().Add(time.Hour).Truncate(time.Second),
 	}
+	e.pageA = s.ChannelAccount(t, e.tenant, "facebook", "page-a", "Page A")
+	e.pageB = s.ChannelAccount(t, e.tenant, "facebook", "page-b", "Page B")
 	for _, u := range []struct {
 		email string
 		all   bool

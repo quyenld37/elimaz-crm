@@ -1,11 +1,14 @@
 package conversation
 
-import "elimaz.com.vn/crm/internal/modules/channel"
+import (
+	"elimaz.com.vn/crm/internal/modules/channel"
+	"elimaz.com.vn/crm/internal/modules/conversation/internal/deps"
+)
 
 // Chủ đề báo hiệu realtime của M4 (Global Constraints "Báo hiệu realtime"): mọi báo hiệu đòi conversation.read với
 // phạm vi page:<channel_accounts.id> (Q36), thực thể là mã bản ghi, không có nội dung.
 const (
-	TopicConversationChanged = "conversation.changed"
+	TopicConversationChanged = deps.TopicConversationChanged
 	TopicPresence            = "conversation.presence"
 	TopicLiveComments        = "live.comments"
 	TopicReminderFired       = "reminder.fired"

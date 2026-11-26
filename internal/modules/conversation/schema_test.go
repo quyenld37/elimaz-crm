@@ -18,7 +18,7 @@ import (
 )
 
 // schemaEnv: database thử có hai tenant; tenant A có một khách, một Page (mã ngẫu nhiên: khóa ngoại tới
-// channel.channel_accounts chưa có, Quyết định 1 của task), một bài viết, một hội thoại inbox và một hội thoại comment.
+// channel.channel_accounts thêm ở 0412, Task 153: Page là tài khoản kênh thật), một bài viết, một hội thoại inbox và một hội thoại comment.
 type schemaEnv struct {
 	t              *testing.T
 	staff          *testkit.Staff
@@ -39,7 +39,8 @@ func pgCode(err error) string {
 func newSchemaEnv(t *testing.T) *schemaEnv {
 	t.Helper()
 	s := testkit.OpenStaff(t)
-	e := &schemaEnv{t: t, staff: s, a: s.Tenant(t, "A"), b: s.Tenant(t, "B"), page: uuid.New()}
+	e := &schemaEnv{t: t, staff: s, a: s.Tenant(t, "A"), b: s.Tenant(t, "B")}
+	e.page = s.ChannelAccount(t, e.a, "facebook", "page-a", "Page A")
 	ctx := t.Context()
 	s.Exec(t, e.a, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `INSERT INTO customer.customers (tenant_id, full_name, name_search)
@@ -321,7 +322,8 @@ func TestSchema_AppendOnly(t *testing.T) {
 }
 
 // [Task 151] Khóa ngoại ghép: hội thoại trỏ khách của tenant khác, tin trỏ hội thoại không có, liên kết nhãn trỏ nhãn
-// không có → 23503; người phụ trách phải là nhân viên của tenant.
+// không có → 23503; người phụ trách phải là nhân viên của tenant. [Task 153] Bài, hội thoại, tin, cài đặt Page trỏ Page
+// không có hay Page của tenant khác → 23503.
 func TestSchema_ForeignKeys(t *testing.T) {
 	t.Parallel()
 	e := newSchemaEnv(t)
@@ -332,11 +334,13 @@ func TestSchema_ForeignKeys(t *testing.T) {
 			VALUES (current_setting('app.tenant_id')::uuid, 'Anh Nam', 'anh nam') RETURNING id`).Scan(&otherCustomer)
 	})
 	user := e.staff.User(t, e.a, "nv@elimaz.test", "active")
-	for _, c := range []struct {
+	pageB := e.staff.ChannelAccount(t, e.b, "facebook", "page-b", "Page B")
+	type fkCase struct {
 		name, q string
 		args    []any
 		code    string
-	}{
+	}
+	cases := []fkCase{
 		{
 			"khách tenant khác", `INSERT INTO conversation.conversations
 			(tenant_id, channel_account_id, customer_id, kind, external_thread_ref, last_message_at)
@@ -371,7 +375,25 @@ func TestSchema_ForeignKeys(t *testing.T) {
 		},
 		{"bài trùng", `INSERT INTO conversation.posts (tenant_id, channel_account_id, external_id)
 			VALUES (current_setting('app.tenant_id')::uuid, $1, 'post-1')`, []any{e.page}, "23505"},
-	} {
+	}
+	for _, page := range []struct {
+		name string
+		id   uuid.UUID
+	}{{"Page không có", uuid.New()}, {"Page tenant khác", pageB}} {
+		cases = append(cases,
+			fkCase{page.name + ": bài", `INSERT INTO conversation.posts (tenant_id, channel_account_id, external_id)
+				VALUES (current_setting('app.tenant_id')::uuid, $1, 'post-x')`, []any{page.id}, "23503"},
+			fkCase{page.name + ": hội thoại", `INSERT INTO conversation.conversations
+				(tenant_id, channel_account_id, customer_id, kind, external_thread_ref, last_message_at)
+				VALUES (current_setting('app.tenant_id')::uuid, $1, $2, 'inbox', 'z-2', now())`, []any{page.id, e.customer}, "23503"},
+			fkCase{page.name + ": tin", `INSERT INTO conversation.messages
+				(tenant_id, conversation_id, channel_account_id, direction, kind, origin, sent_at)
+				VALUES (current_setting('app.tenant_id')::uuid, $1, $2, 'in', 'message', 'customer', now())`, []any{e.inbox, page.id}, "23503"},
+			fkCase{page.name + ": cài đặt Page", `INSERT INTO conversation.page_settings (tenant_id, channel_account_id)
+				VALUES (current_setting('app.tenant_id')::uuid, $1)`, []any{page.id}, "23503"},
+		)
+	}
+	for _, c := range cases {
 		err := e.tryApp(e.a, func(tx pgx.Tx) error {
 			_, err := tx.Exec(ctx, c.q, c.args...)
 			return err //nolint:wrapcheck // test

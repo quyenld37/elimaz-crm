@@ -12,7 +12,7 @@ import (
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
-// chatEnv (Task 169): tenant có hai Page A, B (mã ngẫu nhiên, khóa ngoại tới channel_accounts chưa có — tệp task-151),
+// chatEnv (Task 169): tenant có hai Page A, B (tài khoản kênh thật: khóa ngoại tới channel.channel_accounts, 0412),
 // khách gốc ka và hồ sơ kb đã gộp vào ka, hội thoại inbox convA (Page A, khách ka), comment convB (Page B, hồ sơ kb), ba
 // nhân viên: sale (đọc, trả lời Page A), lead (đọc, trả lời, giao việc Page A), viewer (chỉ đọc Page A).
 type chatEnv struct {
@@ -28,7 +28,9 @@ type chatEnv struct {
 func newChatEnv(t *testing.T) *chatEnv {
 	t.Helper()
 	s := testkit.OpenStaff(t)
-	e := &chatEnv{t: t, staff: s, tenant: s.Tenant(t, "A"), pageA: uuid.New(), pageB: uuid.New()}
+	e := &chatEnv{t: t, staff: s, tenant: s.Tenant(t, "A")}
+	e.pageA = s.ChannelAccount(t, e.tenant, "facebook", "page-a", "Page A")
+	e.pageB = s.ChannelAccount(t, e.tenant, "facebook", "page-b", "Page B")
 	ctx := t.Context()
 	s.Exec(t, e.tenant, func(tx pgx.Tx) error {
 		for _, c := range []struct {
