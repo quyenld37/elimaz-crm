@@ -9,7 +9,8 @@ import (
 )
 
 // wireM6 nối đúng một lần phần chạy nền của M6 (Task 228): lệnh command.report_run, việc reporting.stock_snapshot và
-// reporting.cleanup. Lịch còn rỗng tới khi Task 233, 235 làm thân việc (bản giữ chỗ không chạy định kỳ).
+// reporting.cleanup. Lịch: reporting.stock_snapshot (Task 233); reporting.cleanup còn rỗng tới Task 235 (bản giữ chỗ
+// không chạy định kỳ).
 func TestWireM6(t *testing.T) {
 	t.Parallel()
 	m := wireM6(reporting.Deps{})
@@ -26,8 +27,12 @@ func TestWireM6(t *testing.T) {
 	if !slices.Equal(jobs, []string{"reporting.stock_snapshot", "reporting.cleanup"}) {
 		t.Errorf("việc = %v", jobs)
 	}
-	if len(m.Schedules) != 0 {
-		t.Errorf("lịch = %+v, mong rỗng tới Task 233, 235", m.Schedules)
+	var scheds []string
+	for _, s := range m.Schedules {
+		scheds = append(scheds, s.Name)
+	}
+	if !slices.Equal(scheds, []string{"reporting.stock_snapshot"}) {
+		t.Errorf("lịch = %v, mong chỉ reporting.stock_snapshot tới Task 235", scheds)
 	}
 	if k := reporting.RunCommandKind(); k.Policy.Timeout != 80*time.Second || k.Policy.ExpiresAfter != time.Hour {
 		t.Errorf("chính sách lệnh chạy nền = %+v", k.Policy)
