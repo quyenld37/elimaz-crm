@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M7 — CRM ELIMAZ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="../m3/m3.css">
+<link rel="stylesheet" href="m7.css">
+<style>
+.doc { max-width: 1320px; margin: 0 auto; padding: 24px 40px 64px; display: grid; gap: 24px; }
+@media (max-width: 999px) { .doc { padding: 16px 16px 48px; } }
+.pair, .cur { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: 16px; margin-top: 8px; align-items: start; }
+.cur { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+figure { margin: 0; display: grid; gap: 4px; min-width: 0; }
+.pair img, .cur img { width: 100%; height: 420px; object-fit: cover; object-position: top; border: 1px solid var(--rule); border-radius: var(--r-box); display: block; }
+.cur img { height: 260px; }
+figure > a { display: block; }
+figcaption a { display: inline-flex; min-height: var(--tap); align-items: center; }
+@media (max-width: 759px) { .pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .pair img { height: 260px; } }
+.tbl td { overflow-wrap: anywhere; }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (min-width: 760px) { .btbl td:first-child { width: 64px; } .btbl td:nth-child(2) { width: 120px; } .btbl td:nth-child(4) { width: 260px; } .btbl td:last-child { width: 140px; } }
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="stack-sm">
+	<p class="xs label">CRM ELIMAZ · M7 · TASK M7-02 (247) · 28/11/2026</p>
+	<h1>Mockup M7: Kiểm kho mở sổ và Hàng hoàn đơn cũ, Hiện tại / Đề xuất</h1>
+	<p class="muted">Hai màn của M7 đợt này (màn 10 và 13 trong bảng của kế hoạch), vẽ bằng đúng hệ thiết kế CRM đã duyệt ở M1 (<code>docs/mockups/m1/m1.css</code>) và thành phần M2, M3: chỉ màu, cỡ chữ, bo góc có sẵn; không có gì chỉ hiện khi rê chuột; nút trên điện thoại cao ít nhất 44 px. Mỗi màn có nhiều <b>trạng thái</b> xếp dọc (khung viền đứt là ghi chú của mockup). Mười ba màn còn lại của M7 vẽ cùng task màn của chúng ở đợt sau.</p>
+	<div class="box box-ok"><b class="ok-text">Đã chốt (Điểm dừng B, Q-X8): Claude chốt thay chủ shop 28/11/2026 theo giao việc của điều phối M7.</b> Hình và 11 dòng hành vi (HV01–HV11) OK như mockup. Chủ shop xem lại khi quay lại; đổi ý dòng nào thì Task 273 làm theo bản sửa. Xem README.md.</div>
+</header>
+
+<section class="card">
+	<h2>Đọc trang này thế nào</h2>
+	<ul class="small" style="margin:8px 0 0;padding-left:20px">
+		<li><b>Hiện tại</b>: ảnh mockup đã duyệt của màn gần nhất đang có (Kiểm kho của M1, Nhận hàng hoàn của M3); console đang làm đúng các mockup này.</li>
+		<li><b>Đề xuất</b>: ảnh 1512 × 767 (laptop của chủ shop), 390 × 844 và 360 × 800 (điện thoại của nhân viên kho). Bấm ảnh để xem cả trang.</li>
+		<li>Ảnh đề xuất và tự soát sinh lại bằng <code>docs/mockups/m7/soat.mjs</code>.</li>
+	</ul>
+	<div class="toc" style="margin-top:16px"><a class="btn btn-quiet" href="#mo-so">(10) Kiểm kho mở sổ</a><a class="btn btn-quiet" href="#hang-hoan-cu">(13) Hàng hoàn đơn cũ</a><a class="btn btn-quiet" href="#ca-kiem">Ca kiểm</a><a class="btn btn-quiet" href="#hanh-vi">Hành vi khác màn cũ</a></div>
+</section>
+
+<section class="card scr" id="mo-so">
+	<div class="row-between"><h2>(10) Kiểm kho mở sổ</h2><a class="btn btn-quiet" href="kiem-kho-mo-so.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Kho → Kiểm kho → Mở sổ · đề xuất <code>/kho/mo-so</code>, <code>/kho/mo-so/:id</code> · Task 273 (M7-28). <b>Ca kiểm:</b> MO02. <b>Trạng thái:</b> A tạo phiên (kho trống), kho đã có hàng, đã có phiên mở sổ, đang kiểm thường · B đếm bằng quét mã trên điện thoại: +1 mỗi lần quét, −1, số là tổng mọi người, mã lạ, mã trùng hai người bán, không bớt dưới 0, mất mạng chờ gửi cùng khóa · C còn 7 mã chưa đếm, Nhập 0, nút Đăng khóa · D nhập Excel: hai chế độ, đang đọc, kết quả và lỗi từng dòng, tệp đã cộng, tệp sai, không đọc được · E xác nhận đăng, còn mã chưa đếm (422), người khác đã đăng (409), kho có hàng vào giữa chừng · F đã mở sổ, kiểm lại khớp / lệch / đã có phiếu khác, sửa bằng phiếu điều chỉnh · G không quyền, lỗi tải</p>
+	<p class="label" style="margin-top:12px">Hiện tại</p><div class="cur"><figure><a href="../m1/png/kho-kiem-kho-1512.png"><img src="../m1/png/kho-kiem-kho-1512.png" alt="Hiện tại Kiểm kho M1 1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại · Kiểm kho thường (M1) 1512 · <a href="../m1/png/kho-kiem-kho-390.png">ảnh 390</a></figcaption></figure></div>
+	<p class="label" style="margin-top:12px">Đề xuất</p>
+	<div class="pair">
+		<figure><a href="shots/kiem-kho-mo-so-1512.png"><img src="shots/kiem-kho-mo-so-1512.png" alt="Đề xuất (10) Kiểm kho mở sổ 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="shots/kiem-kho-mo-so-390.png"><img src="shots/kiem-kho-mo-so-390.png" alt="Đề xuất (10) Kiểm kho mở sổ 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="shots/kiem-kho-mo-so-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+
+<section class="card scr" id="hang-hoan-cu">
+	<div class="row-between"><h2>(13) Hàng hoàn đơn cũ</h2><a class="btn btn-quiet" href="hang-hoan-don-cu.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Kho → Hàng hoàn đơn cũ · đề xuất <code>/kho/hang-hoan-cu</code> · Task 273 (M7-28). <b>Ca kiểm:</b> MO08. <b>Trạng thái:</b> A nhập một kiện: kho, mã tham chiếu (chuẩn hóa chữ hoa, bỏ khoảng trắng), quét món, số lượng, Bán lại được / Hỏng, ghi chú; kết quả phiếu nhập và phiếu chuyển hàng lỗi · B kiện đã nhập rồi (409, liên kết lần nhập cũ), mã tham chiếu ngắn, số lượng 0, mã lạ, chưa có món, đang gửi · C danh sách theo ngày, khoảng ngày, 3 ngày 7 kiện, không có kiện nào, không quyền, lỗi tải</p>
+	<p class="label" style="margin-top:12px">Hiện tại</p><div class="cur"><figure><a href="../m3/png/kho-1512.png"><img src="../m3/png/kho-1512.png" alt="Hiện tại Kho M3 (có Nhận hàng hoàn) 1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại · Kho M3, trạng thái D Nhận hàng hoàn của đơn CRM · <a href="../m3/png/kho-390.png">ảnh 390</a></figcaption></figure></div>
+	<p class="label" style="margin-top:12px">Đề xuất</p>
+	<div class="pair">
+		<figure><a href="shots/hang-hoan-don-cu-1512.png"><img src="shots/hang-hoan-don-cu-1512.png" alt="Đề xuất (13) Hàng hoàn đơn cũ 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="shots/hang-hoan-don-cu-390.png"><img src="shots/hang-hoan-don-cu-390.png" alt="Đề xuất (13) Hàng hoàn đơn cũ 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="shots/hang-hoan-don-cu-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+
+<section class="card" id="ca-kiem">
+	<h2>Ca kiểm của spec</h2>
+	<div class="tbl-frame"><table class="tbl"><thead><tr><th>Ca</th><th>Nội dung</th><th>Vẽ ở</th></tr></thead><tbody>
+	<tr><td class="lead"><b>MO02</b></td><td data-label="Nội dung">Kiểm đếm toàn bộ kho để mở sổ; tồn mở sổ bằng đúng số đếm; không đăng hai lần</td><td data-label="Vẽ ở">(10) A–F</td></tr>
+	<tr><td class="lead"><b>MO08</b></td><td data-label="Nội dung">Hàng hoàn của đơn cũ về kho sau ngày mở: phiếu nhập có mã tham chiếu duy nhất, hàng hỏng vào ngăn hỏng (Q11)</td><td data-label="Vẽ ở">(13) A–C</td></tr>
+	</tbody></table></div>
+</section>
+
+<section class="card" id="hanh-vi">
+	<h2>Hành vi khác màn đã có ở M1–M6</h2>
+	<p class="small muted">Mỗi dòng duyệt riêng (kế hoạch Task 247 Step 3). Claude chốt thay chủ shop 28/11 theo giao việc của điều phối M7; chủ shop đổi ý dòng nào thì ghi vào README.md.</p>
+	<div class="tbl-frame"><table class="tbl btbl"><thead><tr><th>#</th><th>Màn</th><th>Đề xuất</th><th>Hiện tại</th><th>Duyệt</th></tr></thead><tbody>
+	<tr><td class="num"><b>HV01</b></td><td>Kiểm kho</td><td>Kiểm kho mở sổ là màn riêng, không có mục menu (việc làm một lần mỗi kho): vào từ màn Kiểm kho, nơi thẻ "Bắt đầu phiên kiểm" có thêm nút "Mở sổ kho này" khi người dùng có quyền mở sổ kho đó (kho đã có hàng thì bấm sẽ báo); kho đã có phiên mở sổ thì báo và dẫn vào phiên đó ("Vào phiên MS-0001").</td><td class="small">Kiểm kho (M1) chỉ có phiên thường.</td><td>OK (Claude, 28/11)</td></tr>
+	<tr><td class="num"><b>HV02</b></td><td>Menu</td><td>Mục mới "Hàng hoàn đơn cũ" ở nhóm Kho, ngay sau "Nhận hàng hoàn"; chỉ người có quyền nhập hàng hoàn cũ thấy.</td><td class="small">Không có.</td><td>OK (Claude, 28/11)</td></tr>
+	<tr><td class="num"><b>HV03</b></td><td>Mở sổ · đếm</td><td>Mỗi lần quét gửi ngay một lần cộng 1 lên máy chủ; nhiều người cùng đếm một mã thì số cộng dồn, không ghi đè; số to là tổng của mọi người, kèm người đếm lần cuối.</td><td class="small">Kiểm kho thường: số của dòng là số đặt, lưu sau khi ngừng quét chưa tới 1 giây; hai người đếm cùng mã thì người lưu sau ghi đè.</td><td>OK (Claude, 28/11)</td></tr>
+	<tr><td class="num"><b>HV04</b></td><td>Mở sổ · đếm</td><td>Sửa quét thừa bằng nút −1 lớn; không có ô gõ số để đặt lại (gõ đè làm mất số người khác vừa cộng). Mã không có hàng dùng nút "Nhập 0" ở danh sách chưa đếm.</td><td class="small">Ô số gõ trực tiếp kèm − / +.</td><td>OK (Claude, 28/11)</td></tr>
+	<tr><td class="num"><b>HV05</b></td><td>Mở sổ · đếm</td><td>Mất mạng: lần quét xếp hàng trên máy, mỗi dòng "Chờ gửi · +1", có mạng lại tự gửi đúng các lần đó (cùng khóa, không đếm trùng); hộp nhắc không đóng trang.</td><td class="small">Dòng hiện "Chưa lưu được, đang thử lại".</td><td>OK (Claude, 28/11)</td></tr>
+	<tr><td class="num"><b>HV06</b></td><td>Mở sổ</td><td>Phải có số cho mọi mã đang bán mới đăng được: thanh tiến độ "405 / 412 mã", tab "Chưa đếm (7)" lấy từ máy chủ; nút Đăng khóa kèm lý do.</td><td class="small">Kiểm kho thường chỉ sửa mã đã quét; mã không quét giữ nguyên tồn.</td><td>OK (Claude, 28/11)</td></tr>
+	<tr><td class="num"><b>HV07</b></td><td>Mở sổ</td><td>Không có bước "Xem chênh lệch" (kho trống, mọi số là số mới); Đăng hỏi xác nhận số mã, tổng số cái; đăng xong có "Kiểm lại" (mốc A của đêm mở) và lối sang phiếu điều chỉnh.</td><td class="small">Xem chênh lệch → Áp dụng.</td><td>OK (Claude, 28/11)</td></tr>
+	<tr><td class="num"><b>HV08</b></td><td>Mở sổ · quyền</td><td>Đăng mở sổ dùng quyền "mở sổ kho" theo kho: Chủ, Quản lý và nhân viên kho được giao kho đó đăng được (vai trò mẫu của kế hoạch, Task 260).</td><td class="small">Áp dụng kiểm kho thường chỉ Chủ, Quản lý.</td><td>OK (Claude, 28/11)</td></tr>
+	<tr><td class="num"><b>HV09</b></td><td>Mở sổ · Excel</td><td>Nhập số đếm từ tệp .xlsx (cột Mã, Số đếm) vào phiên đang đếm: chế độ "Đặt bằng số trong tệp" (mặc định, nhập lại không đổi gì) hoặc "Cộng thêm" (mỗi tệp một lần); máy đọc tệp ở nền; báo lỗi từng dòng bằng số dòng và câu lỗi, không chép nội dung ô.</td><td class="small">Kiểm kho không nhập tệp.</td><td>OK (Claude, 28/11)</td></tr>
+	<tr><td class="num"><b>HV10</b></td><td>Hàng hoàn cũ</td><td>Màn riêng cho đơn của công cụ cũ: nhập theo mã tham chiếu gõ tay (mã vận đơn hoặc mã đơn cũ), không gắn đơn hay vận đơn; mỗi kiện nhập một lần (trùng báo và dẫn tới lần nhập cũ); tình trạng chỉ "Bán lại được" / "Hỏng", không có "Thiếu" và không so với số đã gửi; bấm Nhập kho là tồn tăng ngay (phiếu nhập, cộng phiếu chuyển hàng lỗi khi có món hỏng).</td><td class="small">Nhận hàng hoàn (M3) theo phiếu hoàn của đơn CRM: Tốt / Hỏng / Thiếu, tổng phải bằng số đã gửi.</td><td>OK (Claude, 28/11)</td></tr>
+	<tr><td class="num"><b>HV11</b></td><td>Hàng hoàn cũ</td><td>Mỗi dòng một tình trạng; cùng một mã có cả cái tốt và cái hỏng thì quét lần nữa để có dòng thứ hai. Danh sách đã nhập nhóm theo ngày, mặc định 7 ngày gần nhất.</td><td class="small">—</td><td>OK (Claude, 28/11)</td></tr>
+	</tbody></table></div>
+</section>
+
+</div>
+</body>
+</html>
