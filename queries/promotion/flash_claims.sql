@@ -26,3 +26,11 @@ RETURNING c.quantity;
 UPDATE promotion.flash_sale_claims
 SET quantity = quantity - @qty::int, updated_at = now()
 WHERE flash_sale_item_id = @item_id AND customer_id = @customer_id AND quantity >= @qty::int;
+
+-- name: FlashSaleStatusForShare :one
+-- Trạng thái đợt, khóa chia sẻ tới hết tx (M5 Task 202): đường hủy đơn flash quyết định "đợt còn mở hay đã đóng" và
+-- đóng đợt (FOR UPDATE) chờ nhau, nên quyết định không đổi trong tx. ADR-46 nhóm 10: flash_sales trước claims.
+SELECT status
+FROM promotion.flash_sales
+WHERE id = @id
+FOR SHARE;

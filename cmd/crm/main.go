@@ -406,6 +406,7 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 	// (Task M3-33): lệnh do lệnh cash.reconcile ghi.
 	return append([]commands.Handler{
 		alerts, digest, inventory.NewShortageAlertCommand(alerter, logger), inventory.NewStockMismatchCommand(alerter, logger),
+		inventory.NewFlashMismatchCommand(alerter, logger),
 		fulfillment.NewAuthAlertCommand(alerter, logger), fulfillment.NewTrackAlertCommand(d, alerter, logger),
 		cash.NewRemittedReturnedAlertCommand(alerter),
 		cash.NewReconcileAlertCommand(alerter),

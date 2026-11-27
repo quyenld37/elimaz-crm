@@ -19,3 +19,18 @@ INSERT INTO ord.order_items
      line_discount, allocated_order_discount, net_amount, flash_sale_item_id)
 VALUES (@id, NULLIF(current_setting('app.tenant_id', true), '')::uuid, @seller_id, @order_id, 1, @variant_id,
         @sku_snapshot, @name_snapshot, @quantity, @unit_price, 0, 0, @net_amount, @flash_sale_item_id::uuid);
+
+-- name: FlashLinesOfOrder :many
+-- Dòng flash sale của đơn (đơn đã khóa, đọc không khóa thêm): mã dòng, món flash, số lượng (M5 Task 202).
+SELECT id, flash_sale_item_id::uuid AS flash_sale_item_id, quantity
+FROM ord.order_items
+WHERE seller_id = @seller_id AND order_id = @order_id AND flash_sale_item_id IS NOT NULL
+ORDER BY id;
+
+-- name: FlashItemOfOrder :one
+-- Món flash sale của dòng flash đầu tiên của đơn (không lọc người bán: consumer webcache chỉ có mã đơn; RLS lọc tenant).
+SELECT flash_sale_item_id::uuid AS flash_sale_item_id
+FROM ord.order_items
+WHERE order_id = @order_id AND flash_sale_item_id IS NOT NULL
+ORDER BY position
+LIMIT 1;

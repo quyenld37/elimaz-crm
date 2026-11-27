@@ -183,6 +183,8 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   request_not_allowed: "Đơn hay yêu cầu không ở trạng thái cho việc này",
   // Khách hủy đơn web (Task 196)
   cannot_cancel: "Đơn đã giao, đã hoàn hay đã hủy nên khách không hủy được",
+  // Hoàn tất đơn nháp flash sale (Task 202)
+  hold_expired: "Đã hết thời gian giữ suất flash sale, đơn nháp đã hủy",
   // Hộp chat, Live (M4, Task 143)
   already_assigned: "Hội thoại đã có người khác nhận. Tải lại để xem ai đang phụ trách",
   assignee_not_allowed: "Nhân viên này không còn hoạt động hoặc không được xem Page này",

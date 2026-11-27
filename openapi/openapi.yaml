@@ -8895,6 +8895,8 @@ components:
         - request_not_allowed
         # Khách hủy đơn web (M5, Task 196)
         - cannot_cancel
+        # Hoàn tất đơn nháp flash sale sau hạn giữ (M5, Task 202)
+        - hold_expired
         # Hãng/dịch vụ khách chọn trên website (M5, Task 490)
         - shipping_carrier_unavailable
         - shipping_fee_mismatch

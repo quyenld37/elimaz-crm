@@ -67,7 +67,13 @@ func (c *Consumer) Topics() []string {
 // flash_sale.changed cho nhân viên có promotion.flash.read), trong tx (chỉ tới api khi tx commit). Payload thiếu
 // mã: ghi log, không báo hiệu, trả nil (chạy lại không sửa được payload; bộ đệm tự lành theo hạn sống, QĐ-185-4).
 func (c *Consumer) Handle(ctx context.Context, e events.StoredEvent, tx pgx.Tx) error {
-	ents, err := entitiesOf(e)
+	var ents []realtime.Entity
+	var err error
+	if e.Topic == topicOrderCancelled {
+		ents, err = flashItemOfCancelled(ctx, e, tx)
+	} else {
+		ents, err = entitiesOf(e)
+	}
 	if errors.Is(err, errBadPayload) {
 		c.log.LogAttrs(ctx, slog.LevelError, "webcache: bỏ qua sự kiện có payload sai",
 			slog.String("topic", e.Topic), slog.String("event_id", e.ID.String()), logging.Err(err))
@@ -144,9 +150,26 @@ func entitiesOf(e events.StoredEvent) ([]realtime.Entity, error) {
 		// Bộ phối của shop (SpaceLooks, hai khóa mỗi tenant: làm mới cả vùng; Task 454).
 		return []realtime.Entity{{Type: EntityHomeLooks, ID: e.AggregateID}}, nil
 	}
-	// order.cancelled: chỉ đơn có dòng flash sale tạo báo hiệu flash_item, tra bằng order.FlashItemOf của M5-19; trước
-	// M5-19 bỏ qua. Chủ đề khác: không nghe.
+	// Chủ đề khác (order.cancelled đi flashItemOfCancelled): không nghe.
 	return nil, nil
+}
+
+// flashItemOfCancelled: order.cancelled của đơn có dòng flash sale → một báo hiệu flash_item (món của dòng, tra bằng
+// order.FlashItemOf trong tx của sự kiện; M5 Task 202: suất vừa trả làm cờ "hết suất" và số còn cần dựng lại). Đơn không
+// có dòng flash → không báo hiệu. Payload thiếu orderId → errBadPayload.
+func flashItemOfCancelled(ctx context.Context, e events.StoredEvent, tx pgx.Tx) ([]realtime.Entity, error) {
+	var p order.Changed
+	if err := decode(e.Payload, &p); err != nil {
+		return nil, err
+	}
+	if p.OrderID == uuid.Nil {
+		return nil, fmt.Errorf("%w: orderId", errBadPayload)
+	}
+	item, ok, err := order.FlashItemOf(ctx, tx, p.OrderID)
+	if err != nil || !ok {
+		return nil, err //nolint:wrapcheck // order đã bọc
+	}
+	return []realtime.Entity{{Type: EntityFlashItem, ID: item.String()}}, nil
 }
 
 // variants trả một đối tượng cho mỗi biến thể (bỏ trùng); mảng rỗng hay thiếu là payload sai.

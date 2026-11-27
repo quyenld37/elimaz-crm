@@ -79,4 +79,19 @@ func Unclaim(ctx context.Context, tx pgx.Tx, itemID, customerID uuid.UUID, qty i
 	return nil
 }
 
+// FlashSaleOpenForRelease khóa chia sẻ dòng đợt saleID tới hết tx (FOR SHARE; ADR-46 nhóm 10: flash_sales trước
+// flash_sale_claims) và báo đợt còn mở (scheduled hay open) không: đường hủy đơn flash sale dùng để chọn trả suất về
+// đợt hay về tồn thường (Task 202, 05 mục 7.4). Đóng đợt (FOR UPDATE) chờ khóa này nên câu trả lời không đổi trong tx.
+// Không có → ErrNotFound.
+func FlashSaleOpenForRelease(ctx context.Context, tx pgx.Tx, saleID uuid.UUID) (bool, error) {
+	st, err := store.New(tx).FlashSaleStatusForShare(ctx, saleID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, ErrNotFound
+	}
+	if err != nil {
+		return false, fmt.Errorf("khóa đợt flash sale: %w", err)
+	}
+	return st == FlashScheduled || st == FlashOpen, nil
+}
+
 func claimQty(n int) bool { return n >= 1 && n <= math.MaxInt32 }

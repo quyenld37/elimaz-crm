@@ -37,6 +37,8 @@ func sellerExempt() map[string]string {
 			"thì hỏi có/không ở cả shop để phân biệt mixed_sellers với variant_not_found; chỉ trả boolean",
 		"queries/ord/drafts.sql#LockExpiredDrafts": "việc hệ thống order.expire_drafts (Task 78, Q8): hủy đơn nháp quá " +
 			"hạn của mọi người bán trong tenant; chỉ trả (id, seller_id), từng đơn được khóa và hủy lại theo seller_id của dòng",
+		"queries/ord/flash.sql#FlashItemOfOrder": "consumer webcache (M5 Task 202, order.FlashItemOf của kế hoạch nhận " +
+			"đúng mã đơn): việc hệ thống, không thuộc người bán nào; chỉ trả mã món flash để báo hiệu dựng lại cờ hết suất",
 	}
 }
 

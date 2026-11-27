@@ -246,6 +246,7 @@ func lockedOrder(o store.LockOrderRow) Order {
 	return Order{
 		ID: o.ID, SellerID: o.SellerID, CustomerID: o.CustomerID, Status: o.Status, PendingReason: o.PendingReason,
 		CurrentShipmentID: uuidPtr(o.CurrentShipmentID), AddressComplete: o.AddressComplete, Version: o.Version,
+		Channel: o.Channel,
 	}
 }
 

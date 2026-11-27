@@ -35,13 +35,15 @@ const (
 	// Hãng/dịch vụ khách chọn trên website (Task 490).
 	codeShippingCarrierUnavailable = "shipping_carrier_unavailable"
 	codeShippingFeeMismatch        = "shipping_fee_mismatch"
+	// Hoàn tất đơn nháp flash sale sau hạn giữ (Task 202): đơn đã hủy draft_expired trong cùng transaction.
+	codeHoldExpired = "hold_expired"
 )
 
 // webError đổi lỗi nghiệp vụ của vùng đơn website (không có thân chi tiết) sang mã HTTP (Task 456): shop đang tạm dừng
 // nhận đơn web → 503 web_orders_paused (không Retry-After: thời gian mở lại không biết trước); tạm dừng không lý do →
 // 422 invalid_input. Yêu cầu về đơn hàng (Task 195): luật của yêu cầu → 422 với mã riêng; quá 5 yêu cầu một đơn trong
 // 24 giờ → 429 too_fast (không Retry-After); yêu cầu không có → 404. Khách hủy đơn đã giao, đã hoàn, đã hủy (Task 196)
-// → 422 cannot_cancel; limit của luồng thay đổi sai → 400 bad_request (ogen đã chặn theo hợp đồng). Lựa chọn giao
+// → 422 cannot_cancel; hoàn tất đơn nháp flash sale sau hạn giữ (Task 202) → 422 hold_expired; limit của luồng thay đổi sai → 400 bad_request (ogen đã chặn theo hợp đồng). Lựa chọn giao
 // hàng của khách (Task 490): hãng không còn trên web → 422 shipping_carrier_unavailable, phí lệch báo phí → 422
 // shipping_fee_mismatch, chưa kiểm được (hãng lỗi, bộ đệm bận) → 503 retry_later.
 func webError(err error) (status int, code string, ok bool) {
@@ -64,6 +66,7 @@ func webError(err error) (status int, code string, ok bool) {
 		{order.ErrRequestNotFound, http.StatusNotFound, codeNotFound},
 		{order.ErrRequestLimit, http.StatusTooManyRequests, codeTooFast},
 		{order.ErrCannotCancel, http.StatusUnprocessableEntity, codeCannotCancel},
+		{order.ErrHoldExpired, http.StatusUnprocessableEntity, codeHoldExpired},
 		{weborders.ErrBadLimit, http.StatusBadRequest, codeBadRequest},
 		{weborders.ErrNotFound, http.StatusNotFound, codeNotFound},
 	})

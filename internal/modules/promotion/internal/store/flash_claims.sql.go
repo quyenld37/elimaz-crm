@@ -89,6 +89,22 @@ func (q *Queries) FlashItemForBuy(ctx context.Context, itemID uuid.UUID) (FlashI
 	return i, err
 }
 
+const flashSaleStatusForShare = `-- name: FlashSaleStatusForShare :one
+SELECT status
+FROM promotion.flash_sales
+WHERE id = $1
+FOR SHARE
+`
+
+// Trạng thái đợt, khóa chia sẻ tới hết tx (M5 Task 202): đường hủy đơn flash quyết định "đợt còn mở hay đã đóng" và
+// đóng đợt (FOR UPDATE) chờ nhau, nên quyết định không đổi trong tx. ADR-46 nhóm 10: flash_sales trước claims.
+func (q *Queries) FlashSaleStatusForShare(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, flashSaleStatusForShare, id)
+	var status string
+	err := row.Scan(&status)
+	return status, err
+}
+
 const unclaimFlash = `-- name: UnclaimFlash :execrows
 UPDATE promotion.flash_sale_claims
 SET quantity = quantity - $1::int, updated_at = now()

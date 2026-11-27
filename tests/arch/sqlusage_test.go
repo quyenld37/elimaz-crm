@@ -207,6 +207,9 @@ func viewReadExceptions() map[string][]string {
 		// Constraints "Ranh giới module"; Task M3-09 ResolveAccount, Task M3-12 lệnh tạo vận đơn).
 		// Danh mục địa giới để khớp với mã của từng hãng (Task M3-18): customer.ListWards chặn 50 xã mỗi lần.
 		"fulfillment": {"inventory.warehouses_v", "customer.admin_units_v"},
+		// inventory đối chiếu đêm đơn vị suất flash sale với trạng thái đợt và dòng đơn (kế hoạch M5 Task 202) mà không
+		// nhập gói promotion, order (promotion, order đã nhập inventory: nhập ngược sẽ thành vòng).
+		"inventory": {"promotion.flash_sales_v", "promotion.flash_sale_items_v", "ord.order_items_v"},
 		// reporting chỉ đọc view của module bán hàng, kho, khách để dựng báo cáo, không nhập Go (kế hoạch M6, Global
 		// Constraints "Module reporting"; Task 226, G7 sau Task 223). identity.users_v đi theo moduleCalls.
 		"reporting": {

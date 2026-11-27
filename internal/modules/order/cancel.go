@@ -17,7 +17,8 @@ import (
 )
 
 // Hủy đơn, yêu cầu hủy, phía đơn của hủy vận đơn (kế hoạch M2, Task M2-21; 05 mục 2). Thứ tự khóa (ADR-46): đơn (nhóm
-// 7, khóa trước) → lượt mã (nhóm 10, promotion.Release) → số dư tồn (nhóm 11, ReleaseHeldByItems) → lịch sử, sự kiện.
+// 7, khóa trước) → lượt mã (nhóm 10, promotion.Release) → đợt flash sale FOR SHARE, claims (nhóm 10, đơn có dòng
+// flash, M5 Task 202) → số dư tồn (nhóm 11, ReleaseHeldByItems) → đơn vị suất (nhóm 11) → lịch sử, sự kiện.
 
 // Lý do hủy (Q18, CHECK orders_cancel_reason_q18_check). Năm lý do đầu nhân viên chọn; CancelDraftExpired,
 // CancelDuplicate do hệ thống đặt (hợp đồng API không nhận).
@@ -45,7 +46,9 @@ const (
 //
 //   - draft, new, confirmed chưa có vận đơn hiện hành → cancelled: nhả mọi giữ hàng held của đơn, trả lượt mã (Q2:
 //     promotion.Release, mã tắt release_on_cancel thì giữ lượt), ghi cancel_reason, cancel_note, cancelled_at; sự kiện
-//     order.cancelled (TD01, KM03).
+//     order.cancelled (TD01, KM03). Dòng flash sale (một dòng, QĐ6; nhiều hơn → ErrInvalidTransition, không đổi gì):
+//     đợt còn mở → suất về đợt (claims −, giữ hàng released, số dư không đổi); đợt đã đóng → held −, đơn vị held
+//     released, đơn vị sold giữ nguyên (05 mục 7.4).
 //   - confirmed có vận đơn hiện hành → cancel_requested: ghi lý do, không nhả hàng, không trả lượt; sự kiện
 //     order.cancel_requested (M3 nghe để gửi lệnh hủy cho hãng; TD03). Hãng trả lời qua OnShipmentCancelConfirmed,
 //     OnShipmentCancelRejected.
@@ -180,16 +183,18 @@ func (w Writer) finishCancel(ctx context.Context, tx pgx.Tx, o *Order, reason, n
 	return w.cancelAll(ctx, tx, []cancelPlan{p}, reason, note, a, now)
 }
 
-// cancelPlan là một đơn đã khóa sẽ hủy: mã dòng đơn, có giữ hàng held, có vận đơn hiện hành (đơn từ cancel_requested).
+// cancelPlan là một đơn đã khóa sẽ hủy: mã dòng đơn, có giữ hàng held, có vận đơn hiện hành (đơn từ cancel_requested),
+// dòng flash sale (nil: không có).
 type cancelPlan struct {
 	o           *Order
 	items       []uuid.UUID
 	held        bool
 	hadShipment bool
+	flash       *flashLine
 }
 
-// prepareCancel kiểm (không ghi gì) đơn o đã khóa được sang cancelled: cạnh của sơ đồ, hàng chưa rời kho; đọc dòng đơn
-// và giữ hàng.
+// prepareCancel kiểm (không ghi gì) đơn o đã khóa được sang cancelled: cạnh của sơ đồ, hàng chưa rời kho, không quá
+// một dòng flash; đọc dòng đơn, giữ hàng và dòng flash.
 func prepareCancel(ctx context.Context, tx pgx.Tx, o *Order) (cancelPlan, error) {
 	if err := state.Check(state.Status(o.Status), state.Cancelled, state.Conditions{
 		HasCurrentShipment: o.CurrentShipmentID != nil, AddressComplete: o.AddressComplete, PendingReason: o.PendingReason,
@@ -200,13 +205,20 @@ func prepareCancel(ctx context.Context, tx pgx.Tx, o *Order) (cancelPlan, error)
 	if err != nil {
 		return cancelPlan{}, err
 	}
-	return cancelPlan{o: o, items: items, held: states[inventory.StateHeld] > 0, hadShipment: o.CurrentShipmentID != nil}, nil
+	flash, err := flashLineOf(ctx, tx, o)
+	if err != nil {
+		return cancelPlan{}, err
+	}
+	return cancelPlan{
+		o: o, items: items, held: states[inventory.StateHeld] > 0, hadShipment: o.CurrentShipmentID != nil, flash: flash,
+	}, nil
 }
 
 // cancelAll hủy các đơn đã khóa (nhóm 7, bên gọi khóa hết trước) theo đúng thứ tự khóa ADR-46 cho cả lần: trả lượt mã
-// của từng đơn theo thứ tự plans (nhóm 10; bên gọi nhiều đơn khóa trước mọi mã bằng promotion.LockCoupons), nhả giữ
-// hàng held của mọi dòng một lần (nhóm 11, inventory khóa số dư theo biến thể tăng dần), rồi mới đổi trạng thái từng
-// đơn (lịch sử, order.cancelled, báo hiệu), ghi lý do, ghi chú, gỡ vận đơn hiện hành.
+// của từng đơn theo thứ tự plans (nhóm 10; bên gọi nhiều đơn khóa trước mọi mã bằng promotion.LockCoupons), khóa chia
+// sẻ đợt flash sale và trừ lại claims của dòng flash đợt còn mở (nhóm 10, lockFlashSales), nhả giữ hàng held của mọi
+// dòng còn lại một lần (nhóm 11, inventory khóa số dư theo biến thể tăng dần), trả đơn vị suất (nhóm 11), rồi mới đổi
+// trạng thái từng đơn (lịch sử, order.cancelled, báo hiệu), ghi lý do, ghi chú, gỡ vận đơn hiện hành.
 func (w Writer) cancelAll(ctx context.Context, tx pgx.Tx, plans []cancelPlan, reason, note string, a Actor,
 	now time.Time,
 ) error {
@@ -218,19 +230,22 @@ func (w Writer) cancelAll(ctx context.Context, tx pgx.Tx, plans []cancelPlan, re
 	if reason == CancelDraftExpired {
 		release = CancelDraftExpired
 	}
-	var held []uuid.UUID
 	for _, p := range plans {
 		if _, err := promotion.Release(ctx, tx, p.o.ID, release); err != nil {
 			return fmt.Errorf("trả lượt mã của đơn hủy: %w", err)
 		}
-		if p.held {
-			held = append(held, p.items...)
-		}
 	}
-	if len(held) > 0 {
+	fr, err := lockFlashSales(ctx, tx, plans)
+	if err != nil {
+		return err
+	}
+	if held := heldItemsToRelease(plans, fr); len(held) > 0 {
 		if err := stock.ReleaseHeldByItems(ctx, tx, held, release, inventory.Actor{Type: a.stockKind(), ID: a.UserID}); err != nil {
 			return fmt.Errorf("nhả giữ hàng của đơn hủy: %w", err)
 		}
+	}
+	if err := fr.releaseUnits(ctx, tx, release); err != nil {
+		return err
 	}
 	q := store.New(tx)
 	for _, p := range plans {
@@ -239,6 +254,23 @@ func (w Writer) cancelAll(ctx context.Context, tx pgx.Tx, plans []cancelPlan, re
 		}
 	}
 	return nil
+}
+
+// heldItemsToRelease: dòng đơn còn giữ hàng held phải nhả qua số dư (mọi dòng của đơn có giữ hàng, trừ dòng flash của
+// đợt còn mở mà fr trả đơn vị về available: số dư không đổi, 05 mục 7.4).
+func heldItemsToRelease(plans []cancelPlan, fr flashRelease) []uuid.UUID {
+	var held []uuid.UUID
+	for _, p := range plans {
+		if !p.held {
+			continue
+		}
+		for _, it := range p.items {
+			if !fr.reopened(it) {
+				held = append(held, it)
+			}
+		}
+	}
+	return held
 }
 
 // applyCancelled đổi trạng thái đơn của p sang cancelled, ghi lý do, ghi chú, gỡ vận đơn hiện hành nếu có.

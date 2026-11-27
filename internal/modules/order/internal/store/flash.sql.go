@@ -12,6 +12,61 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const flashItemOfOrder = `-- name: FlashItemOfOrder :one
+SELECT flash_sale_item_id::uuid AS flash_sale_item_id
+FROM ord.order_items
+WHERE order_id = $1 AND flash_sale_item_id IS NOT NULL
+ORDER BY position
+LIMIT 1
+`
+
+// Món flash sale của dòng flash đầu tiên của đơn (không lọc người bán: consumer webcache chỉ có mã đơn; RLS lọc tenant).
+func (q *Queries) FlashItemOfOrder(ctx context.Context, orderID uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, flashItemOfOrder, orderID)
+	var flash_sale_item_id uuid.UUID
+	err := row.Scan(&flash_sale_item_id)
+	return flash_sale_item_id, err
+}
+
+const flashLinesOfOrder = `-- name: FlashLinesOfOrder :many
+SELECT id, flash_sale_item_id::uuid AS flash_sale_item_id, quantity
+FROM ord.order_items
+WHERE seller_id = $1 AND order_id = $2 AND flash_sale_item_id IS NOT NULL
+ORDER BY id
+`
+
+type FlashLinesOfOrderParams struct {
+	SellerID uuid.UUID
+	OrderID  uuid.UUID
+}
+
+type FlashLinesOfOrderRow struct {
+	ID              uuid.UUID
+	FlashSaleItemID uuid.UUID
+	Quantity        int32
+}
+
+// Dòng flash sale của đơn (đơn đã khóa, đọc không khóa thêm): mã dòng, món flash, số lượng (M5 Task 202).
+func (q *Queries) FlashLinesOfOrder(ctx context.Context, arg FlashLinesOfOrderParams) ([]FlashLinesOfOrderRow, error) {
+	rows, err := q.db.Query(ctx, flashLinesOfOrder, arg.SellerID, arg.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FlashLinesOfOrderRow{}
+	for rows.Next() {
+		var i FlashLinesOfOrderRow
+		if err := rows.Scan(&i.ID, &i.FlashSaleItemID, &i.Quantity); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const flashOrderByExternalRef = `-- name: FlashOrderByExternalRef :one
 
 SELECT o.id, o.code, o.draft_expires_at,

@@ -14,13 +14,17 @@ func allStatuses() []state.Status {
 	}
 }
 
-// allConditions: 16 tổ hợp điều kiện (HasCurrentShipment × AddressComplete × 4 lý do chờ).
+// allConditions: 32 tổ hợp điều kiện (HasCurrentShipment × AddressComplete × 4 lý do chờ × WebChannel).
 func allConditions() []state.Conditions {
 	var out []state.Conditions
 	for _, ship := range []bool{false, true} {
 		for _, addr := range []bool{false, true} {
 			for _, p := range []string{state.PendingNone, state.PendingAwaitingCustomer, state.PendingOutOfStock, state.PendingDiscountApproval} {
-				out = append(out, state.Conditions{HasCurrentShipment: ship, AddressComplete: addr, PendingReason: p})
+				for _, web := range []bool{false, true} {
+					out = append(out, state.Conditions{
+						HasCurrentShipment: ship, AddressComplete: addr, PendingReason: p, WebChannel: web,
+					})
+				}
 			}
 		}
 	}
@@ -37,8 +41,9 @@ func TestStatusValues(t *testing.T) {
 	}
 }
 
-// 49 cặp: đúng 12 cặp đi được (10 cạnh của sơ đồ đơn 05 mục 2, new → new và draft → draft chỉ đổi lý do chờ — Task
-// M2-19 duyệt giảm giá đơn nháp) với ít nhất một tổ hợp điều kiện; 37 cặp còn lại trả ErrInvalidTransition với mọi tổ
+// 49 cặp: đúng 13 cặp đi được (10 cạnh của sơ đồ đơn 05 mục 2, new → new và draft → draft chỉ đổi lý do chờ — Task
+// M2-19 duyệt giảm giá đơn nháp; draft → new chỉ cho đơn web — đơn nháp flash sale hoàn tất, M5 Task 202, QĐ7) với ít
+// nhất một tổ hợp điều kiện; 36 cặp còn lại trả ErrInvalidTransition với mọi tổ
 // hợp (Q-T65-1).
 func TestCheck_AllPairs(t *testing.T) {
 	t.Parallel()
@@ -49,6 +54,7 @@ func TestCheck_AllPairs(t *testing.T) {
 		{state.New, state.Cancelled}:             true,
 		{state.New, state.New}:                   true,
 		{state.Draft, state.Draft}:               true,
+		{state.Draft, state.New}:                 true,
 		{state.Confirmed, state.Cancelled}:       true,
 		{state.Confirmed, state.CancelRequested}: true,
 		{state.CancelRequested, state.Cancelled}: true,
@@ -65,8 +71,8 @@ func TestCheck_AllPairs(t *testing.T) {
 			}
 		}
 	}
-	if nValid != 12 {
-		t.Fatalf("số cặp đi được = %d, muốn 12", nValid)
+	if nValid != 13 {
+		t.Fatalf("số cặp đi được = %d, muốn 13", nValid)
 	}
 }
 
@@ -99,6 +105,9 @@ func TestCheck_Conditions(t *testing.T) {
 		want     error
 	}{
 		{state.Draft, state.New, full, state.ErrInvalidTransition},
+		{state.Draft, state.New, state.Conditions{WebChannel: true}, nil},
+		{state.Draft, state.New, state.Conditions{AddressComplete: true, WebChannel: true}, nil},
+		{state.New, state.Draft, state.Conditions{WebChannel: true}, state.ErrInvalidTransition},
 		{state.Draft, state.Confirmed, full, nil},
 		{state.Draft, state.Confirmed, state.Conditions{}, state.ErrAddressIncomplete},
 		{state.Draft, state.Confirmed, state.Conditions{PendingReason: state.PendingDiscountApproval}, state.ErrAddressIncomplete},
