@@ -49,9 +49,15 @@ func (e *schemaEnv) appExec(t *testing.T, tenant uuid.UUID, q string, args ...an
 // appCount đếm bằng crm_app trong ngữ cảnh tenant.
 func (e *schemaEnv) appCount(t *testing.T, tenant uuid.UUID, q string, args ...any) int {
 	t.Helper()
+	return appCount(t, e.s, tenant, q, args...)
+}
+
+// appCount đếm bằng crm_app trong ngữ cảnh tenant (câu q trả một số).
+func appCount(t *testing.T, s *testkit.Staff, tenant uuid.UUID, q string, args ...any) int {
+	t.Helper()
 	ctx := t.Context()
 	var n int
-	if err := tenancy.WithTenant(ctx, e.s.App, tenant, func(tx pgx.Tx) error {
+	if err := tenancy.WithTenant(ctx, s.App, tenant, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, q, args...).Scan(&n)
 	}); err != nil {
 		t.Fatalf("đếm %q: %v", q, err)
