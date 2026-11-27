@@ -15,7 +15,9 @@ import (
 func (*Module) paymentsHandlers() []commands.Handler       { return nil }
 func (*Module) paymentsInbound() []webhooks.InboundHandler { return nil }
 
-// paymentsConsumers: consumer cash_refunds (mở nghĩa vụ hoàn theo sự kiện đơn).
-func (*Module) paymentsConsumers() []events.Consumer      { return []events.Consumer{refunds.Consumer{}} }
+// paymentsConsumers: consumer cash_refunds (mở nghĩa vụ hoàn theo sự kiện đơn, cấn trừ đổi hàng qua order.Writer).
+func (m *Module) paymentsConsumers() []events.Consumer {
+	return []events.Consumer{refunds.Consumer{Orders: m.Service.orderWriter(), Now: m.d.Now}}
+}
 func (*Module) paymentsSchedules() []schedules.Schedule   { return nil }
 func (*Module) paymentsCleanups() []schedules.CleanupFunc { return nil }

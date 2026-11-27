@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -26,6 +27,7 @@ const ConsumerName = "cash_refunds"
 const (
 	SourceOrderCancel    = "order_cancel"
 	SourceCustomerReturn = "customer_return"
+	SourceExchange       = "exchange"
 )
 
 // topicCancelled là order.<cancelled> (applyTransition của M2 phát "order." + trạng thái mới).
@@ -36,11 +38,18 @@ const topicCancelled = "order." + order.StatusCancelled
 //   - order.cancelled: tổng phiếu của đơn trừ bù đổi hàng (exchange_credit) > 0 → nghĩa vụ order_cancel bằng số đó.
 //   - order.returned, order.partially_returned của phiếu customer_return có refundAmount > 0, khi đơn đã thu tiền (đã
 //     giao — COD khách trả qua hãng — hoặc có trả trước) → nghĩa vụ customer_return gắn phiếu bằng refundAmount.
-//   - phiếu exchange và order.created của đơn order_type exchange → handleExchange (Task M3-25).
+//   - order.created của đơn order_type exchange: cấn trừ tiền hoàn của phiếu đổi vào đơn thay thế (phiếu exchange_credit,
+//     COD còn thu = tổng đơn − cấn trừ, không âm); order.returned, order.partially_returned của phiếu exchange: phần dư
+//     tiền hoàn cuối − cấn trừ > 0 → nghĩa vụ exchange của đơn gốc gắn phiếu (exchange.go, Task M3-25).
 //   - phiếu carrier_return, partial_delivery: bỏ qua (chưa có luật, Task M3-30 Việc phát hiện thêm).
 //
 // Sự kiện giao lại không mở thêm (unique (đơn, nguồn, phiếu)). Payload hỏng → queue.ErrPermanent.
-type Consumer struct{}
+//
+// Orders đẩy tổng đã thanh toán về đơn thay thế (Events, Queue nối; Realtime nil được); Now nil → time.Now.
+type Consumer struct {
+	Orders order.Writer
+	Now    func() time.Time
+}
 
 // Name trả ConsumerName.
 func (Consumer) Name() string { return ConsumerName }
@@ -51,7 +60,7 @@ func (Consumer) Topics() []string {
 }
 
 // Handle mở nghĩa vụ của sự kiện e trong tx của worker.
-func (Consumer) Handle(ctx context.Context, e events.StoredEvent, tx pgx.Tx) error {
+func (c Consumer) Handle(ctx context.Context, e events.StoredEvent, tx pgx.Tx) error {
 	var p order.ReturnReceived
 	if err := json.Unmarshal(e.Payload, &p); err != nil || p.OrderID == uuid.Nil {
 		return fmt.Errorf("sự kiện %s: payload không hợp lệ: %w", e.ID, queue.ErrPermanent)
@@ -69,14 +78,14 @@ func (Consumer) Handle(ctx context.Context, e events.StoredEvent, tx pgx.Tx) err
 		return open(ctx, q, p.OrderID, nil, SourceOrderCancel, paid)
 	case order.TopicOrderCreated:
 		o, err := orderOf(ctx, q, p.OrderID)
-		if err != nil || o.OrderType != order.ReturnExchange {
+		if err != nil || o.OrderType != order.OrderTypeExchange {
 			return err
 		}
-		return handleExchange(ctx, tx, e)
+		return c.creditReplacement(ctx, tx, e.TenantID, p.OrderID, c.now())
 	}
 	switch p.Kind {
 	case order.ReturnExchange:
-		return handleExchange(ctx, tx, e)
+		return c.receivedExchange(ctx, tx, e.TenantID, p, c.now())
 	case order.ReturnCustomer:
 	default:
 		return nil
@@ -92,6 +101,14 @@ func (Consumer) Handle(ctx context.Context, e events.StoredEvent, tx pgx.Tx) err
 		return nil
 	}
 	return open(ctx, q, p.OrderID, &p.ReturnID, SourceCustomerReturn, p.RefundAmount)
+}
+
+// now là lúc xử lý (UTC).
+func (c Consumer) now() time.Time {
+	if c.Now == nil {
+		return time.Now().UTC()
+	}
+	return c.Now().UTC()
 }
 
 // orderOf đọc đơn id qua ord.orders_v; không có → queue.ErrPermanent (sự kiện của đơn không có).

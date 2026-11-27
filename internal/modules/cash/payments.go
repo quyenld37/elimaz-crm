@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/modules/cash/internal/refunds"
 	"elimaz.com.vn/crm/internal/modules/cash/internal/store"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/db"
@@ -43,7 +44,8 @@ var (
 	// ErrOrderNotFound: đơn không có hay của tenant khác.
 	ErrOrderNotFound = errors.New("cash: không có đơn")
 	// ErrCODLockedByShipment: đơn đã gửi hãng (có vận đơn hiện hành), COD không đổi được ở CRM (Q-17).
-	ErrCODLockedByShipment = errors.New("cash: đơn đã gửi hãng, không ghi phiếu làm đổi COD")
+	// Cùng giá trị với lỗi của consumer cash_refunds khi cấn trừ đổi hàng (Task M3-25).
+	ErrCODLockedByShipment = refunds.ErrCODLockedByShipment
 	// ErrPaymentNotAllowed: đơn không còn nhận tiền (đã hủy, đang chờ hủy, đã giao, đã hoàn).
 	ErrPaymentNotAllowed = errors.New("cash: đơn ở trạng thái không ghi phiếu thu")
 	// ErrPaymentExceedsTotal: tổng phiếu của đơn sẽ vượt tổng đơn.
