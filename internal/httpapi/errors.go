@@ -58,6 +58,7 @@ const (
 	codeSettingOutOfRange   = "setting_out_of_range"
 	codeQtyMismatch         = "qty_mismatch"
 	codePaymentExceedsTotal = "payment_exceeds_total"
+	codePreviewStale        = "preview_stale" // cash: điều chỉnh COD (Task M3-33); fulfillment: đảo Thành công (M3-27)
 	codeFileNotReady        = "file_not_ready"
 	codeFileRejected        = "file_rejected"        // ảnh bị kho tệp từ chối: yêu cầu về đơn (Task 195), banner (Task 453)
 	codeStockShort          = "stock_short"          // Task 406: lấy hàng, giao bị chặn vì kiểm kho ghi thấp hơn phần giữ

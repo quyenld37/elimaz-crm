@@ -76,7 +76,8 @@ type ManualStatusInput struct {
 // Lỗi (bên gọi lùi transaction, không để lại lịch sử hay việc cần xem): lý do trống → ErrManualReasonRequired; giờ
 // trống hay ở tương lai, COD âm hay COD khi không phải delivered, lý do quá dài → ErrShipInvalid; không có vận đơn →
 // ErrNotFound; version lệch → ErrVersionConflict; không được ghi tay hay máy trạng thái không nhận →
-// ErrManualNotAllowed; lỗi của Authorize, của ApplyTracking trả nguyên.
+// ErrManualNotAllowed; delivered → returning khi tiền COD đã về shop → ErrCorrectionBlocked (cùng luật đảo "Thành
+// công", Task M3-27); lỗi của Authorize, của ApplyTracking trả nguyên.
 func (s *Service) SetManualStatus(ctx context.Context, tx pgx.Tx, id uuid.UUID, in ManualStatusInput, a order.Actor,
 ) (ShipmentView, error) {
 	if s.d.Events == nil || s.d.Queue == nil {
@@ -99,6 +100,11 @@ func (s *Service) SetManualStatus(ctx context.Context, tx pgx.Tx, id uuid.UUID, 
 		return ShipmentView{}, fmt.Errorf("đọc việc hủy tay của vận đơn: %w", err)
 	}
 	to := shipstate.Status(in.To)
+	if l.Status == string(StatusDelivered) && to == shipstate.Returning {
+		if err := manualCorrectionBlocked(ctx, q, id); err != nil {
+			return ShipmentView{}, err
+		}
+	}
 	switch manual.Check(manual.Shipment{Mode: l.Mode, CarrierKey: l.CarrierKey, StaffCancelOpen: open}, to, in.Reason) {
 	case manual.OK:
 	case manual.ReasonRequired:

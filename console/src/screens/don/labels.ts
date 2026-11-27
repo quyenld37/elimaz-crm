@@ -120,12 +120,14 @@ export const RETURN_STATUS_TEXT: Readonly<Record<ReturnStatus, string>> = {
 };
 
 // Lý do máy chủ ghi ở lịch sử trạng thái ngoài lý do hủy (internal/modules/order: discountpolicy.go, confirm.go,
-// cancel.go, returns.go).
+// cancel.go, returns.go; đảo Thành công: internal/modules/fulfillment/apply_effects.go).
 const SERVER_REASON_TEXT: Readonly<Record<string, string>> = {
   manual_discount_over_threshold: "Giảm tay vượt mức duyệt",
   discount_approved: "Đã duyệt giảm giá",
   carrier_rejected_cancel: "Hãng từ chối hủy",
   carrier_returned: "Hãng hoàn hàng",
+  carrier_corrected: "Hãng sửa trạng thái từ Thành công sang Đang chuyển hoàn",
+  staff_corrected: "Nhân viên đổi Thành công sang Đang chuyển hoàn",
 };
 
 /** Chữ của lý do ở mục đổi trạng thái; lý do lạ → null (không hiện mã máy). */

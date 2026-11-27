@@ -7,9 +7,9 @@ import (
 	"elimaz.com.vn/crm/internal/platform/webhooks"
 )
 
-// Vùng corrections (kế hoạch M3, Task M3-27): đảo "Thành công": hãng sửa lại, nhân viên sửa nhầm.
-// Khung của Task M3-04: mọi hàm trả nil; task của vùng điền các hàm dưới (và thêm
-// phương thức của Service trong tệp của vùng), không sửa module.go, wire.go.
+// Vùng corrections (kế hoạch M3, Task M3-27): đảo "Thành công": hãng sửa lại, nhân viên sửa nhầm. Phương thức của
+// Service ở correction.go (PreviewCorrection, ApplyCorrection). Vùng không có việc nền riêng: lệnh cảnh báo
+// carrier-corrected (NewCorrectedAlertCommand) do cmd/crm nối cùng Alerter của các lệnh cảnh báo khác.
 
 func (*Module) correctionsHandlers() []commands.Handler       { return nil }
 func (*Module) correctionsInbound() []webhooks.InboundHandler { return nil }

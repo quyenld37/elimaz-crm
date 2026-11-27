@@ -15,7 +15,6 @@ const (
 	codeStatementChanged    = "statement_changed"
 	codeCODLockedByShipment = "cod_locked_by_shipment"
 	codeRefundExceeds       = "refund_exceeds_remaining"
-	codePreviewStale        = "preview_stale"
 )
 
 // cashError đổi lỗi nghiệp vụ của tiền, bảng kê COD (M3, Task M3-31) sang mã HTTP, rồi lỗi phiếu thu, nghĩa vụ hoàn
