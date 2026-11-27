@@ -1,0 +1,125 @@
+/* Danh sách vận hành (mockup docs/mockups/m3/van-hanh.html, m3.css). Chỉ token có sẵn: không màu, cỡ chữ, bo góc mới. */
+.ops .ops-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.ops .ops-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap);
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md, 8px);
+  color: inherit;
+  text-decoration: none;
+}
+.ops .ops-tab.is-on {
+  background: var(--ink);
+  color: var(--bg);
+}
+.ops .ops-n {
+  font-weight: 700;
+}
+.ops .ops-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.ops .seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ops .who-c {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ops .c-act {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ops .err-text {
+  color: var(--danger);
+}
+.ops .ops-radios {
+  display: grid;
+  gap: 4px;
+  border: 0;
+  padding: 0;
+  margin: 0 0 8px;
+}
+.ops .ops-radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap);
+}
+
+/* Cần gọi lại: danh sách ảo, khung cuộn riêng. */
+.ops .cb-list {
+  height: min(70vh, 720px);
+  overflow: auto;
+  border: 1px solid var(--line);
+}
+.ops .cb-body {
+  position: relative;
+  width: 100%;
+}
+.ops .cb-slot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+.ops .cb-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+.ops .cb-row > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ops .cb-who {
+  display: grid;
+  gap: 2px;
+}
+.ops .cb-why {
+  display: grid;
+  gap: 2px;
+}
+.ops .cb-due {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.ops .cb-act {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ops .ellip-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ops .ops-foot {
+  margin-top: 8px;
+}
+@media (min-width: 760px) {
+  .ops .cb-row {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1fr) auto;
+    align-items: start;
+  }
+}
