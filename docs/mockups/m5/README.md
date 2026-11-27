@@ -26,6 +26,7 @@
 | (10) Nhật ký thao tác | Quản trị → Nhật ký thao tác · `/quan-tri/nhat-ky` · Task 462 (M5-50) | — | A mới nhất trước; người làm là nhân viên, khóa dịch vụ, hệ thống; lọc hành động, người, khoảng ngày; chỉ tên trường đổi; xem thêm theo con trỏ · B rỗng, 403 | `audit.html` | `shots/hien-tai-nhat-ky-{1512,390}.png` |
 | (11) Menu | Khung · `console/src/app/nav.ts` · Task 462 (M5-50) | — | Menu đủ 10 nhóm theo mục "Xếp module": nhóm Website mới, mục mới ở Đơn hàng, Khách hàng, Khuyến mãi, Quản trị, số đếm yêu cầu đang mở; mục Flash sale (đợt 2); không Tổng quan, Đơn cần kiểm tra, Kết nối Nhanh; menu điện thoại mở | `menu.html` | `shots/hien-tai-tong-quan-{1512,390}.png` |
 | (12) Đợt flash sale | Khuyến mãi → Flash sale · `/khuyen-mai/flash-sale`, `/khuyen-mai/flash-sale/:id` · Task 206 (M5-23); mockup Task 514 (đợt 2) | FS01, FS08, FS17 | A danh sách đủ 4 trạng thái, lọc, tên 120 ký tự, 30 đợt, rỗng, lỗi tải · B tạo đợt nháp, giờ mở/đóng, lỗi giờ · C đợt nháp 6 món, thêm món (tìm biến thể, trùng, ngừng bán, giá không thấp hơn giá thường), sửa, bỏ · D Lên lịch: xác nhận số suất bị giữ, thiếu hàng liệt kê mọi mã, chồng giờ · E đã lên lịch: chỉ Thêm suất, Đóng sớm · F đang mở: số trực tiếp, hết suất lúc này, tự làm mới, Thêm suất, Đóng sớm · G đã đóng chỉ xem · H 409, 503 tự gửi lại, chỉ xem | `flash-sales.html` | — (admin không có flash sale) |
+| (13) Thứ tự biến thể | Sản phẩm → Sửa mẫu, thẻ Biến thể (cột Thứ tự) · Task 513 | — | A đang sửa: tay nắm ⠿, nút ↑ ↓ (đầu không lên, cuối không xuống), dòng đã dời nền xám · B đang kéo, dòng mới chưa lưu, tên màu dài · C chỉ xem: số thứ tự | `variant-order.html` | — (admin không đặt thứ tự biến thể) |
 
 ## Ca kiểm của spec → khung hình
 
@@ -81,5 +82,6 @@ Theo luật "Behaviour changes need own OK" và bảng "Việc cần chủ shop 
 |---|---|---|---|
 | (1)–(11) | Chờ điều phối viên duyệt | — | — |
 | (12) Đợt flash sale (Task 514) | Chờ điều phối viên duyệt | — | — |
+| (13) Thứ tự biến thể (Task 513) | Chờ điều phối viên duyệt (phiên task tự soát theo hệ thiết kế, làm tiếp theo Q-X8) | — | — |
 
 Điều phối viên ghi kết luận từng màn ở bảng trên (chốt / sửa gì); chủ shop ghi OK từng dòng HV. Không bắt đầu Task 207–209, 458–462 cho màn chưa chốt.

@@ -116,7 +116,10 @@ type InsertVariantRow struct {
 
 // Biến thể màu/size (kế hoạch M1, Task M1-27). Chạy trong tenancy.WithTenant. Mọi câu đọc, khóa, sửa có seller_id (ADR-29;
 // tests/arch/sellerfilter_test.go, Task M1-37).
-// id rỗng (uuid.Nil) → uuidv7() như mặc định của cột (id đặt trước: lệnh seed-web-fixture, Task 218).
+// id rỗng (uuid.Nil) → uuidv7() như mặc định của cột (id đặt trước: lệnh seed-web-fixture, Task 218). Vị trí (cuối + 1
+// trong mẫu) do trigger variants_position của 0533 điền (Task 513): câu này không nhắc cột position để còn chạy trên schema
+// trước 0533 (test dựng dữ liệu cũ, bản cũ của máy chủ lúc triển khai); bên gọi đã khóa dòng mẫu (hay vừa tạo mẫu trong
+// tx) nên hai lần thêm không cùng vị trí.
 func (q *Queries) InsertVariant(ctx context.Context, arg InsertVariantParams) (InsertVariantRow, error) {
 	row := q.db.QueryRow(ctx, insertVariant,
 		arg.ID,
@@ -140,7 +143,7 @@ const listProductVariants = `-- name: ListProductVariants :many
 SELECT id, seller_id, product_id, sku, barcode, color, color_hex, size, price, cost_price, status, version, weight_grams
 FROM catalog.variants
 WHERE seller_id = $1 AND product_id = $2
-ORDER BY id
+ORDER BY position, id
 `
 
 type ListProductVariantsParams struct {
@@ -164,6 +167,7 @@ type ListProductVariantsRow struct {
 	WeightGrams pgtype.Int4
 }
 
+// Theo vị trí nhân viên đặt rồi mã (Task 513).
 func (q *Queries) ListProductVariants(ctx context.Context, arg ListProductVariantsParams) ([]ListProductVariantsRow, error) {
 	rows, err := q.db.Query(ctx, listProductVariants, arg.SellerID, arg.ProductID)
 	if err != nil {
@@ -296,6 +300,29 @@ func (q *Queries) LockVariant(ctx context.Context, arg LockVariantParams) (LockV
 		&i.WeightGrams,
 	)
 	return i, err
+}
+
+const setVariantPositions = `-- name: SetVariantPositions :execrows
+UPDATE catalog.variants AS v
+SET position = o.pos::int, updated_at = now()
+FROM unnest($3::uuid[]) WITH ORDINALITY AS o (id, pos)
+WHERE v.seller_id = $1 AND v.product_id = $2 AND v.id = o.id
+`
+
+type SetVariantPositionsParams struct {
+	SellerID  uuid.UUID
+	ProductID uuid.UUID
+	Ids       []uuid.UUID
+}
+
+// Đặt vị trí 1..n của các biến thể ids (theo thứ tự trong mảng) của mẫu product_id (Task 513). Bên gọi đã khóa dòng mẫu
+// và kiểm ids đúng tập biến thể của mẫu; version biến thể không đổi (thứ tự là của mẫu).
+func (q *Queries) SetVariantPositions(ctx context.Context, arg SetVariantPositionsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setVariantPositions, arg.SellerID, arg.ProductID, arg.Ids)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const updateVariant = `-- name: UpdateVariant :one

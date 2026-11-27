@@ -116,6 +116,57 @@ func (w Writer) UpdateVariant(ctx context.Context, tx pgx.Tx, sellerID, id uuid.
 	return after, nil
 }
 
+// ReorderVariants đặt thứ tự biến thể của mẫu productID của người bán sellerID theo variantIDs (vị trí 1..n) khi version
+// của mẫu còn khớp (Task 513). variantIDs phải đúng tập mọi biến thể của mẫu, kể cả ngừng bán (không thiếu, thừa, trùng,
+// mã lạ), ngược lại ErrVariantOrderMismatch. Khóa mẫu rồi biến thể (ADR-46 nhóm 4); version mẫu tăng 1, phát
+// product.updated (website nhận thứ tự mới qua luồng thay đổi), audit catalog.variant.reorder; version biến thể không đổi.
+// Lỗi: ErrNotFound, ErrVersionConflict, ErrVariantOrderMismatch.
+func (w Writer) ReorderVariants(ctx context.Context, tx pgx.Tx, sellerID, productID uuid.UUID, version int64,
+	variantIDs []uuid.UUID, actor identity.AuthUser,
+) error {
+	if err := w.check(); err != nil {
+		return err
+	}
+	p, err := lockProduct(ctx, tx, sellerID, productID, version)
+	if err != nil {
+		return err
+	}
+	q := store.New(tx)
+	current, err := listVariants(ctx, q, p.SellerID, productID)
+	if err != nil {
+		return err
+	}
+	before := make([]string, 0, len(current))
+	left := make(map[uuid.UUID]bool, len(current))
+	for _, v := range current {
+		before = append(before, v.ID.String())
+		left[v.ID] = true
+	}
+	if len(variantIDs) != len(current) || len(current) == 0 {
+		return ErrVariantOrderMismatch
+	}
+	after := make([]string, 0, len(variantIDs))
+	for _, id := range variantIDs {
+		if !left[id] {
+			return ErrVariantOrderMismatch // mã lạ, của mẫu khác, hay trùng (lần thứ hai không còn trong left)
+		}
+		delete(left, id)
+		after = append(after, id.String())
+	}
+	n, err := q.SetVariantPositions(ctx, store.SetVariantPositionsParams{SellerID: p.SellerID, ProductID: productID, Ids: variantIDs})
+	if err != nil {
+		return fmt.Errorf("đặt vị trí biến thể: %w", err)
+	}
+	if n != int64(len(variantIDs)) {
+		return fmt.Errorf("đặt vị trí biến thể: %d/%d dòng: %w", n, len(variantIDs), ErrVariantOrderMismatch)
+	}
+	if err := w.bumpProduct(ctx, tx, actor.TenantID, p); err != nil {
+		return err
+	}
+	return w.audit(ctx, tx, actor, "catalog.variant.reorder", "catalog.product", productID,
+		map[string]any{"order": before}, map[string]any{"order": after})
+}
+
 // VariantForSale trả biến thể variantID của người bán sellerID nếu bán được (mẫu và biến thể active, mẫu chưa xóa).
 // Không có (hay của người bán, tenant khác) → ErrNotFound; có mà không bán được → ErrNotForSale (KH12).
 func VariantForSale(ctx context.Context, tx pgx.Tx, sellerID, variantID uuid.UUID) (SaleVariant, error) {

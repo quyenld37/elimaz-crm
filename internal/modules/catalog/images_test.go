@@ -4,7 +4,6 @@ import (
 	"errors"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -410,28 +409,11 @@ func TestReorderImages_Concurrent(t *testing.T) {
 	t.Parallel()
 	e, p, a, b := withTwoImages(t)
 	v := e.version(p.ID)
-	var wg sync.WaitGroup
-	errs := make([]error, 8)
-	for i := range errs {
-		wg.Go(func() {
-			order := []uuid.UUID{a.ID, b.ID}
-			if i%2 == 0 {
-				order = []uuid.UUID{b.ID, a.ID}
-			}
-			errs[i] = e.reorder(p.ID, v, order)
-		})
-	}
-	wg.Wait()
-	ok := 0
-	for _, err := range errs {
-		switch {
-		case err == nil:
-			ok++
-		case !errors.Is(err, catalog.ErrVersionConflict):
-			t.Errorf("lỗi lạ: %v", err)
+	oneWinner(t, func(i int) error {
+		order := []uuid.UUID{a.ID, b.ID}
+		if i%2 == 0 {
+			order = []uuid.UUID{b.ID, a.ID}
 		}
-	}
-	if ok != 1 {
-		t.Errorf("mong đúng 1 lần sắp lại thành công, có %d", ok)
-	}
+		return e.reorder(p.ID, v, order)
+	})
 }

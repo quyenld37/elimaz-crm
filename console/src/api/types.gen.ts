@@ -811,6 +811,9 @@ export type WebProduct = {
      * Ảnh đã xử lý xong theo thứ tự hiện (ảnh đang xử lý chưa có)
      */
     images: Array<WebImage>;
+    /**
+     * Theo thứ tự nhân viên đặt trong CRM, rồi mã (Task 513); website giữ nguyên thứ tự mảng và suy thứ tự màu, cỡ theo lần xuất hiện đầu tiên
+     */
     variants: Array<WebVariant>;
     updatedAt: string;
     /**
@@ -2040,6 +2043,9 @@ export type Product = {
     readonly articleHtml: string;
     status: ProductStatus;
     version: number;
+    /**
+     * Theo thứ tự nhân viên đặt (reorderProductVariants), rồi mã; biến thể mới ở cuối (Task 513)
+     */
     variants: Array<Variant>;
     /**
      * Ảnh đang hiện theo thứ tự (ảnh đầu là ảnh bìa)
@@ -2083,6 +2089,14 @@ export type SetProductImageColorRequest = {
      * Màu của một biến thể trong mẫu; bỏ trường này để ảnh thành ảnh chung
      */
     color?: string;
+};
+
+export type ReorderProductVariantsRequest = {
+    productVersion: number;
+    /**
+     * Mọi biến thể của mẫu theo thứ tự mới (trùng → 422 invalid_input như danh sách sai tập)
+     */
+    variantIds: Array<string>;
 };
 
 export type ReorderProductImagesRequest = {
@@ -6255,6 +6269,9 @@ export type ProductWritable = {
     article: Array<ArticleBlock>;
     status: ProductStatus;
     version: number;
+    /**
+     * Theo thứ tự nhân viên đặt (reorderProductVariants), rồi mã; biến thể mới ở cuối (Task 513)
+     */
     variants: Array<Variant>;
     /**
      * Ảnh đang hiện theo thứ tự (ảnh đầu là ảnh bìa)
@@ -7521,6 +7538,39 @@ export type AddVariantResponses = {
 };
 
 export type AddVariantResponse = AddVariantResponses[keyof AddVariantResponses];
+
+export type ReorderProductVariantsData = {
+    body: ReorderProductVariantsRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/products/{id}/variants/order';
+};
+
+export type ReorderProductVariantsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ReorderProductVariantsError = ReorderProductVariantsErrors[keyof ReorderProductVariantsErrors];
+
+export type ReorderProductVariantsResponses = {
+    /**
+     * Mẫu sau khi sắp lại
+     */
+    200: Product;
+};
+
+export type ReorderProductVariantsResponse = ReorderProductVariantsResponses[keyof ReorderProductVariantsResponses];
 
 export type AttachProductImageData = {
     body: AttachProductImageRequest;

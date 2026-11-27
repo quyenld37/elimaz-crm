@@ -22275,6 +22275,111 @@ func (s *Server) handleReorderProductImagesRequest(args [1]string, argsEscaped b
 	}
 }
 
+// handleReorderProductVariantsRequest handles reorderProductVariants operation.
+//
+// Thứ tự là thứ tự nhân viên và website thấy (Task 513). Danh sách thiếu, thừa,
+// trùng hay có mã không thuộc mẫu → 422 invalid_input; version cũ → 409 version_conflict.
+// Version mẫu tăng 1, version biến thể không đổi.
+//
+// PUT /api/v1/catalog/products/{id}/variants/order
+func (s *Server) handleReorderProductVariantsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ReorderProductVariantsOperation,
+			ID:   "reorderProductVariants",
+		}
+	)
+	params, err := decodeReorderProductVariantsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeReorderProductVariantsRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response ReorderProductVariantsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ReorderProductVariantsOperation,
+			OperationSummary: "Đặt thứ tự biến thể của mẫu (đúng đủ mã mọi biến thể, kể cả ngừng bán) khi version của mẫu còn khớp",
+			OperationID:      "reorderProductVariants",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ReorderProductVariantsRequest
+			Params   = ReorderProductVariantsParams
+			Response = ReorderProductVariantsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackReorderProductVariantsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ReorderProductVariants(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ReorderProductVariants(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeReorderProductVariantsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleReorderWebCarriersRequest handles reorderWebCarriers operation.
 //
 // AccountIds là mọi tài khoản đang hiện trên web (showOnWeb, trừ revoked) theo thứ tự

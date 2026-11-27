@@ -57,6 +57,11 @@ export interface Draft {
   rows: VariantRow[];
   /** Bài viết dạng khối (Task 326). */
   article: EditBlock[];
+  /**
+   * Khóa các dòng nhân viên đã kéo, bấm ↑ ↓ (Task 513). Có giá trị: thứ tự do người đặt, dòng sinh thêm vào cuối;
+   * không có: dòng mới xếp theo màu × size sau các dòng đã lưu.
+   */
+  moved?: readonly string[];
 }
 
 export type OptionKind = "color" | "size";
@@ -170,7 +175,7 @@ export function draftFromProduct(p: Product, c: ProductClassification): Draft {
     attributeValueIds: [...c.attributeValueIds],
     colors,
     sizes,
-    rows: sortRows(p.variants.map(savedRow), colors, sizes),
+    rows: p.variants.map(savedRow),
     article: editBlocks(p.article),
   };
 }
@@ -198,7 +203,35 @@ export function addOption(d: Draft, kind: OptionKind, value: string): Draft {
         status: "active",
       });
     }
-  return { ...d, colors, sizes, rows: sortRows(rows, colors, sizes) };
+  return { ...d, colors, sizes, rows: d.moved === undefined ? arrange(rows, colors, sizes) : rows };
+}
+
+/** Chưa ai dời: dòng đã lưu giữ thứ tự (của máy chủ), dòng mới xếp theo màu × size phía sau. */
+function arrange(rows: VariantRow[], colors: readonly string[], sizes: readonly string[]): VariantRow[] {
+  return [
+    ...rows.filter((r) => r.id !== undefined),
+    ...sortRows(
+      rows.filter((r) => r.id === undefined),
+      colors,
+      sizes,
+    ),
+  ];
+}
+
+/** Dời dòng ở chỗ from tới chỗ to (kéo thả, nút ↑ ↓); to ngoài biên thì về đầu/cuối bảng. */
+export function moveRow(d: Draft, from: number, to: number): Draft {
+  const row = d.rows[from];
+  const at = Math.min(Math.max(to, 0), d.rows.length - 1);
+  if (row === undefined || at === from) return d;
+  const rows = d.rows.filter((_, i) => i !== from);
+  rows.splice(at, 0, row);
+  const moved = d.moved ?? [];
+  return { ...d, rows, moved: moved.includes(row.key) ? moved : [...moved, row.key] };
+}
+
+/** Thân bước order: mã mọi biến thể theo thứ tự bảng (gọi sau các bước thêm: mọi dòng đã có mã). */
+export function orderIds(d: Draft): string[] {
+  return d.rows.flatMap((r) => (r.id === undefined ? [] : [r.id]));
 }
 
 const rowHas = (r: VariantRow, kind: OptionKind, value: string) =>
@@ -342,6 +375,7 @@ export type SaveStep =
   | { kind: "product"; body: Omit<UpdateProductRequest, "version"> }
   | { kind: "classification"; body: ClassificationBody }
   | { kind: "add"; key: string; body: Omit<AddVariantRequest, "productVersion"> }
+  | { kind: "order" }
   | { kind: "variant"; key: string; id: string; body: UpdateVariantRequest };
 
 const sameSet = (a: readonly string[], b: readonly string[]) =>
@@ -365,8 +399,10 @@ export function classificationChanged(base: Draft, edit: Draft): boolean {
 }
 
 /**
- * Các bước lưu bản nháp edit so với bản đã lưu base, theo thứ tự: sửa mẫu → phân loại → thêm biến thể → sửa biến thể.
- * Ba bước đầu khóa theo version của mẫu (mỗi bước +1); sửa biến thể chỉ kiểm version của biến thể nên đi sau cùng.
+ * Các bước lưu bản nháp edit so với bản đã lưu base, theo thứ tự: sửa mẫu → phân loại → thêm biến thể → sắp thứ tự
+ * biến thể → sửa biến thể. Bốn bước đầu khóa theo version của mẫu (mỗi bước +1); sửa biến thể chỉ kiểm version của
+ * biến thể nên đi sau cùng. Sắp thứ tự chỉ khi thứ tự bảng khác thứ tự máy chủ sẽ có sau các bước thêm (dòng đã lưu
+ * theo base, dòng thêm nối cuối theo thứ tự gửi).
  * Gọi sau validate.
  */
 export function savePlan(base: Draft, edit: Draft): SaveStep[] {
@@ -379,6 +415,11 @@ export function savePlan(base: Draft, edit: Draft): SaveStep[] {
   if (Object.keys(p).length > 0) steps.push({ kind: "product", body: p });
   if (classificationChanged(base, edit)) steps.push({ kind: "classification", body: classificationBody(edit) });
   for (const r of edit.rows) if (r.id === undefined) steps.push({ kind: "add", key: r.key, body: variantInput(r) });
+  const server = [
+    ...base.rows.filter((b) => edit.rows.some((r) => r.key === b.key)).map((b) => b.key),
+    ...edit.rows.filter((r) => r.id === undefined).map((r) => r.key),
+  ];
+  if (server.join("\n") !== edit.rows.map((r) => r.key).join("\n")) steps.push({ kind: "order" });
   for (const r of edit.rows) {
     const b = base.rows.find((x) => x.key === r.key);
     if (r.id === undefined || r.version === undefined || b === undefined) continue;
@@ -445,10 +486,17 @@ export function applyVariant({ base, edit }: Pair, key: string, v: Variant): Pai
       rows,
     };
   };
-  const b = put(base);
-  const e = put(edit);
-  return {
-    base: { ...b, rows: sortRows(b.rows, e.colors, e.sizes) },
-    edit: { ...e, rows: sortRows(e.rows, e.colors, e.sizes) },
-  };
+  // Dòng giữ chỗ trong bản nháp; bản đã lưu nhận dòng thêm ở cuối như máy chủ (vị trí = cuối + 1).
+  return { base: put(base), edit: put(edit) };
+}
+
+/** Bước sắp thứ tự xong: bản đã lưu theo thứ tự máy chủ trả; cả hai nhận version mới; hết đánh dấu dòng đã dời. */
+export function applyOrder({ base, edit }: Pair, p: Product): Pair {
+  const rows = p.variants.flatMap((v) => {
+    const r = base.rows.find((x) => x.id === v.id);
+    return r === undefined ? [savedRow(v)] : [r];
+  });
+  const next: Draft = { ...edit, version: p.version };
+  delete next.moved;
+  return { base: { ...base, rows, version: p.version }, edit: next };
 }

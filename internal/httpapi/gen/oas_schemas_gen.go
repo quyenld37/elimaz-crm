@@ -14794,6 +14794,7 @@ func (*ErrorStatusCode) removeCustomerTagRes()           {}
 func (*ErrorStatusCode) removeFlashItemRes()             {}
 func (*ErrorStatusCode) renderReplyTemplateRes()         {}
 func (*ErrorStatusCode) reorderProductImagesRes()        {}
+func (*ErrorStatusCode) reorderProductVariantsRes()      {}
 func (*ErrorStatusCode) reorderWebCarriersRes()          {}
 func (*ErrorStatusCode) replaceStaffGrantsRes()          {}
 func (*ErrorStatusCode) replaceStockDocumentLinesRes()   {}
@@ -32888,7 +32889,9 @@ type Product struct {
 	ArticleHtml string        `json:"articleHtml"`
 	Status      ProductStatus `json:"status"`
 	Version     int64         `json:"version"`
-	Variants    []Variant     `json:"variants"`
+	// Theo thứ tự nhân viên đặt (reorderProductVariants), rồi mã; biến thể mới ở
+	// cuối (Task 513).
+	Variants []Variant `json:"variants"`
 	// Ảnh đang hiện theo thứ tự (ảnh đầu là ảnh bìa).
 	Images []ProductImage `json:"images"`
 }
@@ -32993,14 +32996,15 @@ func (s *Product) SetImages(val []ProductImage) {
 	s.Images = val
 }
 
-func (*Product) attachProductImageRes()   {}
-func (*Product) createProductRes()        {}
-func (*Product) deleteProductImageRes()   {}
-func (*Product) getProductRes()           {}
-func (*Product) reorderProductImagesRes() {}
-func (*Product) restoreProductImageRes()  {}
-func (*Product) setProductImageColorRes() {}
-func (*Product) updateProductRes()        {}
+func (*Product) attachProductImageRes()     {}
+func (*Product) createProductRes()          {}
+func (*Product) deleteProductImageRes()     {}
+func (*Product) getProductRes()             {}
+func (*Product) reorderProductImagesRes()   {}
+func (*Product) reorderProductVariantsRes() {}
+func (*Product) restoreProductImageRes()    {}
+func (*Product) setProductImageColorRes()   {}
+func (*Product) updateProductRes()          {}
 
 // Ref: #/components/schemas/ProductClassification
 type ProductClassification struct {
@@ -34949,6 +34953,34 @@ func (s *ReorderProductImagesRequest) SetProductVersion(val int64) {
 // SetImageIds sets the value of ImageIds.
 func (s *ReorderProductImagesRequest) SetImageIds(val []uuid.UUID) {
 	s.ImageIds = val
+}
+
+// Ref: #/components/schemas/ReorderProductVariantsRequest
+type ReorderProductVariantsRequest struct {
+	ProductVersion int64 `json:"productVersion"`
+	// Mọi biến thể của mẫu theo thứ tự mới (trùng → 422 invalid_input như danh sách
+	// sai tập).
+	VariantIds []uuid.UUID `json:"variantIds"`
+}
+
+// GetProductVersion returns the value of ProductVersion.
+func (s *ReorderProductVariantsRequest) GetProductVersion() int64 {
+	return s.ProductVersion
+}
+
+// GetVariantIds returns the value of VariantIds.
+func (s *ReorderProductVariantsRequest) GetVariantIds() []uuid.UUID {
+	return s.VariantIds
+}
+
+// SetProductVersion sets the value of ProductVersion.
+func (s *ReorderProductVariantsRequest) SetProductVersion(val int64) {
+	s.ProductVersion = val
+}
+
+// SetVariantIds sets the value of VariantIds.
+func (s *ReorderProductVariantsRequest) SetVariantIds(val []uuid.UUID) {
+	s.VariantIds = val
 }
 
 // Ref: #/components/schemas/ReorderWebCarriersRequest
@@ -51088,7 +51120,9 @@ type WebProduct struct {
 	Tags       []string  `json:"tags"`
 	Attributes []WebAttr `json:"attributes"`
 	// Ảnh đã xử lý xong theo thứ tự hiện (ảnh đang xử lý chưa có).
-	Images    []WebImage   `json:"images"`
+	Images []WebImage `json:"images"`
+	// Theo thứ tự nhân viên đặt trong CRM, rồi mã (Task 513); website giữ nguyên thứ tự
+	// mảng và suy thứ tự màu, cỡ theo lần xuất hiện đầu tiên.
 	Variants  []WebVariant `json:"variants"`
 	UpdatedAt time.Time    `json:"updatedAt"`
 	// Ngày tạo mẫu (Task 489; sắp xếp "Mới nhất"). CRM luôn gửi; chỉ có thể vắng

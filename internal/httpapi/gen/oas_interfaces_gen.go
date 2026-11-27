@@ -969,6 +969,10 @@ type ReorderProductImagesRes interface {
 	reorderProductImagesRes()
 }
 
+type ReorderProductVariantsRes interface {
+	reorderProductVariantsRes()
+}
+
 type ReorderWebCarriersRes interface {
 	reorderWebCarriersRes()
 }

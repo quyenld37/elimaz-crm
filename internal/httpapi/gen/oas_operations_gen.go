@@ -249,6 +249,7 @@ const (
 	RemoveFlashItemOperation             OperationName = "RemoveFlashItem"
 	RenderReplyTemplateOperation         OperationName = "RenderReplyTemplate"
 	ReorderProductImagesOperation        OperationName = "ReorderProductImages"
+	ReorderProductVariantsOperation      OperationName = "ReorderProductVariants"
 	ReorderWebCarriersOperation          OperationName = "ReorderWebCarriers"
 	ReplaceStaffGrantsOperation          OperationName = "ReplaceStaffGrants"
 	ReplaceStockDocumentLinesOperation   OperationName = "ReplaceStockDocumentLines"

@@ -392,6 +392,7 @@ type CatalogVariant struct {
 	UpdatedAt   time.Time
 	Version     int64
 	WeightGrams pgtype.Int4
+	Position    int32
 }
 
 type CatalogVariantsV struct {
@@ -412,6 +413,7 @@ type CatalogVariantsV struct {
 	Sellable      pgtype.Bool
 	UpdatedAt     time.Time
 	WeightGrams   pgtype.Int4
+	Position      int32
 }
 
 type ChannelChannelAccount struct {
