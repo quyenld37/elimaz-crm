@@ -97,6 +97,8 @@ type errorBody struct {
 	OrderCode *string `json:"orderCode,omitempty"`
 	// Chỉ có ở open_draft_exists (M4, Task 172): đơn nháp khách đang có trong phiên live (LiveDraftRef).
 	Drafts []liveDraftBody `json:"drafts,omitempty"`
+	// Chỉ có ở insufficient_stock của lên lịch, thêm suất đợt flash sale (Task 200): mọi món thiếu (FlashShortage).
+	Shortages []flashShortageBody `json:"shortages,omitempty"`
 }
 
 // writeError ghi lỗi theo dạng duy nhất {"error": "<mã>", "request_id": "<id>"}; không bao giờ có vết lỗi.
@@ -233,6 +235,9 @@ func detailedError(err error) (errorBody, int, bool) {
 	if e, ok := errors.AsType[*customer.MergeNotLatestError](err); ok {
 		id := e.BlockingMergeID.String()
 		return errorBody{Error: codeMergeNotLatest, BlockingMergeID: &id}, http.StatusConflict, true
+	}
+	if body, status, ok := flashShortageDetail(err); ok {
+		return body, status, true
 	}
 	if e, ok := errors.AsType[*promotion.RejectError](err); ok {
 		reason := string(e.Reason)

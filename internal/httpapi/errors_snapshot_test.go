@@ -390,6 +390,11 @@ func domainErrorSnapshot() []snapshotCase {
 		{"promotion.ErrFlashItemExists", promotion.ErrFlashItemExists, http.StatusUnprocessableEntity, "already_exists"},
 		{"promotion.ErrFlashWindow", promotion.ErrFlashWindow, http.StatusUnprocessableEntity, "invalid_flash_window"},
 		{"promotion.ErrVariantNotForSale", promotion.ErrVariantNotForSale, http.StatusUnprocessableEntity, "variant_not_for_sale"},
+		{"promotion.ErrFlashOverlap", promotion.ErrFlashOverlap, http.StatusUnprocessableEntity, "flash_overlap"},
+		{"promotion.ErrFlashEmpty", promotion.ErrFlashEmpty, http.StatusUnprocessableEntity, "flash_sale_empty"},
+		{"promotion.ErrFlashNotActive", promotion.ErrFlashNotActive, http.StatusConflict, "flash_not_active"},
+		{"promotion.ErrFlashEnded", promotion.ErrFlashEnded, http.StatusUnprocessableEntity, "flash_ended"},
+		{"promotion.ErrFlashInsufficient", promotion.ErrFlashInsufficient, http.StatusConflict, "insufficient_stock"},
 		{"promotion.ErrInvalidInput", promotion.ErrInvalidInput, http.StatusBadRequest, "invalid_input"},
 		{"cash.ErrOrderNotFound", cash.ErrOrderNotFound, http.StatusNotFound, "not_found"},
 		{"cash.ErrObligationNotFound", cash.ErrObligationNotFound, http.StatusNotFound, "not_found"},
@@ -602,6 +607,11 @@ func domainErrorMembership() []membershipCase {
 		{"promotionError", promotionError, promotion.ErrFlashItemExists},
 		{"promotionError", promotionError, promotion.ErrFlashWindow},
 		{"promotionError", promotionError, promotion.ErrVariantNotForSale},
+		{"promotionError", promotionError, promotion.ErrFlashOverlap},
+		{"promotionError", promotionError, promotion.ErrFlashEmpty},
+		{"promotionError", promotionError, promotion.ErrFlashNotActive},
+		{"promotionError", promotionError, promotion.ErrFlashEnded},
+		{"promotionError", promotionError, promotion.ErrFlashInsufficient},
 		{"queriesError", queriesError, queries.ErrInvalidInput},
 	}
 }

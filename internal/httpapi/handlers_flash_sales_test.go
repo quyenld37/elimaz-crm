@@ -10,6 +10,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/catalog/catalogtest"
 	"elimaz.com.vn/crm/internal/modules/inventory"
+	"elimaz.com.vn/crm/internal/modules/inventory/invtest"
 )
 
 // flashEnv: couponEnv (quản lý có mọi quyền mẫu của manager, sale không có quyền flash sale) cộng nhân viên chỉ có
@@ -183,4 +184,123 @@ func TestFlashSaleAPI_Permissions(t *testing.T) {
 	if n := e.auditCount("promotion.flash_sale.create"); n != 1 {
 		t.Errorf("audit tạo: %d, mong 1 (lần bị 403 không ghi)", n)
 	}
+}
+
+// Đợt ở xa trong tương lai: handler lên lịch theo giờ máy (h.now), không theo đồng hồ giả.
+const futureFlashBody = `{"name":"Sale xa","startsAt":"2099-12-12T05:00:00Z","endsAt":"2099-12-12T07:00:00Z"}`
+
+// [FS01] [FS08] [FS09] Qua HTTP: tồn 10; món 12 suất → lên lịch 409 insufficient_stock kèm shortages {variantId, sku,
+// need 12, sellable 10}, đợt vẫn nháp; sửa còn 6 suất → lên lịch 200 scheduled; lên lịch lại → 422 not_editable; live:
+// 6 trống; thêm 3 suất → quantity 9; thêm 5 → 409 insufficient_stock {need 5, sellable 1}; đóng → closed, live 9 đã trả;
+// đóng lại, thêm suất sau đóng → 409 flash_not_active; đợt không món → 422 flash_sale_empty; mỗi lần ghi một dòng audit.
+func TestFlashSaleAPI_Lifecycle(t *testing.T) {
+	t.Parallel()
+	e := newFlashEnv(t)
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		wh, err := inventory.DefaultWarehouse(t.Context(), tx)
+		if err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		invtest.SeedStock(t, tx, e.variant, wh, 10)
+		return nil
+	})
+	s := e.ok("tạo", e.do(http.MethodPost, "/api/v1/flash-sales", couponManager, "l1", futureFlashBody), http.StatusCreated)
+	sale, _ := s["sale"].(map[string]any)
+	id, _ := sale["id"].(string)
+	base := "/api/v1/flash-sales/" + id
+	it := e.ok("thêm món", e.do(http.MethodPost, base+"/items", couponManager, "l2", e.item(199000, 12)), http.StatusCreated)
+	itemID, _ := it["id"].(string)
+	rec := e.do(http.MethodPost, base+"/schedule", couponManager, "l3", `{"version":1}`)
+	body := e.ok("thiếu hàng", rec, http.StatusConflict)
+	if body["error"] != "insufficient_stock" {
+		t.Fatalf("thiếu hàng: %v", body)
+	}
+	sh, _ := body["shortages"].([]any)
+	if len(sh) != 1 {
+		t.Fatalf("shortages: %v", body)
+	}
+	if m, _ := sh[0].(map[string]any); m["variantId"] != e.variant.String() || m["sku"] != it["sku"] ||
+		m["need"] != float64(12) || m["sellable"] != float64(10) {
+		t.Fatalf("món thiếu: %v", m)
+	}
+	e.ok("sửa còn 6", e.do(http.MethodPatch, base+"/items/"+itemID, couponManager, "l4", `{"version":1,"quantity":6}`),
+		http.StatusOK)
+	got := e.ok("lên lịch", e.do(http.MethodPost, base+"/schedule", couponManager, "l5", `{"version":1}`), http.StatusOK)
+	if gs, _ := got["sale"].(map[string]any); gs["status"] != "scheduled" || gs["version"] != float64(2) {
+		t.Fatalf("sau lên lịch: %v", got)
+	}
+	expect(t, "lên lịch lại", e.do(http.MethodPost, base+"/schedule", couponManager, "l6", `{"version":2}`),
+		http.StatusUnprocessableEntity, "not_editable")
+	e.checkLive(t, base, map[string]float64{"quantity": 6, "available": 6, "released": 0})
+	add := e.ok("thêm suất", e.do(http.MethodPost, base+"/items/"+itemID+"/add-slots", couponManager, "l7", `{"add":3}`),
+		http.StatusOK)
+	if add["quantity"] != float64(9) || add["version"] != float64(3) {
+		t.Fatalf("sau thêm suất: %v", add)
+	}
+	body = e.ok("thêm vượt", e.do(http.MethodPost, base+"/items/"+itemID+"/add-slots", couponManager, "l8",
+		`{"add":5}`), http.StatusConflict)
+	if sh, _ := body["shortages"].([]any); body["error"] != "insufficient_stock" || len(sh) != 1 || sh[0].(map[string]any)["sellable"] != float64(1) { //nolint:forcetypeassert // test
+		t.Fatalf("thêm vượt: %v", body)
+	}
+	closed := e.ok("đóng", e.do(http.MethodPost, base+"/close", couponManager, "l9", ""), http.StatusOK)
+	if cs, _ := closed["sale"].(map[string]any); cs["status"] != "closed" || cs["closedReason"] != "manual" {
+		t.Fatalf("sau đóng: %v", closed)
+	}
+	e.checkLive(t, base, map[string]float64{"quantity": 9, "available": 0, "released": 9})
+	expect(t, "đóng lại", e.do(http.MethodPost, base+"/close", couponManager, "l10", ""), http.StatusConflict,
+		"flash_not_active")
+	expect(t, "thêm suất sau đóng", e.do(http.MethodPost, base+"/items/"+itemID+"/add-slots", couponManager, "l11",
+		`{"add":1}`), http.StatusConflict, "flash_not_active")
+	empty := e.ok("đợt rỗng", e.do(http.MethodPost, "/api/v1/flash-sales", couponManager, "l12", futureFlashBody),
+		http.StatusCreated)
+	es, _ := empty["sale"].(map[string]any)
+	eid, _ := es["id"].(string)
+	expect(t, "lên lịch đợt rỗng", e.do(http.MethodPost, "/api/v1/flash-sales/"+eid+"/schedule", couponManager, "l13",
+		`{"version":1}`), http.StatusUnprocessableEntity, "flash_sale_empty")
+	for action, n := range map[string]int{
+		"promotion.flash_sale.schedule": 1, "promotion.flash_item.add_slots": 1, "promotion.flash_sale.close": 1,
+	} {
+		if got := e.auditCount(action); got != n {
+			t.Errorf("audit %s: %d, mong %d", action, got, n)
+		}
+	}
+}
+
+// checkLive đọc số liệu đợt (người chỉ có promotion.flash.read) và so các trường của món đầu.
+func (e *flashEnv) checkLive(t *testing.T, base string, want map[string]float64) {
+	t.Helper()
+	l := e.ok("live", e.do(http.MethodGet, base+"/live", flashReader, "", ""), http.StatusOK)
+	items, _ := l["items"].([]any)
+	if len(items) != 1 {
+		t.Fatalf("live: %v", l)
+	}
+	m, _ := items[0].(map[string]any)
+	for k, v := range want {
+		if m[k] != v {
+			t.Fatalf("live %s = %v, mong %v (%v)", k, m[k], v, m)
+		}
+	}
+}
+
+// Quyền của vòng đời: chỉ promotion.flash.read → lên lịch, thêm suất, đóng 403, xem live được; sale → live 403.
+func TestFlashSaleAPI_LifecyclePermissions(t *testing.T) {
+	t.Parallel()
+	e := newFlashEnv(t)
+	s := e.ok("tạo", e.do(http.MethodPost, "/api/v1/flash-sales", couponManager, "q1", futureFlashBody), http.StatusCreated)
+	sale, _ := s["sale"].(map[string]any)
+	id, _ := sale["id"].(string)
+	base := "/api/v1/flash-sales/" + id
+	e.ok("chỉ đọc xem live", e.do(http.MethodGet, base+"/live", flashReader, "", ""), http.StatusOK)
+	for name, code := range map[string]int{
+		"chỉ đọc lên lịch":  e.do(http.MethodPost, base+"/schedule", flashReader, "q2", `{"version":1}`).Code,
+		"chỉ đọc đóng":      e.do(http.MethodPost, base+"/close", flashReader, "q3", "").Code,
+		"chỉ đọc thêm suất": e.do(http.MethodPost, base+"/items/"+uuid.NewString()+"/add-slots", flashReader, "q4", `{"add":1}`).Code,
+		"sale xem live":     e.do(http.MethodGet, base+"/live", couponSale, "", "").Code,
+	} {
+		if code != http.StatusForbidden {
+			t.Errorf("%s: %d, mong 403", name, code)
+		}
+	}
+	expect(t, "live đợt không có", e.do(http.MethodGet, "/api/v1/flash-sales/"+uuid.NewString()+"/live", flashReader,
+		"", ""), http.StatusNotFound, "not_found")
 }

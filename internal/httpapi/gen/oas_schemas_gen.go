@@ -14186,6 +14186,9 @@ type Error struct {
 	// Chỉ có ở template_variable_missing — tên biến thiếu giá trị (M4, Task 161).
 	Name     OptString `json:"name"`
 	Assignee OptActor  `json:"assignee"`
+	// Chỉ có ở insufficient_stock của lên lịch, thêm suất đợt flash sale — mọi món
+	// thiếu hàng (Task 200).
+	Shortages []FlashShortage `json:"shortages"`
 }
 
 // GetError returns the value of Error.
@@ -14283,6 +14286,11 @@ func (s *Error) GetAssignee() OptActor {
 	return s.Assignee
 }
 
+// GetShortages returns the value of Shortages.
+func (s *Error) GetShortages() []FlashShortage {
+	return s.Shortages
+}
+
 // SetError sets the value of Error.
 func (s *Error) SetError(val string) {
 	s.Error = val
@@ -14378,6 +14386,11 @@ func (s *Error) SetAssignee(val OptActor) {
 	s.Assignee = val
 }
 
+// SetShortages sets the value of Shortages.
+func (s *Error) SetShortages(val []FlashShortage) {
+	s.Shortages = val
+}
+
 // Chỉ có ở setting_out_of_range — tên trường cài đặt đơn ngoài khoảng (Task M2-15).
 type ErrorField string
 
@@ -14469,6 +14482,7 @@ func (*ErrorStatusCode) addCustomerIdentityRes()         {}
 func (*ErrorStatusCode) addCustomerNoteRes()             {}
 func (*ErrorStatusCode) addCustomerTagRes()              {}
 func (*ErrorStatusCode) addFlashItemRes()                {}
+func (*ErrorStatusCode) addFlashSlotsRes()               {}
 func (*ErrorStatusCode) addOrderNoteRes()                {}
 func (*ErrorStatusCode) addVariantRes()                  {}
 func (*ErrorStatusCode) applyCatalogImportRes()          {}
@@ -14491,6 +14505,7 @@ func (*ErrorStatusCode) checkCouponRes()                 {}
 func (*ErrorStatusCode) checkOrderDuplicatesRes()        {}
 func (*ErrorStatusCode) claimConversationRes()           {}
 func (*ErrorStatusCode) claimLiveCommentRes()            {}
+func (*ErrorStatusCode) closeFlashSaleRes()              {}
 func (*ErrorStatusCode) closeReturnRes()                 {}
 func (*ErrorStatusCode) completeReminderRes()            {}
 func (*ErrorStatusCode) completeUploadRes()              {}
@@ -14538,6 +14553,7 @@ func (*ErrorStatusCode) disconnectChannelRes()           {}
 func (*ErrorStatusCode) endLiveSessionManuallyRes()      {}
 func (*ErrorStatusCode) exchangeFacebookOAuthRes()       {}
 func (*ErrorStatusCode) exportBirthdayCustomersRes()     {}
+func (*ErrorStatusCode) flashSaleLiveRes()               {}
 func (*ErrorStatusCode) getAttachmentUrlRes()            {}
 func (*ErrorStatusCode) getBannersRes()                  {}
 func (*ErrorStatusCode) getBirthdaySettingsRes()         {}
@@ -14704,6 +14720,7 @@ func (*ErrorStatusCode) saveBirthdaySettingsRes()        {}
 func (*ErrorStatusCode) saveLooksRes()                   {}
 func (*ErrorStatusCode) saveWebCampaignRes()             {}
 func (*ErrorStatusCode) saveWebCarrierSettingsRes()      {}
+func (*ErrorStatusCode) scheduleFlashSaleRes()           {}
 func (*ErrorStatusCode) searchVariantsRes()              {}
 func (*ErrorStatusCode) sendMessageRes()                 {}
 func (*ErrorStatusCode) sendPrivateReplyRes()            {}
@@ -15632,6 +15649,21 @@ func (s *FileVariantFormat) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/FlashAddSlotsRequest
+type FlashAddSlotsRequest struct {
+	Add int32 `json:"add"`
+}
+
+// GetAdd returns the value of Add.
+func (s *FlashAddSlotsRequest) GetAdd() int32 {
+	return s.Add
+}
+
+// SetAdd sets the value of Add.
+func (s *FlashAddSlotsRequest) SetAdd(val int32) {
+	s.Add = val
+}
+
 // Ref: #/components/schemas/FlashItem
 type FlashItem struct {
 	ID        uuid.UUID `json:"id"`
@@ -15759,6 +15791,7 @@ func (s *FlashItem) SetVersion(val int32) {
 }
 
 func (*FlashItem) addFlashItemRes()    {}
+func (*FlashItem) addFlashSlotsRes()   {}
 func (*FlashItem) updateFlashItemRes() {}
 
 // Ref: #/components/schemas/FlashItemInput
@@ -15821,6 +15854,109 @@ func (s *FlashItemInput) SetHoldMinutes(val OptInt32) {
 	s.HoldMinutes = val
 }
 
+// Ref: #/components/schemas/FlashLive
+type FlashLive struct {
+	Items []FlashLiveItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *FlashLive) GetItems() []FlashLiveItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *FlashLive) SetItems(val []FlashLiveItem) {
+	s.Items = val
+}
+
+func (*FlashLive) flashSaleLiveRes() {}
+
+// Ref: #/components/schemas/FlashLiveItem
+type FlashLiveItem struct {
+	ItemId uuid.UUID `json:"itemId"`
+	// Số suất của món.
+	Quantity int32 `json:"quantity"`
+	// Đơn vị còn trống.
+	Available int32 `json:"available"`
+	// Đơn vị đang giữ cho đơn nháp.
+	Held int32 `json:"held"`
+	Sold int32 `json:"sold"`
+	// Đơn vị đã trả về tồn khi đóng đợt.
+	Released int32 `json:"released"`
+	// Số khách đã lấy suất của món.
+	Buyers int32 `json:"buyers"`
+}
+
+// GetItemId returns the value of ItemId.
+func (s *FlashLiveItem) GetItemId() uuid.UUID {
+	return s.ItemId
+}
+
+// GetQuantity returns the value of Quantity.
+func (s *FlashLiveItem) GetQuantity() int32 {
+	return s.Quantity
+}
+
+// GetAvailable returns the value of Available.
+func (s *FlashLiveItem) GetAvailable() int32 {
+	return s.Available
+}
+
+// GetHeld returns the value of Held.
+func (s *FlashLiveItem) GetHeld() int32 {
+	return s.Held
+}
+
+// GetSold returns the value of Sold.
+func (s *FlashLiveItem) GetSold() int32 {
+	return s.Sold
+}
+
+// GetReleased returns the value of Released.
+func (s *FlashLiveItem) GetReleased() int32 {
+	return s.Released
+}
+
+// GetBuyers returns the value of Buyers.
+func (s *FlashLiveItem) GetBuyers() int32 {
+	return s.Buyers
+}
+
+// SetItemId sets the value of ItemId.
+func (s *FlashLiveItem) SetItemId(val uuid.UUID) {
+	s.ItemId = val
+}
+
+// SetQuantity sets the value of Quantity.
+func (s *FlashLiveItem) SetQuantity(val int32) {
+	s.Quantity = val
+}
+
+// SetAvailable sets the value of Available.
+func (s *FlashLiveItem) SetAvailable(val int32) {
+	s.Available = val
+}
+
+// SetHeld sets the value of Held.
+func (s *FlashLiveItem) SetHeld(val int32) {
+	s.Held = val
+}
+
+// SetSold sets the value of Sold.
+func (s *FlashLiveItem) SetSold(val int32) {
+	s.Sold = val
+}
+
+// SetReleased sets the value of Released.
+func (s *FlashLiveItem) SetReleased(val int32) {
+	s.Released = val
+}
+
+// SetBuyers sets the value of Buyers.
+func (s *FlashLiveItem) SetBuyers(val int32) {
+	s.Buyers = val
+}
+
 // Ref: #/components/schemas/FlashSale
 type FlashSale struct {
 	Sale  FlashSaleSummary `json:"sale"`
@@ -15847,10 +15983,12 @@ func (s *FlashSale) SetItems(val []FlashItem) {
 	s.Items = val
 }
 
-func (*FlashSale) createFlashSaleRes() {}
-func (*FlashSale) getFlashSaleRes()    {}
-func (*FlashSale) removeFlashItemRes() {}
-func (*FlashSale) updateFlashSaleRes() {}
+func (*FlashSale) closeFlashSaleRes()    {}
+func (*FlashSale) createFlashSaleRes()   {}
+func (*FlashSale) getFlashSaleRes()      {}
+func (*FlashSale) removeFlashItemRes()   {}
+func (*FlashSale) scheduleFlashSaleRes() {}
+func (*FlashSale) updateFlashSaleRes()   {}
 
 // Ref: #/components/schemas/FlashSaleInput
 type FlashSaleInput struct {
@@ -16087,6 +16225,71 @@ func (s *FlashSaleSummary) SetCreatedAt(val time.Time) {
 // SetUpdatedAt sets the value of UpdatedAt.
 func (s *FlashSaleSummary) SetUpdatedAt(val time.Time) {
 	s.UpdatedAt = val
+}
+
+// Ref: #/components/schemas/FlashScheduleRequest
+type FlashScheduleRequest struct {
+	Version int32 `json:"version"`
+}
+
+// GetVersion returns the value of Version.
+func (s *FlashScheduleRequest) GetVersion() int32 {
+	return s.Version
+}
+
+// SetVersion sets the value of Version.
+func (s *FlashScheduleRequest) SetVersion(val int32) {
+	s.Version = val
+}
+
+// Ref: #/components/schemas/FlashShortage
+type FlashShortage struct {
+	VariantId uuid.UUID `json:"variantId"`
+	Sku       string    `json:"sku"`
+	// Số suất cần giữ.
+	Need int32 `json:"need"`
+	// Số có thể bán hiện tại của biến thể.
+	Sellable int32 `json:"sellable"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *FlashShortage) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetSku returns the value of Sku.
+func (s *FlashShortage) GetSku() string {
+	return s.Sku
+}
+
+// GetNeed returns the value of Need.
+func (s *FlashShortage) GetNeed() int32 {
+	return s.Need
+}
+
+// GetSellable returns the value of Sellable.
+func (s *FlashShortage) GetSellable() int32 {
+	return s.Sellable
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *FlashShortage) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetSku sets the value of Sku.
+func (s *FlashShortage) SetSku(val string) {
+	s.Sku = val
+}
+
+// SetNeed sets the value of Need.
+func (s *FlashShortage) SetNeed(val int32) {
+	s.Need = val
+}
+
+// SetSellable sets the value of Sellable.
+func (s *FlashShortage) SetSellable(val int32) {
+	s.Sellable = val
 }
 
 // Ref: #/components/schemas/FollowUpConfig

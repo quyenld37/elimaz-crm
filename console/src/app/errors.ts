@@ -149,6 +149,10 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   not_editable: "Đợt flash sale đã lên lịch hoặc đã mở, không sửa được nữa",
   not_a_discount: "Giá flash phải thấp hơn giá bán thường của sản phẩm",
   invalid_flash_window: "Giờ kết thúc phải sau giờ bắt đầu, và một đợt dài tối đa 7 ngày",
+  flash_overlap: "Một sản phẩm của đợt đã nằm trong đợt flash sale khác trùng giờ",
+  flash_sale_empty: "Đợt chưa có sản phẩm nào, thêm sản phẩm rồi lên lịch",
+  flash_not_active: "Đợt chưa lên lịch hoặc đã đóng. Tải lại để xem trạng thái mới",
+  flash_ended: "Giờ kết thúc của đợt đã qua, sửa giờ rồi lên lịch lại",
   // Banner trang chủ (Task 453)
   too_many_banners: "Tối đa 8 banner trên trang chủ",
   invalid_banner:

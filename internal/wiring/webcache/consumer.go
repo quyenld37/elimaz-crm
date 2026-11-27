@@ -21,13 +21,16 @@ import (
 	"elimaz.com.vn/crm/internal/platform/realtime"
 )
 
-// Chủ đề chưa có hằng xuất ở module sở hữu (flash sale ở M5-17); task tạo sự kiện thì thay bằng hằng của module.
 const (
-	topicFlashOpened    = "flash_sale.opened"
-	topicFlashClosed    = "flash_sale.closed"
-	topicFlashChanged   = "flash_sale.changed"
+	topicFlashOpened    = promotion.TopicFlashSaleOpened
+	topicFlashClosed    = promotion.TopicFlashSaleClosed
+	topicFlashChanged   = promotion.TopicFlashSaleChanged
 	topicOrderCancelled = "order." + order.StatusCancelled
 	consumerName        = "webcache"
+
+	// Báo hiệu cho màn quản lý đợt flash sale (người có quyền đọc đợt) tự tải lại khi đợt mở, đóng, đổi (Task 200).
+	flashStaffTopic = "flash_sale.changed"
+	flashStaffPerm  = "promotion.flash.read" // identity.Permission; wiring không cần nhập identity cho một chuỗi
 )
 
 // errBadPayload: payload của sự kiện thiếu mã cần cho bộ đệm (ghi log, không báo hiệu).
@@ -60,7 +63,8 @@ func (c *Consumer) Topics() []string {
 	}
 }
 
-// Handle phát một báo hiệu hệ thống cho mỗi đối tượng của sự kiện, trong tx (chỉ tới api khi tx commit). Payload thiếu
+// Handle phát một báo hiệu hệ thống cho mỗi đối tượng của sự kiện (sự kiện đợt flash sale: thêm một báo hiệu
+// flash_sale.changed cho nhân viên có promotion.flash.read), trong tx (chỉ tới api khi tx commit). Payload thiếu
 // mã: ghi log, không báo hiệu, trả nil (chạy lại không sửa được payload; bộ đệm tự lành theo hạn sống, QĐ-185-4).
 func (c *Consumer) Handle(ctx context.Context, e events.StoredEvent, tx pgx.Tx) error {
 	ents, err := entitiesOf(e)
@@ -77,6 +81,15 @@ func (c *Consumer) Handle(ctx context.Context, e events.StoredEvent, tx pgx.Tx) 
 			TenantID: e.TenantID, Topic: TopicInvalidate, System: true, Entity: ent,
 		}); err != nil {
 			return fmt.Errorf("webcache: báo hiệu %s %s: %w", ent.Type, ent.ID, err)
+		}
+	}
+	switch e.Topic {
+	case topicFlashOpened, topicFlashClosed, topicFlashChanged:
+		if err := c.bus.Publish(ctx, tx, realtime.Signal{
+			TenantID: e.TenantID, Topic: flashStaffTopic, Requires: flashStaffPerm,
+			Entity: realtime.Entity{Type: EntityFlashSale, ID: e.AggregateID},
+		}); err != nil {
+			return fmt.Errorf("webcache: báo hiệu màn đợt flash sale %s: %w", e.AggregateID, err)
 		}
 	}
 	return nil

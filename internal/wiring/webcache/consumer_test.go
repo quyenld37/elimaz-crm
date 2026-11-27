@@ -159,8 +159,13 @@ func checkHandle(t *testing.T, tenant uuid.UUID, e events.StoredEvent, want []re
 	if err := con.Handle(t.Context(), e, nil); err != nil {
 		t.Fatalf("Handle: %v", err)
 	}
-	var got []realtime.Entity
+	var got, staff []realtime.Entity
 	for _, s := range bus.Signals() {
+		if !s.System && s.Topic == "flash_sale.changed" && s.Requires == "promotion.flash.read" && s.TenantID == tenant &&
+			s.Scope == nil {
+			staff = append(staff, s.Entity)
+			continue
+		}
 		if !s.System || s.Topic != "cache.invalidate" || s.TenantID != tenant || s.Requires != "" || s.Scope != nil {
 			t.Fatalf("báo hiệu sai dạng: %+v", s)
 		}
@@ -168,6 +173,14 @@ func checkHandle(t *testing.T, tenant uuid.UUID, e events.StoredEvent, want []re
 	}
 	if !slices.Equal(got, want) {
 		t.Fatalf("báo hiệu %v, muốn %v", got, want)
+	}
+	// Sự kiện đợt flash sale: thêm đúng một báo hiệu cho màn quản lý đợt (Task 200); chủ đề khác: không có.
+	var wantStaff []realtime.Entity
+	if strings.HasPrefix(e.Topic, "flash_sale.") {
+		wantStaff = []realtime.Entity{{Type: "flash_sale", ID: e.AggregateID}}
+	}
+	if !slices.Equal(staff, wantStaff) {
+		t.Fatalf("báo hiệu màn đợt %v, muốn %v", staff, wantStaff)
 	}
 	if hasLog := strings.Contains(logs.String(), "payload sai"); hasLog != badLog {
 		t.Fatalf("log payload sai = %v, muốn %v: %s", hasLog, badLog, logs.String())

@@ -37,6 +37,10 @@ type AddFlashItemRes interface {
 	addFlashItemRes()
 }
 
+type AddFlashSlotsRes interface {
+	addFlashSlotsRes()
+}
+
 type AddOrderNoteRes interface {
 	addOrderNoteRes()
 }
@@ -123,6 +127,10 @@ type ClaimConversationRes interface {
 
 type ClaimLiveCommentRes interface {
 	claimLiveCommentRes()
+}
+
+type CloseFlashSaleRes interface {
+	closeFlashSaleRes()
 }
 
 type CloseReturnRes interface {
@@ -311,6 +319,10 @@ type ExchangeFacebookOAuthRes interface {
 
 type ExportBirthdayCustomersRes interface {
 	exportBirthdayCustomersRes()
+}
+
+type FlashSaleLiveRes interface {
+	flashSaleLiveRes()
 }
 
 type GetAttachmentUrlRes interface {
@@ -979,6 +991,10 @@ type SaveWebCampaignRes interface {
 
 type SaveWebCarrierSettingsRes interface {
 	saveWebCarrierSettingsRes()
+}
+
+type ScheduleFlashSaleRes interface {
+	scheduleFlashSaleRes()
 }
 
 type SearchVariantsRes interface {

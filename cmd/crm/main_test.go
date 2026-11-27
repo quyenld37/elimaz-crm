@@ -31,8 +31,8 @@ func TestNewModulesRegistersCash(t *testing.T) {
 		t.Fatalf("handler của sổ sự kiện = %v, mong %v", kinds, want)
 	}
 	// Lịch theo tenant, mỗi lịch một handler cùng Kind (worker chạy được việc của lịch): customer.tag_rules_nightly
-	// (Task M2-25), order.expire_drafts (Task M2-21), promotion.birthday_run (Task 468).
-	names := []string{"customer.tag_rules_nightly", "order.expire_drafts", "promotion.birthday_run"}
+	// (Task M2-25), order.expire_drafts (Task M2-21), promotion.birthday_run (Task 468), promotion.flash_tick (Task 200).
+	names := []string{"customer.tag_rules_nightly", "order.expire_drafts", "promotion.birthday_run", "promotion.flash_tick"}
 	if len(m.Schedules) != len(names) || len(m.Handlers) != len(names) {
 		t.Fatalf("việc nền, lịch của module: %d, %+v", len(m.Handlers), m.Schedules)
 	}

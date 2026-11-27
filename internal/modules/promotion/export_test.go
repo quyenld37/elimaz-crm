@@ -3,6 +3,7 @@ package promotion
 import (
 	"time"
 
+	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
@@ -25,4 +26,11 @@ func DueGift(day, month int, saved, now time.Time, s BirthdaySettings) (dueGift,
 //nolint:ireturn // test: handler chưa xuất, gói ngoài dùng qua queue.Handler
 func BirthdayRunHandler(now func() time.Time) queue.Handler {
 	return birthdayRunHandler{now: now}
+}
+
+// FlashTickHandler trả handler của lịch promotion.flash_tick với đồng hồ now (Writer có Events, Queue mới).
+//
+//nolint:ireturn // test: handler chưa xuất, gói ngoài dùng qua queue.Handler
+func FlashTickHandler(now func() time.Time) queue.Handler {
+	return flashTickHandler{w: Writer{Events: events.NewRegistry(), Queue: queue.NewQueue()}, now: now}
 }

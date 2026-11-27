@@ -4,6 +4,7 @@ package httpapi
 // này và x-error-codes của openapi.yaml khi có mã mới; thứ tự kiểm giữa các vùng ở domainErrorMappers, errors.go).
 
 import (
+	"errors"
 	"net/http"
 
 	"elimaz.com.vn/crm/internal/modules/promotion"
@@ -23,9 +24,13 @@ const (
 	codeNotEditable          = "not_editable"
 	codeNotADiscount         = "not_a_discount"
 	codeInvalidFlashWindow   = "invalid_flash_window"
+	codeFlashOverlap         = "flash_overlap"
+	codeFlashSaleEmpty       = "flash_sale_empty"
+	codeFlashNotActive       = "flash_not_active"
+	codeFlashEnded           = "flash_ended"
 )
 
-// promotionError đổi lỗi nghiệp vụ của mã giảm giá (M2, Task M2-02, M2-14) và chiến dịch giảm giá web (M5, Task 452), quà sinh nhật (Task 468), đợt flash sale (Task 199)
+// promotionError đổi lỗi nghiệp vụ của mã giảm giá (M2, Task M2-02, M2-14) và chiến dịch giảm giá web (M5, Task 452), quà sinh nhật (Task 468), đợt flash sale (Task 199, 200)
 // sang mã HTTP. RejectError có thân riêng (kèm
 // reason) ở detailedError.
 func promotionError(err error) (status int, code string, ok bool) {
@@ -48,5 +53,34 @@ func promotionError(err error) (status int, code string, ok bool) {
 		{promotion.ErrFlashItemExists, http.StatusUnprocessableEntity, codeAlreadyExists},
 		{promotion.ErrFlashWindow, http.StatusUnprocessableEntity, codeInvalidFlashWindow},
 		{promotion.ErrVariantNotForSale, http.StatusUnprocessableEntity, codeVariantNotForSale},
+		{promotion.ErrFlashOverlap, http.StatusUnprocessableEntity, codeFlashOverlap},
+		{promotion.ErrFlashEmpty, http.StatusUnprocessableEntity, codeFlashSaleEmpty},
+		{promotion.ErrFlashNotActive, http.StatusConflict, codeFlashNotActive},
+		{promotion.ErrFlashEnded, http.StatusUnprocessableEntity, codeFlashEnded},
+		{promotion.ErrFlashInsufficient, http.StatusConflict, codeInsufficientStock},
 	})
+}
+
+// flashShortageDetail: thiếu hàng khi lên lịch, thêm suất đợt flash sale (Task 200) → 409 insufficient_stock kèm mọi
+// món thiếu.
+func flashShortageDetail(err error) (errorBody, int, bool) {
+	e, ok := errors.AsType[*promotion.FlashShortageError](err)
+	if !ok {
+		return errorBody{}, 0, false
+	}
+	items := make([]flashShortageBody, 0, len(e.Items))
+	for _, it := range e.Items {
+		items = append(items, flashShortageBody{
+			VariantID: it.VariantID.String(), SKU: it.SKU, Need: it.Need, Sellable: it.Sellable,
+		})
+	}
+	return errorBody{Error: codeInsufficientStock, Shortages: items}, http.StatusConflict, true
+}
+
+// flashShortageBody là FlashShortage của hợp đồng.
+type flashShortageBody struct {
+	VariantID string `json:"variantId"`
+	SKU       string `json:"sku"`
+	Need      int    `json:"need"`
+	Sellable  int    `json:"sellable"`
 }

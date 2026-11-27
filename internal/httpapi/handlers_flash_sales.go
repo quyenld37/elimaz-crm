@@ -11,10 +11,11 @@ import (
 	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/promotion"
+	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
 // Đợt flash sale của nhân viên (kế hoạch M5, Task 199): đọc promotion.flash.read, ghi promotion.flash.manage (bảng
-// route). Chỉ soạn ở trạng thái nháp. Audit ghi ở đây, cùng tx (promotion không nhập identity).
+// route). Soạn ở trạng thái nháp (Task 199); lên lịch, thêm suất, đóng, số liệu đang chạy (Task 200). Audit ghi ở đây, cùng tx (promotion không nhập identity).
 
 // ListFlashSales (GET /api/v1/flash-sales).
 //
@@ -177,6 +178,103 @@ func (h *handler) RemoveFlashItem(ctx context.Context, params gen.RemoveFlashIte
 		return nil, err
 	}
 	return out.(*gen.FlashSale), nil //nolint:forcetypeassert // fn trên trả *gen.FlashSale
+}
+
+// ScheduleFlashSale (POST /api/v1/flash-sales/{flashSaleId}/schedule): lên lịch đợt nháp, giữ suất mọi món (Task 200).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ScheduleFlashSale(ctx context.Context, req *gen.FlashScheduleRequest, params gen.ScheduleFlashSaleParams) (gen.ScheduleFlashSaleRes, error) {
+	id := params.FlashSaleId
+	out, err := h.flashWrite(ctx, http.StatusOK, func(tx pgx.Tx, u identity.AuthUser) (any, error) {
+		ch, err := h.flashWriter().ScheduleFlashSale(ctx, tx, id, int(req.Version), promotionActor(u), h.now())
+		if err != nil {
+			return nil, err //nolint:wrapcheck // sentinel của promotion
+		}
+		return h.flashSaleAfter(ctx, tx, u, "promotion.flash_sale.schedule", ch)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out.(*gen.FlashSale), nil //nolint:forcetypeassert // fn trên trả *gen.FlashSale
+}
+
+// CloseFlashSale (POST /api/v1/flash-sales/{flashSaleId}/close): đóng tay, suất còn trống trả về tồn (Task 200).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) CloseFlashSale(ctx context.Context, params gen.CloseFlashSaleParams) (gen.CloseFlashSaleRes, error) {
+	id := params.FlashSaleId
+	out, err := h.flashWrite(ctx, http.StatusOK, func(tx pgx.Tx, u identity.AuthUser) (any, error) {
+		ch, err := h.flashWriter().CloseFlashSale(ctx, tx, id, promotion.FlashClosedManual, promotionActor(u))
+		if err != nil {
+			return nil, err //nolint:wrapcheck // sentinel của promotion
+		}
+		return h.flashSaleAfter(ctx, tx, u, "promotion.flash_sale.close", ch)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out.(*gen.FlashSale), nil //nolint:forcetypeassert // fn trên trả *gen.FlashSale
+}
+
+// AddFlashSlots (POST /api/v1/flash-sales/{flashSaleId}/items/{flashItemId}/add-slots): thêm suất (Task 200).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) AddFlashSlots(ctx context.Context, req *gen.FlashAddSlotsRequest, params gen.AddFlashSlotsParams) (gen.AddFlashSlotsRes, error) {
+	out, err := h.flashWrite(ctx, http.StatusOK, func(tx pgx.Tx, u identity.AuthUser) (any, error) {
+		ch, err := h.flashWriter().AddSlots(ctx, tx, params.FlashSaleId, params.FlashItemId, int(req.Add), promotionActor(u))
+		if err != nil {
+			return nil, err //nolint:wrapcheck // sentinel của promotion
+		}
+		after, err := flashItemOf(ctx, tx, params.FlashSaleId, params.FlashItemId)
+		if err != nil {
+			return nil, err
+		}
+		o := flashItemOut(after)
+		return &o, h.audit(ctx, tx, u, "promotion.flash_item.add_slots", "promotion.flash_item", after.ID,
+			ch.Before.AuditFields(), after.AuditFields())
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out.(*gen.FlashItem), nil //nolint:forcetypeassert // fn trên trả *gen.FlashItem
+}
+
+// FlashSaleLive (GET /api/v1/flash-sales/{flashSaleId}/live): số liệu đang chạy của từng món (Task 200).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) FlashSaleLive(ctx context.Context, params gen.FlashSaleLiveParams) (gen.FlashSaleLiveRes, error) {
+	var l promotion.FlashLive
+	if err := h.catalogRead(ctx, func(tx pgx.Tx) (err error) {
+		l, err = promotion.Live(ctx, tx, params.FlashSaleId)
+		return err //nolint:wrapcheck // sentinel của promotion
+	}); err != nil {
+		return nil, fmt.Errorf("đọc số liệu đợt flash sale: %w", err)
+	}
+	out := &gen.FlashLive{Items: make([]gen.FlashLiveItem, 0, len(l.Items))}
+	for _, it := range l.Items {
+		out.Items = append(out.Items, gen.FlashLiveItem{
+			ItemId: it.ItemID, Quantity: int32(it.Quantity), Available: int32(it.Available), Held: int32(it.Held), //nolint:gosec // G115: ≤ 20000
+			Sold: int32(it.Sold), Released: int32(it.Released), Buyers: int32(it.Buyers), //nolint:gosec // G115: ≤ 20000
+		})
+	}
+	return out, nil
+}
+
+// flashWriter là đường ghi vòng đời đợt: sự kiện đợt và stock.changed qua sổ sự kiện, báo hiệu số dư.
+func (h *handler) flashWriter() promotion.Writer {
+	return promotion.Writer{Realtime: h.d.Realtime, Events: h.d.Events, Queue: queue.NewQueue()}
+}
+
+// flashSaleAfter đọc lại đợt sau đổi trạng thái (kèm món) và ghi audit action (trước, sau).
+func (h *handler) flashSaleAfter(ctx context.Context, tx pgx.Tx, u identity.AuthUser, action string,
+	ch promotion.FlashSaleChange,
+) (any, error) {
+	s, err := promotion.GetFlashSale(ctx, tx, ch.After.ID)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // promotion đã bọc
+	}
+	return flashSaleOut(s), h.audit(ctx, tx, u, action, "promotion.flash_sale", s.ID, ch.Before.AuditFields(),
+		ch.After.AuditFields())
 }
 
 // flashItemOf là món itemID của đợt saleID (đọc cả đợt); không có → promotion.ErrNotFound.

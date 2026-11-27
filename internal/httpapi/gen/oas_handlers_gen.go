@@ -921,6 +921,114 @@ func (s *Server) handleAddFlashItemRequest(args [1]string, argsEscaped bool, w h
 	}
 }
 
+// handleAddFlashSlotsRequest handles addFlashSlots operation.
+//
+// Thêm suất cho món của đợt đã lên lịch hay đang mở (tổng ≤ 20.000); thiếu
+// hàng → 409 insufficient_stock kèm shortages (Task 200).
+//
+// POST /api/v1/flash-sales/{flashSaleId}/items/{flashItemId}/add-slots
+func (s *Server) handleAddFlashSlotsRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: AddFlashSlotsOperation,
+			ID:   "addFlashSlots",
+		}
+	)
+	params, err := decodeAddFlashSlotsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeAddFlashSlotsRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response AddFlashSlotsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    AddFlashSlotsOperation,
+			OperationSummary: "Thêm suất cho món của đợt đã lên lịch hay đang mở (tổng ≤ 20.000); thiếu hàng → 409 insufficient_stock kèm shortages (Task 200)",
+			OperationID:      "addFlashSlots",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "flashSaleId",
+					In:   "path",
+				}: params.FlashSaleId,
+				{
+					Name: "flashItemId",
+					In:   "path",
+				}: params.FlashItemId,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *FlashAddSlotsRequest
+			Params   = AddFlashSlotsParams
+			Response = AddFlashSlotsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackAddFlashSlotsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.AddFlashSlots(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.AddFlashSlots(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeAddFlashSlotsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleAddOrderNoteRequest handles addOrderNote operation.
 //
 // Thêm ghi chú nội bộ của đơn (không gửi hãng) (Task M2-24).
@@ -3141,6 +3249,95 @@ func (s *Server) handleClaimLiveCommentRequest(args [1]string, argsEscaped bool,
 	}
 
 	if err := encodeClaimLiveCommentResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleCloseFlashSaleRequest handles closeFlashSale operation.
+//
+// Đóng đợt đã lên lịch hay đang mở: suất còn trống trả về tồn; đợt nháp
+// hay đã đóng → 409 flash_not_active (Task 200).
+//
+// POST /api/v1/flash-sales/{flashSaleId}/close
+func (s *Server) handleCloseFlashSaleRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CloseFlashSaleOperation,
+			ID:   "closeFlashSale",
+		}
+	)
+	params, err := decodeCloseFlashSaleParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response CloseFlashSaleRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CloseFlashSaleOperation,
+			OperationSummary: "Đóng đợt đã lên lịch hay đang mở: suất còn trống trả về tồn; đợt nháp hay đã đóng → 409 flash_not_active (Task 200)",
+			OperationID:      "closeFlashSale",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "flashSaleId",
+					In:   "path",
+				}: params.FlashSaleId,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = CloseFlashSaleParams
+			Response = CloseFlashSaleRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCloseFlashSaleParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CloseFlashSale(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CloseFlashSale(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCloseFlashSaleResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -7671,6 +7868,91 @@ func (s *Server) handleExportBirthdayCustomersRequest(args [0]string, argsEscape
 	}
 
 	if err := encodeExportBirthdayCustomersResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleFlashSaleLiveRequest handles flashSaleLive operation.
+//
+// Số liệu đang chạy của từng món: suất, đơn vị trống, đang giữ, đã bán, đã
+// trả, số khách (Task 200).
+//
+// GET /api/v1/flash-sales/{flashSaleId}/live
+func (s *Server) handleFlashSaleLiveRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: FlashSaleLiveOperation,
+			ID:   "flashSaleLive",
+		}
+	)
+	params, err := decodeFlashSaleLiveParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response FlashSaleLiveRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    FlashSaleLiveOperation,
+			OperationSummary: "Số liệu đang chạy của từng món: suất, đơn vị trống, đang giữ, đã bán, đã trả, số khách (Task 200)",
+			OperationID:      "flashSaleLive",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "flashSaleId",
+					In:   "path",
+				}: params.FlashSaleId,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = FlashSaleLiveParams
+			Response = FlashSaleLiveRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackFlashSaleLiveParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.FlashSaleLive(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.FlashSaleLive(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeFlashSaleLiveResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -22682,6 +22964,112 @@ func (s *Server) handleSaveWebCarrierSettingsRequest(args [0]string, argsEscaped
 	}
 
 	if err := encodeSaveWebCarrierSettingsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleScheduleFlashSaleRequest handles scheduleFlashSale operation.
+//
+// Lên lịch đợt nháp khi version khớp: giữ suất mọi món (chứng từ giữ cho
+// đợt); thiếu hàng → 409 insufficient_stock kèm shortages, chồng giờ → 422
+// flash_overlap, không món → 422 flash_sale_empty, đã quá giờ kết thúc → 422 flash_ended
+// (Task 200).
+//
+// POST /api/v1/flash-sales/{flashSaleId}/schedule
+func (s *Server) handleScheduleFlashSaleRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ScheduleFlashSaleOperation,
+			ID:   "scheduleFlashSale",
+		}
+	)
+	params, err := decodeScheduleFlashSaleParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeScheduleFlashSaleRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response ScheduleFlashSaleRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ScheduleFlashSaleOperation,
+			OperationSummary: "Lên lịch đợt nháp khi version khớp: giữ suất mọi món (chứng từ giữ cho đợt); thiếu hàng → 409 insufficient_stock kèm shortages, chồng giờ → 422 flash_overlap, không món → 422 flash_sale_empty, đã quá giờ kết thúc → 422 flash_ended (Task 200)",
+			OperationID:      "scheduleFlashSale",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "flashSaleId",
+					In:   "path",
+				}: params.FlashSaleId,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *FlashScheduleRequest
+			Params   = ScheduleFlashSaleParams
+			Response = ScheduleFlashSaleRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackScheduleFlashSaleParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ScheduleFlashSale(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ScheduleFlashSale(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeScheduleFlashSaleResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
