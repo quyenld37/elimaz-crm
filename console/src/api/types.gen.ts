@@ -4305,6 +4305,92 @@ export type WebCampaignScope = 'all' | 'products' | 'categories';
 export type WebCampaignState = 'draft' | 'enabled' | 'paused';
 
 /**
+ * Trạng thái đợt; chỉ draft sửa được (lên lịch, mở, đóng ở task sau)
+ */
+export type FlashSaleStatus = 'draft' | 'scheduled' | 'open' | 'closed';
+
+export type FlashSaleInput = {
+    name: string;
+    startsAt: string;
+    /**
+     * Sau startsAt, cách startsAt tối đa 7 ngày
+     */
+    endsAt: string;
+};
+
+/**
+ * Chỉ gửi trường đổi; trường bỏ trống giữ giá trị hiện tại
+ */
+export type UpdateFlashSaleRequest = {
+    version: number;
+    name?: string;
+    startsAt?: string;
+    endsAt?: string;
+};
+
+export type FlashSaleSummary = {
+    id: string;
+    name: string;
+    startsAt: string;
+    endsAt: string;
+    status: FlashSaleStatus;
+    closedReason?: string;
+    version: number;
+    itemCount: number;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type FlashSale = {
+    sale: FlashSaleSummary;
+    items: Array<FlashItem>;
+};
+
+export type FlashSalePage = {
+    items: Array<FlashSaleSummary>;
+    nextCursor?: string;
+};
+
+export type FlashItemInput = {
+    variantId: string;
+    salePrice: Money;
+    quantity: number;
+    perCustomerLimit?: number;
+    /**
+     * Số phút đơn nháp của khách giữ suất trước khi nhả
+     */
+    holdMinutes?: number;
+};
+
+/**
+ * Chỉ gửi trường đổi; không đổi được biến thể (bỏ món rồi thêm lại)
+ */
+export type UpdateFlashItemRequest = {
+    version: number;
+    salePrice?: Money;
+    quantity?: number;
+    perCustomerLimit?: number;
+    holdMinutes?: number;
+};
+
+export type FlashItem = {
+    id: string;
+    variantId: string;
+    sellerId: string;
+    sku: string;
+    /**
+     * Tên bán của biến thể "<mẫu> - <màu> / <cỡ>"
+     */
+    name: string;
+    listPrice: Money;
+    salePrice: Money;
+    quantity: number;
+    perCustomerLimit: number;
+    holdMinutes: number;
+    version: number;
+};
+
+/**
  * Trạng thái hiển thị — draft, paused theo state; còn lại theo giờ (endsAt đúng giờ là ended)
  */
 export type WebCampaignStatus = 'draft' | 'paused' | 'scheduled' | 'active' | 'ended';
@@ -5850,6 +5936,10 @@ export type DuplicateOtherOrderId = string;
 export type ReturnId = string;
 
 export type TrafficSourceId = string;
+
+export type FlashSaleId = string;
+
+export type FlashItemId = string;
 
 export type CampaignId = string;
 
@@ -10186,6 +10276,230 @@ export type ListCouponRedemptionsResponses = {
 };
 
 export type ListCouponRedemptionsResponse = ListCouponRedemptionsResponses[keyof ListCouponRedemptionsResponses];
+
+export type ListFlashSalesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: FlashSaleStatus;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/flash-sales';
+};
+
+export type ListFlashSalesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListFlashSalesError = ListFlashSalesErrors[keyof ListFlashSalesErrors];
+
+export type ListFlashSalesResponses = {
+    /**
+     * listFlashSales
+     */
+    200: FlashSalePage;
+};
+
+export type ListFlashSalesResponse = ListFlashSalesResponses[keyof ListFlashSalesResponses];
+
+export type CreateFlashSaleData = {
+    body: FlashSaleInput;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/flash-sales';
+};
+
+export type CreateFlashSaleErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateFlashSaleError = CreateFlashSaleErrors[keyof CreateFlashSaleErrors];
+
+export type CreateFlashSaleResponses = {
+    /**
+     * createFlashSale
+     */
+    201: FlashSale;
+};
+
+export type CreateFlashSaleResponse = CreateFlashSaleResponses[keyof CreateFlashSaleResponses];
+
+export type GetFlashSaleData = {
+    body?: never;
+    path: {
+        flashSaleId: string;
+    };
+    query?: never;
+    url: '/api/v1/flash-sales/{flashSaleId}';
+};
+
+export type GetFlashSaleErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetFlashSaleError = GetFlashSaleErrors[keyof GetFlashSaleErrors];
+
+export type GetFlashSaleResponses = {
+    /**
+     * getFlashSale
+     */
+    200: FlashSale;
+};
+
+export type GetFlashSaleResponse = GetFlashSaleResponses[keyof GetFlashSaleResponses];
+
+export type UpdateFlashSaleData = {
+    body: UpdateFlashSaleRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        flashSaleId: string;
+    };
+    query?: never;
+    url: '/api/v1/flash-sales/{flashSaleId}';
+};
+
+export type UpdateFlashSaleErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type UpdateFlashSaleError = UpdateFlashSaleErrors[keyof UpdateFlashSaleErrors];
+
+export type UpdateFlashSaleResponses = {
+    /**
+     * updateFlashSale
+     */
+    200: FlashSale;
+};
+
+export type UpdateFlashSaleResponse = UpdateFlashSaleResponses[keyof UpdateFlashSaleResponses];
+
+export type AddFlashItemData = {
+    body: FlashItemInput;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        flashSaleId: string;
+    };
+    query?: never;
+    url: '/api/v1/flash-sales/{flashSaleId}/items';
+};
+
+export type AddFlashItemErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type AddFlashItemError = AddFlashItemErrors[keyof AddFlashItemErrors];
+
+export type AddFlashItemResponses = {
+    /**
+     * addFlashItem
+     */
+    201: FlashItem;
+};
+
+export type AddFlashItemResponse = AddFlashItemResponses[keyof AddFlashItemResponses];
+
+export type RemoveFlashItemData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        flashSaleId: string;
+        flashItemId: string;
+    };
+    query?: never;
+    url: '/api/v1/flash-sales/{flashSaleId}/items/{flashItemId}';
+};
+
+export type RemoveFlashItemErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RemoveFlashItemError = RemoveFlashItemErrors[keyof RemoveFlashItemErrors];
+
+export type RemoveFlashItemResponses = {
+    /**
+     * removeFlashItem
+     */
+    200: FlashSale;
+};
+
+export type RemoveFlashItemResponse = RemoveFlashItemResponses[keyof RemoveFlashItemResponses];
+
+export type UpdateFlashItemData = {
+    body: UpdateFlashItemRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        flashSaleId: string;
+        flashItemId: string;
+    };
+    query?: never;
+    url: '/api/v1/flash-sales/{flashSaleId}/items/{flashItemId}';
+};
+
+export type UpdateFlashItemErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type UpdateFlashItemError = UpdateFlashItemErrors[keyof UpdateFlashItemErrors];
+
+export type UpdateFlashItemResponses = {
+    /**
+     * updateFlashItem
+     */
+    200: FlashItem;
+};
+
+export type UpdateFlashItemResponse = UpdateFlashItemResponses[keyof UpdateFlashItemResponses];
 
 export type ListWebCampaignsData = {
     body?: never;

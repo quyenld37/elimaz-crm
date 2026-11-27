@@ -13,7 +13,6 @@ import (
 // Mã lỗi chỉ vùng order trả.
 const (
 	codeOutOfStock              = "out_of_stock"
-	codeVariantNotForSale       = "variant_not_for_sale"
 	codeMixedSellers            = "mixed_sellers"
 	codeTotalOverflow           = "total_overflow"
 	codeShipmentAlreadyAttached = "shipment_already_attached"
