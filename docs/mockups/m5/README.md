@@ -1,12 +1,12 @@
 # Mockup M5 đợt 1: các màn chuyển từ admin sang CRM (Task M5-22, số toàn cục 205)
 
-Đề xuất cho các màn CRM của M5 đợt 1 (kế hoạch `docs/superpowers/plans/2026-11-18-crm-m5-website-flash-sale.md`, Task 205 và các dòng "(Task 450)"; menu theo mục "Xếp module trên CRM"). Màn **Đợt flash sale** (`flash-sales.html`) là đợt 2, chưa vẽ. Mở `index.html` để xem ảnh "Hiện tại / Đề xuất" của mọi màn, bảng ca và bảng hành vi. Điểm dừng B: điều phối viên chốt hình theo hệ thiết kế CRM (Q-X8, C3-3); chủ shop OK riêng từng hành vi khác admin.
+Đề xuất cho các màn CRM của M5 đợt 1 (kế hoạch `docs/superpowers/plans/2026-11-18-crm-m5-website-flash-sale.md`, Task 205 và các dòng "(Task 450)"; menu theo mục "Xếp module trên CRM"). Màn **Đợt flash sale** (`flash-sales.html`) là đợt 2, vẽ ở Task 514 (27/11/2026) theo cùng khung; chỉ chụp lại `flash-sales`, `menu`, `index` (ảnh các màn đợt 1 giữ nguyên, menu trong đó chưa có mục Flash sale). Mở `index.html` để xem ảnh "Hiện tại / Đề xuất" của mọi màn, bảng ca và bảng hành vi. Điểm dừng B: điều phối viên chốt hình theo hệ thiết kế CRM (Q-X8, C3-3); chủ shop OK riêng từng hành vi khác admin.
 
 - Hệ thiết kế: dùng nguyên `../m1/m1.css` (đã duyệt ở M1, console dùng đúng token đó), `../m2/m2.css`, `../m3/m3.css`. `m5.css` chỉ thêm thành phần mới (dòng tin hai phía Khách thấy / Nội bộ, ô khóa hiện một lần, khung xem trước banner, ảnh bộ phối có chấm, dòng đang chọn của danh sách sắp xếp, menu điện thoại mở, ô bật/tắt có chữ) bằng biến có sẵn: không màu, cỡ chữ, bo góc mới.
 - Khung: `khung.js` (menu đủ 10 nhóm: Đơn hàng · Vận chuyển · Tiền · Khách hàng · Khuyến mãi · **Website** · Sản phẩm · Kho · Hệ thống · Quản trị; mục M1–M3 trỏ sang mockup của mốc đó).
 - Ảnh đề xuất: `shots/<màn>-1512.png` (1512 × 767, laptop của chủ shop), `-390.png` (390 × 844), `-360.png` (360 × 800, mọi màn đều có tên dài). Chụp cả trang.
 - Ảnh hiện tại: `shots/hien-tai-*-{1512,390}.png`, chụp admin `apps/admin` origin/main `7199466` build và chạy riêng trên máy (cổng khác 4175/4176) với máy chủ giả trả dữ liệu mẫu; không phải dữ liệu thật của shop, không gọi website hay Nhanh.
-- Tự soát và chụp lại: `PW_DIR=<thư mục node_modules/playwright> node docs/mockups/m5/soat.mjs` (Playwright có sẵn trong bộ đệm npx của máy, không thêm vào repo), rồi nén ảnh `python3 docs/mockups/m5/nen-anh.py` (Pillow, bảng 256 màu). Kiểm như M3 (không cuộn ngang, không tràn, không chữ bị cắt thiếu dấu …, mục chạm ≥ 44 px dưới 1000 px và ≥ 32 px từ 1000 px, chỉ token có sẵn, ô chọn đúng, không gì chỉ hiện khi rê chuột, tiền `690.000 ₫` nằm trọn trong ô, đủ khung kế hoạch đòi) và thêm: khóa dịch vụ đầy đủ chỉ nằm trong ô hiện một lần (chỉ đọc, có nút Chép và lời nhắc); nội dung khách gửi có `<script>` hiện nguyên chữ; thứ tự nhóm menu đúng, không còn Tổng quan, Đơn cần kiểm tra, Kết nối Nhanh, Flash sale.
+- Tự soát và chụp lại: `PW_DIR=<thư mục node_modules/playwright> node docs/mockups/m5/soat.mjs` (Playwright có sẵn trong bộ đệm npx của máy, không thêm vào repo), rồi nén ảnh `python3 docs/mockups/m5/nen-anh.py` (Pillow, bảng 256 màu). Kiểm như M3 (không cuộn ngang, không tràn, không chữ bị cắt thiếu dấu …, mục chạm ≥ 44 px dưới 1000 px và ≥ 32 px từ 1000 px, chỉ token có sẵn, ô chọn đúng, không gì chỉ hiện khi rê chuột, tiền `690.000 ₫` nằm trọn trong ô, đủ khung kế hoạch đòi) và thêm: khóa dịch vụ đầy đủ chỉ nằm trong ô hiện một lần (chỉ đọc, có nút Chép và lời nhắc); nội dung khách gửi có `<script>` hiện nguyên chữ; thứ tự nhóm menu đúng, không còn Tổng quan, Đơn cần kiểm tra, Kết nối Nhanh (mục Flash sale có từ Task 514).
 - Dữ liệu là dữ liệu giả. Khung viền đứt "Mockup:" là ghi chú, không phải giao diện. Dữ liệu khó: tên khách 60 ký tự, tên chiến dịch 120, tên khóa 80, tên dịp 28; 0 / 1 / nhiều dòng; đủ trạng thái; lỗi tải, 409, 403, chỉ xem.
 - Đường dẫn ghi trong bảng (`/don/yeu-cau`, `/website/…`, `/khuyen-mai/…`, `/quan-tri/nhat-ky`) là đề xuất theo cách đặt tên của console (`/don`, `/khach`, `/ma-giam-gia`); task màn hình chốt đường thật.
 
@@ -24,7 +24,8 @@
 | (8) Góp ý | Khách hàng → Góp ý · `/khach/gop-y` + khối Góp ý trong hồ sơ khách · Task 461 (M5-49) | — | A lọc trạng thái có số, chủ đề, 5 dòng đủ 5 chủ đề, gắn / không gắn hồ sơ, <script> hiện nguyên chữ, dòng mở: đơn, trang, thiết bị, ghi chú nội bộ, đổi trạng thái, còn trang sau · B khối Góp ý trong hồ sơ khách · C rỗng, 409, 403 | `feedback.html` | `shots/hien-tai-gop-y-{1512,390}.png` |
 | (9) Nhận đơn web | Website → Nhận đơn web · `/website/nhan-don` · Task 462 (M5-50) | — | A đang nhận · B hộp tạm dừng (nút khóa khi chưa có lý do; đơn đã gửi vẫn vào) · C đang tạm dừng: lý do, ai, lúc nào; mở lại có xác nhận · D đang lưu, 409, chỉ xem | `web-intake.html` | `shots/hien-tai-van-hanh-{1512,390}.png`, `shots/hien-tai-van-hanh-dang-mo-{1512,390}.png` |
 | (10) Nhật ký thao tác | Quản trị → Nhật ký thao tác · `/quan-tri/nhat-ky` · Task 462 (M5-50) | — | A mới nhất trước; người làm là nhân viên, khóa dịch vụ, hệ thống; lọc hành động, người, khoảng ngày; chỉ tên trường đổi; xem thêm theo con trỏ · B rỗng, 403 | `audit.html` | `shots/hien-tai-nhat-ky-{1512,390}.png` |
-| (11) Menu | Khung · `console/src/app/nav.ts` · Task 462 (M5-50) | — | Menu đủ 10 nhóm theo mục "Xếp module": nhóm Website mới, mục mới ở Đơn hàng, Khách hàng, Khuyến mãi, Quản trị, số đếm yêu cầu đang mở; không Tổng quan, Đơn cần kiểm tra, Kết nối Nhanh, Flash sale; menu điện thoại mở | `menu.html` | `shots/hien-tai-tong-quan-{1512,390}.png` |
+| (11) Menu | Khung · `console/src/app/nav.ts` · Task 462 (M5-50) | — | Menu đủ 10 nhóm theo mục "Xếp module": nhóm Website mới, mục mới ở Đơn hàng, Khách hàng, Khuyến mãi, Quản trị, số đếm yêu cầu đang mở; mục Flash sale (đợt 2); không Tổng quan, Đơn cần kiểm tra, Kết nối Nhanh; menu điện thoại mở | `menu.html` | `shots/hien-tai-tong-quan-{1512,390}.png` |
+| (12) Đợt flash sale | Khuyến mãi → Flash sale · `/khuyen-mai/flash-sale`, `/khuyen-mai/flash-sale/:id` · Task 206 (M5-23); mockup Task 514 (đợt 2) | FS01, FS08, FS17 | A danh sách đủ 4 trạng thái, lọc, tên 120 ký tự, 30 đợt, rỗng, lỗi tải · B tạo đợt nháp, giờ mở/đóng, lỗi giờ · C đợt nháp 6 món, thêm món (tìm biến thể, trùng, ngừng bán, giá không thấp hơn giá thường), sửa, bỏ · D Lên lịch: xác nhận số suất bị giữ, thiếu hàng liệt kê mọi mã, chồng giờ · E đã lên lịch: chỉ Thêm suất, Đóng sớm · F đang mở: số trực tiếp, hết suất lúc này, tự làm mới, Thêm suất, Đóng sớm · G đã đóng chỉ xem · H 409, 503 tự gửi lại, chỉ xem | `flash-sales.html` | — (admin không có flash sale) |
 
 ## Ca kiểm của spec → khung hình
 
@@ -32,11 +33,13 @@
 |---|---|---|
 | WB04 | Khách gửi yêu cầu hủy hoặc đổi từ trang đơn hàng → yêu cầu vào CRM cho nhân viên xử lý | Yêu cầu về đơn hàng A–F |
 | WB05 | Khách dùng quà sinh nhật → mã được kiểm và ghi lượt dùng ở CRM | Quà sinh nhật B, D (mã "Đã dùng · DH0001288") |
-| FS01 | Flash sale | Đợt 2, chưa vẽ |
+| FS01 | Quản lý tạo đợt flash sale: món, giá, số suất, giới hạn mỗi khách, giờ mở → số suất giữ riêng | Đợt flash sale B–F (Task 514) |
+| FS08 | Đợt kết thúc còn suất chưa ai lấy → trả về tồn bán thường | Đợt flash sale G |
+| FS17 | Đóng đợt khi khách đang giữ suất → hoàn tất trong hạn vẫn mua được | Đợt flash sale F (hộp Đóng sớm) |
 
 ## Hành vi khác admin hiện tại (chủ shop OK từng dòng)
 
-Theo luật "Behaviour changes need own OK" và bảng "Việc cần chủ shop trong M5": mỗi dòng cần chủ shop OK riêng; hình do điều phối viên chốt, việc OK hành vi tách riêng. Dòng chưa OK chỉ chặn đúng màn có hành vi đó (Task 207; phần Hãng trên web của 208; 209; 458–462). Khóa dịch vụ (phần còn lại của Task 208) bắt đầu ngay khi điều phối viên chốt hình.
+Theo luật "Behaviour changes need own OK" và bảng "Việc cần chủ shop trong M5": mỗi dòng cần chủ shop OK riêng; hình do điều phối viên chốt, việc OK hành vi tách riêng. Dòng chưa OK chỉ chặn đúng màn có hành vi đó (Task 207; phần Hãng trên web của 208; 209; 458–462). Khóa dịch vụ (phần còn lại của Task 208) bắt đầu ngay khi điều phối viên chốt hình. HV26–HV31 (flash sale, Task 514) là luật đã có trong kế hoạch (QĐ6, QĐ8, QĐ24, QĐ31), ghi để chủ shop thấy; theo Task 205 Step 2, Task 206 (M5-23) bắt đầu ngay sau khi điều phối viên chốt hình, không chờ các dòng này.
 
 | # | Màn | Hành vi đề xuất | Admin hiện tại | Chủ shop OK |
 |---|---|---|---|---|
@@ -65,11 +68,18 @@ Theo luật "Behaviour changes need own OK" và bảng "Việc cần chủ shop 
 | HV23 | Nhận đơn web | Tạm dừng/mở lại nhận đơn là màn riêng "Nhận đơn web" (nhóm Website), tách khỏi hãng giao hàng. | Chung trang "Vận hành website" với hãng giao hàng. | OK chủ shop 21/11 (chat) |
 | HV24 | Nhật ký | Chỉ hiện tên trường đổi, không hiện nội dung (lý do, tên, mức giảm); người làm có thể là nhân viên, khóa dịch vụ của website, hệ thống; lọc người và khoảng ngày, không có ô tìm chữ; xem thêm theo con trỏ. | Hiện "Lý do: …", tên chiến dịch, mức giảm; ô tìm; phân trang số. | OK chủ shop 21/11 (chat) |
 | HV25 | Nhật ký | Nhật ký cũ của admin không chuyển vào CRM (QĐ38), chỉ giữ bản xuất CSV. | — | OK chủ shop 21/11 (chat) |
+| HV26 | Menu | Mục mới "Flash sale" trong nhóm Khuyến mãi (màn Đợt flash sale, đợt 2). | Không có (admin không có flash sale). | chưa |
+| HV27 | Flash sale | Bấm **Lên lịch** là số suất bị giữ khỏi bán thường ngay (lên đơn, chat, website không bán vào phần này), không đợi tới giờ mở; hộp xác nhận nêu số suất giữ và "bán thường còn" của từng mã (QĐ8, QĐ31). | Không có (admin không có flash sale). | chưa |
+| HV28 | Flash sale | Thiếu hàng thì không giữ món nào, báo một bảng mọi mã thiếu (cần, có thể bán, thiếu); một biến thể không nằm trong hai đợt chồng giờ. | Không có (admin không có flash sale). | chưa |
+| HV29 | Flash sale | Sau khi lên lịch chỉ còn **Thêm suất** và **Đóng sớm**: không sửa món, giá, giờ; đợt đã đóng chỉ xem, không mở lại. | Không có (admin không có flash sale). | chưa |
+| HV30 | Flash sale | Đóng sớm: suất còn trống trả về bán thường ngay; khách đang giữ suất vẫn hoàn tất trong hạn giữ, ai hết hạn thì suất về bán thường (FS17). | Không có (admin không có flash sale). | chưa |
+| HV31 | Flash sale | Mặc định mỗi món: mỗi khách 1 (1–10), giữ suất 10 phút (5–30), giá flash phải thấp hơn giá bán thường; mỗi lượt mua là một đơn riêng một món, không vào giỏ chung, không dùng mã giảm giá (QĐ6, QĐ24). | Không có (admin không có flash sale). | chưa |
 
 ## Kết luận duyệt (Điểm dừng B, Q-X8)
 
 | Màn | Kết luận | Người chốt | Ngày |
 |---|---|---|---|
 | (1)–(11) | Chờ điều phối viên duyệt | — | — |
+| (12) Đợt flash sale (Task 514) | Chờ điều phối viên duyệt | — | — |
 
 Điều phối viên ghi kết luận từng màn ở bảng trên (chốt / sửa gì); chủ shop ghi OK từng dòng HV. Không bắt đầu Task 207–209, 458–462 cho màn chưa chốt.
