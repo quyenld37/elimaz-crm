@@ -355,3 +355,28 @@
   white-space: normal;
 }
 /* Hộp xuất (nằm ngoài .rp vì <dialog> mở ở lớp trên cùng): chỉ dùng lớp có sẵn của styles.css. */
+
+/* Task 240 (M6-17): chip bộ lọc nhiều lựa chọn, khung tích chọn, dòng thụt. Chép từ docs/m6/mockup/m6.css. */
+.rp .chips {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.rp .ms {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  padding: var(--space-sm) var(--space-md);
+  display: grid;
+  gap: 0;
+  max-width: 360px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.rp .ms .check {
+  min-height: var(--tap);
+}
+.rp .ms .ms-actions {
+  justify-content: flex-end;
+  padding: 8px 0;
+}

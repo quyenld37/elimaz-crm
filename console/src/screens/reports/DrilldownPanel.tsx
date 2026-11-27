@@ -10,7 +10,7 @@ import { queryKey } from "../../app/queryClient";
 import { shortTime } from "../../app/time";
 import { LABEL_TEXT } from "../don/labels";
 import { MoreBar } from "../ma-giam-gia/MoreBar";
-import { basisText, cellTitle, channelName, type Cell } from "./cells";
+import { METRIC_TITLE, basisText, cellTitle, channelName, type Cell } from "./cells";
 import { count, periodText, vnd } from "./format";
 
 export const PAGE_SIZE = 200;
@@ -34,6 +34,10 @@ export interface DrilldownPanelProps {
   onClose: () => void;
   /** Chữ của nút quay lại trên điện thoại: "← Tổng quan". */
   backLabel?: string;
+  /** Tên dòng của bảng chứa ô (Báo cáo đơn: "Nguyễn Thị An"): đứng đầu tiêu đề thay cho tên kênh, ngày tự suy từ ô. */
+  label?: string;
+  /** Câu cuối dòng phụ: "không lọc thêm" / "theo bộ lọc của bảng". */
+  filterNote?: string;
 }
 
 type PageResult = SalesOrdersDrilldown | "busy";
@@ -70,7 +74,15 @@ function Row({ r, completed }: { r: SalesOrdersDrilldownItem; completed: boolean
   );
 }
 
-export function DrilldownPanel({ cell, period, filter, onClose, backLabel = "Tổng quan" }: DrilldownPanelProps) {
+export function DrilldownPanel({
+  cell,
+  period,
+  filter,
+  onClose,
+  backLabel = "Tổng quan",
+  label,
+  filterNote,
+}: DrilldownPanelProps) {
   const completed = cell.basis === "completed";
   const query = {
     from: period.from,
@@ -99,6 +111,7 @@ export function DrilldownPanel({ cell, period, filter, onClose, backLabel = "T�
   const pages = q.data?.pages.filter((p): p is SalesOrdersDrilldown => p !== "busy") ?? [];
   const items = pages.flatMap((p) => p.items);
   const total = pages[0]?.total;
+  const title = label === undefined ? cellTitle(cell) : `${label} · ${METRIC_TITLE[cell.metric]}`;
 
   return (
     <aside className="dd-panel" aria-label="Danh sách chi tiết">
@@ -107,9 +120,10 @@ export function DrilldownPanel({ cell, period, filter, onClose, backLabel = "T�
       </button>
       <div className="dd-h">
         <div className="grow">
-          <h3>{total === undefined ? cellTitle(cell) : `${cellTitle(cell)} · ${count(total)} đơn`}</h3>
+          <h3>{total === undefined ? title : `${title} · ${count(total)} đơn`}</h3>
           <p className="xs muted">
             {periodText(period.from, period.to)} · {basisText(cell)}
+            {filterNote === undefined ? "" : ` · ${filterNote}`}
           </p>
         </div>
         <button type="button" className="ibtn dd-close" aria-label="Đóng" onClick={onClose}>
