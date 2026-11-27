@@ -69,3 +69,26 @@ func TestLoadRateLimitsJSON(t *testing.T) {
 		t.Fatalf("không đặt: %q, %v", cfg.RateLimitsJSON, err)
 	}
 }
+
+// FLASH_ADMIT_PER_SECOND, FLASH_ADMIT_GLOBAL_PER_SECOND, FLASH_MAX_INFLIGHT (Task 203, QĐ23): vắng → 100, 300, 64; đặt
+// → giữ số; ngoài khoảng hay không phải số → không khởi động, lỗi nêu tên biến.
+func TestLoadFlashAdmission(t *testing.T) {
+	cfg, err := config.Load(config.RoleAPI, env(apiEnv()))
+	if err != nil || cfg.FlashAdmitPerSecond != 100 || cfg.FlashAdmitGlobalPerSecond != 300 || cfg.FlashMaxInflight != 64 {
+		t.Fatalf("mặc định: %d %d %d, %v", cfg.FlashAdmitPerSecond, cfg.FlashAdmitGlobalPerSecond, cfg.FlashMaxInflight, err)
+	}
+	cfg, err = config.Load(config.RoleAPI, env(with(with(with(apiEnv(),
+		"FLASH_ADMIT_PER_SECOND", "5"), "FLASH_ADMIT_GLOBAL_PER_SECOND", "20"), "FLASH_MAX_INFLIGHT", "8")))
+	if err != nil || cfg.FlashAdmitPerSecond != 5 || cfg.FlashAdmitGlobalPerSecond != 20 || cfg.FlashMaxInflight != 8 {
+		t.Fatalf("đặt: %d %d %d, %v", cfg.FlashAdmitPerSecond, cfg.FlashAdmitGlobalPerSecond, cfg.FlashMaxInflight, err)
+	}
+	for _, c := range []struct{ key, val string }{
+		{"FLASH_ADMIT_PER_SECOND", "0"},
+		{"FLASH_ADMIT_PER_SECOND", "abc"},
+		{"FLASH_ADMIT_GLOBAL_PER_SECOND", "-1"},
+		{"FLASH_MAX_INFLIGHT", "0"},
+		{"FLASH_MAX_INFLIGHT", "100000"},
+	} {
+		mustFail(t, config.RoleAPI, with(apiEnv(), c.key, c.val), c.key)
+	}
+}

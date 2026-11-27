@@ -28,9 +28,12 @@ func NewOrders(d *db.DB, w order.Writer, now func() time.Time) *Orders {
 	return &Orders{db: d, w: w, now: now}
 }
 
-func (o *Orders) clock() time.Time {
-	if o.now != nil {
-		return o.now().UTC()
+func (o *Orders) clock() time.Time { return nowUTC(o.now) }
+
+// nowUTC: giờ của đồng hồ now (nil → time.Now) theo UTC.
+func nowUTC(now func() time.Time) time.Time {
+	if now != nil {
+		return now().UTC()
 	}
 	return time.Now().UTC()
 }

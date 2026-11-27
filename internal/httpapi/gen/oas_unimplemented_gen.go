@@ -3385,6 +3385,25 @@ func (UnimplementedHandler) WebDeliveryEstimates(ctx context.Context) (r WebDeli
 	return r, ht.ErrNotImplemented
 }
 
+// WebFlashBuy implements webFlashBuy operation.
+//
+// Thứ tự: khóa dịch vụ → giới hạn của khóa → cổng nhận vào flash (giới
+// hạn theo SĐT 10 lượt/10 s và theo IP 30/10 s → 429 too_fast kèm Retry-After; X-Attempt ≤
+// 1 và cờ hết suất bật → 200 {result: sold_out} không lưu, không chạm database; bộ
+// điều tiết theo món và theo shop từ chối → 503 retry_later kèm Retry-After) → khóa
+// chống trùng → transaction mua (order.BuyFlash). Từ X-Attempt 2 (website gửi lại cùng
+// Idempotency-Key khi mất câu trả lời) bỏ qua cờ hết suất để trả lại kết quả
+// đã lưu (QĐ21). Lưu theo khóa: 200 bought (code, externalRef, expiresAt), sold_out, over_limit,
+// not_open. Không lưu: 400 phone_required (thiếu hay sai SĐT), 400 bad_request (thân sai,
+// clientIp sai, X-Attempt ngoài 1–10), 429, 503 (cổng, suất đang bị lượt khác khóa,
+// database tạm bận), 404 (món không có hay không thuộc đợt). Khách mới tạo tên
+// "Khách website", SĐT là danh tính, nguồn web.
+//
+// POST /api/v1/web/flash-sales/{saleId}/items/{itemId}/buy
+func (UnimplementedHandler) WebFlashBuy(ctx context.Context, req *WebFlashBuyRequest, params WebFlashBuyParams) (r WebFlashBuyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // WebGetOrder implements webGetOrder operation.
 //
 // Chỉ đơn kênh web; đơn nhập tay, đơn của shop khác → 404 not_found. displayStatus là

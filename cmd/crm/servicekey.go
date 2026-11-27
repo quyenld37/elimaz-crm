@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"net/netip"
 	"slices"
 	"strings"
@@ -44,7 +45,10 @@ type webKeys struct {
 	limiter      httpapi.WebRateLimiter
 	orderLimiter httpapi.WebOrderLimiter
 	couponGuard  *httpapi.CouponGuard
-	stop         func()
+	// flashGate, flashAdmission: cổng điều tiết flash sale và middleware cổng nhận vào "flash" (Task 203).
+	flashGate      cache.AdmissionGate
+	flashAdmission func(http.Handler) http.Handler
+	stop           func()
 }
 
 // newWebKeys đọc RATE_LIMITS_JSON (cache.ParseLimits; sai → không khởi động), quay số Valkey gate (URL trống → Conn nil,
@@ -72,12 +76,20 @@ func newWebKeys(ctx context.Context, cfg config.Config, d *db.DB, hub *realtime.
 	done := make(chan struct{})
 	go func() { v.Run(rctx); close(done) }()
 	rl := cache.NewRateLimiter(gate, nil, reg)
+	flashGate := cache.NewAdmissionGate(gate, cache.GateOptions{
+		PerSecond: cfg.FlashAdmitPerSecond, GlobalPerSecond: cfg.FlashAdmitGlobalPerSecond, MaxInflight: cfg.FlashMaxInflight,
+	}, reg)
 	return webKeys{
 		keys:         v,
 		limiter:      httpapi.NewWebKeyLimiter(rl, limits.WebKey),
 		orderLimiter: httpapi.NewWebOrderLimiter(rl, limits.WebOrderCustomer, []byte(cfg.CacheKeySecret)),
 		couponGuard: httpapi.NewCouponGuard(rl, limits.CouponGuessCustomer, limits.CouponGuessIP,
 			[]byte(cfg.CacheKeySecret)),
+		flashGate: flashGate,
+		flashAdmission: httpapi.NewFlashAdmission(httpapi.FlashAdmissionOptions{
+			Gate: flashGate, Limiter: rl, Customer: limits.FlashCustomer, IP: limits.FlashIP,
+			Secret: []byte(cfg.CacheKeySecret), Metrics: reg,
+		}),
 		stop: func() {
 			cancel()
 			<-done

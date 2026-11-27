@@ -344,6 +344,7 @@ const (
 	WebCreateOrderOperation              OperationName = "WebCreateOrder"
 	WebCreateRequestOperation            OperationName = "WebCreateRequest"
 	WebDeliveryEstimatesOperation        OperationName = "WebDeliveryEstimates"
+	WebFlashBuyOperation                 OperationName = "WebFlashBuy"
 	WebGetOrderOperation                 OperationName = "WebGetOrder"
 	WebHomeBannersOperation              OperationName = "WebHomeBanners"
 	WebHomeLooksOperation                OperationName = "WebHomeLooks"

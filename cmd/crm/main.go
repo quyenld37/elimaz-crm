@@ -527,7 +527,8 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 			Fulfillment: mods.M3.Fulfillment.Service,
 			ServiceKeys: web.keys, RateLimiter: web.limiter, ReadCache: wc.rc, WebOrderLimiter: web.orderLimiter,
 			CouponGuard: web.couponGuard,
-			Channels:    mods.M4.Channels, ChannelKeys: mods.M4.Keys,
+			Admission:   map[string]func(http.Handler) http.Handler{"flash": web.flashAdmission}, FlashGate: web.flashGate,
+			Channels: mods.M4.Channels, ChannelKeys: mods.M4.Keys,
 			Reports: reportInteractive(cfg, d, reg),
 		})
 	} else {

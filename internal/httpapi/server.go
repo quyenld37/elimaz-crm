@@ -18,6 +18,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/channel"
+	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/order"
@@ -73,6 +74,9 @@ type Deps struct {
 	// Admission: cổng nhận vào theo tên của x-admission (flash sale, Task 187). Route khai tên không có ở đây → 503
 	// retry_later (đóng, không cho qua).
 	Admission map[string]func(http.Handler) http.Handler
+	// FlashGate là cổng điều tiết flash sale (Task 203; cmd/crm nối cùng cổng của Admission["flash"]): lượt mua trả
+	// sold_out thì dựng cờ hết suất. nil → không dựng cờ (lượt sau xuống database).
+	FlashGate cache.AdmissionGate
 	// ReadCache là bộ đệm đọc của các route website (Task 190; cmd/crm nối cache.NewReadCache trên Valkey bộ đệm). nil
 	// → bộ đệm không có Valkey: mọi lần đọc tải thẳng PostgreSQL có giới hạn (cache.NewReadCache(nil, …)).
 	ReadCache cache.ReadCache
@@ -96,6 +100,7 @@ type Deps struct {
 	webCatalog     *web.Catalog  // danh mục cho website (prepare)
 	webOrders      *web.Orders   // báo giá, đơn của website (prepare)
 	webShipping    *web.Shipping // hãng, báo phí, ước thời gian giao của website (prepare; nil khi Fulfillment nil)
+	webFlash       *web.Flash    // lượt mua flash sale của website (prepare)
 }
 
 // prepare dựng phần dùng chung giữa các route (bộ đếm tần suất) một lần cho mỗi server.
@@ -119,6 +124,10 @@ func prepare(d Deps) Deps {
 	}
 	if d.webOrders == nil {
 		d.webOrders = web.NewOrders(d.DB, order.Writer{Events: d.Events, Queue: queue.NewQueue(), Realtime: d.Realtime}, d.Now)
+	}
+	if d.webFlash == nil {
+		d.webFlash = web.NewFlash(d.DB, order.Writer{Events: d.Events, Queue: queue.NewQueue(), Realtime: d.Realtime},
+			customer.Writer{Events: d.Events, Queue: queue.NewQueue(), Realtime: d.Realtime}, d.Now)
 	}
 	if d.webShipping == nil && d.Fulfillment != nil {
 		d.webShipping = web.NewShipping(d.DB, d.ReadCache, d.Fulfillment, d.Now)
