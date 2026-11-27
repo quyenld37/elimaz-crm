@@ -37,7 +37,7 @@ func TestCreateFromWeb_Invariants(t *testing.T) {
 	n := 0
 	rapid.Check(t, func(rt *rapid.T) {
 		n++
-		c := drawWebCase(rt, pool, price)
+		c := drawWebCase(rt, pool, price, noCoupon)
 		phone := logging.Phone(fmt.Sprintf("09040%05d", n))
 		in := order.WebOrderInput{
 			ExternalRef: fmt.Sprintf("ELIMAZ-P%d", n), Customer: order.WebCustomer{Phone: phone, Name: "Khách thử"},
@@ -76,9 +76,12 @@ type webCase struct {
 	changed bool
 	code    string
 	via     string
+	// couponBase: giỏ có ít nhất một dòng được áp mã (không chỉ dòng chiến dịch cấm mã); không có thì nền mã 0 và mã
+	// bị từ chối zero_discount (Task 433, C-05).
+	couponBase bool
 }
 
-func (c webCase) couponOK() bool { return c.code != "PROPOLD" }
+func (c webCase) couponOK() bool { return c.code == "" || (c.code != "PROPOLD" && c.couponBase) }
 
 func (c webCase) created() bool {
 	return c.via == order.SubmittedQueued || (!c.changed && c.couponOK())
@@ -88,10 +91,11 @@ func (c webCase) review() bool {
 	return c.via == order.SubmittedQueued && (c.changed || !c.couponOK())
 }
 
-func drawWebCase(rt *rapid.T, pool []uuid.UUID, price map[uuid.UUID]int64) webCase {
+func drawWebCase(rt *rapid.T, pool []uuid.UUID, price map[uuid.UUID]int64, noCoupon map[uuid.UUID]bool) webCase {
 	ids := rapid.SliceOfNDistinct(rapid.SampledFrom(pool), 1, 5, rapid.ID).Draw(rt, "lines")
 	c := webCase{lines: make([]order.WebLine, len(ids))}
 	for i, v := range ids {
+		c.couponBase = c.couponBase || !noCoupon[v]
 		c.lines[i] = wl(v, rapid.IntRange(1, 3).Draw(rt, "qty"), price[v])
 		if rapid.Bool().Draw(rt, "lệch") {
 			c.lines[i].QuotedUnitPrice += 1000

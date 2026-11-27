@@ -20,31 +20,51 @@ type EvalInput struct {
 	Channel        string        // kênh của đơn (facebook, web, manual)
 	CustomerID     uuid.UUID     // hồ sơ khách của đơn (Redeem ghi lượt mỗi khách theo hồ sơ này; Check không cần)
 	CustomerRootID uuid.UUID     // hồ sơ gốc hiện tại của khách (sau gộp)
-	Phone          logging.Phone // SĐT nhận hàng của đơn, dạng nào cũng được (so sau khi chuẩn hóa)
+	Phone          logging.Phone // SĐT của đơn (người nhận, hay SĐT nhập cho khách lúc tạo), dạng nào cũng được
 	SellerID       uuid.UUID     // người bán của đơn
 	Now            time.Time
+
+	// phoneOwned: SĐT gắn mã là danh tính SĐT của nhóm khách của đơn (Redeem, Check đọc bằng customer.HasPhone trước
+	// Evaluate; Task 433, C-03).
+	phoneOwned bool
 }
 
 // Evaluate tính phần giảm của mã c cho đơn in; thuần (không đọc database). Kiểm theo thứ tự: disabled, not_started
-// (Now < ValidFrom), expired (Now ≥ ValidTo), channel, seller, bound_other, min_subtotal (Base < MinSubtotal); mã bị từ
-// chối trả (0, lý do). Phần trăm: floor(Base × Value / 10000), chặn bởi MaxDiscount; cố định: min(Value, Base). Không
-// kiểm lượt (việc của Redeem, Check). Mã đạt trả (phần giảm, "").
+// (Now < ValidFrom), expired (Now ≥ ValidTo), channel, seller, bound_other, min_subtotal (Base < MinSubtotal), rồi
+// zero_discount (phần giảm tính ra 0: không áp, không tiêu lượt); mã bị từ chối trả (0, lý do). Phần giảm: amountOf.
+// Không kiểm lượt (việc của Redeem, Check). Mã đạt trả (phần giảm > 0, "").
 func Evaluate(c Coupon, in EvalInput) (discount int64, reason Reason) {
 	if r := rejectReason(c, in); r != "" {
 		return 0, r
 	}
-	base := max(in.Base, 0)
-	if c.DiscountKind == KindFixed {
-		return min(c.Value, base), ""
+	return amountOf(c, in.Base)
+}
+
+// amountOf là luật phụ thuộc tiền của mã c trên tạm tính base: base < MinSubtotal → min_subtotal; phần trăm:
+// floor(base × Value / 10000), chặn bởi MaxDiscount; cố định: min(Value, base); phần giảm 0 → zero_discount. Reprice
+// (sửa đơn giữ mã) chỉ dùng luật này.
+func amountOf(c Coupon, base int64) (int64, Reason) {
+	if base < c.MinSubtotal {
+		return 0, ReasonMinSubtotal
 	}
-	d := percentOf(base, c.Value)
-	if c.MaxDiscount != nil {
-		d = min(d, *c.MaxDiscount)
+	base = max(base, 0)
+	var d int64
+	if c.DiscountKind == KindFixed {
+		d = min(c.Value, base)
+	} else {
+		d = percentOf(base, c.Value)
+		if c.MaxDiscount != nil {
+			d = min(d, *c.MaxDiscount)
+		}
+	}
+	if d <= 0 {
+		return 0, ReasonZeroDiscount
 	}
 	return d, ""
 }
 
-// rejectReason trả lý do đầu tiên mã c không dùng được cho in (rỗng: dùng được), theo thứ tự của Evaluate.
+// rejectReason trả lý do đầu tiên mã c không dùng được cho in theo luật không phụ thuộc tiền (rỗng: dùng được), theo
+// thứ tự của Evaluate.
 func rejectReason(c Coupon, in EvalInput) Reason {
 	switch {
 	case c.Status != StatusActive:
@@ -59,14 +79,13 @@ func rejectReason(c Coupon, in EvalInput) Reason {
 		return ReasonSeller
 	case !boundMatches(c, in):
 		return ReasonBoundOther
-	case in.Base < c.MinSubtotal:
-		return ReasonMinSubtotal
 	}
 	return ""
 }
 
 // boundMatches: mã không gắn ai → đúng; mã gắn khách và/hoặc SĐT → đúng khi đơn khớp ít nhất một thứ đã gắn. Khách
-// gắn mã so theo gốc: bên gọi có database (Redeem, Check, Reprice) đã đổi c.BoundCustomerID về gốc hiện tại.
+// gắn mã so theo gốc: bên gọi có database (Redeem, Check) đã đổi c.BoundCustomerID về gốc hiện tại. SĐT gắn mã khớp khi
+// trùng SĐT của đơn, hoặc là danh tính SĐT của nhóm khách (in.phoneOwned) — cùng một luật lúc tạo và lúc sửa đơn.
 func boundMatches(c Coupon, in EvalInput) bool {
 	if c.BoundCustomerID == uuid.Nil && c.BoundPhone == "" {
 		return true
@@ -74,7 +93,13 @@ func boundMatches(c Coupon, in EvalInput) bool {
 	if c.BoundCustomerID != uuid.Nil && c.BoundCustomerID == in.CustomerRootID {
 		return true
 	}
-	if c.BoundPhone == "" || in.Phone == "" {
+	if c.BoundPhone == "" {
+		return false
+	}
+	if in.phoneOwned {
+		return true
+	}
+	if in.Phone == "" {
 		return false
 	}
 	p, err := customer.NormalizePhone(string(in.Phone))

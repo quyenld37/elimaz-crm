@@ -15,6 +15,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/order/internal/pricing"
 	"elimaz.com.vn/crm/internal/modules/order/internal/state"
 	"elimaz.com.vn/crm/internal/modules/order/internal/store"
+	"elimaz.com.vn/crm/internal/modules/promotion"
 )
 
 // Kho nhận phiếu trả theo số lượng tốt, hỏng, thiếu trên từng dòng (kế hoạch M3, Task M3-23; Q-34; tiền hoàn theo số
@@ -217,6 +218,19 @@ func (w Writer) receive(ctx context.Context, tx pgx.Tx, sellerID uuid.UUID, l lo
 	return w.receiveCustomer(ctx, tx, stock, l, lines, full, total, who, a, now)
 }
 
+// releaseCarrierCoupon trả lượt mã của đơn khi kho nhận phiếu hoàn của hãng (giao không thành, khách chưa nhận hàng;
+// Task 433, C-04): promotion.Release lý do carrier_returned, như hủy trước khi giao (ADR-46 nhóm 10, trước tồn nhóm 11;
+// mã tắt release_on_cancel giữ lượt). Phiếu giao một phần (khách đã nhận phần còn lại): không đổi gì.
+func releaseCarrierCoupon(ctx context.Context, tx pgx.Tx, l lockedReturn) error {
+	if l.r.Kind != ReturnCarrier {
+		return nil
+	}
+	if _, err := promotion.Release(ctx, tx, l.order.ID, reasonCarrierReturned); err != nil {
+		return fmt.Errorf("trả lượt mã của đơn hãng hoàn: %w", err)
+	}
+	return nil
+}
+
 // receivedRefund là tiền hoàn của dòng phiếu đã nhận: phần của Sellable + Damaged đơn vị trong tiền hoàn R đã chia lúc
 // tạo phiếu cho Quantity đơn vị, bằng pricing.RefundFor(R, Quantity, 0, Sellable+Damaged, 0) — không thiếu → đúng R;
 // không món nào về → 0; còn lại floor(R × (Sellable+Damaged) / Quantity). Món thiếu không hoàn (luật missing của M2).
@@ -251,8 +265,9 @@ func markReceived(ctx context.Context, l lockedReturn, lines []qtyLine, a Actor,
 	return total, nil
 }
 
-// receiveCarrier nhả giữ hàng in_transit của mọi dòng (kiện hoàn đã về kho), chuyển số hỏng sang ngăn hỏng, ghi số
-// thiếu là thất lạc, rồi: phiếu hoàn của hãng → đơn confirmed → returned (order.returned, payload ReturnReceived);
+// receiveCarrier: phiếu hoàn của hãng trả lượt mã của đơn trước (releaseCarrierCoupon); rồi nhả giữ hàng in_transit
+// của mọi dòng (kiện hoàn đã về kho), chuyển số hỏng sang ngăn hỏng, ghi số thiếu là thất lạc, rồi: phiếu hoàn của
+// hãng → đơn confirmed → returned (order.returned, payload ReturnReceived);
 // phiếu giao một phần → đơn giữ delivered, version + 1, order.partially_returned. Mọi dòng số dư của phiếu đã bị khóa ở
 // bước nhả (ADR-46 nhóm 11), nên MoveToDamaged, RecordLoss chỉ chạm dòng đã khóa.
 func (w Writer) receiveCarrier(ctx context.Context, tx pgx.Tx, stock inventory.Writer, l lockedReturn,
@@ -280,6 +295,9 @@ func (w Writer) receiveCarrier(ctx context.Context, tx pgx.Tx, stock inventory.W
 		if ln.Missing > 0 {
 			lost = append(lost, inventory.LossLine{VariantID: v, WarehouseID: full.WarehouseID, Qty: ln.Missing})
 		}
+	}
+	if err := releaseCarrierCoupon(ctx, tx, l); err != nil {
+		return err
 	}
 	if err := stock.ReleaseInTransitByItems(ctx, tx, back, who); err != nil {
 		return fmt.Errorf("nhả hàng hoàn về kho: %w", err)

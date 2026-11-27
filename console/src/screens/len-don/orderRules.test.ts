@@ -68,7 +68,7 @@ describe("cleanPhone", () => {
 });
 
 describe("couponReasonText: câu cho từng lý do (bảng trạng thái F của mockup)", () => {
-  it("đủ 10 lý do của CouponRejectReason, câu đúng mockup", () => {
+  it("đủ 11 lý do của CouponRejectReason, câu đúng mockup (zero_discount: Task 433)", () => {
     expect(COUPON_REASON_MESSAGES).toEqual({
       not_found: "Không có mã này",
       disabled: "Mã đã bị tắt",
@@ -80,6 +80,7 @@ describe("couponReasonText: câu cho từng lý do (bảng trạng thái F của
       bound_other: "Mã dành riêng cho khách khác",
       customer_limit: "Khách đã dùng hết lượt của mã này",
       seller: "Mã không áp cho sản phẩm của người bán này",
+      zero_discount: "Mã không giảm được cho đơn này",
     });
   });
   it("lý do lạ → câu chung của coupon_rejected", () => {

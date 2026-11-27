@@ -50,6 +50,8 @@ const (
 	ReasonBoundOther    Reason = "bound_other"
 	ReasonCustomerLimit Reason = "customer_limit"
 	ReasonSeller        Reason = "seller"
+	// ReasonZeroDiscount: mã đạt mọi luật nhưng phần giảm tính ra 0 đồng (Task 433, C-05): không áp, không tiêu lượt.
+	ReasonZeroDiscount Reason = "zero_discount"
 )
 
 // RejectError là chi tiết của ErrCouponRejected.

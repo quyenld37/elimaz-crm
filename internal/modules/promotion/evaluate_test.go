@@ -81,6 +81,22 @@ func priceCases() []evalCase {
 			name: "đúng min_subtotal", coupon: func(c *promotion.Coupon) { c.MinSubtotal = 300000 },
 			input: func(in *promotion.EvalInput) { in.Base = 300000 }, discount: 30000,
 		},
+		// C-05 (Task 433): phần giảm tính ra 0 → zero_discount, không áp mã (không tiêu lượt).
+		{name: "Base 0, mã cố định → zero_discount", coupon: func(c *promotion.Coupon) {
+			c.DiscountKind, c.Value, c.MaxDiscount = promotion.KindFixed, 30000, nil
+		}, input: func(in *promotion.EvalInput) { in.Base = 0 }, reason: promotion.ReasonZeroDiscount},
+		{
+			name: "phần trăm làm tròn xuống 0 → zero_discount", coupon: func(c *promotion.Coupon) { c.Value = 1 },
+			input: func(in *promotion.EvalInput) { in.Base = 9999 }, reason: promotion.ReasonZeroDiscount,
+		},
+		{
+			name: "phần trăm vừa đủ 1 đồng", coupon: func(c *promotion.Coupon) { c.Value = 1 },
+			input: func(in *promotion.EvalInput) { in.Base = 10000 }, discount: 1,
+		},
+		{
+			name: "dưới min_subtotal đứng trước zero_discount", coupon: func(c *promotion.Coupon) { c.MinSubtotal = 1 },
+			input: func(in *promotion.EvalInput) { in.Base = 0 }, reason: promotion.ReasonMinSubtotal,
+		},
 	}
 }
 

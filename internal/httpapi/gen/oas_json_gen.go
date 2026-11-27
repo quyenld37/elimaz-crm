@@ -23112,6 +23112,8 @@ func (s *CouponRejectReason) Decode(d *jx.Decoder) error {
 		*s = CouponRejectReasonCustomerLimit
 	case CouponRejectReasonSeller:
 		*s = CouponRejectReasonSeller
+	case CouponRejectReasonZeroDiscount:
+		*s = CouponRejectReasonZeroDiscount
 	default:
 		*s = CouponRejectReason(v)
 	}
@@ -108253,6 +108255,8 @@ func (s *WebQuoteCouponReason) Decode(d *jx.Decoder) error {
 		*s = WebQuoteCouponReasonExhausted
 	case WebQuoteCouponReasonCustomerLimit:
 		*s = WebQuoteCouponReasonCustomerLimit
+	case WebQuoteCouponReasonZeroDiscount:
+		*s = WebQuoteCouponReasonZeroDiscount
 	default:
 		*s = WebQuoteCouponReason(v)
 	}

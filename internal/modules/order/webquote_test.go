@@ -125,12 +125,7 @@ func (e *quoteEnv) quoteCoupon(in promotion.CouponInput) {
 	if in.ValidFrom.IsZero() {
 		in.ValidFrom, in.ValidTo = e.now.Add(-24*time.Hour), e.now.Add(30*24*time.Hour)
 	}
-	if err := e.app(func(tx pgx.Tx) error {
-		_, err := promotion.Writer{}.CreateCoupon(e.t.Context(), tx, promotion.Actor{TenantID: e.tenant, UserID: e.actor.UserID}, in)
-		return err //nolint:wrapcheck // test
-	}); err != nil {
-		e.t.Fatalf("tạo mã %s: %v", in.Code, err)
-	}
+	e.createCoupon(in)
 }
 
 func wl(v uuid.UUID, qty int, quoted int64) order.WebLine {
@@ -282,9 +277,10 @@ func TestQuoteWeb_CampaignAndCoupon(t *testing.T) {
 		t.Fatalf("chiến dịch cho dùng mã: %+v", q)
 	}
 
-	// Chỉ dòng chiến dịch không cho dùng mã → nền mã 0, mã không áp gì.
+	// Chỉ dòng chiến dịch không cho dùng mã → nền mã 0, mã không áp (zero_discount, Task 433).
 	q = e.mustQuote(order.WebQuoteInput{Lines: []order.WebLine{wl(va[0], 1, 400000)}, CouponCode: "TEN"})
-	if q.CouponDiscount != 0 || q.Lines[0].CouponDiscount != 0 || q.GrandTotal != 320000 {
+	if q.CouponDiscount != 0 || q.Lines[0].CouponDiscount != 0 || q.GrandTotal != 320000 || q.Coupon == nil ||
+		q.Coupon.Applied || q.Coupon.Reason != string(promotion.ReasonZeroDiscount) {
 		t.Fatalf("chỉ dòng chiến dịch: %+v %+v", q, q.Coupon)
 	}
 }

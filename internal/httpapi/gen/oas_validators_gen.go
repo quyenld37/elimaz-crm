@@ -5386,6 +5386,8 @@ func (s CouponRejectReason) Validate() error {
 		return nil
 	case "seller":
 		return nil
+	case "zero_discount":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -29412,6 +29414,8 @@ func (s WebQuoteCouponReason) Validate() error {
 	case "exhausted":
 		return nil
 	case "customer_limit":
+		return nil
+	case "zero_discount":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

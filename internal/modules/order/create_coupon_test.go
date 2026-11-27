@@ -51,16 +51,7 @@ func (e *orderEnv) coupon(c couponTerms) uuid.UUID {
 		in.PerCustomerLimit = &c.perCustomer
 	}
 	in.BoundCustomerID = c.boundCustomer
-	var out promotion.Coupon
-	if err := e.app(func(tx pgx.Tx) error {
-		var err error
-		out, err = promotion.Writer{}.CreateCoupon(e.t.Context(), tx,
-			promotion.Actor{TenantID: e.tenant, UserID: e.actor.UserID}, in)
-		return err //nolint:wrapcheck // test
-	}); err != nil {
-		e.t.Fatalf("tạo mã %s: %v", c.code, err)
-	}
-	return out.ID
+	return e.createCoupon(in)
 }
 
 // rejectReason trả lý do từ chối mã trong err ("" nếu err không phải từ chối mã).

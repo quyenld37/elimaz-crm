@@ -12477,7 +12477,7 @@ components:
           type: boolean
         reason:
           type: string
-          enum: [not_found, disabled, not_started, expired, channel, seller, bound_other, min_subtotal, exhausted, customer_limit]
+          enum: [not_found, disabled, not_started, expired, channel, seller, bound_other, min_subtotal, exhausted, customer_limit, zero_discount]
           description: Có khi applied = false
     WebAvailability:
       type: object
@@ -13384,7 +13384,7 @@ components:
       enum: [customer_changed_mind, out_of_stock, unreachable, wrong_info, other, draft_expired, duplicate]
     CouponRejectReason:
       type: string
-      enum: [not_found, disabled, not_started, expired, exhausted, min_subtotal, channel, bound_other, customer_limit, seller]
+      enum: [not_found, disabled, not_started, expired, exhausted, min_subtotal, channel, bound_other, customer_limit, seller, zero_discount]
     OrderChannel:
       type: string
       description: Kênh của đơn (manual, facebook, web; mốc sau có thể thêm giá trị)

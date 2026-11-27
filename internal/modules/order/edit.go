@@ -89,7 +89,8 @@ type EditResult struct {
 //     lớn hơn tỷ lệ cũ): người có quyền duyệt → ghi người duyệt; đơn confirmed → ErrDiscountNeedsApproval; đơn new,
 //     draft → chờ duyệt (applyTransition cùng trạng thái, lý do discount_approval).
 //  5. Mã (nhóm 10): đổi mã → promotion.LockCoupons(cũ, mới) (id tăng dần, cùng thứ tự với ExpireDrafts), rồi Detach,
-//     Redeem; "" → Detach; giữ mã mà tạm tính sau giảm đổi → promotion.Reprice. Bị từ chối → *promotion.RejectError.
+//     Redeem (đủ luật hiện hành); "" → Detach; giữ mã mà tạm tính sau giảm đổi → promotion.Reprice (chỉ luật theo tiền:
+//     min_subtotal, phần giảm > 0). Bị từ chối → *promotion.RejectError.
 //  6. Ghi dòng (sửa dòng giữ nguyên, chèn dòng mới nối sau position lớn nhất) và đơn (version + 1).
 //  7. Giữ hàng (nhóm 11) theo variant_id tăng dần trên mọi biến thể bị chạm: dòng bị bỏ → ReleaseHeldByItems
 //     (order_edited), dòng giữ nguyên đổi số lượng → ResizeHeld (bước edit_v<version mới>), dòng mới → Reserve; thiếu →
@@ -534,11 +535,8 @@ func (e *editRun) applyCoupon(ctx context.Context, t pricing.Totals) (int64, err
 		}
 		return r.Discount, nil
 	case e.p.coupon != "" && base != oldBase:
-		eval, err := e.evalInput(ctx, base)
-		if err != nil {
-			return 0, err
-		}
-		d, err := promotion.Reprice(ctx, e.tx, e.cur.ID, eval)
+		// Giữ mã đã áp: chỉ tính lại theo tiền (mã tắt, hết hạn sau lúc áp vẫn giữ; Task 433, C-03).
+		d, err := promotion.Reprice(ctx, e.tx, e.cur.ID, base)
 		if err != nil {
 			return 0, fmt.Errorf("tính lại mã giảm giá: %w", err)
 		}
@@ -547,7 +545,8 @@ func (e *editRun) applyCoupon(ctx context.Context, t pricing.Totals) (int64, err
 	return e.cur.CouponDiscount, nil
 }
 
-// evalInput là phần của đơn sau sửa mà luật mã cần (Quyết định 10: SĐT người nhận, khách gốc hiện tại).
+// evalInput là phần của đơn sau sửa mà luật mã cần khi áp mã mới (SĐT người nhận, khách gốc hiện tại; mã gắn SĐT còn
+// khớp khi SĐT đó là danh tính của nhóm khách — promotion kiểm, cùng luật với lúc tạo đơn, Task 433).
 func (e *editRun) evalInput(ctx context.Context, base int64) (promotion.EvalInput, error) {
 	root, err := customer.RootOf(ctx, e.tx, e.cur.CustomerID)
 	if err != nil {

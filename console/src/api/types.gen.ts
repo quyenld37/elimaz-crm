@@ -2059,7 +2059,7 @@ export type WebQuoteCoupon = {
     /**
      * Có khi applied = false
      */
-    reason?: 'not_found' | 'disabled' | 'not_started' | 'expired' | 'channel' | 'seller' | 'bound_other' | 'min_subtotal' | 'exhausted' | 'customer_limit';
+    reason?: 'not_found' | 'disabled' | 'not_started' | 'expired' | 'channel' | 'seller' | 'bound_other' | 'min_subtotal' | 'exhausted' | 'customer_limit' | 'zero_discount';
 };
 
 export type WebAvailability = {
@@ -2582,7 +2582,7 @@ export type PendingReason = 'awaiting_customer' | 'out_of_stock' | 'discount_app
  */
 export type CancelReason = 'customer_changed_mind' | 'out_of_stock' | 'unreachable' | 'wrong_info' | 'other' | 'draft_expired' | 'duplicate';
 
-export type CouponRejectReason = 'not_found' | 'disabled' | 'not_started' | 'expired' | 'exhausted' | 'min_subtotal' | 'channel' | 'bound_other' | 'customer_limit' | 'seller';
+export type CouponRejectReason = 'not_found' | 'disabled' | 'not_started' | 'expired' | 'exhausted' | 'min_subtotal' | 'channel' | 'bound_other' | 'customer_limit' | 'seller' | 'zero_discount';
 
 /**
  * Kênh của đơn (manual, facebook, web; mốc sau có thể thêm giá trị)

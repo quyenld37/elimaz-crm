@@ -10284,6 +10284,7 @@ const (
 	CouponRejectReasonBoundOther    CouponRejectReason = "bound_other"
 	CouponRejectReasonCustomerLimit CouponRejectReason = "customer_limit"
 	CouponRejectReasonSeller        CouponRejectReason = "seller"
+	CouponRejectReasonZeroDiscount  CouponRejectReason = "zero_discount"
 )
 
 // AllValues returns all CouponRejectReason values.
@@ -10299,6 +10300,7 @@ func (CouponRejectReason) AllValues() []CouponRejectReason {
 		CouponRejectReasonBoundOther,
 		CouponRejectReasonCustomerLimit,
 		CouponRejectReasonSeller,
+		CouponRejectReasonZeroDiscount,
 	}
 }
 
@@ -10324,6 +10326,8 @@ func (s CouponRejectReason) MarshalText() ([]byte, error) {
 	case CouponRejectReasonCustomerLimit:
 		return []byte(s), nil
 	case CouponRejectReasonSeller:
+		return []byte(s), nil
+	case CouponRejectReasonZeroDiscount:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -10362,6 +10366,9 @@ func (s *CouponRejectReason) UnmarshalText(data []byte) error {
 		return nil
 	case CouponRejectReasonSeller:
 		*s = CouponRejectReasonSeller
+		return nil
+	case CouponRejectReasonZeroDiscount:
+		*s = CouponRejectReasonZeroDiscount
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -52342,6 +52349,7 @@ const (
 	WebQuoteCouponReasonMinSubtotal   WebQuoteCouponReason = "min_subtotal"
 	WebQuoteCouponReasonExhausted     WebQuoteCouponReason = "exhausted"
 	WebQuoteCouponReasonCustomerLimit WebQuoteCouponReason = "customer_limit"
+	WebQuoteCouponReasonZeroDiscount  WebQuoteCouponReason = "zero_discount"
 )
 
 // AllValues returns all WebQuoteCouponReason values.
@@ -52357,6 +52365,7 @@ func (WebQuoteCouponReason) AllValues() []WebQuoteCouponReason {
 		WebQuoteCouponReasonMinSubtotal,
 		WebQuoteCouponReasonExhausted,
 		WebQuoteCouponReasonCustomerLimit,
+		WebQuoteCouponReasonZeroDiscount,
 	}
 }
 
@@ -52382,6 +52391,8 @@ func (s WebQuoteCouponReason) MarshalText() ([]byte, error) {
 	case WebQuoteCouponReasonExhausted:
 		return []byte(s), nil
 	case WebQuoteCouponReasonCustomerLimit:
+		return []byte(s), nil
+	case WebQuoteCouponReasonZeroDiscount:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -52420,6 +52431,9 @@ func (s *WebQuoteCouponReason) UnmarshalText(data []byte) error {
 		return nil
 	case WebQuoteCouponReasonCustomerLimit:
 		*s = WebQuoteCouponReasonCustomerLimit
+		return nil
+	case WebQuoteCouponReasonZeroDiscount:
+		*s = WebQuoteCouponReasonZeroDiscount
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
