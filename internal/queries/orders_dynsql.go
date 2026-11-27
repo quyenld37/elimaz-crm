@@ -203,9 +203,11 @@ func clampOrderLimit(n int) int {
 	return n
 }
 
-// orderLabelCond trả điều kiện SQL của nhãn l, khớp từng nhánh của orderview.Label (trục vận đơn: ss là trạng thái vận
-// đơn hiện hành, ” khi không có). Nhãn lạ → ErrInvalidOrderFilter.
-func orderLabelCond(l orderview.LabelKey) (string, error) {
+// OrderLabelCond trả điều kiện SQL của nhãn l, khớp từng nhánh của orderview.Label (trục vận đơn: ss là trạng thái vận
+// đơn hiện hành, ” khi không có). Đoạn SQL là hằng, gắn với hai bí danh: o là ord.orders_v, s là
+// fulfillment.shipments_v của vận đơn hiện hành (LEFT JOIN; NULL khi chưa có); câu của bên gọi phải dựng đúng hai bí
+// danh đó. Nhãn lạ → ErrInvalidOrderFilter.
+func OrderLabelCond(l orderview.LabelKey) (string, error) {
 	const (
 		confirmed = "o.status = 'confirmed' AND "
 		ss        = "COALESCE(s.status, '')"
@@ -263,7 +265,7 @@ func (a *sqlArgs) add(v any) string {
 }
 
 // orderListSQL dựng câu danh sách trên view: điều kiện seller_id luôn có (ADR-29), mọi giá trị là tham số ($n), chỉ
-// chuỗi hằng của orderLabelCond, codCond ghép vào câu. Số dư COD đọc theo từng vận đơn (LATERAL: điều kiện shipment_id
+// chuỗi hằng của OrderLabelCond, codCond ghép vào câu. Số dư COD đọc theo từng vận đơn (LATERAL: điều kiện shipment_id
 // đẩy xuống dưới GROUP BY của view, index cod_ledger_entries_shipment_account). Khách: hồ sơ thuộc nhóm gốc
 // (customer.customers_v, index customers_root rồi orders_customer_created). Lấy limit + 1 dòng để biết còn trang sau.
 func orderListSQL(f OrderFilter, c OrderCursor, limit int) (string, []any, error) {
@@ -275,7 +277,7 @@ func orderListSQL(f OrderFilter, c OrderCursor, limit int) (string, []any, error
 	if len(f.Labels) > 0 {
 		conds := make([]string, 0, len(f.Labels))
 		for _, l := range f.Labels {
-			cond, err := orderLabelCond(l)
+			cond, err := OrderLabelCond(l)
 			if err != nil {
 				return "", nil, err
 			}
