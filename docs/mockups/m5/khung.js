@@ -1,7 +1,7 @@
 // Khung điều hướng chung của mockup M5 đợt 1 (Task M5-22, số toàn cục 205): cùng cấu trúc với docs/mockups/m3/khung.js
 // (menu trái từ 1000px, thanh trên 56px dưới 1000px). Menu theo mục "Xếp module trên CRM" của kế hoạch M5 (Task 450):
 // Đơn hàng thêm "Yêu cầu về đơn hàng" (số đếm yêu cầu đang mở thay màn Tổng quan của admin, QĐ37); Khách hàng thêm "Góp ý";
-// Khuyến mãi thêm "Chiến dịch giảm giá", "Quà sinh nhật" (Flash sale là đợt 2, chưa có mục); nhóm mới "Website" giữa
+// Khuyến mãi thêm "Chiến dịch giảm giá", "Quà sinh nhật", "Flash sale" (đợt 2, Task 514); nhóm mới "Website" giữa
 // Khuyến mãi và Sản phẩm; Quản trị thêm "Nhật ký thao tác". Mục của M1–M3 trỏ sang mockup của mốc đó.
 // Trang đặt <body data-page="..." data-title="..."> và có <div class="app"><main class="main">…</main></div>.
 // Trang có <div id="drawer"></div> thì khung chép menu vào đó (mockup menu mở trên điện thoại, chỉ hiện dưới 1000px).
@@ -13,7 +13,7 @@
 		["Vận chuyển", [["../m3/van-hanh.html#goi-lai", "Cần gọi lại", [], 12, 3], ["../m3/van-hanh.html#don-ket", "Đơn kẹt", [], 4], ["../m3/van-hanh.html#can-xem", "Cần xem", [], 6], ["../m3/van-hanh.html#giu-hang", "Giữ hàng quá hạn"], ["../m3/ket-noi-van-chuyen.html", "Kết nối vận chuyển"], ["../m3/ket-noi-van-chuyen.html#cai-dat", "Cài đặt vận chuyển"]]],
 		["Tiền", [["../m3/doi-soat-cod.html", "Đối soát COD"], ["../m3/doi-soat-cod.html#lech", "Lệch đối soát", [], 3], ["../m3/doi-soat-cod.html#qua-han", "Quá hạn chưa có tiền", [], 2], ["../m3/tien-tren-don.html#nghia-vu", "Nghĩa vụ hoàn", [], 2]]],
 		["Khách hàng", [["../m2/khach-danh-sach.html", "Khách hàng"], ["feedback.html", "Góp ý", ["feedback"], undefined, 0, "gop-y"]]],
-		["Khuyến mãi", [["../m2/ma-giam-gia.html", "Mã giảm giá"], ["web-campaigns.html", "Chiến dịch giảm giá", ["web-campaigns"], undefined, 0, "chien-dich"], ["birthday-gifts.html", "Quà sinh nhật", ["birthday-gifts"], undefined, 0, "qua-sinh-nhat"]]],
+		["Khuyến mãi", [["../m2/ma-giam-gia.html", "Mã giảm giá"], ["web-campaigns.html", "Chiến dịch giảm giá", ["web-campaigns"], undefined, 0, "chien-dich"], ["birthday-gifts.html", "Quà sinh nhật", ["birthday-gifts"], undefined, 0, "qua-sinh-nhat"], ["flash-sales.html", "Flash sale", ["flash-sales"], undefined, 0, "flash-sale"]]],
 		["Website", [["web-banners.html", "Banner trang chủ", ["web-banners"], undefined, 0, "banner"], ["web-looks.html", "Bộ phối", ["web-looks"], undefined, 0, "bo-phoi"], ["web-carriers.html", "Hãng trên web", ["web-carriers"], undefined, 0, "hang-tren-web"], ["web-intake.html", "Nhận đơn web", ["web-intake"], undefined, 0, "nhan-don-web"], ["service-keys.html", "Khóa dịch vụ", ["service-keys"], undefined, 0, "khoa-dich-vu"]]],
 		["Sản phẩm", [["../m1/san-pham-danh-sach.html", "Danh sách sản phẩm"], ["../m1/nhap-excel.html", "Nhập Excel"]]],
 		["Kho", [["../m1/kho-ton.html", "Tồn kho"], ["../m3/kho.html", "Đóng gói"], ["../m3/kho.html#nhan-hoan", "Nhận hàng hoàn"], ["../m1/kho-phieu.html", "Phiếu kho"], ["../m1/kho-kiem-kho.html", "Kiểm kho"], ["../m1/kho-nha-cung-cap.html", "Nhà cung cấp"]]],

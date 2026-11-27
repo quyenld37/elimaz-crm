@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M5 — Đợt flash sale</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="../m3/m3.css">
+<link rel="stylesheet" href="m5.css">
+<style>
+@media (min-width: 760px) { .fsl td:first-child { width: 40%; } .fsl .c-act { width: 1%; } .fsi td:first-child { width: 30%; } .fsi .c-act { width: 1%; } }
+.fsl .nm { display: grid; gap: 2px; min-width: 0; }
+.res { display: grid; gap: 0; border: 1px solid var(--rule); border-radius: var(--r-box); }
+.res .check { padding: 6px 12px; border-bottom: 1px solid var(--rule); width: 100%; }
+.res .check:last-child { border-bottom: 0; }
+.hold-l { display: grid; gap: 4px; }
+@media (max-width: 759px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+</head>
+<body data-page="flash-sales" data-title="Flash sale">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Khuyến mãi / Flash sale</p><h1>Flash sale</h1><p class="sub">Đợt bán giá rất thấp, số suất có hạn, mở đúng giờ trên website. Giờ nhập theo giờ Việt Nam. Bấm <b>Lên lịch</b> là số suất được giữ riêng khỏi bán thường ngay (lên đơn, chat, website), không đợi tới giờ mở.</p></div>
+	<div class="row"><button class="btn btn-dark" data-ca="tao-dot">+ Tạo đợt</button></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="ds-dot ten-120 nhieu-dot"><p class="xs">TRẠNG THÁI A</p><h2>Danh sách đợt: đủ 4 trạng thái (nháp, đã lên lịch, đang mở, đã đóng), tên 120 ký tự, 30 đợt</h2></section>
+
+<div class="scroll-x" data-ca="loc-trang-thai"><div class="lblbar" role="group" aria-label="Lọc theo trạng thái">
+	<button class="lbl" aria-pressed="true">Tất cả</button>
+	<button class="lbl is-attn" aria-pressed="false">Đang mở</button>
+	<button class="lbl" aria-pressed="false">Đã lên lịch</button>
+	<button class="lbl" aria-pressed="false">Nháp</button>
+	<button class="lbl" aria-pressed="false">Đã đóng</button>
+</div></div>
+<div class="tbl-frame">
+<table class="tbl fsl">
+	<thead><tr><th>Đợt</th><th>Giờ mở → giờ đóng (giờ VN)</th><th>Trạng thái</th><th class="r">Đã bán / suất</th><th class="c-act">Thao tác</th></tr></thead>
+	<tbody>
+	<tr data-ca="tt-dang-mo">
+		<td class="lead"><div class="nm"><b class="clamp2">Trưa thứ Sáu đồng giá 199k</b><span class="small muted">4 món · đang mở, còn 1 giờ 28 phút</span></div></td>
+		<td data-label="Giờ (giờ VN)"><span class="small num">12:00 27/11 → 14:00 27/11</span></td>
+		<td data-label="Trạng thái"><span class="chip chip-dark">Đang mở</span></td>
+		<td data-label="Đã bán / suất" class="r num">948 / 1.200</td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Mở</button></div></td>
+	</tr>
+	<tr data-ca="tt-da-len-lich">
+		<td class="lead"><div class="nm"><b class="clamp2">Flash sale mừng sinh nhật ELIMAZ sáu tuổi: đầm công sở, áo sơ mi lụa, chân váy bút chì và áo khoác dạ, đồng giá từ 199k!</b><span class="small muted">12 món · tự mở lúc 20:00 28/11</span></div></td>
+		<td data-label="Giờ (giờ VN)"><span class="small num">20:00 28/11 → 22:00 28/11</span></td>
+		<td data-label="Trạng thái"><span class="chip chip-line">Đã lên lịch</span></td>
+		<td data-label="Đã bán / suất" class="r num">0 / 2.400</td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Mở</button></div></td>
+	</tr>
+	<tr data-ca="tt-nhap">
+		<td class="lead"><div class="nm"><b class="clamp2">Đêm 12.12 khung 1</b><span class="small muted">6 món · chưa giữ suất nào</span></div></td>
+		<td data-label="Giờ (giờ VN)"><span class="small num">00:00 12/12 → 02:00 12/12</span></td>
+		<td data-label="Trạng thái"><span class="chip">Nháp</span></td>
+		<td data-label="Đã bán / suất" class="r num">— / 840</td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Sửa</button></div></td>
+	</tr>
+	<tr class="is-muted">
+		<td class="lead"><div class="nm"><b class="clamp2">Áo khoác dạ giờ vàng</b><span class="small muted">2 món · đóng sớm</span></div></td>
+		<td data-label="Giờ (giờ VN)"><span class="small num">19:00 20/11 → 21:00 20/11</span></td>
+		<td data-label="Trạng thái"><span class="chip">Đã đóng</span></td>
+		<td data-label="Đã bán / suất" class="r num">148 / 200</td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Xem</button></div></td>
+	</tr>
+	<tr class="is-muted" data-ca="tt-da-dong">
+		<td class="lead"><div class="nm"><b class="clamp2">Sale 11.11 nửa đêm</b><span class="small muted">6 món · hết giờ</span></div></td>
+		<td data-label="Giờ (giờ VN)"><span class="small num">00:00 11/11 → 02:00 11/11</span></td>
+		<td data-label="Trạng thái"><span class="chip">Đã đóng</span></td>
+		<td data-label="Đã bán / suất" class="r num">1.500 / 1.500</td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Xem</button></div></td>
+	</tr>
+	</tbody>
+</table>
+</div>
+<div class="more"><span>Hiện 5 / 30 đợt · mới nhất trước · tự cập nhật mỗi 20 giây</span><button class="btn btn-line">Xem thêm</button></div>
+<div class="mk" style="margin-top:8px">Mockup: thanh lọc không có số đếm vì <code>listFlashSales</code> (Task 199) chỉ nhận <code>?status=</code>, chưa trả số theo trạng thái (Việc phát hiện thêm 2 của Task 514).</div>
+
+<div class="dlgs" style="margin-top:16px">
+	<div class="empty" data-ca="0-dot"><h2>Chưa có đợt flash sale</h2><p class="muted">Tạo đợt nháp, thêm món và số suất, rồi bấm Lên lịch để giữ suất.</p><button class="btn btn-dark">+ Tạo đợt</button></div>
+	<div class="box box-err stack-sm" data-ca="loi-tai"><b>Chưa tải được danh sách đợt.</b><p>Kiểm tra mạng rồi thử lại. Danh sách cũ không hiện để tránh thao tác nhầm trên đợt đã đổi.</p><div><button class="btn btn-line">Thử lại</button></div></div>
+</div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="soan-dot fs01"><p class="xs">TRẠNG THÁI B</p><h2>Tạo đợt nháp; soạn đợt: tên, giờ mở, giờ đóng; lỗi giờ</h2></section>
+
+<div class="dlgs">
+	<div class="dlg" role="dialog" aria-label="Tạo đợt flash sale">
+		<div class="dlg-h"><h2>Tạo đợt flash sale</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<label class="field" data-ca="ten-dot"><span>Tên đợt *</span><input class="input" value="Đêm 12.12 khung 1"><span class="hint">1–120 ký tự; khách thấy tên này trên website</span></label>
+			<div class="grid-f">
+				<label class="field" data-ca="gio-mo"><span>Giờ mở (giờ VN) *</span><input class="input num" value="12/12/2026 00:00"></label>
+				<label class="field" data-ca="gio-dong"><span>Giờ đóng (giờ VN) *</span><input class="input num" value="12/12/2026 02:00"></label>
+			</div>
+			<p class="hint">Đợt dài tối đa 7 ngày. Đợt tạo ra ở trạng thái Nháp: chưa giữ suất, chưa hiện trên website.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark">Tạo đợt nháp</button></div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Lỗi giờ của đợt" data-ca="loi-gio">
+		<div class="dlg-h"><h2>Sửa giờ: Đêm 12.12 khung 1</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<div class="grid-f">
+				<label class="field"><span>Giờ mở (giờ VN) *</span><input class="input num" value="12/12/2026 00:00"></label>
+				<label class="field"><span>Giờ đóng (giờ VN) *</span><input class="input num is-err" value="11/12/2026 23:00"><span class="field-err">Giờ đóng phải sau giờ mở.</span></label>
+			</div>
+			<label class="field"><span>Giờ đóng (lần nhập khác)</span><input class="input num is-err" value="20/12/2026 02:00"><span class="field-err">Đợt dài tối đa 7 ngày (đang là 8 ngày 2 giờ).</span></label>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark" disabled>Lưu</button></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" data-ca="them-mon nhieu-mon"><p class="xs">TRẠNG THÁI C</p><h2>Đợt nháp có 6 món (tên dài); thêm món: tìm biến thể, giá flash, số suất, giới hạn mỗi khách, hạn giữ; sửa, bỏ món; lỗi giá và biến thể trùng</h2></section>
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Khuyến mãi / Flash sale / Đêm 12.12 khung 1</p><h1>Đêm 12.12 khung 1 <span class="chip">Nháp</span></h1><p class="sub num">00:00 12/12/2026 → 02:00 12/12/2026 (giờ VN) · 6 món · 840 suất · chưa giữ suất nào</p></div>
+	<div class="row"><button class="btn btn-line">Sửa tên, giờ</button><button class="btn btn-line">+ Thêm món</button><button class="btn btn-dark" data-ca="len-lich">Lên lịch</button></div>
+</div>
+<div class="tbl-frame">
+<table class="tbl fsi">
+	<thead><tr><th>Món</th><th class="r">Giá thường</th><th class="r">Giá flash</th><th class="r">Suất</th><th class="r">Mỗi khách</th><th class="r">Hạn giữ</th><th class="r">Có thể bán lúc này</th><th class="c-act">Thao tác</th></tr></thead>
+	<tbody>
+	<tr>
+		<td class="lead"><div class="sp"><span class="nm clamp2">Đầm suông cổ vuông tay phồng vải lụa Hàn mềm mát, dáng dài qua gối, màu đen</span><span class="code">DS2201-DEN-M</span></div></td>
+		<td data-label="Giá thường" class="r"><span class="money">690.000 ₫</span></td>
+		<td data-label="Giá flash" class="r"><b class="money">199.000 ₫</b></td>
+		<td data-label="Suất" class="r num">300</td>
+		<td data-label="Mỗi khách" class="r num">1</td>
+		<td data-label="Hạn giữ" class="r num">10 phút</td>
+		<td data-label="Có thể bán lúc này" class="r num">820</td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Sửa</button><button class="btn btn-quiet">Bỏ</button></div></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="sp"><span class="nm clamp2">Đầm suông cổ vuông tay phồng vải lụa Hàn mềm mát, dáng dài qua gối, màu đen</span><span class="code">DS2201-DEN-L</span></div></td>
+		<td data-label="Giá thường" class="r"><span class="money">690.000 ₫</span></td>
+		<td data-label="Giá flash" class="r"><b class="money">199.000 ₫</b></td>
+		<td data-label="Suất" class="r num">140</td>
+		<td data-label="Mỗi khách" class="r num">1</td>
+		<td data-label="Hạn giữ" class="r num">10 phút</td>
+		<td data-label="Có thể bán lúc này" class="r num">140</td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Sửa</button><button class="btn btn-quiet">Bỏ</button></div></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="sp"><span class="nm clamp2">Áo sơ mi lụa cổ đức</span><span class="code">SM0412-TRANG-S</span></div></td>
+		<td data-label="Giá thường" class="r"><span class="money">459.000 ₫</span></td>
+		<td data-label="Giá flash" class="r"><b class="money">149.000 ₫</b></td>
+		<td data-label="Suất" class="r num">150</td>
+		<td data-label="Mỗi khách" class="r num">2</td>
+		<td data-label="Hạn giữ" class="r num">15 phút</td>
+		<td data-label="Có thể bán lúc này" class="r num err-text">96</td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Sửa</button><button class="btn btn-quiet">Bỏ</button></div></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="sp"><span class="nm clamp2">Chân váy bút chì xẻ sau</span><span class="code">CV1130-XAM-M</span></div></td>
+		<td data-label="Giá thường" class="r"><span class="money">420.000 ₫</span></td>
+		<td data-label="Giá flash" class="r"><b class="money">129.000 ₫</b></td>
+		<td data-label="Suất" class="r num">100</td>
+		<td data-label="Mỗi khách" class="r num">1</td>
+		<td data-label="Hạn giữ" class="r num">10 phút</td>
+		<td data-label="Có thể bán lúc này" class="r num">310</td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Sửa</button><button class="btn btn-quiet">Bỏ</button></div></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="sp"><span class="nm clamp2">Áo khoác dạ dáng dài hai hàng khuy</span><span class="code">AK0811-BE-M</span></div></td>
+		<td data-label="Giá thường" class="r"><span class="money">1.890.000 ₫</span></td>
+		<td data-label="Giá flash" class="r"><b class="money">990.000 ₫</b></td>
+		<td data-label="Suất" class="r num">50</td>
+		<td data-label="Mỗi khách" class="r num">1</td>
+		<td data-label="Hạn giữ" class="r num">30 phút</td>
+		<td data-label="Có thể bán lúc này" class="r num">64</td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Sửa</button><button class="btn btn-quiet">Bỏ</button></div></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="sp"><span class="nm clamp2">Quần âu ống suông cạp cao</span><span class="code">QA0920-DEN-S</span></div></td>
+		<td data-label="Giá thường" class="r"><span class="money">520.000 ₫</span></td>
+		<td data-label="Giá flash" class="r"><b class="money">179.000 ₫</b></td>
+		<td data-label="Suất" class="r num">100</td>
+		<td data-label="Mỗi khách" class="r num">10</td>
+		<td data-label="Hạn giữ" class="r num">5 phút</td>
+		<td data-label="Có thể bán lúc này" class="r num err-text">72</td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Sửa</button><button class="btn btn-quiet">Bỏ</button></div></td>
+	</tr>
+	</tbody>
+</table>
+</div>
+<p class="small muted" style="margin-top:8px">"Có thể bán lúc này" là tồn bán thường hiện tại của biến thể (chữ đỏ: ít hơn số suất, Lên lịch sẽ bị từ chối). Mỗi lượt mua flash là một đơn riêng chỉ có món đó, không vào giỏ chung, không dùng kèm mã giảm giá.</p>
+
+<div class="dlgs" style="margin-top:16px">
+	<div class="dlg" role="dialog" aria-label="Thêm món vào đợt">
+		<div class="dlg-h"><h2>Thêm món vào "Đêm 12.12 khung 1"</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<div class="stack-sm" data-ca="tim-bien-the">
+				<label class="field"><span>Tìm biến thể theo tên hoặc mã hàng</span><input class="input is-search" value="dam suong"></label>
+				<div class="res">
+					<label class="check"><input type="radio" name="v" checked> <span class="sp"><span class="nm">Đầm suông cổ vuông tay phồng · Be · M</span><span class="code">DS2201-BE-M · đang bán · <span class="money">690.000 ₫</span></span></span></label>
+					<label class="check is-off" data-ca="bien-the-trung"><input type="radio" name="v" disabled> <span class="sp"><span class="nm">Đầm suông cổ vuông tay phồng · Đen · M</span><span class="code">DS2201-DEN-M · đã có trong đợt này</span></span></label>
+					<label class="check is-off" data-ca="khong-ban-duoc"><input type="radio" name="v" disabled> <span class="sp"><span class="nm">Đầm suông linen · Rêu · S</span><span class="code">DS1802-REU-S · đang ngừng bán, không thêm được</span></span></label>
+				</div>
+			</div>
+			<div class="grid-f">
+				<label class="field" data-ca="gia-flash khong-giam-gia"><span>Giá flash *</span><span class="unit"><input class="input is-err" value="690.000"><span>₫</span></span><span class="field-err">Giá flash phải thấp hơn giá bán thường <span class="money">690.000 ₫</span>.</span></label>
+				<label class="field" data-ca="so-suat"><span>Số suất *</span><span class="unit"><input class="input" value="200"><span>1–20.000</span></span></label>
+				<label class="field" data-ca="gioi-han-khach"><span>Mỗi khách mua tối đa</span><span class="unit"><input class="input" value="1"><span>1–10, mặc định 1</span></span></label>
+				<label class="field" data-ca="han-giu"><span>Hạn giữ suất</span><span class="unit"><input class="input" value="10"><span>phút · 5–30, mặc định 10</span></span></label>
+			</div>
+			<p class="hint">Hạn giữ: khách bấm mua được giữ suất trong thời gian này để điền địa chỉ; quá hạn thì đơn nháp tự hủy và suất mở lại cho người khác.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark" disabled>Thêm món</button></div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Sửa món" data-ca="sua-mon">
+		<div class="dlg-h"><h2>Sửa món: SM0412-TRANG-S</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p class="small">Áo sơ mi lụa cổ đức · Trắng · S · giá thường <span class="money">459.000 ₫</span> · có thể bán 96</p>
+			<div class="grid-f">
+				<label class="field"><span>Giá flash *</span><span class="unit"><input class="input" value="149.000"><span>₫</span></span></label>
+				<label class="field"><span>Số suất *</span><span class="unit"><input class="input" value="96"><span>1–20.000</span></span></label>
+				<label class="field"><span>Mỗi khách mua tối đa</span><span class="unit"><input class="input" value="2"><span>1–10</span></span></label>
+				<label class="field"><span>Hạn giữ suất</span><span class="unit"><input class="input" value="15"><span>phút · 5–30</span></span></label>
+			</div>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark">Lưu món</button></div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Bỏ món" data-ca="bo-mon">
+		<div class="dlg-h"><h2>Bỏ món QA0920-DEN-S khỏi đợt?</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b"><p>Đợt còn nháp nên chưa giữ suất nào; bỏ món không đổi tồn.</p></div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-danger">Bỏ món</button></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st" data-ca="xac-nhan-len-lich"><p class="xs">TRẠNG THÁI D</p><h2>Lên lịch: hộp xác nhận nêu số suất bị giữ khỏi bán thường; lỗi không đủ hàng liệt kê mọi món thiếu; lỗi chồng giờ</h2></section>
+
+<div class="dlgs">
+	<div class="dlg" role="dialog" aria-label="Lên lịch đợt" data-ca="so-suat-bi-giu">
+		<div class="dlg-h"><h2>Lên lịch "Đêm 12.12 khung 1"?</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p class="small muted">Sau khi đã giảm suất hai món thiếu (SM0412-TRANG-S còn 96, QA0920-DEN-S còn 72).</p>
+			<div class="box box-info"><b>758 suất của 6 món sẽ bị giữ khỏi bán thường ngay khi bấm</b> (lên đơn, chat, website đều không bán vào phần này). Đợt tự mở lúc 00:00 12/12 và tự đóng lúc 02:00 12/12.</div>
+			<ul class="small num" style="margin:0;padding-left:20px">
+				<li><b>DS2201-DEN-M</b>: giữ 300 · bán thường còn 820 → 520</li>
+				<li><b>DS2201-DEN-L</b>: giữ 140 · bán thường còn 140 → 0</li>
+				<li><b>SM0412-TRANG-S</b>: giữ 96 · bán thường còn 96 → 0</li>
+				<li>và 3 món khác: giữ 222</li>
+			</ul>
+			<p class="small">Sau khi lên lịch <b>không sửa được</b> món, giá, giờ; chỉ <b>Thêm suất</b> hoặc <b>Đóng sớm</b>. Đóng đợt thì suất chưa ai lấy trả về bán thường.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark">Lên lịch, giữ 758 suất</button></div>
+	</div>
+	<div class="box box-err stack-sm" data-ca="thieu-hang moi-mon-thieu">
+		<b>Chưa lên lịch: 2 món không đủ hàng để giữ.</b>
+		<p>Không món nào bị giữ; đợt vẫn là Nháp. Giảm số suất hoặc nhập thêm hàng rồi bấm Lên lịch lại.</p>
+		<div class="tbl-frame">
+		<table class="tbl">
+			<thead><tr><th>Mã hàng</th><th class="r">Cần</th><th class="r">Có thể bán</th><th class="r">Thiếu</th></tr></thead>
+			<tbody>
+			<tr><td class="lead"><b>SM0412-TRANG-S</b></td><td data-label="Cần" class="r num">150</td><td data-label="Có thể bán" class="r num">96</td><td data-label="Thiếu" class="r num err-text">54</td></tr>
+			<tr><td class="lead"><b>QA0920-DEN-S</b></td><td data-label="Cần" class="r num">100</td><td data-label="Có thể bán" class="r num">72</td><td data-label="Thiếu" class="r num err-text">28</td></tr>
+			</tbody>
+		</table>
+		</div>
+		<div class="row"><button class="btn btn-line">Sửa số suất</button></div>
+	</div>
+	<div class="box box-err stack-sm" data-ca="chong-gio">
+		<b>Chưa lên lịch: DS2201-DEN-M đã nằm trong đợt "Đêm 12.12 khung 2" (01:00 → 03:00 12/12), chồng giờ với đợt này.</b>
+		<p>Một biến thể không được bán flash ở hai đợt cùng lúc. Bỏ món khỏi một đợt hoặc dời giờ cho không chồng.</p>
+		<div class="row"><button class="btn btn-line">Mở đợt "Đêm 12.12 khung 2"</button></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI E ============ -->
+<section class="st" data-ca="khong-sua-sau-len-lich"><p class="xs">TRẠNG THÁI E</p><h2>Đã lên lịch (chưa tới giờ mở): chỉ Thêm suất, Đóng sớm; món, giá, giờ khóa kèm lý do</h2></section>
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Khuyến mãi / Flash sale / Flash sale mừng sinh nhật…</p><h1 class="wrap-any">Flash sale mừng sinh nhật ELIMAZ sáu tuổi: đầm công sở, áo sơ mi lụa, chân váy bút chì và áo khoác dạ, đồng giá từ 199k! <span class="chip chip-line">Đã lên lịch</span></h1><p class="sub num">20:00 28/11/2026 → 22:00 28/11/2026 (giờ VN) · tự mở sau 1 ngày 7 giờ · 12 món · 2.400 suất đang giữ khỏi bán thường</p></div>
+	<div class="row"><button class="btn btn-danger">Đóng sớm</button></div>
+</div>
+<p class="reason">Đợt đã lên lịch nên không sửa được món, giá, giờ. Cần đổi thì Đóng sớm (suất trả về bán thường) rồi tạo đợt mới.</p>
+<div class="tbl-frame" style="margin-top:8px">
+<table class="tbl fsi">
+	<thead><tr><th>Món</th><th class="r">Giá flash</th><th class="r">Suất</th><th class="r">Mỗi khách</th><th class="r">Hạn giữ</th><th class="c-act">Thao tác</th></tr></thead>
+	<tbody>
+	<tr><td class="lead"><div class="sp"><span class="nm clamp2">Đầm công sở cổ sơ mi thắt đai</span><span class="code">DC0105-XANH-M</span></div></td><td data-label="Giá flash" class="r"><b class="money">199.000 ₫</b></td><td data-label="Suất" class="r num">400</td><td data-label="Mỗi khách" class="r num">1</td><td data-label="Hạn giữ" class="r num">10 phút</td><td class="c-act"><div class="row"><button class="btn btn-quiet">Thêm suất</button></div></td></tr>
+	<tr><td class="lead"><div class="sp"><span class="nm clamp2">Áo sơ mi lụa cổ đức</span><span class="code">SM0412-TRANG-M</span></div></td><td data-label="Giá flash" class="r"><b class="money">149.000 ₫</b></td><td data-label="Suất" class="r num">300</td><td data-label="Mỗi khách" class="r num">2</td><td data-label="Hạn giữ" class="r num">10 phút</td><td class="c-act"><div class="row"><button class="btn btn-quiet">Thêm suất</button></div></td></tr>
+	</tbody>
+</table>
+</div>
+<div class="more"><span>Hiện 2 / 12 món</span><button class="btn btn-line">Hiện cả 12 món</button></div>
+
+<!-- ============ TRẠNG THÁI F ============ -->
+<section class="st" data-ca="so-truc-tiep tu-lam-moi"><p class="xs">TRẠNG THÁI F</p><h2>Đang mở: số trực tiếp mỗi món (suất, còn trống, đang giữ, đã bán, đã trả, người mua), tự làm mới; Thêm suất; Đóng sớm có xác nhận</h2></section>
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Khuyến mãi / Flash sale / Trưa thứ Sáu đồng giá 199k</p><h1>Trưa thứ Sáu đồng giá 199k <span class="chip chip-dark">Đang mở</span></h1><p class="sub num">12:00 27/11/2026 → 14:00 27/11/2026 (giờ VN) · còn 1 giờ 28 phút · cập nhật 12:31:05, tự làm mới mỗi 5 giây</p></div>
+	<div class="row"><button class="btn btn-line">Tải lại</button><button class="btn btn-danger" data-ca="dong-som">Đóng sớm</button></div>
+</div>
+<div class="kpis">
+	<div class="kpi"><p class="small muted">Suất</p><p class="v">1.200</p></div>
+	<div class="kpi" data-ca="con-trong"><p class="small muted">Còn trống</p><p class="v">214</p></div>
+	<div class="kpi" data-ca="dang-giu"><p class="small muted">Suất đang giữ</p><p class="v">38</p></div>
+	<div class="kpi" data-ca="da-ban"><p class="small muted">Suất đã bán</p><p class="v">948</p></div>
+	<div class="kpi" data-ca="da-tra"><p class="small muted">Đã trả về bán thường</p><p class="v">0</p></div>
+	<div class="kpi" data-ca="nguoi-mua"><p class="small muted">Người mua (cộng theo món)</p><p class="v">908</p></div>
+</div>
+<div class="tbl-frame" style="margin-top:16px">
+<table class="tbl fsi">
+	<thead><tr><th>Món</th><th class="r">Suất</th><th class="r">Còn trống</th><th class="r">Đang giữ</th><th class="r">Đã bán</th><th class="r">Đã trả</th><th class="r">Người mua</th><th class="c-act">Thao tác</th></tr></thead>
+	<tbody>
+	<tr>
+		<td class="lead"><div class="hold-l"><div class="sp"><span class="nm clamp2">Đầm suông cổ vuông tay phồng vải lụa Hàn mềm mát, dáng dài qua gối, màu đen</span><span class="code">DS2201-DEN-M · <span class="money">199.000 ₫</span></span></div><span class="fs-bar" aria-label="Đã bán 260, đang giữ 14, còn trống 26 trên 300"><i class="is-sold" style="width:86.7%"></i><i class="is-held" style="width:4.6%"></i></span></div></td>
+		<td data-label="Suất" class="r num">300</td><td data-label="Còn trống" class="r num">26</td><td data-label="Đang giữ" class="r num">14</td><td data-label="Đã bán" class="r num">260</td><td data-label="Đã trả" class="r num">0</td><td data-label="Người mua" class="r num">274</td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Thêm suất</button></div></td>
+	</tr>
+	<tr class="is-err">
+		<td class="lead"><div class="hold-l"><div class="sp"><span class="nm clamp2">Áo sơ mi lụa cổ đức</span><span class="code">SM0412-TRANG-M · <span class="money">149.000 ₫</span></span></div><span class="fs-bar" aria-label="Đã bán 394, đang giữ 6, còn trống 0 trên 400"><i class="is-sold" style="width:98.5%"></i><i class="is-held" style="width:1.5%"></i></span><span class="small err-text">Hết suất lúc này: còn 6 suất đang giữ, khách nào không hoàn tất trong hạn thì suất mở lại.</span></div></td>
+		<td data-label="Suất" class="r num">400</td><td data-label="Còn trống" class="r num err-text">0</td><td data-label="Đang giữ" class="r num">6</td><td data-label="Đã bán" class="r num">394</td><td data-label="Đã trả" class="r num">0</td><td data-label="Người mua" class="r num">322</td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Thêm suất</button></div></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="hold-l"><div class="sp"><span class="nm clamp2">Chân váy bút chì xẻ sau</span><span class="code">CV1130-XAM-M · <span class="money">129.000 ₫</span></span></div><span class="fs-bar" aria-label="Đã bán 220, đang giữ 12, còn trống 68 trên 300"><i class="is-sold" style="width:73.3%"></i><i class="is-held" style="width:4%"></i></span></div></td>
+		<td data-label="Suất" class="r num">300</td><td data-label="Còn trống" class="r num">68</td><td data-label="Đang giữ" class="r num">12</td><td data-label="Đã bán" class="r num">220</td><td data-label="Đã trả" class="r num">0</td><td data-label="Người mua" class="r num">232</td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Thêm suất</button></div></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="hold-l"><div class="sp"><span class="nm clamp2">Áo khoác dạ dáng dài hai hàng khuy</span><span class="code">AK0811-BE-M · <span class="money">990.000 ₫</span></span></div><span class="fs-bar" aria-label="Đã bán 74, đang giữ 6, còn trống 120 trên 200"><i class="is-sold" style="width:37%"></i><i class="is-held" style="width:3%"></i></span></div></td>
+		<td data-label="Suất" class="r num">200</td><td data-label="Còn trống" class="r num">120</td><td data-label="Đang giữ" class="r num">6</td><td data-label="Đã bán" class="r num">74</td><td data-label="Đã trả" class="r num">0</td><td data-label="Người mua" class="r num">80</td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Thêm suất</button></div></td>
+	</tr>
+	</tbody>
+</table>
+</div>
+<p class="small muted" style="margin-top:8px"><span class="fs-key is-sold"></span> Đã bán · <span class="fs-key is-held"></span> Đang giữ · <span class="fs-key"></span> Còn trống. "Người mua" đếm số khách đã lấy suất (đang giữ hoặc đã bán) của từng món; khách mua hai món tính ở cả hai. Màn không hiện tên, SĐT khách.</p>
+
+<div class="dlgs" style="margin-top:16px">
+	<div class="dlg" role="dialog" aria-label="Thêm suất" data-ca="them-suat">
+		<div class="dlg-h"><h2>Thêm suất: SM0412-TRANG-M</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p class="small">Áo sơ mi lụa cổ đức · Trắng · M · đang có 400 suất, còn trống 0</p>
+			<label class="field"><span>Thêm *</span><span class="unit"><input class="input" value="50"><span>suất · 1–20.000</span></span></label>
+			<div class="box box-info">Sau khi thêm: <b>450 suất</b>, còn trống 50. Có thể bán thường của mã này <b>118 → 68</b> ngay khi bấm.</div>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark">Thêm 50 suất</button></div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Thêm suất không đủ hàng">
+		<div class="dlg-h"><h2>Thêm suất: DS2201-DEN-M</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<label class="field"><span>Thêm *</span><span class="unit"><input class="input is-err" value="600"><span>suất</span></span><span class="field-err">Không đủ hàng: cần 600, có thể bán 85. Chưa thêm suất nào.</span></label>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark">Thêm 600 suất</button></div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Đóng sớm đợt" data-ca="xac-nhan-dong fs17">
+		<div class="dlg-h"><h2>Đóng sớm "Trưa thứ Sáu đồng giá 199k"?</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p>Website ngừng nhận lượt mua của đợt ngay. <b>Không mở lại được.</b></p>
+			<ul class="small" style="margin:0;padding-left:20px">
+				<li><b>214 suất còn trống</b> trả về bán thường ngay.</li>
+				<li><b>38 suất khách đang giữ</b>: khách vẫn hoàn tất đơn được trong hạn giữ của món; hết hạn thì suất trả về bán thường, không mở lại trong đợt.</li>
+				<li>948 suất đã bán: các đơn đã hoàn tất đi tiếp như đơn thường.</li>
+			</ul>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-danger">Đóng đợt</button></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI G ============ -->
+<section class="st" data-ca="chi-xem-da-dong fs08"><p class="xs">TRẠNG THÁI G</p><h2>Đã đóng: chỉ xem; suất chưa ai lấy đã trả về bán thường</h2></section>
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Khuyến mãi / Flash sale / Áo khoác dạ giờ vàng</p><h1>Áo khoác dạ giờ vàng <span class="chip">Đã đóng</span></h1><p class="sub num">19:00 20/11/2026 → 21:00 20/11/2026 (giờ VN) · đóng sớm bằng tay · 2 món</p></div>
+</div>
+<div class="kpis">
+	<div class="kpi"><p class="small muted">Suất</p><p class="v">200</p></div>
+	<div class="kpi"><p class="small muted">Đã bán</p><p class="v">148</p></div>
+	<div class="kpi"><p class="small muted">Đã trả về bán thường</p><p class="v">52</p></div>
+	<div class="kpi"><p class="small muted">Người mua (cộng theo món)</p><p class="v">131</p></div>
+</div>
+<p class="reason" style="margin-top:8px">Đợt đã đóng: chỉ xem. Muốn bán tiếp thì tạo đợt mới.</p>
+
+<!-- ============ TRẠNG THÁI H ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI H</p><h2>Người khác vừa sửa (409); đang đông, tự gửi lại cùng khóa (503); chỉ có quyền xem</h2></section>
+
+<div class="dlgs">
+	<div class="box box-err stack-sm" data-ca="xung-dot-409"><b>Đợt vừa được người khác sửa, tải lại.</b><p>Chưa lưu gì. Tải lại để thấy món, số suất, trạng thái mới nhất rồi làm lại.</p><div class="row"><button class="btn btn-line">Tải lại</button></div></div>
+	<div class="dlg" role="dialog" aria-label="Đang gửi lại" data-ca="gui-lai-503">
+		<div class="dlg-h"><h2>Lên lịch "Đêm 12.12 khung 1"</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b"><div class="box box-soft">Hệ thống đang bận. Đang tự gửi lại sau 3 giây (lần 2) — vẫn là cùng một lần bấm, không lên lịch hai lần.</div></div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark" disabled>Đang gửi…</button></div>
+	</div>
+	<section class="card" data-ca="chi-doc"><h2>Flash sale</h2><p class="small">Danh sách, số trực tiếp hiện như trạng thái A, F nhưng không có nút Tạo đợt, Sửa, Thêm món, Lên lịch, Thêm suất, Đóng sớm.</p><p class="reason">Bạn chỉ có quyền xem flash sale (thiếu quyền "Quản lý flash sale").</p></section>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

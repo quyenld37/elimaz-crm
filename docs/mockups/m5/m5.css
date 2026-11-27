@@ -59,3 +59,12 @@
 .sw.is-off { color: var(--muted); cursor: not-allowed; }
 .drawer-nav .nav-a { min-height: var(--tap); }
 @media (max-width: 999px) { .drawer-nav .nav-a { min-height: 44px; } }
+
+/* Đợt flash sale (Task 514): thanh chia phần một món đang mở — đã bán (đậm), đang giữ (xám), còn trống (nền); chú thích màu */
+.fs-bar { display: flex; height: 8px; border-radius: 999px; background: var(--surface); overflow: hidden; max-width: 320px; width: 100%; }
+.fs-bar > i { display: block; height: 100%; }
+.fs-bar > i.is-sold { background: var(--ink); }
+.fs-bar > i.is-held { background: var(--edge); }
+.fs-key { display: inline-block; width: 12px; height: 8px; border-radius: 999px; background: var(--surface); border: 1px solid var(--rule); vertical-align: middle; }
+.fs-key.is-sold { background: var(--ink); border-color: var(--ink); }
+.fs-key.is-held { background: var(--edge); border-color: var(--edge); }

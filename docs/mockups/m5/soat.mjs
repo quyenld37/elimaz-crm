@@ -3,6 +3,7 @@
 // bỏ kiểm ô khóa API của M3; thêm (10) khóa dịch vụ hiện một lần chỉ nằm trong ô chỉ đọc .once có nút chép và lời nhắc,
 // không chỗ nào khác chứa khóa đầy đủ; (11) nội dung khách gửi có <script> hiện nguyên chữ, trang không có thẻ script nào
 // ngoài khung.js; (12) menu.html: thứ tự nhóm đúng mục "Xếp module" của kế hoạch M5, không có mục đã bỏ hay của đợt 2.
+// Task 514 (đợt 2 của M5-22) thêm trang flash-sales (màn Đợt flash sale) và khóa CASES của nó; menu có mục "Flash sale".
 // Không phải mã của CRM: chỉ đọc các trang HTML trong thư mục này.
 // Chạy: PW_DIR=<thư mục node_modules/playwright> node docs/mockups/m5/soat.mjs [--no-shot] [tên-trang ...]
 // Playwright không thêm vào repo; trên máy chủ shop có sẵn trong bộ đệm npx (~/.npm/_npx/*/node_modules/playwright).
@@ -35,6 +36,7 @@ const PAGES = {
 	"web-intake": ALL,
 	"audit": ALL,
 	"menu": ALL,
+	"flash-sales": ALL,
 	// Trang so sánh chụp sau cùng vì nó nhúng ảnh của các trang trên.
 	"index": [1512, 390],
 };
@@ -78,13 +80,20 @@ const CASES = {
 	"audit": ["ds-nhat-ky", "loc-hanh-dong", "loc-nguoi", "khoang-ngay", "nguoi-nhan-vien", "nguoi-khoa", "nguoi-he-thong",
 		"ten-truong", "khong-gia-tri", "xem-them", "0-dong", "khong-quyen-403"],
 	"menu": ["nhom-website", "yeu-cau", "gop-y", "chien-dich", "qua-sinh-nhat", "banner", "bo-phoi", "hang-tren-web",
-		"nhan-don-web", "khoa-dich-vu", "nhat-ky", "so-dem-menu", "dien-thoai"],
+		"nhan-don-web", "khoa-dich-vu", "nhat-ky", "so-dem-menu", "dien-thoai", "flash-sale"],
+	// Task 514: Task 205 Interfaces (Đợt flash sale), Task 206 Interfaces và Step 1, lỗi của Task 199, 200; fs01 là ca V.
+	"flash-sales": ["fs01", "fs08", "fs17", "ds-dot", "loc-trang-thai", "tt-nhap", "tt-da-len-lich", "tt-dang-mo", "tt-da-dong",
+		"ten-120", "nhieu-dot", "0-dot", "loi-tai", "tao-dot", "soan-dot", "ten-dot", "gio-mo", "gio-dong", "loi-gio", "tim-bien-the",
+		"khong-ban-duoc", "gia-flash", "so-suat", "gioi-han-khach", "han-giu", "them-mon", "sua-mon", "bo-mon", "khong-giam-gia",
+		"bien-the-trung", "nhieu-mon", "len-lich", "xac-nhan-len-lich", "so-suat-bi-giu", "thieu-hang", "moi-mon-thieu",
+		"chong-gio", "khong-sua-sau-len-lich", "so-truc-tiep", "con-trong", "dang-giu", "da-ban", "da-tra", "nguoi-mua",
+		"tu-lam-moi", "them-suat", "dong-som", "xac-nhan-dong", "chi-xem-da-dong", "xung-dot-409", "gui-lai-503", "chi-doc"],
 	"index": [],
 };
 // (12) Thứ tự nhóm menu (kế hoạch M5 mục "Xếp module trên CRM"; "Cài đặt" là hai nhóm "Hệ thống", "Quản trị", QĐ39) và mục
-// không được có (Tổng quan bỏ theo QĐ37; Đơn cần kiểm tra, Kết nối Nhanh bỏ; Flash sale là đợt 2).
+// không được có (Tổng quan bỏ theo QĐ37; Đơn cần kiểm tra, Kết nối Nhanh bỏ). "Flash sale" có mục từ Task 514 (đợt 2).
 const NAV_ORDER = ["Đơn hàng", "Vận chuyển", "Tiền", "Khách hàng", "Khuyến mãi", "Website", "Sản phẩm", "Kho", "Hệ thống", "Quản trị"];
-const NAV_FORBIDDEN = ["Tổng quan", "Đơn cần kiểm tra", "Kết nối Nhanh", "Flash sale"];
+const NAV_FORBIDDEN = ["Tổng quan", "Đơn cần kiểm tra", "Kết nối Nhanh"];
 const HEIGHT = { 1512: 767, 390: 844, 360: 800 };
 
 // Tập có sẵn của DESIGN.md (§1 màu kèm ba sắc chữ C+, §2 cỡ chữ, §3 bo góc). Không thêm giá trị ở đây khi chưa có OK.
