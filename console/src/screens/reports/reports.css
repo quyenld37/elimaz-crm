@@ -1,0 +1,324 @@
+/* Lớp riêng của mục Báo cáo (Task 239, M6-16), chép từ docs/m6/mockup/m6.css đã chốt. Chỉ biến có sẵn của styles.css:
+   không màu, cỡ chữ, bo góc mới. Mọi luật nằm dưới .rp để không đụng .kpi, .toast… của màn khác (CSS của các màn nạp
+   chung một gói). Không có gì chỉ hiện khi rê chuột. */
+
+/* Bảng số liệu (.rt): KHÔNG đổi thành thẻ dưới 760px; luôn nằm trong .rt-frame.scroll-x, rộng hơn màn thì cuộn ngang
+   trong khung, cột đầu dính trái; trang không cuộn ngang. */
+.rp .scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.rp .rt-frame {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  min-width: 0;
+  max-width: 100%;
+}
+.rp .rt {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.rp .rt th {
+  text-align: right;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--label);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+  white-space: nowrap;
+}
+.rp .rt td {
+  text-align: right;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.rp .rt th:first-child,
+.rp .rt td:first-child {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: var(--paper);
+  z-index: 1;
+  box-shadow: inset -1px 0 0 var(--rule);
+}
+.rp .rt th:first-child {
+  background: var(--surface);
+}
+.rp .rt td.l,
+.rp .rt th.l {
+  text-align: left;
+}
+.rp .rt tr.is-total td {
+  font-weight: 700;
+  background: var(--surface);
+  border-bottom: 0;
+}
+.rp .rt tr:last-child td {
+  border-bottom: 0;
+}
+.rp .rt td .nm {
+  display: block;
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 759px) {
+  .rp .rt td .nm {
+    max-width: 150px;
+  }
+}
+.rp .cell-a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  min-width: var(--tap);
+}
+
+/* Ô số bấm được: gạch chân chấm để thấy bấm được mà không cần rê chuột. */
+.rp .cell-n {
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.rp .cell-n[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: var(--r);
+  text-decoration: none;
+}
+.rp .cell-n.money {
+  white-space: nowrap;
+}
+
+/* Ô số tổng quan (cả ô là một liên kết khi có đơn). */
+.rp .kpis {
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.rp .kpis.is-6 {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+.rp .kpi {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  padding: var(--space-md);
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+.rp a.kpi:hover {
+  background: var(--surface);
+}
+.rp .kpi[aria-current="true"] {
+  border-color: var(--ink);
+}
+.rp .kpi .k {
+  font-size: 13px;
+  color: var(--label);
+  font-weight: 600;
+}
+.rp .kpi .v {
+  font-size: 26px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--title);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.rp .kpi .s {
+  font-size: 12px;
+  color: var(--muted);
+}
+@media (max-width: 759px) {
+  .rp .kpis,
+  .rp .kpis.is-6 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-sm);
+  }
+  .rp .kpi {
+    padding: 8px 12px;
+  }
+  .rp .kpi .v {
+    font-size: 18px;
+  }
+}
+
+/* Khối "Chờ xử lý": số hiện tại, không theo kỳ (viền đậm để khác ô theo kỳ). */
+.rp .now {
+  border: 1px solid var(--ink);
+  border-radius: var(--r-box);
+  padding: var(--space-md);
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.rp .now .kpis {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 759px) {
+  .rp .now {
+    padding: var(--space-sm) 12px;
+  }
+}
+
+/* Chọn kỳ: các nút .toggle cùng hai ô ngày khi chọn Tùy chọn. */
+.rp .period {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.rp .period .dates {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.rp .period .dates .input {
+  width: 160px;
+}
+@media (max-width: 759px) {
+  .rp .period .toggle {
+    flex: 1 1 auto;
+  }
+  .rp .period .dates {
+    width: 100%;
+  }
+  .rp .period .dates .input {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
+}
+
+/* Dòng "Cập nhật lúc" và loại ngày đang lọc. */
+.rp .meta {
+  display: flex;
+  gap: var(--space-sm) var(--space-md);
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+.rp .meta b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Thanh ngang theo ngày (Q15: không thư viện biểu đồ). */
+.rp .bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.rp .bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ink);
+}
+.rp .bar.is-day {
+  min-width: 120px;
+  width: 100%;
+}
+@media (max-width: 759px) {
+  .rp .bar.is-day {
+    min-width: 72px;
+  }
+}
+
+/* Thông báo chạy nền và tệp xuất. */
+.rp .toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: var(--r-box);
+  padding: 8px 8px 8px var(--space-md);
+  max-width: 520px;
+  box-shadow: var(--shadow);
+  flex-wrap: wrap;
+}
+.rp .toast .grow {
+  min-width: 160px;
+}
+.rp .toast .btn {
+  border-color: var(--paper);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* Bảng + ngăn chi tiết bên phải (máy tính); dưới 1000px ngăn là trang riêng có nút quay lại, báo cáo ẩn đi. */
+.rp .dd {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-md);
+  align-items: start;
+}
+.rp .dd.is-open {
+  grid-template-columns: minmax(0, 1fr) 520px;
+}
+.rp .dd-panel {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  box-shadow: var(--shadow);
+  padding: var(--space-md);
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+  background: var(--paper);
+}
+.rp .dd-panel .dd-h {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-start;
+}
+.rp .dd-panel .dd-h .grow {
+  display: grid;
+  gap: 2px;
+}
+.rp .dd-back {
+  display: none;
+}
+@media (max-width: 1199px) {
+  .rp .dd.is-open {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 999px) {
+  .rp .dd.is-open .rep-main {
+    display: none;
+  }
+  .rp .dd-panel {
+    box-shadow: none;
+    border: 0;
+    padding: 0;
+  }
+  .rp .dd-back {
+    display: inline-flex;
+  }
+  .rp .dd-close {
+    display: none;
+  }
+}
