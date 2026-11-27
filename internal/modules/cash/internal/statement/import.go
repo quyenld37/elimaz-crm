@@ -73,13 +73,19 @@ type StoredLine struct {
 	ShipmentID                 *uuid.UUID
 	ExpectedAmount, DiffAmount *int64
 	PostedTransferID           *uuid.UUID
+	// OrderID, OrderCode: đơn của vận đơn đã khớp (nil, rỗng khi chưa khớp vận đơn nào).
+	OrderID   *uuid.UUID
+	OrderCode string
 }
 
-// MatchTotal là số dòng và tổng COD của một kết quả khớp.
+// MatchTotal là số dòng, tổng COD, tổng phí hãng (phí + phí khác) và tổng phần hãng trả thiếu (chênh âm, đổi dấu)
+// của một kết quả khớp.
 type MatchTotal struct {
 	MatchStatus string
 	Lines       int32
 	COD         int64
+	Fee         int64
+	Short       int64
 }
 
 // ImportInput là một lần nhập: tệp (đã đọc, băm SHA-256 hex của nội dung ngoài transaction), tài khoản hãng, định
@@ -186,10 +192,23 @@ func Lines(ctx context.Context, tx pgx.Tx, id uuid.UUID, matchStatus string, aft
 			ID: r.ID, LineNo: r.LineNo, TrackingCode: r.TrackingCode, COD: r.CodAmount, Fee: r.FeeAmount,
 			OtherFee: r.OtherFee, Net: r.NetAmount, PaidOn: datePtr(r.PaidOn), MatchStatus: r.MatchStatus,
 			ShipmentID: uuidPtr(r.ShipmentID), ExpectedAmount: int8Ptr(r.ExpectedAmount), DiffAmount: int8Ptr(r.DiffAmount),
-			PostedTransferID: uuidPtr(r.PostedTransferID),
+			PostedTransferID: uuidPtr(r.PostedTransferID), OrderID: uuidPtr(r.OrderID), OrderCode: r.OrderCode.String,
 		})
 	}
 	return out, nil
+}
+
+// AccountNames đọc tên tài khoản hãng theo mã qua fulfillment.carrier_accounts_v; mã không có vắng trong kết quả.
+func AccountNames(ctx context.Context, tx pgx.Tx, ids []uuid.UUID) (map[uuid.UUID]string, error) {
+	rows, err := store.New(tx).CarrierAccountNames(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("đọc tên tài khoản hãng: %w", err)
+	}
+	names := make(map[uuid.UUID]string, len(rows))
+	for _, r := range rows {
+		names[r.ID] = r.Name
+	}
+	return names, nil
 }
 
 // Totals đọc số dòng và tổng COD theo kết quả khớp của mọi dòng của bảng kê id.
@@ -200,7 +219,9 @@ func Totals(ctx context.Context, tx pgx.Tx, id uuid.UUID) ([]MatchTotal, error) 
 	}
 	out := make([]MatchTotal, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, MatchTotal{MatchStatus: r.MatchStatus, Lines: r.Lines, COD: r.CodAmount})
+		out = append(out, MatchTotal{
+			MatchStatus: r.MatchStatus, Lines: r.Lines, COD: r.CodAmount, Fee: r.FeeAmount, Short: r.ShortAmount,
+		})
 	}
 	return out, nil
 }

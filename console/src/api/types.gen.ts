@@ -4140,6 +4140,10 @@ export type CodStatement = {
     id: string;
     carrierKey: string;
     carrierAccountId: string;
+    /**
+     * Tên tài khoản hãng (đọc từ kết nối vận chuyển); để màn hiện mà người xem không cần quyền xem kết nối (Task M3-46)
+     */
+    carrierAccountName?: string;
     fileId: string;
     format: string;
     periodFrom?: string;
@@ -4165,6 +4169,14 @@ export type CodStatementLine = {
     lineNo: number;
     trackingCode: string;
     shipmentId?: string;
+    /**
+     * Đơn của vận đơn đã khớp (Task M3-46)
+     */
+    orderId?: string;
+    /**
+     * Số đơn của vận đơn đã khớp (Task M3-46)
+     */
+    orderCode?: string;
     codAmount: Money;
     feeAmount: SignedMoney;
     otherFee: SignedMoney;
@@ -4176,10 +4188,15 @@ export type CodStatementLine = {
     postedTransferId?: string;
 };
 
+/**
+ * Một nhóm kết quả khớp: số dòng, tổng COD; feeAmount là tổng phí hãng (phí + phí khác), shortAmount là tổng phần hãng trả thiếu (chênh âm, đổi dấu) của các dòng trong nhóm (Task M3-46)
+ */
 export type CodMatchTotal = {
     matchStatus: CodMatchStatus;
     count: number;
     codAmount: Money;
+    feeAmount?: SignedMoney;
+    shortAmount?: SignedMoney;
 };
 
 export type CodStatementDetail = {
@@ -4202,7 +4219,15 @@ export type CodDiscrepancy = {
     statementId?: string;
     lineNo?: number;
     shipmentId?: string;
+    /**
+     * Đơn của vận đơn (Task M3-46)
+     */
+    orderId?: string;
     orderCode?: string;
+    /**
+     * Hãng của bảng kê hay của vận đơn (Task M3-46)
+     */
+    carrierKey?: string;
     trackingCode?: string;
     codAmount?: Money;
     expectedAmount?: SignedMoney;

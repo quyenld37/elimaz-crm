@@ -1,0 +1,123 @@
+/* Màn Đối soát COD (mockup docs/mockups/m3/doi-soat-cod.html, m3.css). Chỉ token có sẵn: không màu, cỡ chữ, bo góc mới. */
+.cod .who-c {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cod .money {
+  white-space: nowrap;
+}
+.cod .ok-text {
+  color: var(--success);
+}
+.cod .cell-a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+}
+@media (min-width: 760px) {
+  .cod-t .c-act {
+    width: 1%;
+    white-space: nowrap;
+  }
+}
+
+/* Trạng thái đang phân tích: chip và thanh chạy (API chưa báo phần trăm). */
+.cod .st-busy {
+  display: grid;
+  gap: 4px;
+  min-width: 140px;
+}
+.cod .bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.cod .bar > i {
+  display: block;
+  height: 100%;
+  width: 40%;
+  border-radius: 999px;
+  background: var(--ink);
+  animation: cod-run 1.4s ease-in-out infinite;
+}
+@keyframes cod-run {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cod .bar > i {
+    animation: none;
+  }
+}
+.cod .st-err {
+  display: grid;
+  gap: 2px;
+  justify-items: end;
+}
+
+/* Nhóm kết quả khớp: mỗi nhóm một ô có số dòng và tổng tiền (HV31). */
+.grps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-sm);
+}
+.grp {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  padding: 8px 12px;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  text-decoration: none;
+  color: var(--ink);
+  min-height: var(--tap);
+}
+.grp[aria-current="true"] {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+.grp.is-bad {
+  border-color: var(--buy);
+  background: var(--soft-sale);
+}
+.grp.is-off {
+  background: var(--surface);
+}
+.grp .money {
+  font-size: 16px;
+}
+
+/* Hộp nhập: ô kéo thả, tệp đã tải lên. */
+.cod-dlg .drop {
+  border: 1px dashed var(--edge);
+  border-radius: var(--r-box);
+  padding: var(--space-lg);
+  text-align: center;
+  display: grid;
+  gap: var(--space-sm);
+  justify-items: center;
+  background: var(--paper);
+}
+.cod-dlg .drop.is-over {
+  border-color: var(--ink);
+}
+.cod-dlg .oitem {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  flex-wrap: wrap;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+}
+.cod-dlg .oitem .grow {
+  min-width: 140px;
+  overflow-wrap: anywhere;
+}

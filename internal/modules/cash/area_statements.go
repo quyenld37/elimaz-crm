@@ -204,3 +204,9 @@ func (*Service) ListStatements(ctx context.Context, tx pgx.Tx, f StatementListFi
 	}
 	return items, next, nil
 }
+
+// CarrierAccountNames đọc tên tài khoản hãng theo mã (view công bố của fulfillment, trong tx của tenant) cho đầu bảng
+// kê; mã không có (tenant khác, đã xóa) vắng trong kết quả.
+func (*Service) CarrierAccountNames(ctx context.Context, tx pgx.Tx, ids []uuid.UUID) (map[uuid.UUID]string, error) {
+	return statement.AccountNames(ctx, tx, ids) //nolint:wrapcheck // statement đã bọc
+}

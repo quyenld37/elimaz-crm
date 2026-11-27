@@ -16325,6 +16325,9 @@ components:
         carrierAccountId:
           type: string
           format: uuid
+        carrierAccountName:
+          type: string
+          description: Tên tài khoản hãng (đọc từ kết nối vận chuyển); để màn hiện mà người xem không cần quyền xem kết nối (Task M3-46)
         fileId:
           type: string
           format: uuid
@@ -16383,6 +16386,13 @@ components:
         shipmentId:
           type: string
           format: uuid
+        orderId:
+          type: string
+          format: uuid
+          description: Đơn của vận đơn đã khớp (Task M3-46)
+        orderCode:
+          type: string
+          description: Số đơn của vận đơn đã khớp (Task M3-46)
         codAmount:
           $ref: "#/components/schemas/Money"
         feeAmount:
@@ -16405,6 +16415,7 @@ components:
           format: uuid
     CodMatchTotal:
       type: object
+      description: 'Một nhóm kết quả khớp: số dòng, tổng COD; feeAmount là tổng phí hãng (phí + phí khác), shortAmount là tổng phần hãng trả thiếu (chênh âm, đổi dấu) của các dòng trong nhóm (Task M3-46)'
       required: [matchStatus, count, codAmount]
       properties:
         matchStatus:
@@ -16414,6 +16425,10 @@ components:
           format: int32
         codAmount:
           $ref: "#/components/schemas/Money"
+        feeAmount:
+          $ref: "#/components/schemas/SignedMoney"
+        shortAmount:
+          $ref: "#/components/schemas/SignedMoney"
     CodStatementDetail:
       type: object
       required: [statement, totals, lines]
@@ -16457,8 +16472,15 @@ components:
         shipmentId:
           type: string
           format: uuid
+        orderId:
+          type: string
+          format: uuid
+          description: Đơn của vận đơn (Task M3-46)
         orderCode:
           type: string
+        carrierKey:
+          type: string
+          description: Hãng của bảng kê hay của vận đơn (Task M3-46)
         trackingCode:
           type: string
         codAmount:

@@ -1,4 +1,4 @@
-// Menu của khung (mockup M1 docs/mockups/m1/khung.js; M2 thêm "Đơn hàng", "Khách hàng", "Khuyến mãi" đứng đầu, HV01 của docs/mockups/m2): các nhóm cố định theo thứ tự; mỗi màn tự khai Screen trong
+// Menu của khung (mockup M1 docs/mockups/m1/khung.js; M2 thêm "Đơn hàng", "Khách hàng", "Khuyến mãi" đứng đầu, HV01 của docs/mockups/m2; M3 thêm "Tiền" sau "Đơn hàng", HV01 của docs/mockups/m3): các nhóm cố định theo thứ tự; mỗi màn tự khai Screen trong
 // route.tsx của thư mục màn (quy ước src/app/loadScreens.ts). Menu chỉ hiện màn người dùng có quyền (bất kỳ phạm vi
 // nào); API vẫn kiểm quyền thật.
 import type { ReactNode } from "react";
