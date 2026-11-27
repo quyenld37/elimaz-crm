@@ -2,9 +2,12 @@
 // nhóm menu "Báo cáo" giữa "Kho" và "Hệ thống". Màn của Task 240 (Báo cáo đơn, Hãng, Bán chạy), 241 (Tồn, Tệp xuất)
 // thêm dòng của mình vào đây, order 20, 30, 40, 50, 60.
 import type { ScreenRoute } from "../../app/loadScreens";
+import { BestSellers } from "./BestSellers";
+import { CarriersReport } from "./CarriersReport";
 import { Dashboard } from "./Dashboard";
 import { ExportsNavCount } from "./ExportsNavCount";
 import { InventoryReports } from "./InventoryReports";
+import { OrdersReport } from "./OrdersReport";
 import { RunsPage } from "./RunsPage";
 
 export const screens: readonly ScreenRoute[] = [
@@ -15,6 +18,30 @@ export const screens: readonly ScreenRoute[] = [
     permission: "report.sales.read",
     order: 10,
     element: <Dashboard />,
+  },
+  {
+    path: "/bao-cao/don",
+    label: "Báo cáo đơn",
+    group: "Báo cáo",
+    permission: "report.sales.read",
+    order: 20,
+    element: <OrdersReport />,
+  },
+  {
+    path: "/bao-cao/van-chuyen",
+    label: "Hãng vận chuyển",
+    group: "Báo cáo",
+    permission: "report.sales.read",
+    order: 30,
+    element: <CarriersReport />,
+  },
+  {
+    path: "/bao-cao/ban-chay",
+    label: "Bán chạy",
+    group: "Báo cáo",
+    permission: "report.sales.read",
+    order: 40,
+    element: <BestSellers />,
   },
   {
     path: "/bao-cao/ton-kho",

@@ -14,6 +14,9 @@ describe("route.tsx của màn Báo cáo", () => {
   it("khai đúng path, nhãn, nhóm Báo cáo, quyền, trang ẩn, also, order", () => {
     expect(routeRows(screens)).toEqual([
       ["/bao-cao/tong-quan", "Tổng quan", "Báo cáo", "report.sales.read", false, [], 10],
+      ["/bao-cao/don", "Báo cáo đơn", "Báo cáo", "report.sales.read", false, [], 20],
+      ["/bao-cao/van-chuyen", "Hãng vận chuyển", "Báo cáo", "report.sales.read", false, [], 30],
+      ["/bao-cao/ban-chay", "Bán chạy", "Báo cáo", "report.sales.read", false, [], 40],
       ["/bao-cao/ton-kho", "Tồn và xuất nhập tồn", "Báo cáo", "report.inventory.read", false, [], 50],
       ["/bao-cao/tep-xuat", "Tệp xuất", "Báo cáo", "report.sales.read", false, [], 60],
     ]);
@@ -25,8 +28,15 @@ describe("route.tsx của màn Báo cáo", () => {
   });
 
   it("chỉ người có report.sales.read thấy mục Tổng quan trên menu", () => {
-    const [overview, stock] = screens;
+    const overview = screens.find((s) => s.path === "/bao-cao/tong-quan");
+    const stock = screens.find((s) => s.path === "/bao-cao/ton-kho");
     if (overview === undefined || stock === undefined) throw new Error("thiếu màn");
+    for (const path of ["/bao-cao/don", "/bao-cao/van-chuyen", "/bao-cao/ban-chay"]) {
+      const s = screens.find((x) => x.path === path);
+      if (s === undefined) throw new Error(`thiếu màn ${path}`);
+      expect(canSee(grantsOf("report.sales.read"), s)).toBe(true);
+      expect(canSee(grantsOf("report.inventory.read"), s)).toBe(false);
+    }
     expect(canSee(grantsOf("report.sales.read"), overview)).toBe(true);
     expect(canSee(grantsOf("report.inventory.read"), overview)).toBe(false);
     expect(canSee(grantsOf("report.inventory.read"), stock)).toBe(true);

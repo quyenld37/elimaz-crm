@@ -7,7 +7,8 @@ import type { ReportState } from "./useReport";
 
 export const TEXT_BACKGROUND = "Báo cáo nặng, đang chạy nền. Sẽ báo khi xong.";
 
-type Status = Pick<ReportState<{ status: string }>, "phase" | "message" | "reload">;
+type Status = Pick<ReportState<{ status: string }>, "phase" | "message" | "reload"> &
+  Partial<Pick<ReportState<{ status: string }>, "retryRun">>;
 
 export function ReloadButton({ rep, disabled = false }: { rep: Status; disabled?: boolean }) {
   return (
@@ -44,14 +45,27 @@ export function ReportBanners({ rep, failedHint }: { rep: Status; failedHint: st
       );
     case "background":
       return (
-        <RunNotice
-          text={TEXT_BACKGROUND}
-          action={
-            <Link className="btn btn-line" to={EXPORTS_PATH}>
-              Tệp xuất
-            </Link>
-          }
-        />
+        <>
+          <RunNotice
+            text={TEXT_BACKGROUND}
+            action={
+              <Link className="btn btn-line" to={EXPORTS_PATH}>
+                Tệp xuất
+              </Link>
+            }
+          />
+          {/* Không tạo được lần chạy nền (mất mạng, bận): nói rõ và cho gửi lại cùng khóa chống trùng. */}
+          {rep.message !== null && rep.retryRun !== undefined && (
+            <div className="box box-err stack-sm" role="alert">
+              <b>{rep.message}</b>
+              <div className="row">
+                <button type="button" className="btn btn-line" onClick={rep.retryRun}>
+                  Thử lại
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       );
     case "failed":
       return (

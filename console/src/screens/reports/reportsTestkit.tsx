@@ -173,7 +173,7 @@ export function makeRun(id: string, p: Partial<ReportRun> = {}): ReportRun {
 
 const RUN_PATH = /^\/api\/v1\/reports\/sales\/runs\/([^/]+)(\/file)?$/;
 
-function readRoute(f: ReportsFake, path: string, q: URLSearchParams): Response {
+export function readRoute(f: ReportsFake, path: string, q: URLSearchParams): Response {
   if (path === "/api/v1/me") return reply({ userId: "me", email: "a@elimaz.vn", grants: f.grants } satisfies Me);
   if (path.startsWith("/api/v1/reports/")) f.gets.push(`${path}?${q.toString()}`);
   if (path === "/api/v1/reports/sales/dashboard") {
@@ -197,7 +197,7 @@ function readRoute(f: ReportsFake, path: string, q: URLSearchParams): Response {
 }
 
 /** POST …/runs: tạo lần chạy xếp hàng với số thứ tự (run-1, run-2…) và ghi vào f.runs. */
-function writeRoute(f: ReportsFake, path: string, body: Record<string, unknown>): Response {
+export function writeRoute(f: ReportsFake, path: string, body: Record<string, unknown>): Response {
   if (path !== "/api/v1/reports/sales/runs") return reply(NOT_FOUND, 404);
   const id = `run-${String(f.runs.size + 1)}`;
   const params = typeof body.params === "object" && body.params !== null ? { ...body.params } : {};
