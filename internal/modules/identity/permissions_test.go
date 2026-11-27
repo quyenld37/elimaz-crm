@@ -121,6 +121,8 @@ func TestPermissionsList(t *testing.T) {
 		"order.requests.read": identity.ScopeNone, "order.requests.manage": identity.ScopeNone,
 		// M5 (Task 468): quà sinh nhật.
 		"promotion.birthday.manage": identity.ScopeShop,
+		// M5 (Task 199): đợt flash sale.
+		"promotion.flash.read": identity.ScopeNone, "promotion.flash.manage": identity.ScopeShop,
 		// M5 (Task 455): góp ý của khách.
 		"customer.feedback.read": identity.ScopeShop, "customer.feedback.manage": identity.ScopeShop,
 		// M5 (Task 453): banner trang chủ.

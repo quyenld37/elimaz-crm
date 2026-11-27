@@ -15,6 +15,18 @@ func (s *ClaimLiveCommentRequest) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *FlashItemInput) setDefaults() {
+	{
+		val := int32(1)
+		s.PerCustomerLimit.SetTo(val)
+	}
+	{
+		val := int32(10)
+		s.HoldMinutes.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *WebCampaignInput) setDefaults() {
 	{
 		val := bool(false)

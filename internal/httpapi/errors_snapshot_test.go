@@ -385,6 +385,11 @@ func domainErrorSnapshot() []snapshotCase {
 		{"promotion.ErrBatchConflict", promotion.ErrBatchConflict, http.StatusUnprocessableEntity, "batch_conflict"},
 		{"promotion.ErrRunInProgress", promotion.ErrRunInProgress, http.StatusConflict, "another_run_in_progress"},
 		{"promotion.ErrInvalidGiftSettings", promotion.ErrInvalidGiftSettings, http.StatusUnprocessableEntity, "invalid_gift_settings"},
+		{"promotion.ErrNotEditable", promotion.ErrNotEditable, http.StatusUnprocessableEntity, "not_editable"},
+		{"promotion.ErrNotADiscount", promotion.ErrNotADiscount, http.StatusUnprocessableEntity, "not_a_discount"},
+		{"promotion.ErrFlashItemExists", promotion.ErrFlashItemExists, http.StatusUnprocessableEntity, "already_exists"},
+		{"promotion.ErrFlashWindow", promotion.ErrFlashWindow, http.StatusUnprocessableEntity, "invalid_flash_window"},
+		{"promotion.ErrVariantNotForSale", promotion.ErrVariantNotForSale, http.StatusUnprocessableEntity, "variant_not_for_sale"},
 		{"promotion.ErrInvalidInput", promotion.ErrInvalidInput, http.StatusBadRequest, "invalid_input"},
 		{"cash.ErrOrderNotFound", cash.ErrOrderNotFound, http.StatusNotFound, "not_found"},
 		{"cash.ErrObligationNotFound", cash.ErrObligationNotFound, http.StatusNotFound, "not_found"},
@@ -592,6 +597,11 @@ func domainErrorMembership() []membershipCase {
 		{"promotionError", promotionError, promotion.ErrNotFound},
 		{"promotionError", promotionError, promotion.ErrVersionConflict},
 		{"promotionError", promotionError, promotion.ErrInvalidInput},
+		{"promotionError", promotionError, promotion.ErrNotEditable},
+		{"promotionError", promotionError, promotion.ErrNotADiscount},
+		{"promotionError", promotionError, promotion.ErrFlashItemExists},
+		{"promotionError", promotionError, promotion.ErrFlashWindow},
+		{"promotionError", promotionError, promotion.ErrVariantNotForSale},
 		{"queriesError", queriesError, queries.ErrInvalidInput},
 	}
 }

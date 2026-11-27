@@ -57,6 +57,14 @@ type Handler interface {
 	//
 	// PUT /api/v1/customers/{id}/tags/{tagId}
 	AddCustomerTag(ctx context.Context, params AddCustomerTagParams) (AddCustomerTagRes, error)
+	// AddFlashItem implements addFlashItem operation.
+	//
+	// Thêm món vào đợt nháp: biến thể bán được (422 variant_not_for_sale), giá flash
+	// thấp hơn giá thường (422 not_a_discount), một biến thể một lần (422 already_exists)
+	// (Task 199).
+	//
+	// POST /api/v1/flash-sales/{flashSaleId}/items
+	AddFlashItem(ctx context.Context, req *FlashItemInput, params AddFlashItemParams) (AddFlashItemRes, error)
 	// AddOrderNote implements addOrderNote operation.
 	//
 	// Thêm ghi chú nội bộ của đơn (không gửi hãng) (Task M2-24).
@@ -343,6 +351,13 @@ type Handler interface {
 	//
 	// POST /api/v1/customer-tags
 	CreateCustomerTag(ctx context.Context, req *CreateCustomerTagRequest, params CreateCustomerTagParams) (CreateCustomerTagRes, error)
+	// CreateFlashSale implements createFlashSale operation.
+	//
+	// Tạo đợt nháp; kết thúc không sau bắt đầu hay dài quá 7 ngày → 422
+	// invalid_flash_window (Task 199).
+	//
+	// POST /api/v1/flash-sales
+	CreateFlashSale(ctx context.Context, req *FlashSaleInput, params CreateFlashSaleParams) (CreateFlashSaleRes, error)
 	// CreateLabelBatch implements createLabelBatch operation.
 	//
 	// In nhãn theo lô: nhóm vận đơn theo tài khoản hãng, mỗi nhóm một việc tải nhãn;
@@ -641,6 +656,12 @@ type Handler interface {
 	//
 	// GET /api/v1/files/{id}
 	GetFile(ctx context.Context, params GetFileParams) (GetFileRes, error)
+	// GetFlashSale implements getFlashSale operation.
+	//
+	// Một đợt kèm món (giá thường hiện tại của biến thể) (Task 199).
+	//
+	// GET /api/v1/flash-sales/{flashSaleId}
+	GetFlashSale(ctx context.Context, params GetFlashSaleParams) (GetFlashSaleRes, error)
 	// GetFulfillmentSettings implements getFulfillmentSettings operation.
 	//
 	// Cài đặt vận chuyển của shop; thiếu khóa nào lấy mặc định (Task M3-04).
@@ -1055,6 +1076,12 @@ type Handler interface {
 	//
 	// GET /api/v1/feedback
 	ListFeedback(ctx context.Context, params ListFeedbackParams) (ListFeedbackRes, error)
+	// ListFlashSales implements listFlashSales operation.
+	//
+	// Đợt flash sale, mới nhất trước; lọc trạng thái (Task 199).
+	//
+	// GET /api/v1/flash-sales
+	ListFlashSales(ctx context.Context, params ListFlashSalesParams) (ListFlashSalesRes, error)
 	// ListFollowUps implements listFollowUps operation.
 	//
 	// Hội thoại cần nhắn lại: nhân viên nói sau cùng, khách im quá afterHours, cửa sổ
@@ -1458,6 +1485,12 @@ type Handler interface {
 	//
 	// DELETE /api/v1/customers/{id}/tags/{tagId}
 	RemoveCustomerTag(ctx context.Context, params RemoveCustomerTagParams) (RemoveCustomerTagRes, error)
+	// RemoveFlashItem implements removeFlashItem operation.
+	//
+	// Bỏ món khỏi đợt nháp; trả đợt sau khi bỏ (Task 199).
+	//
+	// DELETE /api/v1/flash-sales/{flashSaleId}/items/{flashItemId}
+	RemoveFlashItem(ctx context.Context, params RemoveFlashItemParams) (RemoveFlashItemRes, error)
 	// RenderReplyTemplate implements renderReplyTemplate operation.
 	//
 	// Điền biến của mẫu cho một hội thoại (thiếu giá trị → 422
@@ -1903,6 +1936,20 @@ type Handler interface {
 	//
 	// PATCH /api/v1/feedback/{id}
 	UpdateFeedback(ctx context.Context, req *UpdateFeedbackRequest, params UpdateFeedbackParams) (UpdateFeedbackRes, error)
+	// UpdateFlashItem implements updateFlashItem operation.
+	//
+	// Sửa giá, số suất, giới hạn mỗi khách, phút giữ của món khi version của món
+	// khớp; đợt không còn nháp → 422 not_editable (Task 199).
+	//
+	// PATCH /api/v1/flash-sales/{flashSaleId}/items/{flashItemId}
+	UpdateFlashItem(ctx context.Context, req *UpdateFlashItemRequest, params UpdateFlashItemParams) (UpdateFlashItemRes, error)
+	// UpdateFlashSale implements updateFlashSale operation.
+	//
+	// Sửa tên, giờ của đợt nháp khi version khớp (409 version_conflict); không còn nháp
+	// → 422 not_editable (Task 199).
+	//
+	// PATCH /api/v1/flash-sales/{flashSaleId}
+	UpdateFlashSale(ctx context.Context, req *UpdateFlashSaleRequest, params UpdateFlashSaleParams) (UpdateFlashSaleRes, error)
 	// UpdateFulfillmentSettings implements updateFulfillmentSettings operation.
 	//
 	// Ghi cài đặt vận chuyển khi version còn khớp (sai → 409 version_conflict); số ngoài

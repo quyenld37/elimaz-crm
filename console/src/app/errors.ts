@@ -145,6 +145,10 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   web_orders_paused: "ELIMAZ đang tạm dừng nhận đơn trên website. Mở lại ở màn Nhận đơn web",
   shipping_carrier_unavailable: "Hãng giao khách chọn không còn giao trên website. Khách cần chọn lại cách giao",
   shipping_fee_mismatch: "Phí giao khách chọn không khớp báo phí hiện tại. Khách cần xem lại phí giao",
+  // Đợt flash sale (Task 199)
+  not_editable: "Đợt flash sale đã lên lịch hoặc đã mở, không sửa được nữa",
+  not_a_discount: "Giá flash phải thấp hơn giá bán thường của sản phẩm",
+  invalid_flash_window: "Giờ kết thúc phải sau giờ bắt đầu, và một đợt dài tối đa 7 ngày",
   // Banner trang chủ (Task 453)
   too_many_banners: "Tối đa 8 banner trên trang chủ",
   invalid_banner:

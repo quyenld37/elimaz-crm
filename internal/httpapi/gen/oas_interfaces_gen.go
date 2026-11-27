@@ -33,6 +33,10 @@ type AddCustomerTagRes interface {
 	addCustomerTagRes()
 }
 
+type AddFlashItemRes interface {
+	addFlashItemRes()
+}
+
 type AddOrderNoteRes interface {
 	addOrderNoteRes()
 }
@@ -199,6 +203,10 @@ type CreateCustomerRes interface {
 
 type CreateCustomerTagRes interface {
 	createCustomerTagRes()
+}
+
+type CreateFlashSaleRes interface {
+	createFlashSaleRes()
 }
 
 type CreateLabelBatchRes interface {
@@ -375,6 +383,10 @@ type GetCustomerTimelineRes interface {
 
 type GetFileRes interface {
 	getFileRes()
+}
+
+type GetFlashSaleRes interface {
+	getFlashSaleRes()
 }
 
 type GetFulfillmentSettingsRes interface {
@@ -615,6 +627,10 @@ type ListCustomersRes interface {
 
 type ListFeedbackRes interface {
 	listFeedbackRes()
+}
+
+type ListFlashSalesRes interface {
+	listFlashSalesRes()
 }
 
 type ListFollowUpsRes interface {
@@ -859,6 +875,10 @@ type RemoveCustomerIdentityRes interface {
 
 type RemoveCustomerTagRes interface {
 	removeCustomerTagRes()
+}
+
+type RemoveFlashItemRes interface {
+	removeFlashItemRes()
 }
 
 type RenderReplyTemplateRes interface {
@@ -1107,6 +1127,14 @@ type UpdateCustomerTagRes interface {
 
 type UpdateFeedbackRes interface {
 	updateFeedbackRes()
+}
+
+type UpdateFlashItemRes interface {
+	updateFlashItemRes()
+}
+
+type UpdateFlashSaleRes interface {
+	updateFlashSaleRes()
 }
 
 type UpdateFulfillmentSettingsRes interface {

@@ -86,6 +86,17 @@ func (UnimplementedHandler) AddCustomerTag(ctx context.Context, params AddCustom
 	return r, ht.ErrNotImplemented
 }
 
+// AddFlashItem implements addFlashItem operation.
+//
+// Thêm món vào đợt nháp: biến thể bán được (422 variant_not_for_sale), giá flash
+// thấp hơn giá thường (422 not_a_discount), một biến thể một lần (422 already_exists)
+// (Task 199).
+//
+// POST /api/v1/flash-sales/{flashSaleId}/items
+func (UnimplementedHandler) AddFlashItem(ctx context.Context, req *FlashItemInput, params AddFlashItemParams) (r AddFlashItemRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // AddOrderNote implements addOrderNote operation.
 //
 // Thêm ghi chú nội bộ của đơn (không gửi hãng) (Task M2-24).
@@ -495,6 +506,16 @@ func (UnimplementedHandler) CreateCustomer(ctx context.Context, req *CreateCusto
 //
 // POST /api/v1/customer-tags
 func (UnimplementedHandler) CreateCustomerTag(ctx context.Context, req *CreateCustomerTagRequest, params CreateCustomerTagParams) (r CreateCustomerTagRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateFlashSale implements createFlashSale operation.
+//
+// Tạo đợt nháp; kết thúc không sau bắt đầu hay dài quá 7 ngày → 422
+// invalid_flash_window (Task 199).
+//
+// POST /api/v1/flash-sales
+func (UnimplementedHandler) CreateFlashSale(ctx context.Context, req *FlashSaleInput, params CreateFlashSaleParams) (r CreateFlashSaleRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -925,6 +946,15 @@ func (UnimplementedHandler) GetCustomerTimeline(ctx context.Context, params GetC
 //
 // GET /api/v1/files/{id}
 func (UnimplementedHandler) GetFile(ctx context.Context, params GetFileParams) (r GetFileRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetFlashSale implements getFlashSale operation.
+//
+// Một đợt kèm món (giá thường hiện tại của biến thể) (Task 199).
+//
+// GET /api/v1/flash-sales/{flashSaleId}
+func (UnimplementedHandler) GetFlashSale(ctx context.Context, params GetFlashSaleParams) (r GetFlashSaleRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1525,6 +1555,15 @@ func (UnimplementedHandler) ListFeedback(ctx context.Context, params ListFeedbac
 	return r, ht.ErrNotImplemented
 }
 
+// ListFlashSales implements listFlashSales operation.
+//
+// Đợt flash sale, mới nhất trước; lọc trạng thái (Task 199).
+//
+// GET /api/v1/flash-sales
+func (UnimplementedHandler) ListFlashSales(ctx context.Context, params ListFlashSalesParams) (r ListFlashSalesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListFollowUps implements listFollowUps operation.
 //
 // Hội thoại cần nhắn lại: nhân viên nói sau cùng, khách im quá afterHours, cửa sổ
@@ -2108,6 +2147,15 @@ func (UnimplementedHandler) RemoveCustomerIdentity(ctx context.Context, params R
 //
 // DELETE /api/v1/customers/{id}/tags/{tagId}
 func (UnimplementedHandler) RemoveCustomerTag(ctx context.Context, params RemoveCustomerTagParams) (r RemoveCustomerTagRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// RemoveFlashItem implements removeFlashItem operation.
+//
+// Bỏ món khỏi đợt nháp; trả đợt sau khi bỏ (Task 199).
+//
+// DELETE /api/v1/flash-sales/{flashSaleId}/items/{flashItemId}
+func (UnimplementedHandler) RemoveFlashItem(ctx context.Context, params RemoveFlashItemParams) (r RemoveFlashItemRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2739,6 +2787,26 @@ func (UnimplementedHandler) UpdateCustomerTag(ctx context.Context, req *UpdateCu
 //
 // PATCH /api/v1/feedback/{id}
 func (UnimplementedHandler) UpdateFeedback(ctx context.Context, req *UpdateFeedbackRequest, params UpdateFeedbackParams) (r UpdateFeedbackRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateFlashItem implements updateFlashItem operation.
+//
+// Sửa giá, số suất, giới hạn mỗi khách, phút giữ của món khi version của món
+// khớp; đợt không còn nháp → 422 not_editable (Task 199).
+//
+// PATCH /api/v1/flash-sales/{flashSaleId}/items/{flashItemId}
+func (UnimplementedHandler) UpdateFlashItem(ctx context.Context, req *UpdateFlashItemRequest, params UpdateFlashItemParams) (r UpdateFlashItemRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateFlashSale implements updateFlashSale operation.
+//
+// Sửa tên, giờ của đợt nháp khi version khớp (409 version_conflict); không còn nháp
+// → 422 not_editable (Task 199).
+//
+// PATCH /api/v1/flash-sales/{flashSaleId}
+func (UnimplementedHandler) UpdateFlashSale(ctx context.Context, req *UpdateFlashSaleRequest, params UpdateFlashSaleParams) (r UpdateFlashSaleRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
