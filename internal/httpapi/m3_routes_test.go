@@ -110,6 +110,7 @@ func TestM3Routes_PendingList(t *testing.T) {
 	e := newM3Env(t)
 	pending := m3Pending(t)
 	m4 := pendingOps(t, "m4_pending.txt") // operation M4 chờ hiện thực (Task 143); 501 của chúng kiểm ở test M4
+	m6 := pendingOps(t, "m6_pending.txt") // operation M6 chờ hiện thực (Task 225); 501 kiểm ở TestM6Contract_StatusCodes
 	param := regexp.MustCompile(`\{[^}]+\}`)
 	stub := 0
 	for _, r := range Routes {
@@ -130,8 +131,8 @@ func TestM3Routes_PendingList(t *testing.T) {
 		rec := serveAs(e.srv, e.keys, r.Method, path, m3Owner, key, body)
 		code, b := rec.Code, rec.Body.String()
 		switch {
-		case code == http.StatusNotImplemented && !pending[r.OperationID] && !m4[r.OperationID]:
-			t.Errorf("%s trả 501 mà không có trong m3_pending.txt, m4_pending.txt", r.OperationID)
+		case code == http.StatusNotImplemented && !pending[r.OperationID] && !m4[r.OperationID] && !m6[r.OperationID]:
+			t.Errorf("%s trả 501 mà không có trong m3_pending.txt, m4_pending.txt, m6_pending.txt", r.OperationID)
 		case m4[r.OperationID] && code != http.StatusNotImplemented && code != http.StatusBadRequest:
 			t.Errorf("%s có trong m4_pending.txt mà trả %d %s: đã làm thì xóa dòng", r.OperationID, code, b)
 		case code == http.StatusNotImplemented:

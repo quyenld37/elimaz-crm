@@ -61,6 +61,8 @@ func defaultRoles() []RoleDef {
 			"order.requests.read", "order.requests.manage",
 			// M4 (Task 143): đọc, trả lời hội thoại, chốt Live trên Page được gán; gửi ảnh cho khách.
 			"conversation.read", "conversation.reply", "live.operate", "files.upload",
+			// M6 (Task 225): báo cáo bán hàng của Page được gán.
+			"report.sales.read",
 		}},
 		{Key: "warehouse", Name: "Kho", Permissions: []Permission{
 			"catalog.read", "inventory.read", "inventory.documents.create", "inventory.stocktake", "fulfillment.read",
@@ -70,6 +72,8 @@ func defaultRoles() []RoleDef {
 			// M3 (Task M3-04).
 			"fulfillment.carrier_accounts.read", "fulfillment.quote", "fulfillment.cancel", "fulfillment.print",
 			"fulfillment.pack", "fulfillment.manual_status", "inventory.aged.read",
+			// M6 (Task 225): báo cáo tồn của kho được gán.
+			"report.inventory.read",
 		}},
 		{Key: "accountant", Name: "Kế toán", Permissions: []Permission{
 			"catalog.read", "inventory.read", "order.read", "fulfillment.read", "realtime.subscribe",
@@ -78,6 +82,8 @@ func defaultRoles() []RoleDef {
 			// M3 (Task M3-04).
 			"cash.cod.read", "cash.statements.import", "cash.statements.confirm", "cash.adjust", "cash.payments.record",
 			"cash.refunds.record", "files.upload",
+			// M6 (Task 225): báo cáo bán hàng và xuất Excel (gán toàn shop mới xuất được).
+			"report.sales.read", "report.export",
 		}},
 	}
 }
@@ -528,8 +534,14 @@ func permissionLabels() map[Permission][3]string {
 		"promotion.birthday.manage":  {groupPromo, "Cài đặt quà sinh nhật, tạo mã ngay, đánh dấu đã nhắn, xuất danh sách", ""},
 		"content.read":               {groupPromo, "Xem nội dung trang chủ website (banner)", ""},
 		"content.manage":             {groupPromo, "Sửa nội dung trang chủ website (banner)", ""},
-		"fulfillment.read":           {groupShipping, "Xem vận đơn", ScopeWarehouse},
-		"fulfillment.ship":           {groupShipping, "Tạo vận đơn, giao hàng", ScopeWarehouse},
+		// M6 (Task 225).
+		"report.sales.read":     {groupPromo, "Xem báo cáo bán hàng", ScopePage},
+		"report.inventory.read": {groupPromo, "Xem báo cáo tồn kho", ScopeWarehouse},
+		"report.export":         {groupPromo, "Xuất báo cáo ra Excel", ""},
+		"report.exports.manage": {groupPromo, "Xem, tải tệp xuất của mọi người", ""},
+		"customer.export":       {groupCustomer, "Xuất danh sách khách ra Excel", ""},
+		"fulfillment.read":      {groupShipping, "Xem vận đơn", ScopeWarehouse},
+		"fulfillment.ship":      {groupShipping, "Tạo vận đơn, giao hàng", ScopeWarehouse},
 		// M3 (Task M3-04).
 		"fulfillment.carrier_accounts.read":   {groupShipping, "Xem kết nối hãng vận chuyển", ""},
 		"fulfillment.carrier_accounts.manage": {groupShipping, "Quản lý kết nối hãng, khóa API, địa chỉ lấy hàng", ""},

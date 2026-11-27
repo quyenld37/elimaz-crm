@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -147,9 +148,39 @@ type Config struct {
 	// thoại không có tin mới quá bấy nhiêu tháng thì việc dọn hằng đêm xóa.
 	ConversationRetentionMonths int
 
+	// Report là cấu hình báo cáo M6 (Task 225): api đọc phần xem tại chỗ và link tải, worker đọc phần chạy nền và tệp
+	// xuất; vai trò khác để không.
+	Report ReportConfig
+
 	// Migrate chỉ khác nil khi Role là RoleMigrate: vai trò khác không bao giờ giữ chuỗi kết nối của chủ bảng.
 	Migrate *MigrateConfig
 }
+
+// ReportConfig là biến môi trường của báo cáo (kế hoạch M6, Global Constraints "Hằng số và biến môi trường mới", Q8,
+// Q11, Q12, Q22). Trường của vai trò khác để không.
+type ReportConfig struct {
+	// api: số báo cáo xem tại chỗ cùng lúc mỗi tiến trình (REPORT_API_SLOTS, 2, trong 1–8), hạn mỗi câu
+	// (REPORT_INTERACTIVE_TIMEOUT, 30s, 1s–60s; quá hạn → chạy nền), số lần chạy nền đang chờ hay chạy của một người
+	// (REPORT_MAX_PENDING_PER_USER, 5, 1–50), hạn của đường dẫn tải ký sẵn (REPORT_LINK_TTL, 5m, 1m–60m).
+	APISlots           int
+	InteractiveTimeout time.Duration
+	MaxPendingPerUser  int
+	LinkTTL            time.Duration
+	// worker: số lần chạy nền cùng lúc (REPORT_WORKER_SLOTS, 2, 1–8); hạn mỗi câu chạy nền (REPORT_BACKGROUND_TIMEOUT,
+	// 60s, phải dưới 75s: hạn giữ chỗ 90 s của hàng đợi trừ thời gian ghi tệp); thư mục tệp tạm (REPORT_TMP_DIR, đường
+	// dẫn tuyệt đối; chưa bắt buộc tới Task M6-14, tệp task 225); số dòng tối đa mỗi tệp (REPORT_MAX_ROWS, 200000, tới
+	// 1.048.575 của Excel); hạn giữ tệp báo cáo (REPORT_FILE_TTL, 168h, 1h–720h) và danh sách khách
+	// (CUSTOMER_EXPORT_TTL, 24h, 1h–168h).
+	WorkerSlots       int
+	BackgroundTimeout time.Duration
+	TmpDir            string
+	MaxRows           int
+	FileTTL           time.Duration
+	CustomerExportTTL time.Duration
+}
+
+// maxBackgroundTimeout: REPORT_BACKGROUND_TIMEOUT phải nhỏ hơn mức này (kế hoạch M6 Q8).
+const maxBackgroundTimeout = 75 * time.Second
 
 // MigrateConfig là phần cấu hình chỉ vai trò migrate có.
 type MigrateConfig struct {
@@ -298,6 +329,7 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 	}
 	if role != RoleMigrate {
 		r.m4(&cfg)
+		r.report(&cfg)
 	}
 
 	if len(r.problems) > 0 {
@@ -530,6 +562,56 @@ func (r *reader) integer(key string, def, lo, hi int) int {
 		return def
 	}
 	return n
+}
+
+// duration đọc biến thời lượng dạng Go (30s, 5m, 168h); vắng → def; sai dạng hay ngoài [lo, hi] → lỗi nêu tên biến.
+func (r *reader) duration(key string, def, lo, hi time.Duration) time.Duration {
+	v := r.optional(key)
+	if v == "" {
+		return def
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d < lo || d > hi {
+		r.problems = append(r.problems, fmt.Sprintf("%s phải là thời lượng (vd 30s, 5m, 24h) trong [%s, %s]", key, lo, hi))
+		return def
+	}
+	return d
+}
+
+// report đọc phần báo cáo của api hay worker (Task 225); vai trò khác không đọc.
+func (r *reader) report(cfg *Config) {
+	switch cfg.Role {
+	case RoleAPI:
+		r.reportAPI(cfg)
+	case RoleWorker:
+		r.reportWorker(cfg)
+	case RoleIngest, RoleMigrate:
+	}
+}
+
+// reportAPI đọc phần báo cáo của api.
+func (r *reader) reportAPI(cfg *Config) {
+	cfg.Report.APISlots = r.integer("REPORT_API_SLOTS", 2, 1, 8)
+	cfg.Report.InteractiveTimeout = r.duration("REPORT_INTERACTIVE_TIMEOUT", 30*time.Second, time.Second, time.Minute)
+	cfg.Report.MaxPendingPerUser = r.integer("REPORT_MAX_PENDING_PER_USER", 5, 1, 50)
+	cfg.Report.LinkTTL = r.duration("REPORT_LINK_TTL", 5*time.Minute, time.Minute, time.Hour)
+}
+
+// reportWorker đọc phần báo cáo của worker.
+func (r *reader) reportWorker(cfg *Config) {
+	cfg.Report.WorkerSlots = r.integer("REPORT_WORKER_SLOTS", 2, 1, 8)
+	cfg.Report.BackgroundTimeout = r.duration("REPORT_BACKGROUND_TIMEOUT", 60*time.Second, time.Second, maxBackgroundTimeout)
+	if cfg.Report.BackgroundTimeout >= maxBackgroundTimeout {
+		r.problems = append(r.problems, fmt.Sprintf("REPORT_BACKGROUND_TIMEOUT phải nhỏ hơn %s (hạn giữ chỗ 90 s của "+
+			"hàng đợi trừ thời gian ghi tệp)", maxBackgroundTimeout))
+	}
+	cfg.Report.TmpDir = r.optional("REPORT_TMP_DIR")
+	if cfg.Report.TmpDir != "" && !filepath.IsAbs(cfg.Report.TmpDir) {
+		r.problems = append(r.problems, "REPORT_TMP_DIR phải là đường dẫn tuyệt đối")
+	}
+	cfg.Report.MaxRows = r.integer("REPORT_MAX_ROWS", 200_000, 1, 1_048_575)
+	cfg.Report.FileTTL = r.duration("REPORT_FILE_TTL", 168*time.Hour, time.Hour, 720*time.Hour)
+	cfg.Report.CustomerExportTTL = r.duration("CUSTOMER_EXPORT_TTL", 24*time.Hour, time.Hour, 168*time.Hour)
 }
 
 // sampler đọc OTEL_TRACES_SAMPLER và OTEL_TRACES_SAMPLER_ARG theo chuẩn của OpenTelemetry (Điểm dừng A, quyết định 2).

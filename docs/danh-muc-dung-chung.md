@@ -243,6 +243,8 @@ type Config struct {
 
 	ConversationRetentionMonths int
 
+	Report ReportConfig
+
 	Migrate *MigrateConfig
 }
 func Load(role Role, getenv func(string) string) (Config, error)
@@ -271,6 +273,19 @@ type MetaConfig struct {
 }
 type MigrateConfig struct {
 	OwnerURL string
+}
+type ReportConfig struct {
+	APISlots           int
+	InteractiveTimeout time.Duration
+	MaxPendingPerUser  int
+	LinkTTL            time.Duration
+
+	WorkerSlots       int
+	BackgroundTimeout time.Duration
+	TmpDir            string
+	MaxRows           int
+	FileTTL           time.Duration
+	CustomerExportTTL time.Duration
 }
 type Role string
 func ParseRole(s string) (Role, error)

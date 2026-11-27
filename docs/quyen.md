@@ -21,7 +21,8 @@ trị nhân viên, vai trò, nền tảng là loại `toàn shop`.
 - Quyền quản trị (loại `toàn shop`) hiện có: `identity.users.manage`, `identity.roles.manage`, `platform.jobs.manage`,
   `platform.health.read`, `platform.files.manage`, `audit.read`; chính sách toàn shop của M2: `order.settings.manage`,
   `promotion.manage`; của M3: `fulfillment.carrier_accounts.manage`, `fulfillment.settings.manage`; của M5:
-  `identity.service_keys.manage`, `order.web_intake.manage`, `content.read`, `content.manage`.
+  `identity.service_keys.manage`, `order.web_intake.manage`, `content.read`, `content.manage`; của M6: `report.export`,
+  `report.exports.manage`, `customer.export` (xuất, tệp xuất của người khác, danh sách khách: Q13, Q14 của kế hoạch M6).
 - **Quyền `web.*` chỉ khóa dịch vụ giữ** (Task 189, ADR-18): khóa của website (`ek_…`, header `Authorization`) chỉ mang
   các quyền `web.*` được cấp lúc tạo (mã: `identity.ServiceKeyPermissions`, không thuộc `identity.Permissions`); không
   vai trò nhân viên nào nhận được chúng (vai trò tự định nghĩa → `unknown_permission`), và khóa không nhận quyền nào
@@ -138,6 +139,11 @@ Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn đ
 | `conversation.assign` | theo đích: page | M4 | owner, manager | Giao hội thoại cho nhân viên khác trên Page được giao |
 | `conversation.settings` | theo đích: page | M4 | owner, manager | Cài đặt hộp chat của Page: nhãn, mẫu trả lời, quy tắc tự động, khung giờ live, xoay vòng |
 | `live.operate` | theo đích: page | M4 | owner, manager, sale | Theo dõi, kết thúc phiên Live; chốt đơn từ comment Live, nhắc khách thiếu địa chỉ (cần thêm `order.create`) |
+| `report.sales.read` | theo đích: page | M6 | owner, manager, sale, accountant | Xem báo cáo bán hàng (tổng quan, đơn, hãng, bán chạy) và lần chạy nền của mình; đơn không gắn Page chỉ người gán toàn shop thấy (Task 225) |
+| `report.inventory.read` | theo đích: warehouse | M6 | owner, manager, warehouse | Xem báo cáo tồn hôm nay, tồn ngày đã qua, xuất nhập tồn của kho được giao (Task 225) |
+| `report.export` | toàn shop | M6 | owner, manager, accountant | Xuất báo cáo bán hàng, tồn kho, danh sách sản phẩm ra Excel, tải tệp của mình (Task 225) |
+| `report.exports.manage` | toàn shop | M6 | owner, manager | Xem, tải lần chạy và tệp xuất của mọi nhân viên (Task 225) |
+| `customer.export` | toàn shop | M6 | owner, manager | Xuất danh sách khách ra Excel (có SĐT; mỗi lần tạo, tải ghi nhật ký; tệp giữ 24 giờ) (Task 225) |
 | `web.catalog.read` | none | M5 | | Khóa dịch vụ: đọc sản phẩm, giá, tồn cho website |
 | `web.orders.create` | none | M5 | | Khóa dịch vụ: tạo đơn web |
 | `web.orders.read` | none | M5 | | Khóa dịch vụ: tra đơn kênh web theo mã đơn web |

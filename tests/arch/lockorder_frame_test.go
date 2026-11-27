@@ -59,8 +59,8 @@ var lockOrderM0M2 = map[string][]string{
 	"13":  {"platform.idempotency_keys", "platform.jobs"},
 }
 
-// lockOrderFrame là khung của M3 (Global Constraints "Thứ tự khóa") và M4 (Task M4-03): nhóm → bảng theo thứ tự (gồm
-// cả bảng của M0–M2 trong nhóm đó).
+// lockOrderFrame là khung của M3 (Global Constraints "Thứ tự khóa"), M4 (Task M4-03) và M6 (Task 225, Q19: nhóm 12a
+// `reporting`): nhóm → bảng theo thứ tự (gồm cả bảng của M0–M2 trong nhóm đó).
 //
 //nolint:gochecknoglobals // bảng mẫu chỉ đọc của test
 var lockOrderFrame = map[string][]string{
@@ -81,6 +81,7 @@ var lockOrderFrame = map[string][]string{
 		"cash.cod_statements", "cash.cod_statement_lines", "cash.cod_transfers", "cash.cod_ledger_entries",
 		"cash.payments", "cash.refund_obligations", "cash.reconcile_runs",
 	},
+	"12a": {"reporting.report_runs", "reporting.stock_snapshot_days", "reporting.stock_daily_snapshots"},
 	"12c": {"platform.settings"},
 	"13":  {"platform.data_deletion_requests", "platform.idempotency_keys", "platform.jobs"},
 }
