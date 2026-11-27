@@ -19,6 +19,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/modules/promotion"
+	"elimaz.com.vn/crm/internal/modules/reporting"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/queries"
 	"elimaz.com.vn/crm/internal/queries/webcatalog"
@@ -250,6 +251,13 @@ func domainErrorSnapshot() []snapshotCase {
 		{"conversation.ErrDraftNotOpen", conversation.ErrDraftNotOpen, http.StatusConflict, "version_conflict"},
 		{"conversation.ErrDraftMismatch", conversation.ErrDraftMismatch, http.StatusUnprocessableEntity, "invalid_input"},
 		{"conversation.ErrOrderCustomerMismatch", conversation.ErrOrderCustomerMismatch, http.StatusUnprocessableEntity, "conversation_customer_mismatch"},
+		// Báo cáo M6 (Task 228).
+		{"reporting.ErrBadDate", reporting.ErrBadDate, http.StatusBadRequest, "bad_date"},
+		{"reporting.ErrFromAfterTo", reporting.ErrFromAfterTo, http.StatusBadRequest, "bad_date"},
+		{"reporting.ErrRangeTooLong", reporting.ErrRangeTooLong, http.StatusBadRequest, "range_too_long"},
+		{"reporting.ErrBadParams", reporting.ErrBadParams, http.StatusBadRequest, "bad_params"},
+		{"reporting.ErrUnknownReport", reporting.ErrUnknownReport, http.StatusBadRequest, "unknown_report"},
+		{"reporting.ErrNotImplemented", reporting.ErrNotImplemented, http.StatusNotImplemented, "not_implemented"},
 		{"conversation.CommentClaimedError", &conversation.CommentClaimedError{ByName: "An"}, http.StatusConflict, "comment_claimed"},
 		{"conversation.OpenDraftExistsError", &conversation.OpenDraftExistsError{}, http.StatusConflict, "open_draft_exists"},
 		{"weborders.ErrBadLimit", weborders.ErrBadLimit, http.StatusBadRequest, "bad_request"},
@@ -561,6 +569,12 @@ func domainErrorMembership() []membershipCase {
 		{"conversationError", conversationError, conversation.ErrDraftNotOpen},
 		{"conversationError", conversationError, conversation.ErrDraftMismatch},
 		{"conversationError", conversationError, conversation.ErrOrderCustomerMismatch},
+		{"reportsError", reportsError, reporting.ErrBadDate},
+		{"reportsError", reportsError, reporting.ErrFromAfterTo},
+		{"reportsError", reportsError, reporting.ErrRangeTooLong},
+		{"reportsError", reportsError, reporting.ErrBadParams},
+		{"reportsError", reportsError, reporting.ErrUnknownReport},
+		{"reportsError", reportsError, reporting.ErrNotImplemented},
 		{"cashError", cashError, cash.ErrCarrierAccountNotFound},
 		{"cashError", cashError, cash.ErrStatementNotFound},
 		{"cashError", cashError, cash.ErrStatementChanged},

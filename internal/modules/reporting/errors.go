@@ -3,7 +3,9 @@ package reporting
 import "errors"
 
 // Lỗi nghiệp vụ của báo cáo (kế hoạch M6, Task 227). Lớp HTTP đổi sang mã của hợp đồng ở errors_reports.go (Task 228):
-// ErrBadDate, ErrFromAfterTo → bad_date; ErrRangeTooLong → range_too_long; ErrBadParams → bad_params.
+// ErrBadDate, ErrFromAfterTo → bad_date; ErrRangeTooLong → range_too_long; ErrBadParams → bad_params; ErrUnknownReport
+// → unknown_report; ErrNotImplemented → 501 not_implemented; ErrRunInBackground (BackgroundError) → 200
+// run_in_background.
 var (
 	// ErrBadDate: ngày không đúng dạng YYYY-MM-DD hoặc không có trên lịch.
 	ErrBadDate = errors.New("reporting: ngày sai")
@@ -15,4 +17,11 @@ var (
 	ErrBadParams = errors.New("reporting: tham số sai")
 	// ErrNoOwnSeller: tenant chưa có người bán của chính shop (kind own, active).
 	ErrNoOwnSeller = errors.New("reporting: không có người bán own")
+	// ErrUnknownReport: khóa báo cáo lạ, hay thuộc họ khác (Task 228).
+	ErrUnknownReport = errors.New("reporting: báo cáo lạ")
+	// ErrNotImplemented: phần của báo cáo mà task của nó chưa làm (tệp giữ chỗ của Task 228), hay báo cáo không có bản
+	// xem tại chỗ (products chỉ xuất tệp).
+	ErrNotImplemented = errors.New("reporting: chưa làm")
+	// ErrRunInBackground: báo cáo không chạy tại chỗ được, phải chạy nền; lỗi thật là *BackgroundError (Is nhận ra).
+	ErrRunInBackground = errors.New("reporting: chạy nền")
 )

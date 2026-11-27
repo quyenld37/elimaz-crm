@@ -21,6 +21,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/order"
+	"elimaz.com.vn/crm/internal/modules/reporting"
 	"elimaz.com.vn/crm/internal/platform/cache"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
@@ -86,6 +87,9 @@ type Deps struct {
 	// Connector → route kết nối Page trả 503 retry_later (Task 149).
 	Channels    *channel.Registry
 	ChannelKeys *fieldcrypt.Keyring
+	// Reports chạy báo cáo M6 tại chỗ có chỗ và hạn giờ (cmd/crm nối REPORT_API_SLOTS, REPORT_INTERACTIVE_TIMEOUT; Task
+	// 228). nil → bộ chạy mặc định (2 chỗ, 30 s) trên DB.
+	Reports *reporting.Interactive
 
 	limiter        *userLimiter  // một bộ đếm chung cho mọi route của nhân viên (prepare)
 	serviceLimiter *userLimiter  // bộ đếm dự phòng của khóa dịch vụ khi RateLimiter nil (prepare)
@@ -121,6 +125,9 @@ func prepare(d Deps) Deps {
 	}
 	if d.WebOrderLimiter == nil {
 		d.WebOrderLimiter = NewWebOrderLimiter(cache.NewRateLimiter(nil, d.Now, d.Metrics), cache.DefaultLimits().WebOrderCustomer, nil)
+	}
+	if d.Reports == nil {
+		d.Reports = reporting.NewInteractive(d.DB, reporting.InteractiveOptions{Metrics: d.Metrics})
 	}
 	if d.CouponGuard == nil {
 		ls := cache.DefaultLimits()
