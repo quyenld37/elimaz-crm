@@ -131,8 +131,8 @@ func writeHandlerError(d Deps, w http.ResponseWriter, r *http.Request, err error
 		writeError(w, r, http.StatusUnsupportedMediaType, codeUnsupportedMedia)
 		return
 	}
-	if reportParamError(r.URL.Path, err) {
-		writeError(w, r, http.StatusBadRequest, codeBadDate)
+	if code, ok := reportParamError(r.URL.Path, err); ok {
+		writeError(w, r, http.StatusBadRequest, code)
 		return
 	}
 	if oe, ok := errors.AsType[ogenerrors.Error](err); ok && oe.Code() >= 400 && oe.Code() < 500 {

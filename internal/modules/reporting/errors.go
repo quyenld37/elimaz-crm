@@ -24,4 +24,6 @@ var (
 	ErrNotImplemented = errors.New("reporting: chưa làm")
 	// ErrRunInBackground: báo cáo không chạy tại chỗ được, phải chạy nền; lỗi thật là *BackgroundError (Is nhận ra).
 	ErrRunInBackground = errors.New("reporting: chạy nền")
+	// ErrPageForbidden: bộ lọc Page có Page ngoài phạm vi report.sales.read của người xem (hợp đồng: 403 forbidden).
+	ErrPageForbidden = errors.New("reporting: Page ngoài phạm vi")
 )

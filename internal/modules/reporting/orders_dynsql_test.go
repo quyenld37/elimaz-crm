@@ -211,7 +211,8 @@ func TestOrderSet_NineOrders(t *testing.T) {
 		{"chưa gửi hãng", Cell{DimCarrier, UnknownKey}, o("O4", "O5", "O6")},
 		{"ngày", Cell{DimDay, "2026-11-17"}, o("O1", "O2", "O3", "O4", "O5", "O6", "O8", "O9")},
 		{"ngày khác", Cell{DimDay, "2026-11-18"}, nil},
-		{"trạng thái thô confirmed", Cell{DimStatus, "confirmed"}, o("O3", "O5")},
+		{"nhãn đã xác nhận", Cell{DimStatus, "confirmed"}, o("O5")},
+		{"nhãn đang chuyển", Cell{DimStatus, "shipping"}, o("O3")},
 	}
 	for _, c := range cells {
 		e.want(t, "ô "+c.name, all, placed, MetricPlaced, &c.cell, c.want...)
@@ -357,4 +358,41 @@ func TestOrderSet_ExplainNoSeqScan(t *testing.T) {
 		}
 		testkit.RequireNoSeqScan(t, nodes)
 	}
+	explainOrdersReport(t, e, f)
+}
+
+// explainOrdersReport: câu nhóm của báo cáo đơn (mọi chiều, hai cơ sở, phạm vi all và Page) và câu một trang danh sách
+// chi tiết (trang đầu, trang sau) trên cùng 100.000 đơn, 31 ngày: không Seq Scan (kế hoạch M6, Task 230 Step 4).
+func explainOrdersReport(t *testing.T, e setEnv, f OrderFilter) {
+	t.Helper()
+	pageScope := DataScope{TenantID: e.tenant, SellerID: e.all.SellerID, PageIDs: e.seed.Pages()[:1]}
+	for _, basis := range []Basis{BasisPlaced, BasisCompleted} {
+		for _, dim := range []Dimension{DimStatus, DimSource, DimCareBy, DimCreatedBy, DimChannel, DimPage, DimCarrier, DimDay} {
+			for _, s := range []DataScope{e.all, pageScope} {
+				fb := f
+				fb.Basis = basis
+				b := &sqlBuilder{}
+				q, err := orderGroupsSQL(s, fb, dim, b)
+				explainNoSeqScan(t, e, fmt.Sprintf("%s %s", basis, dim), q, err, b.args)
+			}
+		}
+	}
+	for _, cur := range []*DrillCursor{nil, {At: f.Period.End, ID: uuid.Max, Total: 1}} {
+		b := &sqlBuilder{}
+		q, err := drilldownSQL(e.all, f, MetricPlaced, &Cell{Dimension: DimStatus, Key: "confirmed"}, cur, 50, b)
+		explainNoSeqScan(t, e, "danh sách chi tiết", q, err, b.args)
+	}
+}
+
+// explainNoSeqScan: câu q (dựng không lỗi) chạy EXPLAIN bằng crm_app không có Seq Scan.
+func explainNoSeqScan(t *testing.T, e setEnv, name, q string, buildErr error, args []any) {
+	t.Helper()
+	if buildErr != nil {
+		t.Fatalf("%s: %v", name, buildErr)
+	}
+	nodes, err := testkit.ExplainAsApp(t.Context(), e.st.App, e.tenant, q, args...)
+	if err != nil {
+		t.Fatalf("%s: %v", name, err)
+	}
+	testkit.RequireNoSeqScan(t, nodes)
 }
