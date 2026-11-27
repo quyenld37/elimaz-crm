@@ -1,0 +1,2 @@
+go test fuzz v1
+string("=HYPERLINK(\"http://x\",\"b\u1ea5m\")")

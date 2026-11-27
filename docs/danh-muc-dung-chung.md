@@ -1380,16 +1380,33 @@ func (s *Spool) Write(e Entry) (string, error)
 
 Package xlsx đọc và ghi tệp Excel (.xlsx) cho mọi mốc của CRM (kế hoạch M1, Task M1-38, C22): nhập sản phẩm (M1), nhập khách (M2), bảng kê vận chuyển (M3), xuất báo cáo (M6), mở sổ (M7).
 
-**Khi nào không dùng:** Không nhập excelize ở gói khác (test kiến trúc luật h) và không tự ghi ô bằng excelize bỏ qua Sanitize: mọi tệp xuất đi qua Write (hoặc bộ ghi theo luồng của M6 đặt trong gói này, cũng gọi Sanitize). Không đọc tệp người dùng bằng excelize.OpenReader trần: dùng Read với Limits. Không đặt kiểm nghiệp vụ (giá, SKU, SĐT) ở đây: module dùng tự kiểm Row. Không dùng cho CSV. Không log, không đưa nội dung ô vào lỗi (tệp khách có dữ liệu cá nhân).
+**Khi nào không dùng:** Không nhập excelize ở gói khác (test kiến trúc luật h) và không tự ghi ô bằng excelize bỏ qua Sanitize: mọi tệp xuất đi qua Write (tệp nhỏ, mọi ô là chữ: mẫu nhập, bảng kê) hoặc Writer (bộ ghi theo luồng của M6: báo cáo nhiều dòng, ô số, tiền, ngày; cũng gọi Sanitize). Không dùng Writer khi cần nhiều trang hay danh sách chọn (dùng Write). Không đọc tệp người dùng bằng excelize.OpenReader trần: dùng Read với Limits. Không đặt kiểm nghiệp vụ (giá, SKU, SĐT) ở đây: module dùng tự kiểm Row. Không dùng cho CSV. Không log, không đưa nội dung ô vào lỗi (tệp khách có dữ liệu cá nhân).
 
 ```go
 func Read(r io.ReaderAt, size int64, lim Limits, header []string) (rows []Row, cellErrs []CellError, err error)
 func Sanitize(s string) string
 func Write(w io.Writer, sheets []Sheet) error
+type Cell struct {
+	Kind Kind
+	S    string
+	I    int64
+	T    time.Time
+}
+func Date(t time.Time) Cell
+func Empty() Cell
+func Int(v int64) Cell
+func Money(v int64) Cell
+func Str(s string) Cell
 type CellError struct {
 	Row          int
 	Column, Code string
 }
+type Column struct {
+	Title string
+	Width int
+	Kind  Kind
+}
+type Kind int
 type Limits struct {
 	MaxBytes     int64
 	MaxRows      int
@@ -1413,6 +1430,13 @@ type Sheet struct {
 	Rows   [][]any
 	Lists  map[string][]string
 }
+type Writer struct {
+}
+func NewWriter(w io.Writer, sheet string, cols []Column) (*Writer, error)
+func (w *Writer) Close() error
+func (w *Writer) Note(text string) error
+func (w *Writer) Row(cells ...Cell) error
+func (w *Writer) Rows() int
 ```
 
 ## `console/src/shared` (màn hình, TypeScript)

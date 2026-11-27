@@ -165,16 +165,29 @@ func findSelectorCalls(t *testing.T, root string, includeTestdata bool, skipPref
 	})
 	var out []string
 	for _, g := range files {
-		ast.Inspect(g.file, func(n ast.Node) bool {
-			call, ok := n.(*ast.CallExpr)
-			if !ok {
-				return true
-			}
-			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-				out = append(out, report(g, call, sel)...)
-			}
-			return true
-		})
+		out = append(out, selectorCalls(g, report)...)
 	}
 	return out
+}
+
+// selectorCalls trả mọi phát hiện mà report trả cho từng lời gọi dạng x.Tên(...) trong tệp g.
+func selectorCalls(g goFile, report func(g goFile, call *ast.CallExpr, sel *ast.SelectorExpr) []string) []string {
+	var out []string
+	ast.Inspect(g.file, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+			out = append(out, report(g, call, sel)...)
+		}
+		return true
+	})
+	return out
+}
+
+// allGoFiles phân tích mọi tệp .go dưới root, cả _test.go; testdata chỉ khi includeTestdata (luật áp ở mọi nơi).
+func allGoFiles(t *testing.T, root string, includeTestdata bool) []goFile {
+	t.Helper()
+	return parseGoFiles(t, root, func(rel string) bool { return includeTestdata || !isTestdata(rel) })
 }

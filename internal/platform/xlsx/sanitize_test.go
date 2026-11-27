@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 	"unicode"
+	"unicode/utf16"
 	"unicode/utf8"
 
 	"pgregory.net/rapid"
@@ -95,8 +96,24 @@ func TestSanitizeProperties(t *testing.T) {
 		if utf8.RuneCountInString(got) > xlsx.MaxCellLength {
 			t.Fatalf("dài %d ký tự", utf8.RuneCountInString(got))
 		}
+		if n := len(utf16.Encode([]rune(got))); n > xlsx.MaxCellLength {
+			t.Fatalf("dài %d đơn vị UTF-16", n)
+		}
 		if again := xlsx.Sanitize(got); again != got {
 			t.Fatal("Sanitize(Sanitize(s)) khác Sanitize(s)")
 		}
 	})
+}
+
+// TestSanitizeTruncatesUTF16Units: Excel đếm giới hạn ô theo đơn vị UTF-16 (Task M6-13, QĐ-236-2): ký tự ngoài BMP tính
+// 2, không cắt giữa ký tự.
+func TestSanitizeTruncatesUTF16Units(t *testing.T) {
+	got := xlsx.Sanitize(strings.Repeat("\U0001F600", 20000))
+	if got != strings.Repeat("\U0001F600", xlsx.MaxCellLength/2) {
+		t.Fatalf("cắt còn %d ký tự, mong %d", utf8.RuneCountInString(got), xlsx.MaxCellLength/2)
+	}
+	got = xlsx.Sanitize("a" + strings.Repeat("\U0001F600", 20000))
+	if n := len(utf16.Encode([]rune(got))); n != xlsx.MaxCellLength {
+		t.Fatalf("%d đơn vị UTF-16, mong %d", n, xlsx.MaxCellLength)
+	}
 }
