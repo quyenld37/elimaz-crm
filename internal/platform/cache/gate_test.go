@@ -271,6 +271,41 @@ func TestAdmissionGate_Remaining(t *testing.T) {
 	}
 }
 
+// [Task 520] ClearState xóa ngay trạng thái một món: SoldOut known = false, Remaining không có món; món khác, tenant
+// khác giữ nguyên; xóa món chưa có trạng thái không lỗi; Valkey dừng → ErrUnavailable.
+func TestAdmissionGate_ClearState(t *testing.T) {
+	g, _, vk := startGate(t, cache.GateOptions{}, nil, testOpTimeout)
+	tenant, other, a, b := uuid.New(), uuid.New(), uuid.New(), uuid.New()
+	for _, s := range []struct {
+		tenant, item uuid.UUID
+		remaining    int
+		soldOut      bool
+	}{{tenant, a, 0, true}, {tenant, b, 4, false}, {other, a, 2, false}} {
+		if err := g.SetState(t.Context(), s.tenant, s.item, s.remaining, s.soldOut); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := g.ClearState(t.Context(), tenant, a); err != nil {
+		t.Fatalf("ClearState: %v", err)
+	}
+	if s, k := g.SoldOut(t.Context(), tenant, a); s || k {
+		t.Fatalf("sau ClearState: (%v, %v), muốn (false, false)", s, k)
+	}
+	if got := g.Remaining(t.Context(), tenant, []uuid.UUID{a, b}); len(got) != 1 || got[b] != 4 {
+		t.Fatalf("Remaining sau ClearState: %v, muốn {b: 4}", got)
+	}
+	if got := g.Remaining(t.Context(), other, []uuid.UUID{a}); got[a] != 2 {
+		t.Fatalf("tenant khác: %v, muốn {a: 2}", got)
+	}
+	if err := g.ClearState(t.Context(), tenant, uuid.New()); err != nil {
+		t.Fatalf("ClearState món chưa có trạng thái: %v", err)
+	}
+	vk.Stop(t)
+	if err := g.ClearState(t.Context(), tenant, b); !errors.Is(err, cache.ErrUnavailable) {
+		t.Fatalf("ClearState khi dừng: %v, muốn ErrUnavailable", err)
+	}
+}
+
 // Valkey dừng: FallbackPerSecond 1 → lần 2 trong giây busy, Degraded; FallbackGlobalPerSecond chặn cả shop; giây sau
 // được lại; SoldOut known = false; SetState lỗi ErrUnavailable; Remaining rỗng; chỉ số gate_degraded.
 func TestAdmissionGate_ValkeyDown(t *testing.T) {

@@ -61,6 +61,8 @@ func (g *fakeGate) SetState(context.Context, uuid.UUID, uuid.UUID, int, bool) er
 	return nil
 }
 
+func (*fakeGate) ClearState(context.Context, uuid.UUID, uuid.UUID) error { return nil }
+
 func (g *fakeGate) Remaining(context.Context, uuid.UUID, []uuid.UUID) map[uuid.UUID]int {
 	return map[uuid.UUID]int{}
 }

@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -304,5 +306,83 @@ func TestWebFlashBuy_ExternalRefTakenReleasesKey(t *testing.T) {
 	}
 	if n := f.storedKeys("K-reuse"); n != 0 {
 		t.Fatalf("khóa chống trùng còn giữ (%d dòng)", n)
+	}
+}
+
+// sendFinal gửi lượt (khóa key, thân body) tới khi câu trả lời không còn là "thử lại" (503, 409 đang chạy).
+func (f *flashEnv) sendFinal(key, body string) flashReply {
+	for attempt := 1; ; attempt++ {
+		r := f.sendBody(key, body, min(attempt, 10))
+		if r.final() || attempt > 2000 {
+			return r
+		}
+		time.Sleep(time.Duration(5+attempt%20) * time.Millisecond)
+	}
+}
+
+// [Task 520] Website gửi lại một mã đơn đã có với SĐT khác (khóa chống trùng khác): 422 idempotency_key_reused, thân
+// lỗi không mang mã đơn, không giữ khóa, không thêm đơn; SĐT gốc gửi lại vẫn nhận đúng đơn của mình.
+func TestWebFlashBuy_RefOtherPhone(t *testing.T) {
+	t.Parallel()
+	f := newFlashEnv(t, flashOpts{slots: 5, limit: 1, phoneMax: 1000})
+	first, other := f.buyer(1), f.buyer(2)
+	won := f.send(first, 1)
+	if won.result != "bought" || won.code == "" {
+		t.Fatalf("mua: %+v", won)
+	}
+	other.ref = first.ref
+	r := f.sendFinal("K-other-phone", other.body())
+	if !refRefused(r, won.code) {
+		t.Fatalf("SĐT khác cùng mã đơn: %+v", r)
+	}
+	if n := f.storedKeys("K-other-phone"); n != 0 {
+		t.Fatalf("khóa chống trùng còn giữ (%d dòng)", n)
+	}
+	if n := f.ordersOf(first.ref); n != 1 {
+		t.Fatalf("%d đơn cho mã đơn, muốn 1", n)
+	}
+	if again := f.sendFinal("K-first-again", first.body()); again.status != http.StatusOK || again.code != won.code {
+		t.Fatalf("SĐT gốc gửi lại với khóa mới: %+v, muốn mã %s", again, won.code)
+	}
+}
+
+// refRefused: câu trả lời là 422 idempotency_key_reused không mang mã đơn code của người kia.
+func refRefused(r flashReply, code string) bool {
+	return r.status == http.StatusUnprocessableEntity && r.errCode == "idempotency_key_reused" && r.code == "" &&
+		!strings.Contains(r.raw, code)
+}
+
+// [Task 520] Song song: 8 lượt của mỗi SĐT (mỗi lượt một khóa) cùng một mã đơn mới → mọi lượt của một SĐT 200 bought
+// cùng mã đơn, mọi lượt của SĐT kia 422 không mang mã đơn; mã đơn đó có đúng 1 đơn.
+func TestWebFlashBuy_RefOtherPhoneParallel(t *testing.T) {
+	t.Parallel()
+	f := newFlashEnv(t, flashOpts{slots: 5, limit: 1, phoneMax: 1000})
+	a, b := f.buyer(3), f.buyer(4)
+	b.ref = a.ref
+	bodies := [2]string{a.body(), b.body()}
+	replies := make([]flashReply, 16)
+	var wg sync.WaitGroup
+	for i := range replies {
+		wg.Go(func() { replies[i] = f.sendFinal(fmt.Sprintf("K-par-%d", i), bodies[i%2]) })
+	}
+	wg.Wait()
+	winner := slices.IndexFunc(replies, func(r flashReply) bool {
+		return r.status == http.StatusOK && r.result == "bought" && r.code != ""
+	})
+	if winner < 0 {
+		t.Fatalf("song song: không lượt nào bought: %+v", replies)
+	}
+	code := replies[winner].code
+	for i, r := range replies {
+		ok := refRefused(r, code)
+		if i%2 == winner%2 {
+			ok = r.status == http.StatusOK && r.result == "bought" && r.code == code
+		}
+		if !ok {
+			t.Fatalf("lượt %d (SĐT có đơn là lượt chẵn/lẻ %d): %+v, mã %s", i, winner%2, r, code)
+		}
+	}
+	if n := f.ordersOf(a.ref); n != 1 {
+		t.Fatalf("%d đơn cho mã đơn song song, muốn 1", n)
 	}
 }

@@ -113,6 +113,10 @@ type AdmissionGate interface {
 	// SetState ghi số còn và cờ hết suất của món, sống 10 s. remaining âm → ErrBadState; Valkey lỗi → lỗi bọc
 	// ErrUnavailable (bên gọi bỏ qua, lượt sau ghi lại).
 	SetState(ctx context.Context, tenant, item uuid.UUID, remaining int, soldOut bool) error
+	// ClearState xóa ngay trạng thái của món (Task 520: món rời đợt đang hoạt động — đóng, hủy đợt): sau đó SoldOut
+	// known = false, Remaining không có món. Món chưa có trạng thái không lỗi; Valkey lỗi → lỗi bọc ErrUnavailable
+	// (trạng thái vẫn tự hết sau 10 s).
+	ClearState(ctx context.Context, tenant, item uuid.UUID) error
 	// Remaining trả số còn của các món có trạng thái còn hạn; món chưa có trạng thái không có trong map; Valkey lỗi →
 	// map rỗng. Luôn khác nil.
 	Remaining(ctx context.Context, tenant uuid.UUID, items []uuid.UUID) map[uuid.UUID]int
@@ -269,6 +273,20 @@ func (g *gate) SetState(ctx context.Context, tenant, item uuid.UUID, remaining i
 	})
 	if err != nil {
 		return fmt.Errorf("cache: ghi trạng thái món: %w", err)
+	}
+	return nil
+}
+
+func (g *gate) ClearState(ctx context.Context, tenant, item uuid.UUID) error {
+	key, err := EntityKey("fs", tenant, item.String())
+	if err != nil {
+		return err
+	}
+	err = g.c.Do(ctx, "gate.clearstate", func(ctx context.Context, cl valkey.Client) error {
+		return cl.Do(ctx, cl.B().Del().Key(key).Build()).Error()
+	})
+	if err != nil {
+		return fmt.Errorf("cache: xóa trạng thái món: %w", err)
 	}
 	return nil
 }

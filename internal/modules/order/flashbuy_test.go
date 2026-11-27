@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -318,6 +319,76 @@ func TestFlashBuy_SameExternalRef(t *testing.T) {
 	dup.ExternalRef = in.ExternalRef
 	if _, err := f.buy(dup); !errors.Is(err, order.ErrDuplicateOrder) {
 		t.Fatalf("mã ngoài của món khác: %v, muốn ErrDuplicateOrder", err)
+	}
+}
+
+// [Task 520] Mã ngoài đã có đơn flash cùng món của khách A, lượt của khách B (SĐT khác) cùng mã → ErrDuplicateOrder,
+// không bao giờ trả đơn của A; claim, đơn vị không đổi; A gửi lại vẫn nhận đúng đơn của mình.
+func TestFlashBuy_RefOfOtherCustomer(t *testing.T) {
+	t.Parallel()
+	f := newFlashEnv(t)
+	s := f.schedule(10, 3, 10)
+	cs := f.customers(2)
+	inA := f.in(s, cs[0], 1)
+	first := f.mustBuy(inA)
+	inB := inA
+	inB.CustomerID = cs[1]
+	if res, err := f.buy(inB); !errors.Is(err, order.ErrDuplicateOrder) || res.Code != "" || res.OrderID != uuid.Nil {
+		t.Fatalf("mã ngoài của khách khác: %+v, %v; muốn ErrDuplicateOrder, không có đơn", res, err)
+	}
+	if f.units(s.item, "held") != 1 || f.claimed(s.item) != 1 {
+		t.Fatalf("sau lượt bị từ chối: held %d, đã lấy %d; muốn 1, 1", f.units(s.item, "held"), f.claimed(s.item))
+	}
+	if again := f.mustBuy(inA); again != first {
+		t.Fatalf("khách A gửi lại: %+v, muốn %+v", again, first)
+	}
+}
+
+// refOutcome là kết quả một lượt mua của khách thứ who (0, 1).
+type refOutcome struct {
+	who int
+	res order.FlashBuyResult
+	err error
+}
+
+// buyRefRace chạy n lượt của mỗi khách cs[0], cs[1] đồng thời cùng một mã ngoài mới ở món của s.
+func (f *flashEnv) buyRefRace(s flashSale, cs []uuid.UUID, n int) []refOutcome {
+	ref := f.in(s, cs[0], 1).ExternalRef
+	outs := make([]refOutcome, 2*n)
+	var wg sync.WaitGroup
+	for i := range outs {
+		in := f.in(s, cs[i%2], 1)
+		in.ExternalRef = ref
+		wg.Go(func() {
+			res, err := f.buy(in)
+			outs[i] = refOutcome{who: i % 2, res: res, err: err}
+		})
+	}
+	wg.Wait()
+	return outs
+}
+
+// [Task 520] Song song: 8 lượt của khách A và 8 lượt của khách B cùng một mã ngoài mới → mọi lượt của một khách bought
+// cùng một đơn, mọi lượt của khách kia ErrDuplicateOrder (không có đơn); đúng 1 đơn vị held, đã lấy 1.
+func TestFlashBuy_RefOfOtherCustomerParallel(t *testing.T) {
+	t.Parallel()
+	f := newFlashEnv(t)
+	s := f.schedule(10, 3, 10)
+	outs := f.buyRefRace(s, f.customers(2), 8)
+	winner := slices.IndexFunc(outs, func(o refOutcome) bool { return o.err == nil && o.res.Result == order.FlashBought })
+	if winner < 0 {
+		t.Fatalf("song song: không lượt nào bought: %+v", outs)
+	}
+	w := outs[winner]
+	for _, o := range outs {
+		okWinner := o.who == w.who && o.err == nil && o.res.Result == order.FlashBought && o.res.OrderID == w.res.OrderID
+		okLoser := o.who != w.who && errors.Is(o.err, order.ErrDuplicateOrder) && o.res.OrderID == uuid.Nil
+		if !okWinner && !okLoser {
+			t.Fatalf("lượt của khách %d: %+v, %v; khách có đơn %d, đơn %s", o.who, o.res, o.err, w.who, w.res.OrderID)
+		}
+	}
+	if f.units(s.item, "held") != 1 || f.claimed(s.item) != 1 {
+		t.Fatalf("sau song song: held %d, đã lấy %d; muốn 1, 1", f.units(s.item, "held"), f.claimed(s.item))
 	}
 }
 

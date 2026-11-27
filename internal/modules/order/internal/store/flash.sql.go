@@ -69,7 +69,7 @@ func (q *Queries) FlashLinesOfOrder(ctx context.Context, arg FlashLinesOfOrderPa
 
 const flashOrderByExternalRef = `-- name: FlashOrderByExternalRef :one
 
-SELECT o.id, o.code, o.draft_expires_at,
+SELECT o.id, o.code, o.customer_id, o.draft_expires_at,
        coalesce((SELECT i.flash_sale_item_id FROM ord.order_items AS i
                  WHERE i.seller_id = o.seller_id AND i.order_id = o.id ORDER BY i.position LIMIT 1),
                 '00000000-0000-0000-0000-000000000000'::uuid)::uuid AS flash_sale_item_id
@@ -85,6 +85,7 @@ type FlashOrderByExternalRefParams struct {
 type FlashOrderByExternalRefRow struct {
 	ID              uuid.UUID
 	Code            string
+	CustomerID      uuid.UUID
 	DraftExpiresAt  pgtype.Timestamptz
 	FlashSaleItemID uuid.UUID
 }
@@ -92,14 +93,15 @@ type FlashOrderByExternalRefRow struct {
 // Lượt mua flash sale, phần của order (kế hoạch M5, Task 201 / M5-18; ADR-40). Chạy trong tx tenant của bên gọi. Đơn
 // nháp của lượt mua chèn bằng InsertOrder (create.sql); dòng đơn flash chèn ở đây (có flash_sale_item_id). Dòng mới,
 // không khóa dòng có sẵn (ADR-46: sau flash_sale_claims nhóm 10 và flash_sale_units nhóm 11).
-// Đơn web của mã ngoài external_ref (unique orders_external_ref_key) kèm hạn nháp và món flash của dòng đầu (uuid 0:
-// không phải đơn flash).
+// Đơn web của mã ngoài external_ref (unique orders_external_ref_key) kèm khách, hạn nháp và món flash của dòng đầu
+// (uuid 0: không phải đơn flash).
 func (q *Queries) FlashOrderByExternalRef(ctx context.Context, arg FlashOrderByExternalRefParams) (FlashOrderByExternalRefRow, error) {
 	row := q.db.QueryRow(ctx, flashOrderByExternalRef, arg.SellerID, arg.ExternalRef)
 	var i FlashOrderByExternalRefRow
 	err := row.Scan(
 		&i.ID,
 		&i.Code,
+		&i.CustomerID,
 		&i.DraftExpiresAt,
 		&i.FlashSaleItemID,
 	)

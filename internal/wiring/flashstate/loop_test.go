@@ -245,6 +245,57 @@ func TestLoop_SignalsRecompute(t *testing.T) {
 	e.waitState("thêm suất", 3, false)
 }
 
+// clearSpy bọc cổng thật, ghi các món đã ClearState thành công (phân biệt "vòng xóa" với "tự hết hạn 10 s").
+type clearSpy struct {
+	cache.AdmissionGate
+	mu      sync.Mutex
+	cleared []uuid.UUID
+}
+
+func (c *clearSpy) ClearState(ctx context.Context, tenant, item uuid.UUID) error {
+	err := c.AdmissionGate.ClearState(ctx, tenant, item)
+	if err == nil {
+		c.mu.Lock()
+		c.cleared = append(c.cleared, item)
+		c.mu.Unlock()
+	}
+	return err //nolint:wrapcheck // test
+}
+
+func (c *clearSpy) clearedItems() []uuid.UUID {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]uuid.UUID(nil), c.cleared...)
+}
+
+// [Task 520] Nhịp dài: lượt đầu ghi trạng thái món, chưa xóa gì; đóng đợt (flash_sale.closed → báo hiệu flash_sale)
+// → vòng gọi ClearState đúng món đó, ngay sau đó SoldOut không biết, số còn không có (không phải tự hết hạn 10 s).
+func TestLoop_CloseClearsState(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, 2)
+	spy := &clearSpy{AdmissionGate: e.gate}
+	l := flashstate.New(e.staff.App, spy, e.hub, slowEvery)
+	l.Start(t.Context())
+	t.Cleanup(l.Stop)
+	e.waitState("lượt đầu khi Start", 2, false)
+	if got := spy.clearedItems(); len(got) != 0 {
+		t.Fatalf("trước khi đóng đợt đã xóa %v", got)
+	}
+	e.app(func(tx pgx.Tx) error {
+		_, err := promotion.Writer{Events: e.reg, Queue: queue.NewQueue(), Realtime: e.hub}.CloseFlashSale(t.Context(), tx,
+			e.sale.ID, promotion.FlashClosedManual, promotion.Actor{TenantID: e.tenant, UserID: uuid.New()})
+		return err //nolint:wrapcheck // test
+	})
+	e.staff.DrainJobs(t, e.worker)
+	e.waitFor("vòng xóa trạng thái sau khi đóng đợt", func() bool { return len(spy.clearedItems()) > 0 })
+	if got := spy.clearedItems(); len(got) != 1 || got[0] != e.sale.Item {
+		t.Fatalf("món đã xóa %v, muốn [%s]", got, e.sale.Item)
+	}
+	if r, s, k := e.state(); k || s || r != -1 {
+		t.Fatalf("sau khi xóa: còn %d, cờ %v, biết %v", r, s, k)
+	}
+}
+
 // [HT27] FLUSHALL Valkey → cổng mất trạng thái; vòng ghi lại đúng số còn và cờ.
 func TestLoop_FlushAllRebuilds(t *testing.T) {
 	t.Parallel()
