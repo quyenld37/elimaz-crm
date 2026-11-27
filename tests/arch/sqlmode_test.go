@@ -10,9 +10,8 @@ import (
 // findSimpleProtocol trả mọi chỗ nhắc QueryExecModeSimpleProtocol (Global Constraints: cấm ở mọi nơi, kể cả test).
 func findSimpleProtocol(t *testing.T, root string, includeTestdata bool) []string {
 	t.Helper()
-	files := parseGoFiles(t, root, func(rel string) bool { return includeTestdata || !isTestdata(rel) })
 	var out []string
-	for _, g := range files {
+	for _, g := range allGoFiles(t, root, includeTestdata) {
 		ast.Inspect(g.file, func(n ast.Node) bool {
 			if id, ok := n.(*ast.Ident); ok && id.Name == "QueryExecModeSimpleProtocol" {
 				out = append(out, g.pos(id.Pos()))

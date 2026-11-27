@@ -13,7 +13,7 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-// Lỗi của Read. Lỗi trả về bọc một trong các sentinel này (kiểm bằng errors.Is); chuỗi lỗi không chứa nội dung ô.
+// Lỗi của Read (ErrTooManyRows cũng là lỗi của Writer khi vượt MaxDataRows). Lỗi trả về bọc một trong các sentinel này (kiểm bằng errors.Is); chuỗi lỗi không chứa nội dung ô.
 var (
 	ErrNotXlsx        = errors.New("xlsx: không phải tệp Excel .xlsx đọc được")
 	ErrTooLarge       = errors.New("xlsx: tệp quá lớn")

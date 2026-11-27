@@ -2,9 +2,11 @@ package xlsx
 
 import (
 	"strings"
+	"unicode/utf16"
 )
 
-// MaxCellLength là số ký tự tối đa của một ô Excel.
+// MaxCellLength là độ dài tối đa của một ô Excel, tính theo đơn vị UTF-16 như Excel và excelize (ký tự ngoài BMP,
+// vd emoji, tính 2).
 const MaxCellLength = 32_767
 
 // formulaLead là các ký tự mở đầu khiến Excel (và LibreOffice, Google Sheets) hiểu ô là công thức.
@@ -12,7 +14,8 @@ const formulaLead = "=+-@\t\r\n"
 
 // Sanitize làm sạch một chuỗi trước khi ghi vào ô: bỏ byte UTF-8 hỏng (gồm nửa cặp UTF-16 lẻ) và ký tự không hợp lệ
 // trong XML 1.0 (dưới 0x20 trừ tab, LF, CR; U+FFFE, U+FFFF); chuỗi mở đầu bằng =, +, -, @, tab, CR, LF được thêm "'"
-// phía trước để không thành công thức; cắt còn tối đa MaxCellLength ký tự (tính cả "'"), không cắt giữa một ký tự.
+// phía trước để không thành công thức; cắt còn tối đa MaxCellLength đơn vị UTF-16 (tính cả "'"), không cắt giữa một
+// ký tự.
 // Sanitize(Sanitize(s)) == Sanitize(s).
 func Sanitize(s string) string {
 	s = strings.Map(func(r rune) rune {
@@ -25,11 +28,10 @@ func Sanitize(s string) string {
 		s = "'" + s
 	}
 	n := 0
-	for i := range s {
-		if n == MaxCellLength {
+	for i, r := range s {
+		if n += utf16.RuneLen(r); n > MaxCellLength {
 			return s[:i]
 		}
-		n++
 	}
 	return s
 }
