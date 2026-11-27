@@ -4935,6 +4935,107 @@ func (s *Server) handleCreateCustomerRequest(args [0]string, argsEscaped bool, w
 	}
 }
 
+// handleCreateCustomerExportRequest handles createCustomerExport operation.
+//
+// Customer.export chỉ hiệu lực ở gán toàn shop. params chỉ nhận mã, ngày, khóa lọc
+// (không chữ tự do) → trường lạ 400 bad_params. Mỗi lần tạo, xong, tải ghi nhật
+// ký (không có SĐT, tên).
+//
+// POST /api/v1/reports/customers/exports
+func (s *Server) handleCreateCustomerExportRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CreateCustomerExportOperation,
+			ID:   "createCustomerExport",
+		}
+	)
+	params, err := decodeCreateCustomerExportParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateCustomerExportRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response CreateCustomerExportRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CreateCustomerExportOperation,
+			OperationSummary: "Tạo lần xuất danh sách khách ra Excel (luôn xlsx; tệp giữ CUSTOMER_EXPORT_TTL; PQ06, Task M6-15)",
+			OperationID:      "createCustomerExport",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *CreateCustomerExportRequest
+			Params   = CreateCustomerExportParams
+			Response = CreateCustomerExportRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCreateCustomerExportParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CreateCustomerExport(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CreateCustomerExport(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCreateCustomerExportResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleCreateCustomerTagRequest handles createCustomerTag operation.
 //
 // Tạo nhãn khách (tên không trùng) (Task M2-12).
@@ -5126,6 +5227,105 @@ func (s *Server) handleCreateFlashSaleRequest(args [0]string, argsEscaped bool, 
 	}
 
 	if err := encodeCreateFlashSaleResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleCreateInventoryReportRunRequest handles createInventoryReportRun operation.
+//
+// Như createSalesReportRun; report thuộc họ inventory (stock, stock_movements, products).
+//
+// POST /api/v1/reports/inventory/runs
+func (s *Server) handleCreateInventoryReportRunRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CreateInventoryReportRunOperation,
+			ID:   "createInventoryReportRun",
+		}
+	)
+	params, err := decodeCreateInventoryReportRunParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateInventoryReportRunRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response CreateInventoryReportRunRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CreateInventoryReportRunOperation,
+			OperationSummary: "Tạo lần chạy nền một báo cáo tồn kho hay danh sách sản phẩm (products chỉ xlsx, Q25) (Task M6-12, 14)",
+			OperationID:      "createInventoryReportRun",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *CreateReportRunRequest
+			Params   = CreateInventoryReportRunParams
+			Response = CreateInventoryReportRunRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCreateInventoryReportRunParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CreateInventoryReportRun(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CreateInventoryReportRun(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCreateInventoryReportRunResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -5840,6 +6040,107 @@ func (s *Server) handleCreateRoleRequest(args [0]string, argsEscaped bool, w htt
 	}
 
 	if err := encodeCreateRoleResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleCreateSalesReportRunRequest handles createSalesReportRun operation.
+//
+// Xlsx cần thêm report.export (gán toàn shop) → không có thì 403 export_forbidden. report
+// của họ khác → 400 unknown_report; params sai, có trường lạ → 400 bad_params. Mỗi
+// người tối đa REPORT_MAX_PENDING_PER_USER lần đang chờ hay chạy → 429 too_many_runs.
+//
+// POST /api/v1/reports/sales/runs
+func (s *Server) handleCreateSalesReportRunRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CreateSalesReportRunOperation,
+			ID:   "createSalesReportRun",
+		}
+	)
+	params, err := decodeCreateSalesReportRunParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateSalesReportRunRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response CreateSalesReportRunRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CreateSalesReportRunOperation,
+			OperationSummary: "Tạo lần chạy nền một báo cáo bán hàng: bảng (json) hay tệp Excel (xlsx) (BC04, BC05, Task M6-12, 14)",
+			OperationID:      "createSalesReportRun",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *CreateReportRunRequest
+			Params   = CreateSalesReportRunParams
+			Response = CreateSalesReportRunRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCreateSalesReportRunParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CreateSalesReportRun(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CreateSalesReportRun(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCreateSalesReportRunResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -8739,6 +9040,175 @@ func (s *Server) handleGetCustomerDeliveryStatsRequest(args [1]string, argsEscap
 	}
 }
 
+// handleGetCustomerExportRequest handles getCustomerExport operation.
+//
+// Một lần xuất danh sách khách (Task M6-15).
+//
+// GET /api/v1/reports/customers/exports/{id}
+func (s *Server) handleGetCustomerExportRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetCustomerExportOperation,
+			ID:   "getCustomerExport",
+		}
+	)
+	params, err := decodeGetCustomerExportParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetCustomerExportRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetCustomerExportOperation,
+			OperationSummary: "Một lần xuất danh sách khách (Task M6-15)",
+			OperationID:      "getCustomerExport",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetCustomerExportParams
+			Response = GetCustomerExportRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetCustomerExportParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetCustomerExport(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetCustomerExport(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetCustomerExportResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetCustomerExportFileRequest handles getCustomerExportFile operation.
+//
+// Đường dẫn tải tệp danh sách khách (ký sẵn, hạn REPORT_LINK_TTL); mỗi lần gọi
+// ghi nhật ký (Task M6-15).
+//
+// GET /api/v1/reports/customers/exports/{id}/file
+func (s *Server) handleGetCustomerExportFileRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetCustomerExportFileOperation,
+			ID:   "getCustomerExportFile",
+		}
+	)
+	params, err := decodeGetCustomerExportFileParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetCustomerExportFileRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetCustomerExportFileOperation,
+			OperationSummary: "Đường dẫn tải tệp danh sách khách (ký sẵn, hạn REPORT_LINK_TTL); mỗi lần gọi ghi nhật ký (Task M6-15)",
+			OperationID:      "getCustomerExportFile",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetCustomerExportFileParams
+			Response = GetCustomerExportFileRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetCustomerExportFileParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetCustomerExportFile(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetCustomerExportFile(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetCustomerExportFileResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetCustomerImportRequest handles getCustomerImport operation.
 //
 // Trạng thái, số đếm và lỗi từng dòng (không giá trị) của một lần nhập
@@ -9290,6 +9760,382 @@ func (s *Server) handleGetFulfillmentSettingsRequest(args [0]string, argsEscaped
 	}
 
 	if err := encodeGetFulfillmentSettingsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetInventoryMovementsRequest handles getInventoryMovements operation.
+//
+// Xuất nhập tồn theo kỳ: đầu kỳ, nhập, nhập trả, bán, xuất khác, điều
+// chỉnh, cuối kỳ (Task M6-11).
+//
+// GET /api/v1/reports/inventory/movements
+func (s *Server) handleGetInventoryMovementsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetInventoryMovementsOperation,
+			ID:   "getInventoryMovements",
+		}
+	)
+	params, err := decodeGetInventoryMovementsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetInventoryMovementsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetInventoryMovementsOperation,
+			OperationSummary: "Xuất nhập tồn theo kỳ: đầu kỳ, nhập, nhập trả, bán, xuất khác, điều chỉnh, cuối kỳ (Task M6-11)",
+			OperationID:      "getInventoryMovements",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "from",
+					In:   "query",
+				}: params.From,
+				{
+					Name: "to",
+					In:   "query",
+				}: params.To,
+				{
+					Name: "warehouseId",
+					In:   "query",
+				}: params.WarehouseId,
+				{
+					Name: "q",
+					In:   "query",
+				}: params.Q,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetInventoryMovementsParams
+			Response = GetInventoryMovementsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetInventoryMovementsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetInventoryMovements(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetInventoryMovements(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetInventoryMovementsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetInventoryReportRunRequest handles getInventoryReportRun operation.
+//
+// Một lần chạy nền báo cáo tồn kho (Task M6-12).
+//
+// GET /api/v1/reports/inventory/runs/{id}
+func (s *Server) handleGetInventoryReportRunRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetInventoryReportRunOperation,
+			ID:   "getInventoryReportRun",
+		}
+	)
+	params, err := decodeGetInventoryReportRunParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetInventoryReportRunRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetInventoryReportRunOperation,
+			OperationSummary: "Một lần chạy nền báo cáo tồn kho (Task M6-12)",
+			OperationID:      "getInventoryReportRun",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetInventoryReportRunParams
+			Response = GetInventoryReportRunRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetInventoryReportRunParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetInventoryReportRun(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetInventoryReportRun(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetInventoryReportRunResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetInventoryReportRunFileRequest handles getInventoryReportRunFile operation.
+//
+// Đường dẫn tải tệp Excel của lần chạy báo cáo tồn kho (Task M6-14).
+//
+// GET /api/v1/reports/inventory/runs/{id}/file
+func (s *Server) handleGetInventoryReportRunFileRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetInventoryReportRunFileOperation,
+			ID:   "getInventoryReportRunFile",
+		}
+	)
+	params, err := decodeGetInventoryReportRunFileParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetInventoryReportRunFileRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetInventoryReportRunFileOperation,
+			OperationSummary: "Đường dẫn tải tệp Excel của lần chạy báo cáo tồn kho (Task M6-14)",
+			OperationID:      "getInventoryReportRunFile",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetInventoryReportRunFileParams
+			Response = GetInventoryReportRunFileRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetInventoryReportRunFileParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetInventoryReportRunFile(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetInventoryReportRunFile(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetInventoryReportRunFileResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetInventoryStockRequest handles getInventoryStock operation.
+//
+// Date bỏ trống là hôm nay (nguồn live); ngày đã qua đọc bản chụp (nguồn
+// snapshot); ngày tương lai → 400 bad_date; trước bản chụp đầu tiên hay ngày chưa
+// chụp → 404 no_snapshot. warehouseId ngoài phạm vi → 403 forbidden. q là tiền tố SKU.
+// Dòng mọi ngăn bằng 0 bị ẩn.
+//
+// GET /api/v1/reports/inventory/stock
+func (s *Server) handleGetInventoryStockRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetInventoryStockOperation,
+			ID:   "getInventoryStock",
+		}
+	)
+	params, err := decodeGetInventoryStockParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetInventoryStockRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetInventoryStockOperation,
+			OperationSummary: "Tồn hôm nay (số dư hiện tại) hay tồn cuối một ngày đã qua (bản chụp), theo biến thể và kho (BC03, Task M6-11)",
+			OperationID:      "getInventoryStock",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "date",
+					In:   "query",
+				}: params.Date,
+				{
+					Name: "warehouseId",
+					In:   "query",
+				}: params.WarehouseId,
+				{
+					Name: "q",
+					In:   "query",
+				}: params.Q,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetInventoryStockParams
+			Response = GetInventoryStockRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetInventoryStockParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetInventoryStock(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetInventoryStock(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetInventoryStockResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -10574,6 +11420,641 @@ func (s *Server) handleGetReturnRequest(args [1]string, argsEscaped bool, w http
 	}
 
 	if err := encodeGetReturnResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetSalesBestSellersRequest handles getSalesBestSellers operation.
+//
+// Sản phẩm bán chạy theo SKU hay theo mẫu, theo đơn lên hay đơn thành công (Task
+// M6-09).
+//
+// GET /api/v1/reports/sales/best-sellers
+func (s *Server) handleGetSalesBestSellersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetSalesBestSellersOperation,
+			ID:   "getSalesBestSellers",
+		}
+	)
+	params, err := decodeGetSalesBestSellersParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetSalesBestSellersRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetSalesBestSellersOperation,
+			OperationSummary: "Sản phẩm bán chạy theo SKU hay theo mẫu, theo đơn lên hay đơn thành công (Task M6-09)",
+			OperationID:      "getSalesBestSellers",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "from",
+					In:   "query",
+				}: params.From,
+				{
+					Name: "to",
+					In:   "query",
+				}: params.To,
+				{
+					Name: "level",
+					In:   "query",
+				}: params.Level,
+				{
+					Name: "basis",
+					In:   "query",
+				}: params.Basis,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetSalesBestSellersParams
+			Response = GetSalesBestSellersRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetSalesBestSellersParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetSalesBestSellers(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetSalesBestSellers(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetSalesBestSellersResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetSalesCarriersReportRequest handles getSalesCarriersReport operation.
+//
+// Báo cáo hãng vận chuyển theo ngày tạo vận đơn: tỷ lệ thành công, hoàn, phí,
+// COD (Task M6-08).
+//
+// GET /api/v1/reports/sales/carriers
+func (s *Server) handleGetSalesCarriersReportRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetSalesCarriersReportOperation,
+			ID:   "getSalesCarriersReport",
+		}
+	)
+	params, err := decodeGetSalesCarriersReportParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetSalesCarriersReportRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetSalesCarriersReportOperation,
+			OperationSummary: "Báo cáo hãng vận chuyển theo ngày tạo vận đơn: tỷ lệ thành công, hoàn, phí, COD (Task M6-08)",
+			OperationID:      "getSalesCarriersReport",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "from",
+					In:   "query",
+				}: params.From,
+				{
+					Name: "to",
+					In:   "query",
+				}: params.To,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetSalesCarriersReportParams
+			Response = GetSalesCarriersReportRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetSalesCarriersReportParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetSalesCarriersReport(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetSalesCarriersReport(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetSalesCarriersReportResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetSalesDashboardRequest handles getSalesDashboard operation.
+//
+// Tổng quan: đơn lên, doanh số tiền hàng, hủy, thành công, hoàn, khách trả, chờ
+// xử lý, theo kênh, theo ngày (BC01, Task M6-06).
+//
+// GET /api/v1/reports/sales/dashboard
+func (s *Server) handleGetSalesDashboardRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetSalesDashboardOperation,
+			ID:   "getSalesDashboard",
+		}
+	)
+	params, err := decodeGetSalesDashboardParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetSalesDashboardRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetSalesDashboardOperation,
+			OperationSummary: "Tổng quan: đơn lên, doanh số tiền hàng, hủy, thành công, hoàn, khách trả, chờ xử lý, theo kênh, theo ngày (BC01, Task M6-06)",
+			OperationID:      "getSalesDashboard",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "from",
+					In:   "query",
+				}: params.From,
+				{
+					Name: "to",
+					In:   "query",
+				}: params.To,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetSalesDashboardParams
+			Response = GetSalesDashboardRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetSalesDashboardParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetSalesDashboard(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetSalesDashboard(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetSalesDashboardResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetSalesOrdersReportRequest handles getSalesOrdersReport operation.
+//
+// Báo cáo đơn theo trạng thái, nguồn, nhân viên, kênh, Page, hãng, ngày (BC02, Task
+// M6-07).
+//
+// GET /api/v1/reports/sales/orders
+func (s *Server) handleGetSalesOrdersReportRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetSalesOrdersReportOperation,
+			ID:   "getSalesOrdersReport",
+		}
+	)
+	params, err := decodeGetSalesOrdersReportParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetSalesOrdersReportRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetSalesOrdersReportOperation,
+			OperationSummary: "Báo cáo đơn theo trạng thái, nguồn, nhân viên, kênh, Page, hãng, ngày (BC02, Task M6-07)",
+			OperationID:      "getSalesOrdersReport",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "from",
+					In:   "query",
+				}: params.From,
+				{
+					Name: "to",
+					In:   "query",
+				}: params.To,
+				{
+					Name: "basis",
+					In:   "query",
+				}: params.Basis,
+				{
+					Name: "groupBy",
+					In:   "query",
+				}: params.GroupBy,
+				{
+					Name: "channel",
+					In:   "query",
+				}: params.Channel,
+				{
+					Name: "sourceId",
+					In:   "query",
+				}: params.SourceId,
+				{
+					Name: "careBy",
+					In:   "query",
+				}: params.CareBy,
+				{
+					Name: "createdBy",
+					In:   "query",
+				}: params.CreatedBy,
+				{
+					Name: "pageId",
+					In:   "query",
+				}: params.PageId,
+				{
+					Name: "carrierKey",
+					In:   "query",
+				}: params.CarrierKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetSalesOrdersReportParams
+			Response = GetSalesOrdersReportRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetSalesOrdersReportParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetSalesOrdersReport(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetSalesOrdersReport(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetSalesOrdersReportResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetSalesReportFiltersRequest handles getSalesReportFilters operation.
+//
+// Lựa chọn của bộ lọc báo cáo bán hàng trong phạm vi người xem: nguồn, nhân
+// viên, Page, hãng (Task M6-07).
+//
+// GET /api/v1/reports/sales/filters
+func (s *Server) handleGetSalesReportFiltersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response GetSalesReportFiltersRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetSalesReportFiltersOperation,
+			OperationSummary: "Lựa chọn của bộ lọc báo cáo bán hàng trong phạm vi người xem: nguồn, nhân viên, Page, hãng (Task M6-07)",
+			OperationID:      "getSalesReportFilters",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = GetSalesReportFiltersRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetSalesReportFilters(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetSalesReportFilters(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetSalesReportFiltersResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetSalesReportRunRequest handles getSalesReportRun operation.
+//
+// Không phải người tạo và không có report.exports.manage → 404 run_not_found.
+//
+// GET /api/v1/reports/sales/runs/{id}
+func (s *Server) handleGetSalesReportRunRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetSalesReportRunOperation,
+			ID:   "getSalesReportRun",
+		}
+	)
+	params, err := decodeGetSalesReportRunParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetSalesReportRunRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetSalesReportRunOperation,
+			OperationSummary: "Một lần chạy nền báo cáo bán hàng; kèm result khi format json đã xong (Task M6-12)",
+			OperationID:      "getSalesReportRun",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetSalesReportRunParams
+			Response = GetSalesReportRunRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetSalesReportRunParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetSalesReportRun(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetSalesReportRun(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetSalesReportRunResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetSalesReportRunFileRequest handles getSalesReportRunFile operation.
+//
+// Cần report.export lúc tải (403 export_forbidden). Chưa xong, lỗi → 409 run_not_ready; quá
+// hạn → 410 run_expired; lần chạy json → 400 bad_params.
+//
+// GET /api/v1/reports/sales/runs/{id}/file
+func (s *Server) handleGetSalesReportRunFileRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetSalesReportRunFileOperation,
+			ID:   "getSalesReportRunFile",
+		}
+	)
+	params, err := decodeGetSalesReportRunFileParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetSalesReportRunFileRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetSalesReportRunFileOperation,
+			OperationSummary: "Đường dẫn tải tệp Excel của lần chạy (ký sẵn, hạn REPORT_LINK_TTL); mỗi lần gọi ghi nhật ký (Q17, Task M6-14)",
+			OperationID:      "getSalesReportRunFile",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetSalesReportRunFileParams
+			Response = GetSalesReportRunFileRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetSalesReportRunFileParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetSalesReportRunFile(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetSalesReportRunFile(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetSalesReportRunFileResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -14000,6 +15481,95 @@ func (s *Server) handleListCustomerConversationsRequest(args [1]string, argsEsca
 	}
 }
 
+// handleListCustomerExportsRequest handles listCustomerExports operation.
+//
+// Lần xuất danh sách khách: của mình, hay của mọi người khi có report.exports.manage
+// (Task M6-15).
+//
+// GET /api/v1/reports/customers/exports
+func (s *Server) handleListCustomerExportsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListCustomerExportsOperation,
+			ID:   "listCustomerExports",
+		}
+	)
+	params, err := decodeListCustomerExportsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListCustomerExportsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListCustomerExportsOperation,
+			OperationSummary: "Lần xuất danh sách khách: của mình, hay của mọi người khi có report.exports.manage (Task M6-15)",
+			OperationID:      "listCustomerExports",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListCustomerExportsParams
+			Response = ListCustomerExportsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListCustomerExportsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListCustomerExports(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListCustomerExports(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListCustomerExportsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleListCustomerMergeCandidatesRequest handles listCustomerMergeCandidates operation.
 //
 // Gợi ý "có thể là cùng một khách" theo SĐT trùng; không bao giờ tự gộp (Task
@@ -14526,6 +16096,94 @@ func (s *Server) handleListFollowUpsRequest(args [0]string, argsEscaped bool, w 
 	}
 
 	if err := encodeListFollowUpsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleListInventoryReportRunsRequest handles listInventoryReportRuns operation.
+//
+// Lần chạy nền báo cáo tồn kho, danh sách sản phẩm (Task M6-12).
+//
+// GET /api/v1/reports/inventory/runs
+func (s *Server) handleListInventoryReportRunsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListInventoryReportRunsOperation,
+			ID:   "listInventoryReportRuns",
+		}
+	)
+	params, err := decodeListInventoryReportRunsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListInventoryReportRunsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListInventoryReportRunsOperation,
+			OperationSummary: "Lần chạy nền báo cáo tồn kho, danh sách sản phẩm (Task M6-12)",
+			OperationID:      "listInventoryReportRuns",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListInventoryReportRunsParams
+			Response = ListInventoryReportRunsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListInventoryReportRunsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListInventoryReportRuns(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListInventoryReportRuns(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListInventoryReportRunsResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -16630,6 +18288,234 @@ func (s *Server) handleListRolesToManageRequest(args [0]string, argsEscaped bool
 	}
 
 	if err := encodeListRolesToManageResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleListSalesOrdersDrilldownRequest handles listSalesOrdersDrilldown operation.
+//
+// Cùng bộ lọc với getSalesOrdersReport. cellDimension + cellKey chọn một dòng của báo
+// cáo (bỏ trống: cả bảng); metric chọn cột. Chỉ mã đơn, mã khách, trạng thái,
+// tiền, kênh, nguồn, nhân viên, hãng; không SĐT, địa chỉ, tên khách. total đếm
+// cả tập (trang sau giữ total của trang đầu qua con trỏ).
+//
+// GET /api/v1/reports/sales/orders/drilldown
+func (s *Server) handleListSalesOrdersDrilldownRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListSalesOrdersDrilldownOperation,
+			ID:   "listSalesOrdersDrilldown",
+		}
+	)
+	params, err := decodeListSalesOrdersDrilldownParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListSalesOrdersDrilldownRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListSalesOrdersDrilldownOperation,
+			OperationSummary: "Danh sách đơn của một ô số (cùng tập với tổng), keyset theo mốc giảm dần (BC02, Task M6-07)",
+			OperationID:      "listSalesOrdersDrilldown",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "from",
+					In:   "query",
+				}: params.From,
+				{
+					Name: "to",
+					In:   "query",
+				}: params.To,
+				{
+					Name: "basis",
+					In:   "query",
+				}: params.Basis,
+				{
+					Name: "channel",
+					In:   "query",
+				}: params.Channel,
+				{
+					Name: "sourceId",
+					In:   "query",
+				}: params.SourceId,
+				{
+					Name: "careBy",
+					In:   "query",
+				}: params.CareBy,
+				{
+					Name: "createdBy",
+					In:   "query",
+				}: params.CreatedBy,
+				{
+					Name: "pageId",
+					In:   "query",
+				}: params.PageId,
+				{
+					Name: "carrierKey",
+					In:   "query",
+				}: params.CarrierKey,
+				{
+					Name: "cellDimension",
+					In:   "query",
+				}: params.CellDimension,
+				{
+					Name: "cellKey",
+					In:   "query",
+				}: params.CellKey,
+				{
+					Name: "metric",
+					In:   "query",
+				}: params.Metric,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListSalesOrdersDrilldownParams
+			Response = ListSalesOrdersDrilldownRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListSalesOrdersDrilldownParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListSalesOrdersDrilldown(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListSalesOrdersDrilldown(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListSalesOrdersDrilldownResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleListSalesReportRunsRequest handles listSalesReportRuns operation.
+//
+// Lần chạy nền báo cáo bán hàng: của mình, hay của mọi người khi có
+// report.exports.manage; mới nhất trước (Task M6-12).
+//
+// GET /api/v1/reports/sales/runs
+func (s *Server) handleListSalesReportRunsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListSalesReportRunsOperation,
+			ID:   "listSalesReportRuns",
+		}
+	)
+	params, err := decodeListSalesReportRunsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListSalesReportRunsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListSalesReportRunsOperation,
+			OperationSummary: "Lần chạy nền báo cáo bán hàng: của mình, hay của mọi người khi có report.exports.manage; mới nhất trước (Task M6-12)",
+			OperationID:      "listSalesReportRuns",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListSalesReportRunsParams
+			Response = ListSalesReportRunsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListSalesReportRunsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListSalesReportRuns(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListSalesReportRuns(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListSalesReportRunsResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

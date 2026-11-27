@@ -500,6 +500,17 @@ func (UnimplementedHandler) CreateCustomer(ctx context.Context, req *CreateCusto
 	return r, ht.ErrNotImplemented
 }
 
+// CreateCustomerExport implements createCustomerExport operation.
+//
+// Customer.export chỉ hiệu lực ở gán toàn shop. params chỉ nhận mã, ngày, khóa lọc
+// (không chữ tự do) → trường lạ 400 bad_params. Mỗi lần tạo, xong, tải ghi nhật
+// ký (không có SĐT, tên).
+//
+// POST /api/v1/reports/customers/exports
+func (UnimplementedHandler) CreateCustomerExport(ctx context.Context, req *CreateCustomerExportRequest, params CreateCustomerExportParams) (r CreateCustomerExportRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateCustomerTag implements createCustomerTag operation.
 //
 // Tạo nhãn khách (tên không trùng) (Task M2-12).
@@ -516,6 +527,15 @@ func (UnimplementedHandler) CreateCustomerTag(ctx context.Context, req *CreateCu
 //
 // POST /api/v1/flash-sales
 func (UnimplementedHandler) CreateFlashSale(ctx context.Context, req *FlashSaleInput, params CreateFlashSaleParams) (r CreateFlashSaleRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateInventoryReportRun implements createInventoryReportRun operation.
+//
+// Như createSalesReportRun; report thuộc họ inventory (stock, stock_movements, products).
+//
+// POST /api/v1/reports/inventory/runs
+func (UnimplementedHandler) CreateInventoryReportRun(ctx context.Context, req *CreateReportRunRequest, params CreateInventoryReportRunParams) (r CreateInventoryReportRunRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -592,6 +612,17 @@ func (UnimplementedHandler) CreateReturn(ctx context.Context, req *CreateReturnR
 //
 // POST /api/v1/identity/roles
 func (UnimplementedHandler) CreateRole(ctx context.Context, req *CreateRoleRequest, params CreateRoleParams) (r CreateRoleRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateSalesReportRun implements createSalesReportRun operation.
+//
+// Xlsx cần thêm report.export (gán toàn shop) → không có thì 403 export_forbidden. report
+// của họ khác → 400 unknown_report; params sai, có trường lạ → 400 bad_params. Mỗi
+// người tối đa REPORT_MAX_PENDING_PER_USER lần đang chờ hay chạy → 429 too_many_runs.
+//
+// POST /api/v1/reports/sales/runs
+func (UnimplementedHandler) CreateSalesReportRun(ctx context.Context, req *CreateReportRunRequest, params CreateSalesReportRunParams) (r CreateSalesReportRunRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -903,6 +934,25 @@ func (UnimplementedHandler) GetCustomerDeliveryStats(ctx context.Context, params
 	return r, ht.ErrNotImplemented
 }
 
+// GetCustomerExport implements getCustomerExport operation.
+//
+// Một lần xuất danh sách khách (Task M6-15).
+//
+// GET /api/v1/reports/customers/exports/{id}
+func (UnimplementedHandler) GetCustomerExport(ctx context.Context, params GetCustomerExportParams) (r GetCustomerExportRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetCustomerExportFile implements getCustomerExportFile operation.
+//
+// Đường dẫn tải tệp danh sách khách (ký sẵn, hạn REPORT_LINK_TTL); mỗi lần gọi
+// ghi nhật ký (Task M6-15).
+//
+// GET /api/v1/reports/customers/exports/{id}/file
+func (UnimplementedHandler) GetCustomerExportFile(ctx context.Context, params GetCustomerExportFileParams) (r GetCustomerExportFileRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetCustomerImport implements getCustomerImport operation.
 //
 // Trạng thái, số đếm và lỗi từng dòng (không giá trị) của một lần nhập
@@ -964,6 +1014,46 @@ func (UnimplementedHandler) GetFlashSale(ctx context.Context, params GetFlashSal
 //
 // GET /api/v1/fulfillment-settings
 func (UnimplementedHandler) GetFulfillmentSettings(ctx context.Context) (r GetFulfillmentSettingsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetInventoryMovements implements getInventoryMovements operation.
+//
+// Xuất nhập tồn theo kỳ: đầu kỳ, nhập, nhập trả, bán, xuất khác, điều
+// chỉnh, cuối kỳ (Task M6-11).
+//
+// GET /api/v1/reports/inventory/movements
+func (UnimplementedHandler) GetInventoryMovements(ctx context.Context, params GetInventoryMovementsParams) (r GetInventoryMovementsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetInventoryReportRun implements getInventoryReportRun operation.
+//
+// Một lần chạy nền báo cáo tồn kho (Task M6-12).
+//
+// GET /api/v1/reports/inventory/runs/{id}
+func (UnimplementedHandler) GetInventoryReportRun(ctx context.Context, params GetInventoryReportRunParams) (r GetInventoryReportRunRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetInventoryReportRunFile implements getInventoryReportRunFile operation.
+//
+// Đường dẫn tải tệp Excel của lần chạy báo cáo tồn kho (Task M6-14).
+//
+// GET /api/v1/reports/inventory/runs/{id}/file
+func (UnimplementedHandler) GetInventoryReportRunFile(ctx context.Context, params GetInventoryReportRunFileParams) (r GetInventoryReportRunFileRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetInventoryStock implements getInventoryStock operation.
+//
+// Date bỏ trống là hôm nay (nguồn live); ngày đã qua đọc bản chụp (nguồn
+// snapshot); ngày tương lai → 400 bad_date; trước bản chụp đầu tiên hay ngày chưa
+// chụp → 404 no_snapshot. warehouseId ngoài phạm vi → 403 forbidden. q là tiền tố SKU.
+// Dòng mọi ngăn bằng 0 bị ẩn.
+//
+// GET /api/v1/reports/inventory/stock
+func (UnimplementedHandler) GetInventoryStock(ctx context.Context, params GetInventoryStockParams) (r GetInventoryStockRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1120,6 +1210,75 @@ func (UnimplementedHandler) GetProductClassification(ctx context.Context, params
 //
 // GET /api/v1/returns/{returnId}
 func (UnimplementedHandler) GetReturn(ctx context.Context, params GetReturnParams) (r GetReturnRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetSalesBestSellers implements getSalesBestSellers operation.
+//
+// Sản phẩm bán chạy theo SKU hay theo mẫu, theo đơn lên hay đơn thành công (Task
+// M6-09).
+//
+// GET /api/v1/reports/sales/best-sellers
+func (UnimplementedHandler) GetSalesBestSellers(ctx context.Context, params GetSalesBestSellersParams) (r GetSalesBestSellersRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetSalesCarriersReport implements getSalesCarriersReport operation.
+//
+// Báo cáo hãng vận chuyển theo ngày tạo vận đơn: tỷ lệ thành công, hoàn, phí,
+// COD (Task M6-08).
+//
+// GET /api/v1/reports/sales/carriers
+func (UnimplementedHandler) GetSalesCarriersReport(ctx context.Context, params GetSalesCarriersReportParams) (r GetSalesCarriersReportRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetSalesDashboard implements getSalesDashboard operation.
+//
+// Tổng quan: đơn lên, doanh số tiền hàng, hủy, thành công, hoàn, khách trả, chờ
+// xử lý, theo kênh, theo ngày (BC01, Task M6-06).
+//
+// GET /api/v1/reports/sales/dashboard
+func (UnimplementedHandler) GetSalesDashboard(ctx context.Context, params GetSalesDashboardParams) (r GetSalesDashboardRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetSalesOrdersReport implements getSalesOrdersReport operation.
+//
+// Báo cáo đơn theo trạng thái, nguồn, nhân viên, kênh, Page, hãng, ngày (BC02, Task
+// M6-07).
+//
+// GET /api/v1/reports/sales/orders
+func (UnimplementedHandler) GetSalesOrdersReport(ctx context.Context, params GetSalesOrdersReportParams) (r GetSalesOrdersReportRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetSalesReportFilters implements getSalesReportFilters operation.
+//
+// Lựa chọn của bộ lọc báo cáo bán hàng trong phạm vi người xem: nguồn, nhân
+// viên, Page, hãng (Task M6-07).
+//
+// GET /api/v1/reports/sales/filters
+func (UnimplementedHandler) GetSalesReportFilters(ctx context.Context) (r GetSalesReportFiltersRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetSalesReportRun implements getSalesReportRun operation.
+//
+// Không phải người tạo và không có report.exports.manage → 404 run_not_found.
+//
+// GET /api/v1/reports/sales/runs/{id}
+func (UnimplementedHandler) GetSalesReportRun(ctx context.Context, params GetSalesReportRunParams) (r GetSalesReportRunRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetSalesReportRunFile implements getSalesReportRunFile operation.
+//
+// Cần report.export lúc tải (403 export_forbidden). Chưa xong, lỗi → 409 run_not_ready; quá
+// hạn → 410 run_expired; lần chạy json → 400 bad_params.
+//
+// GET /api/v1/reports/sales/runs/{id}/file
+func (UnimplementedHandler) GetSalesReportRunFile(ctx context.Context, params GetSalesReportRunFileParams) (r GetSalesReportRunFileRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1515,6 +1674,16 @@ func (UnimplementedHandler) ListCustomerConversations(ctx context.Context, param
 	return r, ht.ErrNotImplemented
 }
 
+// ListCustomerExports implements listCustomerExports operation.
+//
+// Lần xuất danh sách khách: của mình, hay của mọi người khi có report.exports.manage
+// (Task M6-15).
+//
+// GET /api/v1/reports/customers/exports
+func (UnimplementedHandler) ListCustomerExports(ctx context.Context, params ListCustomerExportsParams) (r ListCustomerExportsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListCustomerMergeCandidates implements listCustomerMergeCandidates operation.
 //
 // Gợi ý "có thể là cùng một khách" theo SĐT trùng; không bao giờ tự gộp (Task
@@ -1571,6 +1740,15 @@ func (UnimplementedHandler) ListFlashSales(ctx context.Context, params ListFlash
 //
 // GET /api/v1/follow-ups
 func (UnimplementedHandler) ListFollowUps(ctx context.Context, params ListFollowUpsParams) (r ListFollowUpsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListInventoryReportRuns implements listInventoryReportRuns operation.
+//
+// Lần chạy nền báo cáo tồn kho, danh sách sản phẩm (Task M6-12).
+//
+// GET /api/v1/reports/inventory/runs
+func (UnimplementedHandler) ListInventoryReportRuns(ctx context.Context, params ListInventoryReportRunsParams) (r ListInventoryReportRunsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1791,6 +1969,28 @@ func (UnimplementedHandler) ListRoles(ctx context.Context) (r ListRolesRes, _ er
 //
 // GET /api/v1/identity/roles/manage
 func (UnimplementedHandler) ListRolesToManage(ctx context.Context) (r ListRolesToManageRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListSalesOrdersDrilldown implements listSalesOrdersDrilldown operation.
+//
+// Cùng bộ lọc với getSalesOrdersReport. cellDimension + cellKey chọn một dòng của báo
+// cáo (bỏ trống: cả bảng); metric chọn cột. Chỉ mã đơn, mã khách, trạng thái,
+// tiền, kênh, nguồn, nhân viên, hãng; không SĐT, địa chỉ, tên khách. total đếm
+// cả tập (trang sau giữ total của trang đầu qua con trỏ).
+//
+// GET /api/v1/reports/sales/orders/drilldown
+func (UnimplementedHandler) ListSalesOrdersDrilldown(ctx context.Context, params ListSalesOrdersDrilldownParams) (r ListSalesOrdersDrilldownRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListSalesReportRuns implements listSalesReportRuns operation.
+//
+// Lần chạy nền báo cáo bán hàng: của mình, hay của mọi người khi có
+// report.exports.manage; mới nhất trước (Task M6-12).
+//
+// GET /api/v1/reports/sales/runs
+func (UnimplementedHandler) ListSalesReportRuns(ctx context.Context, params ListSalesReportRunsParams) (r ListSalesReportRunsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

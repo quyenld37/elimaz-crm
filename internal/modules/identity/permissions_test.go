@@ -132,6 +132,10 @@ func TestPermissionsList(t *testing.T) {
 		"channel.manage": identity.ScopeShop, "conversation.reply": identity.ScopeByTarget,
 		"conversation.assign": identity.ScopeByTarget, "conversation.settings": identity.ScopeByTarget,
 		"live.operate": identity.ScopeByTarget,
+		// M6 (Task 225): báo cáo theo Page, theo kho; xuất, tệp của người khác, danh sách khách toàn shop.
+		"report.sales.read": identity.ScopeByTarget, "report.inventory.read": identity.ScopeByTarget,
+		"report.export": identity.ScopeShop, "report.exports.manage": identity.ScopeShop,
+		"customer.export": identity.ScopeShop,
 	}
 	seen := map[identity.Permission]bool{}
 	for _, d := range identity.Permissions {

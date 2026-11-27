@@ -7612,6 +7612,458 @@ paths:
                 $ref: "#/components/schemas/ClaimLiveCommentResult"
         default:
           $ref: "#/components/responses/Error"
+  # M6 — báo cáo vận hành (kế hoạch M6, Task 225 = M6-02; hợp đồng viết một lần cho cả mốc, operation trả 501 tới
+  # task của nó: tests/arch/testdata/m6_pending.txt). Ngày `from`, `to` là ngày giờ Việt Nam (UTC+7), tính trọn ngày,
+  # tối đa 366 ngày (quá → 400 range_too_long; sai dạng, from > to → 400 bad_date). Mọi GET báo cáo chạy tại chỗ có
+  # chỗ và hạn giờ: hết chỗ hay quá hạn trả 200 `{"status":"run_in_background","reason":"busy"|"timeout"}`, màn hình
+  # tạo lần chạy nền. Người bán: máy chủ luôn lọc người bán `own` (Q16), không có tham số. Phạm vi: báo cáo bán hàng
+  # lọc theo Page của report.sales.read (đơn không gắn Page chỉ người gán toàn shop thấy), báo cáo tồn theo kho của
+  # report.inventory.read. Kết quả không có SĐT, địa chỉ, tên khách (trừ tệp danh sách khách).
+  /api/v1/reports/sales/dashboard:
+    get:
+      operationId: getSalesDashboard
+      summary: 'Tổng quan: đơn lên, doanh số tiền hàng, hủy, thành công, hoàn, khách trả, chờ xử lý, theo kênh, theo ngày (BC01, Task M6-06)'
+      x-permission: report.sales.read
+      parameters:
+        - $ref: "#/components/parameters/ReportFrom"
+        - $ref: "#/components/parameters/ReportTo"
+      responses:
+        "200":
+          description: getSalesDashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesDashboardResponse"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/sales/orders:
+    get:
+      operationId: getSalesOrdersReport
+      summary: 'Báo cáo đơn theo trạng thái, nguồn, nhân viên, kênh, Page, hãng, ngày (BC02, Task M6-07)'
+      x-permission: report.sales.read
+      parameters:
+        - $ref: "#/components/parameters/ReportFrom"
+        - $ref: "#/components/parameters/ReportTo"
+        - $ref: "#/components/parameters/ReportBasis"
+        - name: groupBy
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ReportDimension"
+        - $ref: "#/components/parameters/ReportChannel"
+        - $ref: "#/components/parameters/ReportSourceID"
+        - $ref: "#/components/parameters/ReportCareBy"
+        - $ref: "#/components/parameters/ReportCreatedBy"
+        - $ref: "#/components/parameters/ReportPageID"
+        - $ref: "#/components/parameters/ReportCarrierKey"
+      responses:
+        "200":
+          description: getSalesOrdersReport
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesOrdersReportResponse"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/sales/orders/drilldown:
+    get:
+      operationId: listSalesOrdersDrilldown
+      summary: 'Danh sách đơn của một ô số (cùng tập với tổng), keyset theo mốc giảm dần (BC02, Task M6-07)'
+      description: |
+        Cùng bộ lọc với getSalesOrdersReport. cellDimension + cellKey chọn một dòng của báo cáo (bỏ trống: cả bảng);
+        metric chọn cột. Chỉ mã đơn, mã khách, trạng thái, tiền, kênh, nguồn, nhân viên, hãng; không SĐT, địa chỉ, tên
+        khách. total đếm cả tập (trang sau giữ total của trang đầu qua con trỏ).
+      x-permission: report.sales.read
+      parameters:
+        - $ref: "#/components/parameters/ReportFrom"
+        - $ref: "#/components/parameters/ReportTo"
+        - $ref: "#/components/parameters/ReportBasis"
+        - $ref: "#/components/parameters/ReportChannel"
+        - $ref: "#/components/parameters/ReportSourceID"
+        - $ref: "#/components/parameters/ReportCareBy"
+        - $ref: "#/components/parameters/ReportCreatedBy"
+        - $ref: "#/components/parameters/ReportPageID"
+        - $ref: "#/components/parameters/ReportCarrierKey"
+        - name: cellDimension
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ReportDimension"
+        - name: cellKey
+          in: query
+          required: false
+          description: Khóa dòng (key của SalesOrdersRow); cần cellDimension
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+        - name: metric
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/ReportMetric"
+        - $ref: "#/components/parameters/Cursor"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: listSalesOrdersDrilldown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesOrdersDrilldownResponse"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/sales/carriers:
+    get:
+      operationId: getSalesCarriersReport
+      summary: 'Báo cáo hãng vận chuyển theo ngày tạo vận đơn: tỷ lệ thành công, hoàn, phí, COD (Task M6-08)'
+      x-permission: report.sales.read
+      parameters:
+        - $ref: "#/components/parameters/ReportFrom"
+        - $ref: "#/components/parameters/ReportTo"
+      responses:
+        "200":
+          description: getSalesCarriersReport
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesCarriersReportResponse"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/sales/best-sellers:
+    get:
+      operationId: getSalesBestSellers
+      summary: 'Sản phẩm bán chạy theo SKU hay theo mẫu, theo đơn lên hay đơn thành công (Task M6-09)'
+      x-permission: report.sales.read
+      parameters:
+        - $ref: "#/components/parameters/ReportFrom"
+        - $ref: "#/components/parameters/ReportTo"
+        - name: level
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [sku, product]
+            default: sku
+        - name: basis
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [placed, delivered]
+            default: placed
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 500
+            default: 50
+      responses:
+        "200":
+          description: getSalesBestSellers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesBestSellersResponse"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/sales/filters:
+    get:
+      operationId: getSalesReportFilters
+      summary: 'Lựa chọn của bộ lọc báo cáo bán hàng trong phạm vi người xem: nguồn, nhân viên, Page, hãng (Task M6-07)'
+      x-permission: report.sales.read
+      responses:
+        "200":
+          description: getSalesReportFilters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesReportFilters"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/inventory/stock:
+    get:
+      operationId: getInventoryStock
+      summary: 'Tồn hôm nay (số dư hiện tại) hay tồn cuối một ngày đã qua (bản chụp), theo biến thể và kho (BC03, Task M6-11)'
+      description: |
+        date bỏ trống là hôm nay (nguồn live); ngày đã qua đọc bản chụp (nguồn snapshot); ngày tương lai → 400 bad_date;
+        trước bản chụp đầu tiên hay ngày chưa chụp → 404 no_snapshot. warehouseId ngoài phạm vi → 403 forbidden. q là
+        tiền tố SKU. Dòng mọi ngăn bằng 0 bị ẩn.
+      x-permission: report.inventory.read
+      parameters:
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - $ref: "#/components/parameters/ReportWarehouseID"
+        - $ref: "#/components/parameters/ReportSKUPrefix"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/ReportPageLimit"
+      responses:
+        "200":
+          description: getInventoryStock
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryStockResponse"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/inventory/movements:
+    get:
+      operationId: getInventoryMovements
+      summary: 'Xuất nhập tồn theo kỳ: đầu kỳ, nhập, nhập trả, bán, xuất khác, điều chỉnh, cuối kỳ (Task M6-11)'
+      x-permission: report.inventory.read
+      parameters:
+        - $ref: "#/components/parameters/ReportFrom"
+        - $ref: "#/components/parameters/ReportTo"
+        - $ref: "#/components/parameters/ReportWarehouseID"
+        - $ref: "#/components/parameters/ReportSKUPrefix"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/ReportPageLimit"
+      responses:
+        "200":
+          description: getInventoryMovements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryMovementsResponse"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/sales/runs:
+    post:
+      operationId: createSalesReportRun
+      summary: 'Tạo lần chạy nền một báo cáo bán hàng: bảng (json) hay tệp Excel (xlsx) (BC04, BC05, Task M6-12, 14)'
+      description: |
+        xlsx cần thêm report.export (gán toàn shop) → không có thì 403 export_forbidden. report của họ khác → 400
+        unknown_report; params sai, có trường lạ → 400 bad_params. Mỗi người tối đa REPORT_MAX_PENDING_PER_USER lần
+        đang chờ hay chạy → 429 too_many_runs.
+      x-permission: report.sales.read
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReportRunRequest"
+      responses:
+        "202":
+          description: Lần chạy đã xếp hàng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportRun"
+        default:
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: listSalesReportRuns
+      summary: 'Lần chạy nền báo cáo bán hàng: của mình, hay của mọi người khi có report.exports.manage; mới nhất trước (Task M6-12)'
+      x-permission: report.sales.read
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listSalesReportRuns
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportRunPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/sales/runs/{id}:
+    get:
+      operationId: getSalesReportRun
+      summary: 'Một lần chạy nền báo cáo bán hàng; kèm result khi format json đã xong (Task M6-12)'
+      description: Không phải người tạo và không có report.exports.manage → 404 run_not_found.
+      x-permission: report.sales.read
+      parameters:
+        - $ref: "#/components/parameters/ReportRunID"
+      responses:
+        "200":
+          description: getSalesReportRun
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportRun"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/sales/runs/{id}/file:
+    get:
+      operationId: getSalesReportRunFile
+      summary: 'Đường dẫn tải tệp Excel của lần chạy (ký sẵn, hạn REPORT_LINK_TTL); mỗi lần gọi ghi nhật ký (Q17, Task M6-14)'
+      description: |
+        Cần report.export lúc tải (403 export_forbidden). Chưa xong, lỗi → 409 run_not_ready; quá hạn → 410
+        run_expired; lần chạy json → 400 bad_params.
+      x-permission: report.sales.read
+      parameters:
+        - $ref: "#/components/parameters/ReportRunID"
+      responses:
+        "200":
+          description: getSalesReportRunFile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportFileLink"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/inventory/runs:
+    post:
+      operationId: createInventoryReportRun
+      summary: 'Tạo lần chạy nền một báo cáo tồn kho hay danh sách sản phẩm (products chỉ xlsx, Q25) (Task M6-12, 14)'
+      description: Như createSalesReportRun; report thuộc họ inventory (stock, stock_movements, products).
+      x-permission: report.inventory.read
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReportRunRequest"
+      responses:
+        "202":
+          description: Lần chạy đã xếp hàng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportRun"
+        default:
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: listInventoryReportRuns
+      summary: 'Lần chạy nền báo cáo tồn kho, danh sách sản phẩm (Task M6-12)'
+      x-permission: report.inventory.read
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listInventoryReportRuns
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportRunPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/inventory/runs/{id}:
+    get:
+      operationId: getInventoryReportRun
+      summary: 'Một lần chạy nền báo cáo tồn kho (Task M6-12)'
+      x-permission: report.inventory.read
+      parameters:
+        - $ref: "#/components/parameters/ReportRunID"
+      responses:
+        "200":
+          description: getInventoryReportRun
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportRun"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/inventory/runs/{id}/file:
+    get:
+      operationId: getInventoryReportRunFile
+      summary: 'Đường dẫn tải tệp Excel của lần chạy báo cáo tồn kho (Task M6-14)'
+      x-permission: report.inventory.read
+      parameters:
+        - $ref: "#/components/parameters/ReportRunID"
+      responses:
+        "200":
+          description: getInventoryReportRunFile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportFileLink"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/customers/exports:
+    post:
+      operationId: createCustomerExport
+      summary: 'Tạo lần xuất danh sách khách ra Excel (luôn xlsx; tệp giữ CUSTOMER_EXPORT_TTL; PQ06, Task M6-15)'
+      description: |
+        customer.export chỉ hiệu lực ở gán toàn shop. params chỉ nhận mã, ngày, khóa lọc (không chữ tự do) → trường lạ
+        400 bad_params. Mỗi lần tạo, xong, tải ghi nhật ký (không có SĐT, tên).
+      x-permission: customer.export
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCustomerExportRequest"
+      responses:
+        "202":
+          description: Lần xuất đã xếp hàng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportRun"
+        default:
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: listCustomerExports
+      summary: 'Lần xuất danh sách khách: của mình, hay của mọi người khi có report.exports.manage (Task M6-15)'
+      x-permission: customer.export
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listCustomerExports
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportRunPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/customers/exports/{id}:
+    get:
+      operationId: getCustomerExport
+      summary: 'Một lần xuất danh sách khách (Task M6-15)'
+      x-permission: customer.export
+      parameters:
+        - $ref: "#/components/parameters/ReportRunID"
+      responses:
+        "200":
+          description: getCustomerExport
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportRun"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/customers/exports/{id}/file:
+    get:
+      operationId: getCustomerExportFile
+      summary: 'Đường dẫn tải tệp danh sách khách (ký sẵn, hạn REPORT_LINK_TTL); mỗi lần gọi ghi nhật ký (Task M6-15)'
+      x-permission: customer.export
+      parameters:
+        - $ref: "#/components/parameters/ReportRunID"
+      responses:
+        "200":
+          description: getCustomerExportFile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportFileLink"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -8025,6 +8477,138 @@ components:
       required: true
       schema:
         $ref: "#/components/schemas/AutomationRuleKind"
+    # M6 (Task 225): tham số chung của báo cáo.
+    ReportFrom:
+      name: from
+      in: query
+      required: true
+      description: Ngày đầu kỳ (giờ Việt Nam, YYYY-MM-DD, tính trọn ngày)
+      schema:
+        type: string
+        format: date
+    ReportTo:
+      name: to
+      in: query
+      required: true
+      description: Ngày cuối kỳ (giờ Việt Nam, tính trọn ngày); tối đa 366 ngày tính cả hai đầu
+      schema:
+        type: string
+        format: date
+    ReportBasis:
+      name: basis
+      in: query
+      required: false
+      description: 'placed: theo ngày lên đơn (mặc định); completed: theo ngày giao thành công hay hoàn về kho (Q4)'
+      schema:
+        type: string
+        enum: [placed, completed]
+        default: placed
+    ReportChannel:
+      name: channel
+      in: query
+      required: false
+      description: Kênh của đơn (lặp tham số cho nhiều kênh)
+      schema:
+        type: array
+        maxItems: 10
+        items:
+          $ref: "#/components/schemas/OrderChannel"
+      explode: true
+    ReportSourceID:
+      name: sourceId
+      in: query
+      required: false
+      description: Nguồn đơn (traffic_sources.id)
+      schema:
+        type: array
+        maxItems: 50
+        items:
+          type: string
+          format: uuid
+      explode: true
+    ReportCareBy:
+      name: careBy
+      in: query
+      required: false
+      description: Nhân viên phụ trách
+      schema:
+        type: array
+        maxItems: 50
+        items:
+          type: string
+          format: uuid
+      explode: true
+    ReportCreatedBy:
+      name: createdBy
+      in: query
+      required: false
+      description: Nhân viên lên đơn
+      schema:
+        type: array
+        maxItems: 50
+        items:
+          type: string
+          format: uuid
+      explode: true
+    ReportPageID:
+      name: pageId
+      in: query
+      required: false
+      description: Page (channel_accounts.id); ngoài phạm vi report.sales.read → 403 forbidden
+      schema:
+        type: array
+        maxItems: 50
+        items:
+          type: string
+          format: uuid
+      explode: true
+    ReportCarrierKey:
+      name: carrierKey
+      in: query
+      required: false
+      description: Hãng của vận đơn hiện hành (vtp, best, spx, self…); unknown là đơn chưa gửi hãng
+      schema:
+        type: array
+        maxItems: 20
+        items:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{0,31}$"
+      explode: true
+    ReportWarehouseID:
+      name: warehouseId
+      in: query
+      required: false
+      description: Kho; bỏ trống là mọi kho trong phạm vi report.inventory.read; ngoài phạm vi → 403 forbidden
+      schema:
+        type: string
+        format: uuid
+    ReportSKUPrefix:
+      name: q
+      in: query
+      required: false
+      description: Tiền tố SKU (không phân biệt dấu cách đầu cuối)
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+    ReportPageLimit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 500
+        default: 100
+    ReportRunID:
+      name: id
+      in: path
+      required: true
+      description: Mã lần chạy (report_runs.id)
+      schema:
+        type: string
+        format: uuid
   responses:
     Error:
       description: Lỗi; không bao giờ có vết lỗi
@@ -8252,6 +8836,17 @@ components:
         - seller_mismatch
         - send_not_allowed
         - template_variable_missing
+        # Báo cáo (M6, Task 225; mã do task hiện thực trả, khai trước theo kế hoạch)
+        - bad_params
+        - bad_date
+        - range_too_long
+        - unknown_report
+        - export_forbidden
+        - run_not_found
+        - no_snapshot
+        - run_not_ready
+        - run_expired
+        - too_many_runs
       properties:
         error:
           type: string
@@ -18751,3 +19346,653 @@ components:
         mayDuplicate:
           type: boolean
           description: 'true khi tin cũ "không rõ đã gửi" (khách có thể nhận hai lần)'
+    # M6 — báo cáo (Task 225 = M6-02). Tiền là số nguyên đồng; tỷ lệ là số nguyên phần vạn (6667 = 66,67%), null khi
+    # mẫu số 0 (màn hình hiện "—"). Số đơn, số chiếc là int64.
+    ReportMoneyOrNull:
+      type: integer
+      format: int64
+      minimum: 0
+      maximum: 9007199254740991
+      nullable: true
+      description: Tiền trung bình làm tròn nửa lên tới đồng; null khi không có đơn
+    ReportRateBp:
+      type: integer
+      format: int32
+      minimum: 0
+      maximum: 10000
+      nullable: true
+      description: Tỷ lệ phần vạn, làm tròn xuống; null khi mẫu số 0
+    ReportCount:
+      type: integer
+      format: int64
+      minimum: 0
+    ReportPeriod:
+      type: object
+      required: [from, to]
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+    RunInBackground:
+      type: object
+      required: [status, reason]
+      description: Báo cáo không chạy tại chỗ được (hết chỗ hay quá hạn giờ); màn hình tạo lần chạy nền cùng tham số
+      properties:
+        status:
+          type: string
+          enum: [run_in_background]
+        reason:
+          type: string
+          enum: [busy, timeout]
+    ReportDimension:
+      type: string
+      enum: [status, source, care_by, created_by, channel, page, carrier, day]
+      default: status
+      description: Chiều nhóm của báo cáo đơn
+    ReportMetric:
+      type: string
+      enum: [placed, placed_active, cancelled, delivered, returned, customer_returned, pending_confirm, pending_ship, cancel_requested]
+      description: Cột số của tổng quan hay báo cáo đơn mà danh sách chi tiết mở
+    ReportAmounts:
+      type: object
+      required: [orders, goodsAmount, shippingFeeCharged]
+      properties:
+        orders:
+          $ref: "#/components/schemas/ReportCount"
+        goodsAmount:
+          $ref: "#/components/schemas/Money"
+        shippingFeeCharged:
+          $ref: "#/components/schemas/Money"
+    SalesDashboardReport:
+      type: object
+      required: [status, period, generatedAt, placed, active, cancelled, delivered, returned, avgGoodsAmount, customerReturns, pending, byChannel, byDay]
+      properties:
+        status:
+          type: string
+          enum: [ready]
+        period:
+          $ref: "#/components/schemas/ReportPeriod"
+        generatedAt:
+          type: string
+          format: date-time
+        placed:
+          $ref: "#/components/schemas/ReportAmounts"
+        active:
+          $ref: "#/components/schemas/ReportAmounts"
+        cancelled:
+          $ref: "#/components/schemas/ReportAmounts"
+        delivered:
+          $ref: "#/components/schemas/ReportAmounts"
+        returned:
+          $ref: "#/components/schemas/ReportAmounts"
+        avgGoodsAmount:
+          $ref: "#/components/schemas/ReportMoneyOrNull"
+        customerReturns:
+          type: object
+          required: [items, refundAmount]
+          description: Phiếu khách trả nhận trong kỳ (theo Page của đơn gốc)
+          properties:
+            items:
+              $ref: "#/components/schemas/ReportCount"
+            refundAmount:
+              $ref: "#/components/schemas/Money"
+        pending:
+          type: object
+          required: [confirm, ship, cancelRequested]
+          description: Số hiện tại, không theo kỳ
+          properties:
+            confirm:
+              $ref: "#/components/schemas/ReportCount"
+            ship:
+              $ref: "#/components/schemas/ReportCount"
+            cancelRequested:
+              $ref: "#/components/schemas/ReportCount"
+        byChannel:
+          type: array
+          items:
+            $ref: "#/components/schemas/SalesDashboardChannelRow"
+        byDay:
+          type: array
+          description: Chỉ khi kỳ dài hơn một ngày
+          items:
+            $ref: "#/components/schemas/SalesDashboardDayRow"
+    SalesDashboardChannelRow:
+      type: object
+      required: [channel, placed, active]
+      properties:
+        channel:
+          type: string
+          description: facebook, web, manual, unknown
+        placed:
+          $ref: "#/components/schemas/ReportAmounts"
+        active:
+          $ref: "#/components/schemas/ReportAmounts"
+    SalesDashboardDayRow:
+      type: object
+      required: [day, active, delivered]
+      properties:
+        day:
+          type: string
+          format: date
+        active:
+          $ref: "#/components/schemas/ReportAmounts"
+        delivered:
+          $ref: "#/components/schemas/ReportAmounts"
+    SalesDashboardResponse:
+      oneOf:
+        - $ref: "#/components/schemas/SalesDashboardReport"
+        - $ref: "#/components/schemas/RunInBackground"
+      discriminator:
+        propertyName: status
+        mapping:
+          ready: "#/components/schemas/SalesDashboardReport"
+          run_in_background: "#/components/schemas/RunInBackground"
+    SalesOrdersRow:
+      type: object
+      required: [key, label, orders, placed, active, cancelled, goodsAmount, shippingFeeCharged, avgGoodsAmount, delivered, returned, successRateBp]
+      properties:
+        key:
+          type: string
+          description: Khóa dòng (mã nhãn, uuid, khóa hãng, ngày, hay unknown); gửi lại ở cellKey
+        label:
+          type: string
+        orders:
+          $ref: "#/components/schemas/ReportCount"
+        placed:
+          type: integer
+          format: int64
+          minimum: 0
+          nullable: true
+          description: null khi basis = completed
+        active:
+          type: integer
+          format: int64
+          minimum: 0
+          nullable: true
+        cancelled:
+          type: integer
+          format: int64
+          minimum: 0
+          nullable: true
+        goodsAmount:
+          $ref: "#/components/schemas/Money"
+        shippingFeeCharged:
+          $ref: "#/components/schemas/Money"
+        avgGoodsAmount:
+          $ref: "#/components/schemas/ReportMoneyOrNull"
+        delivered:
+          $ref: "#/components/schemas/ReportCount"
+        returned:
+          $ref: "#/components/schemas/ReportCount"
+        successRateBp:
+          $ref: "#/components/schemas/ReportRateBp"
+    SalesOrdersReport:
+      type: object
+      required: [status, period, basis, groupBy, rows, totals]
+      properties:
+        status:
+          type: string
+          enum: [ready]
+        period:
+          $ref: "#/components/schemas/ReportPeriod"
+        basis:
+          type: string
+          enum: [placed, completed]
+        groupBy:
+          $ref: "#/components/schemas/ReportDimension"
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/SalesOrdersRow"
+        totals:
+          $ref: "#/components/schemas/SalesOrdersRow"
+    SalesOrdersReportResponse:
+      oneOf:
+        - $ref: "#/components/schemas/SalesOrdersReport"
+        - $ref: "#/components/schemas/RunInBackground"
+      discriminator:
+        propertyName: status
+        mapping:
+          ready: "#/components/schemas/SalesOrdersReport"
+          run_in_background: "#/components/schemas/RunInBackground"
+    SalesOrdersDrilldownItem:
+      type: object
+      required: [orderId, code, statusLabel, channel, goodsAmount, shippingFeeCharged]
+      description: Chỉ mã và số; không SĐT, địa chỉ, tên khách
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        code:
+          type: string
+        customerCode:
+          type: string
+        placedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        statusLabel:
+          $ref: "#/components/schemas/OrderLabel"
+        channel:
+          type: string
+        sourceName:
+          type: string
+        careByName:
+          type: string
+        carrierKey:
+          type: string
+        goodsAmount:
+          $ref: "#/components/schemas/Money"
+        shippingFeeCharged:
+          $ref: "#/components/schemas/Money"
+    SalesOrdersDrilldown:
+      type: object
+      required: [status, total, items]
+      properties:
+        status:
+          type: string
+          enum: [ready]
+        total:
+          $ref: "#/components/schemas/ReportCount"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SalesOrdersDrilldownItem"
+        nextCursor:
+          type: string
+          description: Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+    SalesOrdersDrilldownResponse:
+      oneOf:
+        - $ref: "#/components/schemas/SalesOrdersDrilldown"
+        - $ref: "#/components/schemas/RunInBackground"
+      discriminator:
+        propertyName: status
+        mapping:
+          ready: "#/components/schemas/SalesOrdersDrilldown"
+          run_in_background: "#/components/schemas/RunInBackground"
+    SalesCarrierRow:
+      type: object
+      required: [carrierKey, created, cancelled, inProgress, returning, deliveryFailed, delivered, returned, successRateBp, feeTotal, feeAvg, codTotal]
+      properties:
+        carrierKey:
+          type: string
+          description: Khóa hãng; self là hãng tự giao; rỗng ở dòng tổng
+        carrierAccountId:
+          type: string
+          format: uuid
+          description: Không có ở dòng tổng
+        accountName:
+          type: string
+        created:
+          $ref: "#/components/schemas/ReportCount"
+        cancelled:
+          $ref: "#/components/schemas/ReportCount"
+        inProgress:
+          $ref: "#/components/schemas/ReportCount"
+        returning:
+          $ref: "#/components/schemas/ReportCount"
+        deliveryFailed:
+          $ref: "#/components/schemas/ReportCount"
+        delivered:
+          $ref: "#/components/schemas/ReportCount"
+        returned:
+          $ref: "#/components/schemas/ReportCount"
+        successRateBp:
+          $ref: "#/components/schemas/ReportRateBp"
+        feeTotal:
+          $ref: "#/components/schemas/Money"
+        feeAvg:
+          $ref: "#/components/schemas/ReportMoneyOrNull"
+        codTotal:
+          $ref: "#/components/schemas/Money"
+    SalesCarriersReport:
+      type: object
+      required: [status, period, rows, totals]
+      properties:
+        status:
+          type: string
+          enum: [ready]
+        period:
+          $ref: "#/components/schemas/ReportPeriod"
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/SalesCarrierRow"
+        totals:
+          $ref: "#/components/schemas/SalesCarrierRow"
+    SalesCarriersReportResponse:
+      oneOf:
+        - $ref: "#/components/schemas/SalesCarriersReport"
+        - $ref: "#/components/schemas/RunInBackground"
+      discriminator:
+        propertyName: status
+        mapping:
+          ready: "#/components/schemas/SalesCarriersReport"
+          run_in_background: "#/components/schemas/RunInBackground"
+    SalesBestSellerRow:
+      type: object
+      required: [productId, name, quantity, orders, goodsAmount, returnedQuantity]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        variantId:
+          type: string
+          format: uuid
+          description: Không có ở mức product
+        sku:
+          type: string
+        name:
+          type: string
+        color:
+          type: string
+        size:
+          type: string
+        quantity:
+          $ref: "#/components/schemas/ReportCount"
+        orders:
+          $ref: "#/components/schemas/ReportCount"
+        goodsAmount:
+          $ref: "#/components/schemas/Money"
+        returnedQuantity:
+          $ref: "#/components/schemas/ReportCount"
+    SalesBestSellersReport:
+      type: object
+      required: [status, period, level, basis, rows, totalRows]
+      properties:
+        status:
+          type: string
+          enum: [ready]
+        period:
+          $ref: "#/components/schemas/ReportPeriod"
+        level:
+          type: string
+          enum: [sku, product]
+        basis:
+          type: string
+          enum: [placed, delivered]
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/SalesBestSellerRow"
+        totalRows:
+          $ref: "#/components/schemas/ReportCount"
+    SalesBestSellersResponse:
+      oneOf:
+        - $ref: "#/components/schemas/SalesBestSellersReport"
+        - $ref: "#/components/schemas/RunInBackground"
+      discriminator:
+        propertyName: status
+        mapping:
+          ready: "#/components/schemas/SalesBestSellersReport"
+          run_in_background: "#/components/schemas/RunInBackground"
+    ReportFilterOption:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    SalesReportFilters:
+      type: object
+      required: [sources, staff, pages, carrierKeys]
+      properties:
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportFilterOption"
+        staff:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportFilterOption"
+        pages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportFilterOption"
+        carrierKeys:
+          type: array
+          items:
+            type: string
+    InventoryStockRow:
+      type: object
+      required: [variantId, sku, productName, color, size, warehouseId, warehouseName, onHand, held, inTransit, damaged, available]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        productName:
+          type: string
+        color:
+          type: string
+        size:
+          type: string
+        warehouseId:
+          type: string
+          format: uuid
+        warehouseName:
+          type: string
+        onHand:
+          type: integer
+          format: int64
+        held:
+          type: integer
+          format: int64
+        inTransit:
+          type: integer
+          format: int64
+        damaged:
+          type: integer
+          format: int64
+        available:
+          type: integer
+          format: int64
+          description: onHand − damaged − held − inTransit
+    InventoryStock:
+      type: object
+      required: [status, date, source, rows]
+      properties:
+        status:
+          type: string
+          enum: [ready]
+        date:
+          type: string
+          format: date
+        source:
+          type: string
+          enum: [live, snapshot]
+        firstSnapshotDay:
+          type: string
+          format: date
+          description: Ngày có bản chụp tồn đầu tiên; không có khi chưa chụp ngày nào
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/InventoryStockRow"
+        nextCursor:
+          type: string
+          description: Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+    InventoryStockResponse:
+      oneOf:
+        - $ref: "#/components/schemas/InventoryStock"
+        - $ref: "#/components/schemas/RunInBackground"
+      discriminator:
+        propertyName: status
+        mapping:
+          ready: "#/components/schemas/InventoryStock"
+          run_in_background: "#/components/schemas/RunInBackground"
+    InventoryMovementRow:
+      type: object
+      required: [variantId, sku, productName, color, size, warehouseId, opening, imported, returnedIn, sold, exportedOther, adjusted, closing, damagedClosing]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        productName:
+          type: string
+        color:
+          type: string
+        size:
+          type: string
+        warehouseId:
+          type: string
+          format: uuid
+        opening:
+          type: integer
+          format: int64
+        imported:
+          type: integer
+          format: int64
+        returnedIn:
+          type: integer
+          format: int64
+        sold:
+          type: integer
+          format: int64
+        exportedOther:
+          type: integer
+          format: int64
+        adjusted:
+          type: integer
+          format: int64
+          description: Có dấu (kiểm kho, điều chỉnh)
+        closing:
+          type: integer
+          format: int64
+          description: opening + imported + returnedIn − sold − exportedOther + adjusted
+        damagedClosing:
+          type: integer
+          format: int64
+    InventoryMovements:
+      type: object
+      required: [status, period, rows]
+      properties:
+        status:
+          type: string
+          enum: [ready]
+        period:
+          $ref: "#/components/schemas/ReportPeriod"
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/InventoryMovementRow"
+        nextCursor:
+          type: string
+          description: Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+    InventoryMovementsResponse:
+      oneOf:
+        - $ref: "#/components/schemas/InventoryMovements"
+        - $ref: "#/components/schemas/RunInBackground"
+      discriminator:
+        propertyName: status
+        mapping:
+          ready: "#/components/schemas/InventoryMovements"
+          run_in_background: "#/components/schemas/RunInBackground"
+    ReportKey:
+      type: string
+      enum: [dashboard, orders, order_drilldown, carriers, best_sellers, stock, stock_movements, products, customers]
+      description: 'Khóa báo cáo; họ sales: dashboard, orders, order_drilldown, carriers, best_sellers; họ inventory: stock, stock_movements, products; họ customers: customers'
+    ReportParams:
+      type: object
+      additionalProperties: {}
+      maxProperties: 30
+      description: |
+        Tham số của báo cáo, cùng tên với tham số query của GET tương ứng (from, to, basis, groupBy, channel, sourceId,
+        careBy, createdBy, pageId, carrierKey, cellDimension, cellKey, metric, level, date, warehouseId, q; products:
+        status, q; customers: createdFrom, createdTo, lastOrderFrom, lastOrderTo, lifecycle, tagIds, minOrders). Chỉ mã,
+        ngày, khóa lọc; trường lạ hay sai → 400 bad_params.
+    CreateReportRunRequest:
+      type: object
+      required: [report, format, params]
+      properties:
+        report:
+          $ref: "#/components/schemas/ReportKey"
+        format:
+          type: string
+          enum: [json, xlsx]
+        params:
+          $ref: "#/components/schemas/ReportParams"
+    CreateCustomerExportRequest:
+      type: object
+      required: [params]
+      properties:
+        params:
+          $ref: "#/components/schemas/ReportParams"
+    ReportRun:
+      type: object
+      required: [id, family, report, format, status, params, truncated, createdAt, expiresAt, requestedByName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        family:
+          type: string
+          enum: [sales, inventory, customers]
+        report:
+          $ref: "#/components/schemas/ReportKey"
+        format:
+          type: string
+          enum: [json, xlsx]
+        status:
+          type: string
+          enum: [queued, running, ready, failed, expired]
+        reason:
+          type: string
+          enum: [too_heavy, busy, forbidden, error]
+          description: Chỉ khi status = failed
+        params:
+          $ref: "#/components/schemas/ReportParams"
+        rowCount:
+          type: integer
+          format: int32
+          minimum: 0
+        truncated:
+          type: boolean
+          description: Tệp đã cắt ở REPORT_MAX_ROWS dòng
+        result:
+          type: object
+          additionalProperties: {}
+          description: Kết quả (cùng hình dạng với GET của báo cáo, status ready); chỉ ở getXReportRun khi format json đã xong
+        createdAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        requestedByName:
+          type: string
+    ReportRunPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportRun"
+        nextCursor:
+          type: string
+          description: Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+    ReportFileLink:
+      type: object
+      required: [url, expiresAt]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Đường dẫn tải ký sẵn, tải một lần trong hạn
+        expiresAt:
+          type: string
+          format: date-time

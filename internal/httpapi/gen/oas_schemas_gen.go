@@ -11169,6 +11169,21 @@ func (s *CreateCouponRequest) SetBoundPhone(val OptPhoneInput) {
 	s.BoundPhone = val
 }
 
+// Ref: #/components/schemas/CreateCustomerExportRequest
+type CreateCustomerExportRequest struct {
+	Params ReportParams `json:"params"`
+}
+
+// GetParams returns the value of Params.
+func (s *CreateCustomerExportRequest) GetParams() ReportParams {
+	return s.Params
+}
+
+// SetParams sets the value of Params.
+func (s *CreateCustomerExportRequest) SetParams(val ReportParams) {
+	s.Params = val
+}
+
 // Ref: #/components/schemas/CreateCustomerRequest
 type CreateCustomerRequest struct {
 	FullName string          `json:"fullName"`
@@ -11772,6 +11787,84 @@ func (s *CreateReplyTemplateRequest) SetAttachmentFileId(val OptUUID) {
 // SetQuickReplies sets the value of QuickReplies.
 func (s *CreateReplyTemplateRequest) SetQuickReplies(val []QuickReply) {
 	s.QuickReplies = val
+}
+
+// Ref: #/components/schemas/CreateReportRunRequest
+type CreateReportRunRequest struct {
+	Report ReportKey                    `json:"report"`
+	Format CreateReportRunRequestFormat `json:"format"`
+	Params ReportParams                 `json:"params"`
+}
+
+// GetReport returns the value of Report.
+func (s *CreateReportRunRequest) GetReport() ReportKey {
+	return s.Report
+}
+
+// GetFormat returns the value of Format.
+func (s *CreateReportRunRequest) GetFormat() CreateReportRunRequestFormat {
+	return s.Format
+}
+
+// GetParams returns the value of Params.
+func (s *CreateReportRunRequest) GetParams() ReportParams {
+	return s.Params
+}
+
+// SetReport sets the value of Report.
+func (s *CreateReportRunRequest) SetReport(val ReportKey) {
+	s.Report = val
+}
+
+// SetFormat sets the value of Format.
+func (s *CreateReportRunRequest) SetFormat(val CreateReportRunRequestFormat) {
+	s.Format = val
+}
+
+// SetParams sets the value of Params.
+func (s *CreateReportRunRequest) SetParams(val ReportParams) {
+	s.Params = val
+}
+
+type CreateReportRunRequestFormat string
+
+const (
+	CreateReportRunRequestFormatJSON CreateReportRunRequestFormat = "json"
+	CreateReportRunRequestFormatXlsx CreateReportRunRequestFormat = "xlsx"
+)
+
+// AllValues returns all CreateReportRunRequestFormat values.
+func (CreateReportRunRequestFormat) AllValues() []CreateReportRunRequestFormat {
+	return []CreateReportRunRequestFormat{
+		CreateReportRunRequestFormatJSON,
+		CreateReportRunRequestFormatXlsx,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CreateReportRunRequestFormat) MarshalText() ([]byte, error) {
+	switch s {
+	case CreateReportRunRequestFormatJSON:
+		return []byte(s), nil
+	case CreateReportRunRequestFormatXlsx:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CreateReportRunRequestFormat) UnmarshalText(data []byte) error {
+	switch CreateReportRunRequestFormat(data) {
+	case CreateReportRunRequestFormatJSON:
+		*s = CreateReportRunRequestFormatJSON
+		return nil
+	case CreateReportRunRequestFormatXlsx:
+		*s = CreateReportRunRequestFormatXlsx
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/CreateReturnRequest
@@ -14509,9 +14602,11 @@ func (*ErrorStatusCode) createCodAdjustmentRes()         {}
 func (*ErrorStatusCode) createConversationTagRes()       {}
 func (*ErrorStatusCode) createCouponBatchRes()           {}
 func (*ErrorStatusCode) createCouponRes()                {}
+func (*ErrorStatusCode) createCustomerExportRes()        {}
 func (*ErrorStatusCode) createCustomerRes()              {}
 func (*ErrorStatusCode) createCustomerTagRes()           {}
 func (*ErrorStatusCode) createFlashSaleRes()             {}
+func (*ErrorStatusCode) createInventoryReportRunRes()    {}
 func (*ErrorStatusCode) createLabelBatchRes()            {}
 func (*ErrorStatusCode) createOrderRes()                 {}
 func (*ErrorStatusCode) createProductRes()               {}
@@ -14519,6 +14614,7 @@ func (*ErrorStatusCode) createReminderRes()              {}
 func (*ErrorStatusCode) createReplyTemplateRes()         {}
 func (*ErrorStatusCode) createReturnRes()                {}
 func (*ErrorStatusCode) createRoleRes()                  {}
+func (*ErrorStatusCode) createSalesReportRunRes()        {}
 func (*ErrorStatusCode) createServiceKeyRes()            {}
 func (*ErrorStatusCode) createShipmentRes()              {}
 func (*ErrorStatusCode) createStaffRes()                 {}
@@ -14550,6 +14646,8 @@ func (*ErrorStatusCode) getConversationRes()             {}
 func (*ErrorStatusCode) getCouponBatchRes()              {}
 func (*ErrorStatusCode) getCouponRes()                   {}
 func (*ErrorStatusCode) getCustomerDeliveryStatsRes()    {}
+func (*ErrorStatusCode) getCustomerExportFileRes()       {}
+func (*ErrorStatusCode) getCustomerExportRes()           {}
 func (*ErrorStatusCode) getCustomerImportRes()           {}
 func (*ErrorStatusCode) getCustomerImportTemplateRes()   {}
 func (*ErrorStatusCode) getCustomerRes()                 {}
@@ -14558,6 +14656,10 @@ func (*ErrorStatusCode) getCustomerTimelineRes()         {}
 func (*ErrorStatusCode) getFileRes()                     {}
 func (*ErrorStatusCode) getFlashSaleRes()                {}
 func (*ErrorStatusCode) getFulfillmentSettingsRes()      {}
+func (*ErrorStatusCode) getInventoryMovementsRes()       {}
+func (*ErrorStatusCode) getInventoryReportRunFileRes()   {}
+func (*ErrorStatusCode) getInventoryReportRunRes()       {}
+func (*ErrorStatusCode) getInventoryStockRes()           {}
 func (*ErrorStatusCode) getLabelBatchRes()               {}
 func (*ErrorStatusCode) getLiveCommentContextRes()       {}
 func (*ErrorStatusCode) getLooksRes()                    {}
@@ -14574,6 +14676,13 @@ func (*ErrorStatusCode) getPresenceRes()                 {}
 func (*ErrorStatusCode) getProductClassificationRes()    {}
 func (*ErrorStatusCode) getProductRes()                  {}
 func (*ErrorStatusCode) getReturnRes()                   {}
+func (*ErrorStatusCode) getSalesBestSellersRes()         {}
+func (*ErrorStatusCode) getSalesCarriersReportRes()      {}
+func (*ErrorStatusCode) getSalesDashboardRes()           {}
+func (*ErrorStatusCode) getSalesOrdersReportRes()        {}
+func (*ErrorStatusCode) getSalesReportFiltersRes()       {}
+func (*ErrorStatusCode) getSalesReportRunFileRes()       {}
+func (*ErrorStatusCode) getSalesReportRunRes()           {}
 func (*ErrorStatusCode) getShipmentCodRes()              {}
 func (*ErrorStatusCode) getShipmentRes()                 {}
 func (*ErrorStatusCode) getStockDocumentRes()            {}
@@ -14612,12 +14721,14 @@ func (*ErrorStatusCode) listCouponRedemptionsRes()       {}
 func (*ErrorStatusCode) listCouponsRes()                 {}
 func (*ErrorStatusCode) listCustomerCallsRes()           {}
 func (*ErrorStatusCode) listCustomerConversationsRes()   {}
+func (*ErrorStatusCode) listCustomerExportsRes()         {}
 func (*ErrorStatusCode) listCustomerMergeCandidatesRes() {}
 func (*ErrorStatusCode) listCustomerTagsRes()            {}
 func (*ErrorStatusCode) listCustomersRes()               {}
 func (*ErrorStatusCode) listFeedbackRes()                {}
 func (*ErrorStatusCode) listFlashSalesRes()              {}
 func (*ErrorStatusCode) listFollowUpsRes()               {}
+func (*ErrorStatusCode) listInventoryReportRunsRes()     {}
 func (*ErrorStatusCode) listJobsRes()                    {}
 func (*ErrorStatusCode) listLiveCommentsRes()            {}
 func (*ErrorStatusCode) listLiveSessionsRes()            {}
@@ -14641,6 +14752,8 @@ func (*ErrorStatusCode) listReplyTemplatesRes()          {}
 func (*ErrorStatusCode) listReturnsRes()                 {}
 func (*ErrorStatusCode) listRolesRes()                   {}
 func (*ErrorStatusCode) listRolesToManageRes()           {}
+func (*ErrorStatusCode) listSalesOrdersDrilldownRes()    {}
+func (*ErrorStatusCode) listSalesReportRunsRes()         {}
 func (*ErrorStatusCode) listServiceKeysRes()             {}
 func (*ErrorStatusCode) listShipmentAddressChangesRes()  {}
 func (*ErrorStatusCode) listShipmentEventsRes()          {}
@@ -16466,6 +16579,88 @@ func (s *GetCustomerImportTemplateOKHeaders) SetResponse(val GetCustomerImportTe
 
 func (*GetCustomerImportTemplateOKHeaders) getCustomerImportTemplateRes() {}
 
+type GetSalesBestSellersBasis string
+
+const (
+	GetSalesBestSellersBasisPlaced    GetSalesBestSellersBasis = "placed"
+	GetSalesBestSellersBasisDelivered GetSalesBestSellersBasis = "delivered"
+)
+
+// AllValues returns all GetSalesBestSellersBasis values.
+func (GetSalesBestSellersBasis) AllValues() []GetSalesBestSellersBasis {
+	return []GetSalesBestSellersBasis{
+		GetSalesBestSellersBasisPlaced,
+		GetSalesBestSellersBasisDelivered,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s GetSalesBestSellersBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case GetSalesBestSellersBasisPlaced:
+		return []byte(s), nil
+	case GetSalesBestSellersBasisDelivered:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *GetSalesBestSellersBasis) UnmarshalText(data []byte) error {
+	switch GetSalesBestSellersBasis(data) {
+	case GetSalesBestSellersBasisPlaced:
+		*s = GetSalesBestSellersBasisPlaced
+		return nil
+	case GetSalesBestSellersBasisDelivered:
+		*s = GetSalesBestSellersBasisDelivered
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type GetSalesBestSellersLevel string
+
+const (
+	GetSalesBestSellersLevelSku     GetSalesBestSellersLevel = "sku"
+	GetSalesBestSellersLevelProduct GetSalesBestSellersLevel = "product"
+)
+
+// AllValues returns all GetSalesBestSellersLevel values.
+func (GetSalesBestSellersLevel) AllValues() []GetSalesBestSellersLevel {
+	return []GetSalesBestSellersLevel{
+		GetSalesBestSellersLevelSku,
+		GetSalesBestSellersLevelProduct,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s GetSalesBestSellersLevel) MarshalText() ([]byte, error) {
+	switch s {
+	case GetSalesBestSellersLevelSku:
+		return []byte(s), nil
+	case GetSalesBestSellersLevelProduct:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *GetSalesBestSellersLevel) UnmarshalText(data []byte) error {
+	switch GetSalesBestSellersLevel(data) {
+	case GetSalesBestSellersLevelSku:
+		*s = GetSalesBestSellersLevelSku
+		return nil
+	case GetSalesBestSellersLevelProduct:
+		*s = GetSalesBestSellersLevelProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/Grant
 type Grant struct {
 	Permission string `json:"permission"`
@@ -17727,6 +17922,677 @@ func (s *IngestHealth) GetSpoolFiles() int64 {
 // SetSpoolFiles sets the value of SpoolFiles.
 func (s *IngestHealth) SetSpoolFiles(val int64) {
 	s.SpoolFiles = val
+}
+
+// Ref: #/components/schemas/InventoryMovementRow
+type InventoryMovementRow struct {
+	VariantId     uuid.UUID `json:"variantId"`
+	Sku           string    `json:"sku"`
+	ProductName   string    `json:"productName"`
+	Color         string    `json:"color"`
+	Size          string    `json:"size"`
+	WarehouseId   uuid.UUID `json:"warehouseId"`
+	Opening       int64     `json:"opening"`
+	Imported      int64     `json:"imported"`
+	ReturnedIn    int64     `json:"returnedIn"`
+	Sold          int64     `json:"sold"`
+	ExportedOther int64     `json:"exportedOther"`
+	// Có dấu (kiểm kho, điều chỉnh).
+	Adjusted int64 `json:"adjusted"`
+	// Opening + imported + returnedIn − sold − exportedOther + adjusted.
+	Closing        int64 `json:"closing"`
+	DamagedClosing int64 `json:"damagedClosing"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *InventoryMovementRow) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetSku returns the value of Sku.
+func (s *InventoryMovementRow) GetSku() string {
+	return s.Sku
+}
+
+// GetProductName returns the value of ProductName.
+func (s *InventoryMovementRow) GetProductName() string {
+	return s.ProductName
+}
+
+// GetColor returns the value of Color.
+func (s *InventoryMovementRow) GetColor() string {
+	return s.Color
+}
+
+// GetSize returns the value of Size.
+func (s *InventoryMovementRow) GetSize() string {
+	return s.Size
+}
+
+// GetWarehouseId returns the value of WarehouseId.
+func (s *InventoryMovementRow) GetWarehouseId() uuid.UUID {
+	return s.WarehouseId
+}
+
+// GetOpening returns the value of Opening.
+func (s *InventoryMovementRow) GetOpening() int64 {
+	return s.Opening
+}
+
+// GetImported returns the value of Imported.
+func (s *InventoryMovementRow) GetImported() int64 {
+	return s.Imported
+}
+
+// GetReturnedIn returns the value of ReturnedIn.
+func (s *InventoryMovementRow) GetReturnedIn() int64 {
+	return s.ReturnedIn
+}
+
+// GetSold returns the value of Sold.
+func (s *InventoryMovementRow) GetSold() int64 {
+	return s.Sold
+}
+
+// GetExportedOther returns the value of ExportedOther.
+func (s *InventoryMovementRow) GetExportedOther() int64 {
+	return s.ExportedOther
+}
+
+// GetAdjusted returns the value of Adjusted.
+func (s *InventoryMovementRow) GetAdjusted() int64 {
+	return s.Adjusted
+}
+
+// GetClosing returns the value of Closing.
+func (s *InventoryMovementRow) GetClosing() int64 {
+	return s.Closing
+}
+
+// GetDamagedClosing returns the value of DamagedClosing.
+func (s *InventoryMovementRow) GetDamagedClosing() int64 {
+	return s.DamagedClosing
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *InventoryMovementRow) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetSku sets the value of Sku.
+func (s *InventoryMovementRow) SetSku(val string) {
+	s.Sku = val
+}
+
+// SetProductName sets the value of ProductName.
+func (s *InventoryMovementRow) SetProductName(val string) {
+	s.ProductName = val
+}
+
+// SetColor sets the value of Color.
+func (s *InventoryMovementRow) SetColor(val string) {
+	s.Color = val
+}
+
+// SetSize sets the value of Size.
+func (s *InventoryMovementRow) SetSize(val string) {
+	s.Size = val
+}
+
+// SetWarehouseId sets the value of WarehouseId.
+func (s *InventoryMovementRow) SetWarehouseId(val uuid.UUID) {
+	s.WarehouseId = val
+}
+
+// SetOpening sets the value of Opening.
+func (s *InventoryMovementRow) SetOpening(val int64) {
+	s.Opening = val
+}
+
+// SetImported sets the value of Imported.
+func (s *InventoryMovementRow) SetImported(val int64) {
+	s.Imported = val
+}
+
+// SetReturnedIn sets the value of ReturnedIn.
+func (s *InventoryMovementRow) SetReturnedIn(val int64) {
+	s.ReturnedIn = val
+}
+
+// SetSold sets the value of Sold.
+func (s *InventoryMovementRow) SetSold(val int64) {
+	s.Sold = val
+}
+
+// SetExportedOther sets the value of ExportedOther.
+func (s *InventoryMovementRow) SetExportedOther(val int64) {
+	s.ExportedOther = val
+}
+
+// SetAdjusted sets the value of Adjusted.
+func (s *InventoryMovementRow) SetAdjusted(val int64) {
+	s.Adjusted = val
+}
+
+// SetClosing sets the value of Closing.
+func (s *InventoryMovementRow) SetClosing(val int64) {
+	s.Closing = val
+}
+
+// SetDamagedClosing sets the value of DamagedClosing.
+func (s *InventoryMovementRow) SetDamagedClosing(val int64) {
+	s.DamagedClosing = val
+}
+
+// Ref: #/components/schemas/InventoryMovements
+type InventoryMovements struct {
+	Status InventoryMovementsStatus `json:"status"`
+	Period ReportPeriod             `json:"period"`
+	Rows   []InventoryMovementRow   `json:"rows"`
+	// Có khi còn trang sau; gửi lại nguyên ở tham số cursor.
+	NextCursor OptString `json:"nextCursor"`
+}
+
+// GetStatus returns the value of Status.
+func (s *InventoryMovements) GetStatus() InventoryMovementsStatus {
+	return s.Status
+}
+
+// GetPeriod returns the value of Period.
+func (s *InventoryMovements) GetPeriod() ReportPeriod {
+	return s.Period
+}
+
+// GetRows returns the value of Rows.
+func (s *InventoryMovements) GetRows() []InventoryMovementRow {
+	return s.Rows
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *InventoryMovements) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetStatus sets the value of Status.
+func (s *InventoryMovements) SetStatus(val InventoryMovementsStatus) {
+	s.Status = val
+}
+
+// SetPeriod sets the value of Period.
+func (s *InventoryMovements) SetPeriod(val ReportPeriod) {
+	s.Period = val
+}
+
+// SetRows sets the value of Rows.
+func (s *InventoryMovements) SetRows(val []InventoryMovementRow) {
+	s.Rows = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *InventoryMovements) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+// Ref: #/components/schemas/InventoryMovementsResponse
+// InventoryMovementsResponse represents sum type.
+type InventoryMovementsResponse struct {
+	// Type selects the active sum variant, switch on this field.
+	Type               InventoryMovementsResponseType
+	InventoryMovements InventoryMovements
+	RunInBackground    RunInBackground
+}
+
+// InventoryMovementsResponseType is oneOf type of InventoryMovementsResponse.
+type InventoryMovementsResponseType string
+
+// Possible values for InventoryMovementsResponseType.
+const (
+	InventoryMovementsInventoryMovementsResponse InventoryMovementsResponseType = "ready"
+	RunInBackgroundInventoryMovementsResponse    InventoryMovementsResponseType = "run_in_background"
+)
+
+// IsInventoryMovements reports whether InventoryMovementsResponse is InventoryMovements.
+func (s InventoryMovementsResponse) IsInventoryMovements() bool {
+	return s.Type == InventoryMovementsInventoryMovementsResponse
+}
+
+// IsRunInBackground reports whether InventoryMovementsResponse is RunInBackground.
+func (s InventoryMovementsResponse) IsRunInBackground() bool {
+	return s.Type == RunInBackgroundInventoryMovementsResponse
+}
+
+// SetInventoryMovements sets InventoryMovementsResponse to InventoryMovements.
+func (s *InventoryMovementsResponse) SetInventoryMovements(v InventoryMovements) {
+	s.Type = InventoryMovementsInventoryMovementsResponse
+	s.InventoryMovements = v
+}
+
+// GetInventoryMovements returns InventoryMovements and true boolean if InventoryMovementsResponse is InventoryMovements.
+func (s InventoryMovementsResponse) GetInventoryMovements() (v InventoryMovements, ok bool) {
+	if !s.IsInventoryMovements() {
+		return v, false
+	}
+	return s.InventoryMovements, true
+}
+
+// NewInventoryMovementsInventoryMovementsResponse returns new InventoryMovementsResponse from InventoryMovements.
+func NewInventoryMovementsInventoryMovementsResponse(v InventoryMovements) InventoryMovementsResponse {
+	var s InventoryMovementsResponse
+	s.SetInventoryMovements(v)
+	return s
+}
+
+// SetRunInBackground sets InventoryMovementsResponse to RunInBackground.
+func (s *InventoryMovementsResponse) SetRunInBackground(v RunInBackground) {
+	s.Type = RunInBackgroundInventoryMovementsResponse
+	s.RunInBackground = v
+}
+
+// GetRunInBackground returns RunInBackground and true boolean if InventoryMovementsResponse is RunInBackground.
+func (s InventoryMovementsResponse) GetRunInBackground() (v RunInBackground, ok bool) {
+	if !s.IsRunInBackground() {
+		return v, false
+	}
+	return s.RunInBackground, true
+}
+
+// NewRunInBackgroundInventoryMovementsResponse returns new InventoryMovementsResponse from RunInBackground.
+func NewRunInBackgroundInventoryMovementsResponse(v RunInBackground) InventoryMovementsResponse {
+	var s InventoryMovementsResponse
+	s.SetRunInBackground(v)
+	return s
+}
+
+func (*InventoryMovementsResponse) getInventoryMovementsRes() {}
+
+type InventoryMovementsStatus string
+
+const (
+	InventoryMovementsStatusReady InventoryMovementsStatus = "ready"
+)
+
+// AllValues returns all InventoryMovementsStatus values.
+func (InventoryMovementsStatus) AllValues() []InventoryMovementsStatus {
+	return []InventoryMovementsStatus{
+		InventoryMovementsStatusReady,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryMovementsStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryMovementsStatusReady:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryMovementsStatus) UnmarshalText(data []byte) error {
+	switch InventoryMovementsStatus(data) {
+	case InventoryMovementsStatusReady:
+		*s = InventoryMovementsStatusReady
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/InventoryStock
+type InventoryStock struct {
+	Status InventoryStockStatus `json:"status"`
+	Date   time.Time            `json:"date"`
+	Source InventoryStockSource `json:"source"`
+	// Ngày có bản chụp tồn đầu tiên; không có khi chưa chụp ngày nào.
+	FirstSnapshotDay OptDate             `json:"firstSnapshotDay"`
+	Rows             []InventoryStockRow `json:"rows"`
+	// Có khi còn trang sau; gửi lại nguyên ở tham số cursor.
+	NextCursor OptString `json:"nextCursor"`
+}
+
+// GetStatus returns the value of Status.
+func (s *InventoryStock) GetStatus() InventoryStockStatus {
+	return s.Status
+}
+
+// GetDate returns the value of Date.
+func (s *InventoryStock) GetDate() time.Time {
+	return s.Date
+}
+
+// GetSource returns the value of Source.
+func (s *InventoryStock) GetSource() InventoryStockSource {
+	return s.Source
+}
+
+// GetFirstSnapshotDay returns the value of FirstSnapshotDay.
+func (s *InventoryStock) GetFirstSnapshotDay() OptDate {
+	return s.FirstSnapshotDay
+}
+
+// GetRows returns the value of Rows.
+func (s *InventoryStock) GetRows() []InventoryStockRow {
+	return s.Rows
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *InventoryStock) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetStatus sets the value of Status.
+func (s *InventoryStock) SetStatus(val InventoryStockStatus) {
+	s.Status = val
+}
+
+// SetDate sets the value of Date.
+func (s *InventoryStock) SetDate(val time.Time) {
+	s.Date = val
+}
+
+// SetSource sets the value of Source.
+func (s *InventoryStock) SetSource(val InventoryStockSource) {
+	s.Source = val
+}
+
+// SetFirstSnapshotDay sets the value of FirstSnapshotDay.
+func (s *InventoryStock) SetFirstSnapshotDay(val OptDate) {
+	s.FirstSnapshotDay = val
+}
+
+// SetRows sets the value of Rows.
+func (s *InventoryStock) SetRows(val []InventoryStockRow) {
+	s.Rows = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *InventoryStock) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+// Ref: #/components/schemas/InventoryStockResponse
+// InventoryStockResponse represents sum type.
+type InventoryStockResponse struct {
+	// Type selects the active sum variant, switch on this field.
+	Type            InventoryStockResponseType
+	InventoryStock  InventoryStock
+	RunInBackground RunInBackground
+}
+
+// InventoryStockResponseType is oneOf type of InventoryStockResponse.
+type InventoryStockResponseType string
+
+// Possible values for InventoryStockResponseType.
+const (
+	InventoryStockInventoryStockResponse  InventoryStockResponseType = "ready"
+	RunInBackgroundInventoryStockResponse InventoryStockResponseType = "run_in_background"
+)
+
+// IsInventoryStock reports whether InventoryStockResponse is InventoryStock.
+func (s InventoryStockResponse) IsInventoryStock() bool {
+	return s.Type == InventoryStockInventoryStockResponse
+}
+
+// IsRunInBackground reports whether InventoryStockResponse is RunInBackground.
+func (s InventoryStockResponse) IsRunInBackground() bool {
+	return s.Type == RunInBackgroundInventoryStockResponse
+}
+
+// SetInventoryStock sets InventoryStockResponse to InventoryStock.
+func (s *InventoryStockResponse) SetInventoryStock(v InventoryStock) {
+	s.Type = InventoryStockInventoryStockResponse
+	s.InventoryStock = v
+}
+
+// GetInventoryStock returns InventoryStock and true boolean if InventoryStockResponse is InventoryStock.
+func (s InventoryStockResponse) GetInventoryStock() (v InventoryStock, ok bool) {
+	if !s.IsInventoryStock() {
+		return v, false
+	}
+	return s.InventoryStock, true
+}
+
+// NewInventoryStockInventoryStockResponse returns new InventoryStockResponse from InventoryStock.
+func NewInventoryStockInventoryStockResponse(v InventoryStock) InventoryStockResponse {
+	var s InventoryStockResponse
+	s.SetInventoryStock(v)
+	return s
+}
+
+// SetRunInBackground sets InventoryStockResponse to RunInBackground.
+func (s *InventoryStockResponse) SetRunInBackground(v RunInBackground) {
+	s.Type = RunInBackgroundInventoryStockResponse
+	s.RunInBackground = v
+}
+
+// GetRunInBackground returns RunInBackground and true boolean if InventoryStockResponse is RunInBackground.
+func (s InventoryStockResponse) GetRunInBackground() (v RunInBackground, ok bool) {
+	if !s.IsRunInBackground() {
+		return v, false
+	}
+	return s.RunInBackground, true
+}
+
+// NewRunInBackgroundInventoryStockResponse returns new InventoryStockResponse from RunInBackground.
+func NewRunInBackgroundInventoryStockResponse(v RunInBackground) InventoryStockResponse {
+	var s InventoryStockResponse
+	s.SetRunInBackground(v)
+	return s
+}
+
+func (*InventoryStockResponse) getInventoryStockRes() {}
+
+// Ref: #/components/schemas/InventoryStockRow
+type InventoryStockRow struct {
+	VariantId     uuid.UUID `json:"variantId"`
+	Sku           string    `json:"sku"`
+	ProductName   string    `json:"productName"`
+	Color         string    `json:"color"`
+	Size          string    `json:"size"`
+	WarehouseId   uuid.UUID `json:"warehouseId"`
+	WarehouseName string    `json:"warehouseName"`
+	OnHand        int64     `json:"onHand"`
+	Held          int64     `json:"held"`
+	InTransit     int64     `json:"inTransit"`
+	Damaged       int64     `json:"damaged"`
+	// OnHand − damaged − held − inTransit.
+	Available int64 `json:"available"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *InventoryStockRow) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetSku returns the value of Sku.
+func (s *InventoryStockRow) GetSku() string {
+	return s.Sku
+}
+
+// GetProductName returns the value of ProductName.
+func (s *InventoryStockRow) GetProductName() string {
+	return s.ProductName
+}
+
+// GetColor returns the value of Color.
+func (s *InventoryStockRow) GetColor() string {
+	return s.Color
+}
+
+// GetSize returns the value of Size.
+func (s *InventoryStockRow) GetSize() string {
+	return s.Size
+}
+
+// GetWarehouseId returns the value of WarehouseId.
+func (s *InventoryStockRow) GetWarehouseId() uuid.UUID {
+	return s.WarehouseId
+}
+
+// GetWarehouseName returns the value of WarehouseName.
+func (s *InventoryStockRow) GetWarehouseName() string {
+	return s.WarehouseName
+}
+
+// GetOnHand returns the value of OnHand.
+func (s *InventoryStockRow) GetOnHand() int64 {
+	return s.OnHand
+}
+
+// GetHeld returns the value of Held.
+func (s *InventoryStockRow) GetHeld() int64 {
+	return s.Held
+}
+
+// GetInTransit returns the value of InTransit.
+func (s *InventoryStockRow) GetInTransit() int64 {
+	return s.InTransit
+}
+
+// GetDamaged returns the value of Damaged.
+func (s *InventoryStockRow) GetDamaged() int64 {
+	return s.Damaged
+}
+
+// GetAvailable returns the value of Available.
+func (s *InventoryStockRow) GetAvailable() int64 {
+	return s.Available
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *InventoryStockRow) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetSku sets the value of Sku.
+func (s *InventoryStockRow) SetSku(val string) {
+	s.Sku = val
+}
+
+// SetProductName sets the value of ProductName.
+func (s *InventoryStockRow) SetProductName(val string) {
+	s.ProductName = val
+}
+
+// SetColor sets the value of Color.
+func (s *InventoryStockRow) SetColor(val string) {
+	s.Color = val
+}
+
+// SetSize sets the value of Size.
+func (s *InventoryStockRow) SetSize(val string) {
+	s.Size = val
+}
+
+// SetWarehouseId sets the value of WarehouseId.
+func (s *InventoryStockRow) SetWarehouseId(val uuid.UUID) {
+	s.WarehouseId = val
+}
+
+// SetWarehouseName sets the value of WarehouseName.
+func (s *InventoryStockRow) SetWarehouseName(val string) {
+	s.WarehouseName = val
+}
+
+// SetOnHand sets the value of OnHand.
+func (s *InventoryStockRow) SetOnHand(val int64) {
+	s.OnHand = val
+}
+
+// SetHeld sets the value of Held.
+func (s *InventoryStockRow) SetHeld(val int64) {
+	s.Held = val
+}
+
+// SetInTransit sets the value of InTransit.
+func (s *InventoryStockRow) SetInTransit(val int64) {
+	s.InTransit = val
+}
+
+// SetDamaged sets the value of Damaged.
+func (s *InventoryStockRow) SetDamaged(val int64) {
+	s.Damaged = val
+}
+
+// SetAvailable sets the value of Available.
+func (s *InventoryStockRow) SetAvailable(val int64) {
+	s.Available = val
+}
+
+type InventoryStockSource string
+
+const (
+	InventoryStockSourceLive     InventoryStockSource = "live"
+	InventoryStockSourceSnapshot InventoryStockSource = "snapshot"
+)
+
+// AllValues returns all InventoryStockSource values.
+func (InventoryStockSource) AllValues() []InventoryStockSource {
+	return []InventoryStockSource{
+		InventoryStockSourceLive,
+		InventoryStockSourceSnapshot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryStockSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryStockSourceLive:
+		return []byte(s), nil
+	case InventoryStockSourceSnapshot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryStockSource) UnmarshalText(data []byte) error {
+	switch InventoryStockSource(data) {
+	case InventoryStockSourceLive:
+		*s = InventoryStockSourceLive
+		return nil
+	case InventoryStockSourceSnapshot:
+		*s = InventoryStockSourceSnapshot
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryStockStatus string
+
+const (
+	InventoryStockStatusReady InventoryStockStatus = "ready"
+)
+
+// AllValues returns all InventoryStockStatus values.
+func (InventoryStockStatus) AllValues() []InventoryStockStatus {
+	return []InventoryStockStatus{
+		InventoryStockStatusReady,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryStockStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryStockStatusReady:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryStockStatus) UnmarshalText(data []byte) error {
+	switch InventoryStockStatus(data) {
+	case InventoryStockStatusReady:
+		*s = InventoryStockStatusReady
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/Job
@@ -20715,6 +21581,141 @@ func (s *MessageSendStatus) UnmarshalText(data []byte) error {
 
 type Money int64
 
+// NewNilInt64 returns new NilInt64 with value set to v.
+func NewNilInt64(v int64) NilInt64 {
+	return NilInt64{
+		Value: v,
+	}
+}
+
+// NilInt64 is nullable int64.
+type NilInt64 struct {
+	Value int64
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInt64) SetTo(v int64) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInt64) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInt64) SetToNull() {
+	o.Null = true
+	var v int64
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInt64) Get() (v int64, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInt64) Or(d int64) int64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilReportMoneyOrNull returns new NilReportMoneyOrNull with value set to v.
+func NewNilReportMoneyOrNull(v ReportMoneyOrNull) NilReportMoneyOrNull {
+	return NilReportMoneyOrNull{
+		Value: v,
+	}
+}
+
+// NilReportMoneyOrNull is nullable ReportMoneyOrNull.
+type NilReportMoneyOrNull struct {
+	Value ReportMoneyOrNull
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilReportMoneyOrNull) SetTo(v ReportMoneyOrNull) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilReportMoneyOrNull) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilReportMoneyOrNull) SetToNull() {
+	o.Null = true
+	var v ReportMoneyOrNull
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilReportMoneyOrNull) Get() (v ReportMoneyOrNull, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilReportMoneyOrNull) Or(d ReportMoneyOrNull) ReportMoneyOrNull {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilReportRateBp returns new NilReportRateBp with value set to v.
+func NewNilReportRateBp(v ReportRateBp) NilReportRateBp {
+	return NilReportRateBp{
+		Value: v,
+	}
+}
+
+// NilReportRateBp is nullable ReportRateBp.
+type NilReportRateBp struct {
+	Value ReportRateBp
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilReportRateBp) SetTo(v ReportRateBp) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilReportRateBp) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilReportRateBp) SetToNull() {
+	o.Null = true
+	var v ReportRateBp
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilReportRateBp) Get() (v ReportRateBp, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilReportRateBp) Or(d ReportRateBp) ReportRateBp {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilUUID returns new NilUUID with value set to v.
 func NewNilUUID(v uuid.UUID) NilUUID {
 	return NilUUID{
@@ -23013,6 +24014,98 @@ func (o OptFlashSaleStatus) Get() (v FlashSaleStatus, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFlashSaleStatus) Or(d FlashSaleStatus) FlashSaleStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptGetSalesBestSellersBasis returns new OptGetSalesBestSellersBasis with value set to v.
+func NewOptGetSalesBestSellersBasis(v GetSalesBestSellersBasis) OptGetSalesBestSellersBasis {
+	return OptGetSalesBestSellersBasis{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptGetSalesBestSellersBasis is optional GetSalesBestSellersBasis.
+type OptGetSalesBestSellersBasis struct {
+	Value GetSalesBestSellersBasis
+	Set   bool
+}
+
+// IsSet returns true if OptGetSalesBestSellersBasis was set.
+func (o OptGetSalesBestSellersBasis) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptGetSalesBestSellersBasis) Reset() {
+	var v GetSalesBestSellersBasis
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptGetSalesBestSellersBasis) SetTo(v GetSalesBestSellersBasis) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptGetSalesBestSellersBasis) Get() (v GetSalesBestSellersBasis, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptGetSalesBestSellersBasis) Or(d GetSalesBestSellersBasis) GetSalesBestSellersBasis {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptGetSalesBestSellersLevel returns new OptGetSalesBestSellersLevel with value set to v.
+func NewOptGetSalesBestSellersLevel(v GetSalesBestSellersLevel) OptGetSalesBestSellersLevel {
+	return OptGetSalesBestSellersLevel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptGetSalesBestSellersLevel is optional GetSalesBestSellersLevel.
+type OptGetSalesBestSellersLevel struct {
+	Value GetSalesBestSellersLevel
+	Set   bool
+}
+
+// IsSet returns true if OptGetSalesBestSellersLevel was set.
+func (o OptGetSalesBestSellersLevel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptGetSalesBestSellersLevel) Reset() {
+	var v GetSalesBestSellersLevel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptGetSalesBestSellersLevel) SetTo(v GetSalesBestSellersLevel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptGetSalesBestSellersLevel) Get() (v GetSalesBestSellersLevel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptGetSalesBestSellersLevel) Or(d GetSalesBestSellersLevel) GetSalesBestSellersLevel {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -25333,6 +26426,190 @@ func (o OptReconcileFindingDetail) Get() (v ReconcileFindingDetail, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptReconcileFindingDetail) Or(d ReconcileFindingDetail) ReconcileFindingDetail {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportBasis returns new OptReportBasis with value set to v.
+func NewOptReportBasis(v ReportBasis) OptReportBasis {
+	return OptReportBasis{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportBasis is optional ReportBasis.
+type OptReportBasis struct {
+	Value ReportBasis
+	Set   bool
+}
+
+// IsSet returns true if OptReportBasis was set.
+func (o OptReportBasis) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportBasis) Reset() {
+	var v ReportBasis
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportBasis) SetTo(v ReportBasis) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportBasis) Get() (v ReportBasis, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportBasis) Or(d ReportBasis) ReportBasis {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportDimension returns new OptReportDimension with value set to v.
+func NewOptReportDimension(v ReportDimension) OptReportDimension {
+	return OptReportDimension{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportDimension is optional ReportDimension.
+type OptReportDimension struct {
+	Value ReportDimension
+	Set   bool
+}
+
+// IsSet returns true if OptReportDimension was set.
+func (o OptReportDimension) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportDimension) Reset() {
+	var v ReportDimension
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportDimension) SetTo(v ReportDimension) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportDimension) Get() (v ReportDimension, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportDimension) Or(d ReportDimension) ReportDimension {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportRunReason returns new OptReportRunReason with value set to v.
+func NewOptReportRunReason(v ReportRunReason) OptReportRunReason {
+	return OptReportRunReason{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportRunReason is optional ReportRunReason.
+type OptReportRunReason struct {
+	Value ReportRunReason
+	Set   bool
+}
+
+// IsSet returns true if OptReportRunReason was set.
+func (o OptReportRunReason) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportRunReason) Reset() {
+	var v ReportRunReason
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportRunReason) SetTo(v ReportRunReason) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportRunReason) Get() (v ReportRunReason, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportRunReason) Or(d ReportRunReason) ReportRunReason {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportRunResult returns new OptReportRunResult with value set to v.
+func NewOptReportRunResult(v ReportRunResult) OptReportRunResult {
+	return OptReportRunResult{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportRunResult is optional ReportRunResult.
+type OptReportRunResult struct {
+	Value ReportRunResult
+	Set   bool
+}
+
+// IsSet returns true if OptReportRunResult was set.
+func (o OptReportRunResult) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportRunResult) Reset() {
+	var v ReportRunResult
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportRunResult) SetTo(v ReportRunResult) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportRunResult) Get() (v ReportRunResult, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportRunResult) Or(d ReportRunResult) ReportRunResult {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -33929,6 +35206,880 @@ func (s *ReplyToCommentRequest) SetText(val string) {
 	s.Text = val
 }
 
+// Ref: #/components/schemas/ReportAmounts
+type ReportAmounts struct {
+	Orders             ReportCount `json:"orders"`
+	GoodsAmount        Money       `json:"goodsAmount"`
+	ShippingFeeCharged Money       `json:"shippingFeeCharged"`
+}
+
+// GetOrders returns the value of Orders.
+func (s *ReportAmounts) GetOrders() ReportCount {
+	return s.Orders
+}
+
+// GetGoodsAmount returns the value of GoodsAmount.
+func (s *ReportAmounts) GetGoodsAmount() Money {
+	return s.GoodsAmount
+}
+
+// GetShippingFeeCharged returns the value of ShippingFeeCharged.
+func (s *ReportAmounts) GetShippingFeeCharged() Money {
+	return s.ShippingFeeCharged
+}
+
+// SetOrders sets the value of Orders.
+func (s *ReportAmounts) SetOrders(val ReportCount) {
+	s.Orders = val
+}
+
+// SetGoodsAmount sets the value of GoodsAmount.
+func (s *ReportAmounts) SetGoodsAmount(val Money) {
+	s.GoodsAmount = val
+}
+
+// SetShippingFeeCharged sets the value of ShippingFeeCharged.
+func (s *ReportAmounts) SetShippingFeeCharged(val Money) {
+	s.ShippingFeeCharged = val
+}
+
+type ReportBasis string
+
+const (
+	ReportBasisPlaced    ReportBasis = "placed"
+	ReportBasisCompleted ReportBasis = "completed"
+)
+
+// AllValues returns all ReportBasis values.
+func (ReportBasis) AllValues() []ReportBasis {
+	return []ReportBasis{
+		ReportBasisPlaced,
+		ReportBasisCompleted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportBasisPlaced:
+		return []byte(s), nil
+	case ReportBasisCompleted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportBasis) UnmarshalText(data []byte) error {
+	switch ReportBasis(data) {
+	case ReportBasisPlaced:
+		*s = ReportBasisPlaced
+		return nil
+	case ReportBasisCompleted:
+		*s = ReportBasisCompleted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportCount int64
+
+// Chiều nhóm của báo cáo đơn.
+// Ref: #/components/schemas/ReportDimension
+type ReportDimension string
+
+const (
+	ReportDimensionStatus    ReportDimension = "status"
+	ReportDimensionSource    ReportDimension = "source"
+	ReportDimensionCareBy    ReportDimension = "care_by"
+	ReportDimensionCreatedBy ReportDimension = "created_by"
+	ReportDimensionChannel   ReportDimension = "channel"
+	ReportDimensionPage      ReportDimension = "page"
+	ReportDimensionCarrier   ReportDimension = "carrier"
+	ReportDimensionDay       ReportDimension = "day"
+)
+
+// AllValues returns all ReportDimension values.
+func (ReportDimension) AllValues() []ReportDimension {
+	return []ReportDimension{
+		ReportDimensionStatus,
+		ReportDimensionSource,
+		ReportDimensionCareBy,
+		ReportDimensionCreatedBy,
+		ReportDimensionChannel,
+		ReportDimensionPage,
+		ReportDimensionCarrier,
+		ReportDimensionDay,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportDimension) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportDimensionStatus:
+		return []byte(s), nil
+	case ReportDimensionSource:
+		return []byte(s), nil
+	case ReportDimensionCareBy:
+		return []byte(s), nil
+	case ReportDimensionCreatedBy:
+		return []byte(s), nil
+	case ReportDimensionChannel:
+		return []byte(s), nil
+	case ReportDimensionPage:
+		return []byte(s), nil
+	case ReportDimensionCarrier:
+		return []byte(s), nil
+	case ReportDimensionDay:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportDimension) UnmarshalText(data []byte) error {
+	switch ReportDimension(data) {
+	case ReportDimensionStatus:
+		*s = ReportDimensionStatus
+		return nil
+	case ReportDimensionSource:
+		*s = ReportDimensionSource
+		return nil
+	case ReportDimensionCareBy:
+		*s = ReportDimensionCareBy
+		return nil
+	case ReportDimensionCreatedBy:
+		*s = ReportDimensionCreatedBy
+		return nil
+	case ReportDimensionChannel:
+		*s = ReportDimensionChannel
+		return nil
+	case ReportDimensionPage:
+		*s = ReportDimensionPage
+		return nil
+	case ReportDimensionCarrier:
+		*s = ReportDimensionCarrier
+		return nil
+	case ReportDimensionDay:
+		*s = ReportDimensionDay
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ReportFileLink
+type ReportFileLink struct {
+	// Đường dẫn tải ký sẵn, tải một lần trong hạn.
+	URL       url.URL   `json:"url"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+// GetURL returns the value of URL.
+func (s *ReportFileLink) GetURL() url.URL {
+	return s.URL
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ReportFileLink) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// SetURL sets the value of URL.
+func (s *ReportFileLink) SetURL(val url.URL) {
+	s.URL = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ReportFileLink) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+func (*ReportFileLink) getCustomerExportFileRes()     {}
+func (*ReportFileLink) getInventoryReportRunFileRes() {}
+func (*ReportFileLink) getSalesReportRunFileRes()     {}
+
+// Ref: #/components/schemas/ReportFilterOption
+type ReportFilterOption struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+// GetID returns the value of ID.
+func (s *ReportFilterOption) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ReportFilterOption) GetName() string {
+	return s.Name
+}
+
+// SetID sets the value of ID.
+func (s *ReportFilterOption) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportFilterOption) SetName(val string) {
+	s.Name = val
+}
+
+// Khóa báo cáo; họ sales: dashboard, orders, order_drilldown, carriers, best_sellers; họ
+// inventory: stock, stock_movements, products; họ customers: customers.
+// Ref: #/components/schemas/ReportKey
+type ReportKey string
+
+const (
+	ReportKeyDashboard      ReportKey = "dashboard"
+	ReportKeyOrders         ReportKey = "orders"
+	ReportKeyOrderDrilldown ReportKey = "order_drilldown"
+	ReportKeyCarriers       ReportKey = "carriers"
+	ReportKeyBestSellers    ReportKey = "best_sellers"
+	ReportKeyStock          ReportKey = "stock"
+	ReportKeyStockMovements ReportKey = "stock_movements"
+	ReportKeyProducts       ReportKey = "products"
+	ReportKeyCustomers      ReportKey = "customers"
+)
+
+// AllValues returns all ReportKey values.
+func (ReportKey) AllValues() []ReportKey {
+	return []ReportKey{
+		ReportKeyDashboard,
+		ReportKeyOrders,
+		ReportKeyOrderDrilldown,
+		ReportKeyCarriers,
+		ReportKeyBestSellers,
+		ReportKeyStock,
+		ReportKeyStockMovements,
+		ReportKeyProducts,
+		ReportKeyCustomers,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportKey) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportKeyDashboard:
+		return []byte(s), nil
+	case ReportKeyOrders:
+		return []byte(s), nil
+	case ReportKeyOrderDrilldown:
+		return []byte(s), nil
+	case ReportKeyCarriers:
+		return []byte(s), nil
+	case ReportKeyBestSellers:
+		return []byte(s), nil
+	case ReportKeyStock:
+		return []byte(s), nil
+	case ReportKeyStockMovements:
+		return []byte(s), nil
+	case ReportKeyProducts:
+		return []byte(s), nil
+	case ReportKeyCustomers:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportKey) UnmarshalText(data []byte) error {
+	switch ReportKey(data) {
+	case ReportKeyDashboard:
+		*s = ReportKeyDashboard
+		return nil
+	case ReportKeyOrders:
+		*s = ReportKeyOrders
+		return nil
+	case ReportKeyOrderDrilldown:
+		*s = ReportKeyOrderDrilldown
+		return nil
+	case ReportKeyCarriers:
+		*s = ReportKeyCarriers
+		return nil
+	case ReportKeyBestSellers:
+		*s = ReportKeyBestSellers
+		return nil
+	case ReportKeyStock:
+		*s = ReportKeyStock
+		return nil
+	case ReportKeyStockMovements:
+		*s = ReportKeyStockMovements
+		return nil
+	case ReportKeyProducts:
+		*s = ReportKeyProducts
+		return nil
+	case ReportKeyCustomers:
+		*s = ReportKeyCustomers
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Cột số của tổng quan hay báo cáo đơn mà danh sách chi tiết mở.
+// Ref: #/components/schemas/ReportMetric
+type ReportMetric string
+
+const (
+	ReportMetricPlaced           ReportMetric = "placed"
+	ReportMetricPlacedActive     ReportMetric = "placed_active"
+	ReportMetricCancelled        ReportMetric = "cancelled"
+	ReportMetricDelivered        ReportMetric = "delivered"
+	ReportMetricReturned         ReportMetric = "returned"
+	ReportMetricCustomerReturned ReportMetric = "customer_returned"
+	ReportMetricPendingConfirm   ReportMetric = "pending_confirm"
+	ReportMetricPendingShip      ReportMetric = "pending_ship"
+	ReportMetricCancelRequested  ReportMetric = "cancel_requested"
+)
+
+// AllValues returns all ReportMetric values.
+func (ReportMetric) AllValues() []ReportMetric {
+	return []ReportMetric{
+		ReportMetricPlaced,
+		ReportMetricPlacedActive,
+		ReportMetricCancelled,
+		ReportMetricDelivered,
+		ReportMetricReturned,
+		ReportMetricCustomerReturned,
+		ReportMetricPendingConfirm,
+		ReportMetricPendingShip,
+		ReportMetricCancelRequested,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportMetric) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportMetricPlaced:
+		return []byte(s), nil
+	case ReportMetricPlacedActive:
+		return []byte(s), nil
+	case ReportMetricCancelled:
+		return []byte(s), nil
+	case ReportMetricDelivered:
+		return []byte(s), nil
+	case ReportMetricReturned:
+		return []byte(s), nil
+	case ReportMetricCustomerReturned:
+		return []byte(s), nil
+	case ReportMetricPendingConfirm:
+		return []byte(s), nil
+	case ReportMetricPendingShip:
+		return []byte(s), nil
+	case ReportMetricCancelRequested:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportMetric) UnmarshalText(data []byte) error {
+	switch ReportMetric(data) {
+	case ReportMetricPlaced:
+		*s = ReportMetricPlaced
+		return nil
+	case ReportMetricPlacedActive:
+		*s = ReportMetricPlacedActive
+		return nil
+	case ReportMetricCancelled:
+		*s = ReportMetricCancelled
+		return nil
+	case ReportMetricDelivered:
+		*s = ReportMetricDelivered
+		return nil
+	case ReportMetricReturned:
+		*s = ReportMetricReturned
+		return nil
+	case ReportMetricCustomerReturned:
+		*s = ReportMetricCustomerReturned
+		return nil
+	case ReportMetricPendingConfirm:
+		*s = ReportMetricPendingConfirm
+		return nil
+	case ReportMetricPendingShip:
+		*s = ReportMetricPendingShip
+		return nil
+	case ReportMetricCancelRequested:
+		*s = ReportMetricCancelRequested
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportMoneyOrNull int64
+
+// Tham số của báo cáo, cùng tên với tham số query của GET tương ứng (from, to,
+// basis, groupBy, channel, sourceId, careBy, createdBy, pageId, carrierKey, cellDimension, cellKey,
+// metric, level, date, warehouseId, q; products: status, q; customers: createdFrom, createdTo,
+// lastOrderFrom, lastOrderTo, lifecycle, tagIds, minOrders). Chỉ mã, ngày, khóa lọc; trường
+// lạ hay sai → 400 bad_params.
+// Ref: #/components/schemas/ReportParams
+type ReportParams map[string]jx.Raw
+
+func (s *ReportParams) init() ReportParams {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+// Ref: #/components/schemas/ReportPeriod
+type ReportPeriod struct {
+	From time.Time `json:"from"`
+	To   time.Time `json:"to"`
+}
+
+// GetFrom returns the value of From.
+func (s *ReportPeriod) GetFrom() time.Time {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *ReportPeriod) GetTo() time.Time {
+	return s.To
+}
+
+// SetFrom sets the value of From.
+func (s *ReportPeriod) SetFrom(val time.Time) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *ReportPeriod) SetTo(val time.Time) {
+	s.To = val
+}
+
+type ReportRateBp int32
+
+// Ref: #/components/schemas/ReportRun
+type ReportRun struct {
+	ID     uuid.UUID       `json:"id"`
+	Family ReportRunFamily `json:"family"`
+	Report ReportKey       `json:"report"`
+	Format ReportRunFormat `json:"format"`
+	Status ReportRunStatus `json:"status"`
+	// Chỉ khi status = failed.
+	Reason   OptReportRunReason `json:"reason"`
+	Params   ReportParams       `json:"params"`
+	RowCount OptInt32           `json:"rowCount"`
+	// Tệp đã cắt ở REPORT_MAX_ROWS dòng.
+	Truncated bool `json:"truncated"`
+	// Kết quả (cùng hình dạng với GET của báo cáo, status ready); chỉ ở getXReportRun
+	// khi format json đã xong.
+	Result          OptReportRunResult `json:"result"`
+	CreatedAt       time.Time          `json:"createdAt"`
+	FinishedAt      OptDateTime        `json:"finishedAt"`
+	ExpiresAt       time.Time          `json:"expiresAt"`
+	RequestedByName string             `json:"requestedByName"`
+}
+
+// GetID returns the value of ID.
+func (s *ReportRun) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetFamily returns the value of Family.
+func (s *ReportRun) GetFamily() ReportRunFamily {
+	return s.Family
+}
+
+// GetReport returns the value of Report.
+func (s *ReportRun) GetReport() ReportKey {
+	return s.Report
+}
+
+// GetFormat returns the value of Format.
+func (s *ReportRun) GetFormat() ReportRunFormat {
+	return s.Format
+}
+
+// GetStatus returns the value of Status.
+func (s *ReportRun) GetStatus() ReportRunStatus {
+	return s.Status
+}
+
+// GetReason returns the value of Reason.
+func (s *ReportRun) GetReason() OptReportRunReason {
+	return s.Reason
+}
+
+// GetParams returns the value of Params.
+func (s *ReportRun) GetParams() ReportParams {
+	return s.Params
+}
+
+// GetRowCount returns the value of RowCount.
+func (s *ReportRun) GetRowCount() OptInt32 {
+	return s.RowCount
+}
+
+// GetTruncated returns the value of Truncated.
+func (s *ReportRun) GetTruncated() bool {
+	return s.Truncated
+}
+
+// GetResult returns the value of Result.
+func (s *ReportRun) GetResult() OptReportRunResult {
+	return s.Result
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ReportRun) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *ReportRun) GetFinishedAt() OptDateTime {
+	return s.FinishedAt
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ReportRun) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// GetRequestedByName returns the value of RequestedByName.
+func (s *ReportRun) GetRequestedByName() string {
+	return s.RequestedByName
+}
+
+// SetID sets the value of ID.
+func (s *ReportRun) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetFamily sets the value of Family.
+func (s *ReportRun) SetFamily(val ReportRunFamily) {
+	s.Family = val
+}
+
+// SetReport sets the value of Report.
+func (s *ReportRun) SetReport(val ReportKey) {
+	s.Report = val
+}
+
+// SetFormat sets the value of Format.
+func (s *ReportRun) SetFormat(val ReportRunFormat) {
+	s.Format = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ReportRun) SetStatus(val ReportRunStatus) {
+	s.Status = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ReportRun) SetReason(val OptReportRunReason) {
+	s.Reason = val
+}
+
+// SetParams sets the value of Params.
+func (s *ReportRun) SetParams(val ReportParams) {
+	s.Params = val
+}
+
+// SetRowCount sets the value of RowCount.
+func (s *ReportRun) SetRowCount(val OptInt32) {
+	s.RowCount = val
+}
+
+// SetTruncated sets the value of Truncated.
+func (s *ReportRun) SetTruncated(val bool) {
+	s.Truncated = val
+}
+
+// SetResult sets the value of Result.
+func (s *ReportRun) SetResult(val OptReportRunResult) {
+	s.Result = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ReportRun) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *ReportRun) SetFinishedAt(val OptDateTime) {
+	s.FinishedAt = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ReportRun) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+// SetRequestedByName sets the value of RequestedByName.
+func (s *ReportRun) SetRequestedByName(val string) {
+	s.RequestedByName = val
+}
+
+func (*ReportRun) createCustomerExportRes()     {}
+func (*ReportRun) createInventoryReportRunRes() {}
+func (*ReportRun) createSalesReportRunRes()     {}
+func (*ReportRun) getCustomerExportRes()        {}
+func (*ReportRun) getInventoryReportRunRes()    {}
+func (*ReportRun) getSalesReportRunRes()        {}
+
+type ReportRunFamily string
+
+const (
+	ReportRunFamilySales     ReportRunFamily = "sales"
+	ReportRunFamilyInventory ReportRunFamily = "inventory"
+	ReportRunFamilyCustomers ReportRunFamily = "customers"
+)
+
+// AllValues returns all ReportRunFamily values.
+func (ReportRunFamily) AllValues() []ReportRunFamily {
+	return []ReportRunFamily{
+		ReportRunFamilySales,
+		ReportRunFamilyInventory,
+		ReportRunFamilyCustomers,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportRunFamily) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportRunFamilySales:
+		return []byte(s), nil
+	case ReportRunFamilyInventory:
+		return []byte(s), nil
+	case ReportRunFamilyCustomers:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportRunFamily) UnmarshalText(data []byte) error {
+	switch ReportRunFamily(data) {
+	case ReportRunFamilySales:
+		*s = ReportRunFamilySales
+		return nil
+	case ReportRunFamilyInventory:
+		*s = ReportRunFamilyInventory
+		return nil
+	case ReportRunFamilyCustomers:
+		*s = ReportRunFamilyCustomers
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportRunFormat string
+
+const (
+	ReportRunFormatJSON ReportRunFormat = "json"
+	ReportRunFormatXlsx ReportRunFormat = "xlsx"
+)
+
+// AllValues returns all ReportRunFormat values.
+func (ReportRunFormat) AllValues() []ReportRunFormat {
+	return []ReportRunFormat{
+		ReportRunFormatJSON,
+		ReportRunFormatXlsx,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportRunFormat) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportRunFormatJSON:
+		return []byte(s), nil
+	case ReportRunFormatXlsx:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportRunFormat) UnmarshalText(data []byte) error {
+	switch ReportRunFormat(data) {
+	case ReportRunFormatJSON:
+		*s = ReportRunFormatJSON
+		return nil
+	case ReportRunFormatXlsx:
+		*s = ReportRunFormatXlsx
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ReportRunPage
+type ReportRunPage struct {
+	Items []ReportRun `json:"items"`
+	// Có khi còn trang sau; gửi lại nguyên ở tham số cursor.
+	NextCursor OptString `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *ReportRunPage) GetItems() []ReportRun {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *ReportRunPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *ReportRunPage) SetItems(val []ReportRun) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *ReportRunPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*ReportRunPage) listCustomerExportsRes()     {}
+func (*ReportRunPage) listInventoryReportRunsRes() {}
+func (*ReportRunPage) listSalesReportRunsRes()     {}
+
+// Chỉ khi status = failed.
+type ReportRunReason string
+
+const (
+	ReportRunReasonTooHeavy  ReportRunReason = "too_heavy"
+	ReportRunReasonBusy      ReportRunReason = "busy"
+	ReportRunReasonForbidden ReportRunReason = "forbidden"
+	ReportRunReasonError     ReportRunReason = "error"
+)
+
+// AllValues returns all ReportRunReason values.
+func (ReportRunReason) AllValues() []ReportRunReason {
+	return []ReportRunReason{
+		ReportRunReasonTooHeavy,
+		ReportRunReasonBusy,
+		ReportRunReasonForbidden,
+		ReportRunReasonError,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportRunReason) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportRunReasonTooHeavy:
+		return []byte(s), nil
+	case ReportRunReasonBusy:
+		return []byte(s), nil
+	case ReportRunReasonForbidden:
+		return []byte(s), nil
+	case ReportRunReasonError:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportRunReason) UnmarshalText(data []byte) error {
+	switch ReportRunReason(data) {
+	case ReportRunReasonTooHeavy:
+		*s = ReportRunReasonTooHeavy
+		return nil
+	case ReportRunReasonBusy:
+		*s = ReportRunReasonBusy
+		return nil
+	case ReportRunReasonForbidden:
+		*s = ReportRunReasonForbidden
+		return nil
+	case ReportRunReasonError:
+		*s = ReportRunReasonError
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Kết quả (cùng hình dạng với GET của báo cáo, status ready); chỉ ở getXReportRun
+// khi format json đã xong.
+type ReportRunResult map[string]jx.Raw
+
+func (s *ReportRunResult) init() ReportRunResult {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+type ReportRunStatus string
+
+const (
+	ReportRunStatusQueued  ReportRunStatus = "queued"
+	ReportRunStatusRunning ReportRunStatus = "running"
+	ReportRunStatusReady   ReportRunStatus = "ready"
+	ReportRunStatusFailed  ReportRunStatus = "failed"
+	ReportRunStatusExpired ReportRunStatus = "expired"
+)
+
+// AllValues returns all ReportRunStatus values.
+func (ReportRunStatus) AllValues() []ReportRunStatus {
+	return []ReportRunStatus{
+		ReportRunStatusQueued,
+		ReportRunStatusRunning,
+		ReportRunStatusReady,
+		ReportRunStatusFailed,
+		ReportRunStatusExpired,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportRunStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportRunStatusQueued:
+		return []byte(s), nil
+	case ReportRunStatusRunning:
+		return []byte(s), nil
+	case ReportRunStatusReady:
+		return []byte(s), nil
+	case ReportRunStatusFailed:
+		return []byte(s), nil
+	case ReportRunStatusExpired:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportRunStatus) UnmarshalText(data []byte) error {
+	switch ReportRunStatus(data) {
+	case ReportRunStatusQueued:
+		*s = ReportRunStatusQueued
+		return nil
+	case ReportRunStatusRunning:
+		*s = ReportRunStatusRunning
+		return nil
+	case ReportRunStatusReady:
+		*s = ReportRunStatusReady
+		return nil
+	case ReportRunStatusFailed:
+		*s = ReportRunStatusFailed
+		return nil
+	case ReportRunStatusExpired:
+		*s = ReportRunStatusExpired
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/RequestAddressChangeRequest
 type RequestAddressChangeRequest struct {
 	Address AddressInput `json:"address"`
@@ -34997,6 +37148,1887 @@ func (s *RoleStatus) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+// Báo cáo không chạy tại chỗ được (hết chỗ hay quá hạn giờ); màn hình tạo
+// lần chạy nền cùng tham số.
+// Ref: #/components/schemas/RunInBackground
+type RunInBackground struct {
+	Status RunInBackgroundStatus `json:"status"`
+	Reason RunInBackgroundReason `json:"reason"`
+}
+
+// GetStatus returns the value of Status.
+func (s *RunInBackground) GetStatus() RunInBackgroundStatus {
+	return s.Status
+}
+
+// GetReason returns the value of Reason.
+func (s *RunInBackground) GetReason() RunInBackgroundReason {
+	return s.Reason
+}
+
+// SetStatus sets the value of Status.
+func (s *RunInBackground) SetStatus(val RunInBackgroundStatus) {
+	s.Status = val
+}
+
+// SetReason sets the value of Reason.
+func (s *RunInBackground) SetReason(val RunInBackgroundReason) {
+	s.Reason = val
+}
+
+type RunInBackgroundReason string
+
+const (
+	RunInBackgroundReasonBusy    RunInBackgroundReason = "busy"
+	RunInBackgroundReasonTimeout RunInBackgroundReason = "timeout"
+)
+
+// AllValues returns all RunInBackgroundReason values.
+func (RunInBackgroundReason) AllValues() []RunInBackgroundReason {
+	return []RunInBackgroundReason{
+		RunInBackgroundReasonBusy,
+		RunInBackgroundReasonTimeout,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s RunInBackgroundReason) MarshalText() ([]byte, error) {
+	switch s {
+	case RunInBackgroundReasonBusy:
+		return []byte(s), nil
+	case RunInBackgroundReasonTimeout:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *RunInBackgroundReason) UnmarshalText(data []byte) error {
+	switch RunInBackgroundReason(data) {
+	case RunInBackgroundReasonBusy:
+		*s = RunInBackgroundReasonBusy
+		return nil
+	case RunInBackgroundReasonTimeout:
+		*s = RunInBackgroundReasonTimeout
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type RunInBackgroundStatus string
+
+const (
+	RunInBackgroundStatusRunInBackground RunInBackgroundStatus = "run_in_background"
+)
+
+// AllValues returns all RunInBackgroundStatus values.
+func (RunInBackgroundStatus) AllValues() []RunInBackgroundStatus {
+	return []RunInBackgroundStatus{
+		RunInBackgroundStatusRunInBackground,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s RunInBackgroundStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case RunInBackgroundStatusRunInBackground:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *RunInBackgroundStatus) UnmarshalText(data []byte) error {
+	switch RunInBackgroundStatus(data) {
+	case RunInBackgroundStatusRunInBackground:
+		*s = RunInBackgroundStatusRunInBackground
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/SalesBestSellerRow
+type SalesBestSellerRow struct {
+	ProductId uuid.UUID `json:"productId"`
+	// Không có ở mức product.
+	VariantId        OptUUID     `json:"variantId"`
+	Sku              OptString   `json:"sku"`
+	Name             string      `json:"name"`
+	Color            OptString   `json:"color"`
+	Size             OptString   `json:"size"`
+	Quantity         ReportCount `json:"quantity"`
+	Orders           ReportCount `json:"orders"`
+	GoodsAmount      Money       `json:"goodsAmount"`
+	ReturnedQuantity ReportCount `json:"returnedQuantity"`
+}
+
+// GetProductId returns the value of ProductId.
+func (s *SalesBestSellerRow) GetProductId() uuid.UUID {
+	return s.ProductId
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *SalesBestSellerRow) GetVariantId() OptUUID {
+	return s.VariantId
+}
+
+// GetSku returns the value of Sku.
+func (s *SalesBestSellerRow) GetSku() OptString {
+	return s.Sku
+}
+
+// GetName returns the value of Name.
+func (s *SalesBestSellerRow) GetName() string {
+	return s.Name
+}
+
+// GetColor returns the value of Color.
+func (s *SalesBestSellerRow) GetColor() OptString {
+	return s.Color
+}
+
+// GetSize returns the value of Size.
+func (s *SalesBestSellerRow) GetSize() OptString {
+	return s.Size
+}
+
+// GetQuantity returns the value of Quantity.
+func (s *SalesBestSellerRow) GetQuantity() ReportCount {
+	return s.Quantity
+}
+
+// GetOrders returns the value of Orders.
+func (s *SalesBestSellerRow) GetOrders() ReportCount {
+	return s.Orders
+}
+
+// GetGoodsAmount returns the value of GoodsAmount.
+func (s *SalesBestSellerRow) GetGoodsAmount() Money {
+	return s.GoodsAmount
+}
+
+// GetReturnedQuantity returns the value of ReturnedQuantity.
+func (s *SalesBestSellerRow) GetReturnedQuantity() ReportCount {
+	return s.ReturnedQuantity
+}
+
+// SetProductId sets the value of ProductId.
+func (s *SalesBestSellerRow) SetProductId(val uuid.UUID) {
+	s.ProductId = val
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *SalesBestSellerRow) SetVariantId(val OptUUID) {
+	s.VariantId = val
+}
+
+// SetSku sets the value of Sku.
+func (s *SalesBestSellerRow) SetSku(val OptString) {
+	s.Sku = val
+}
+
+// SetName sets the value of Name.
+func (s *SalesBestSellerRow) SetName(val string) {
+	s.Name = val
+}
+
+// SetColor sets the value of Color.
+func (s *SalesBestSellerRow) SetColor(val OptString) {
+	s.Color = val
+}
+
+// SetSize sets the value of Size.
+func (s *SalesBestSellerRow) SetSize(val OptString) {
+	s.Size = val
+}
+
+// SetQuantity sets the value of Quantity.
+func (s *SalesBestSellerRow) SetQuantity(val ReportCount) {
+	s.Quantity = val
+}
+
+// SetOrders sets the value of Orders.
+func (s *SalesBestSellerRow) SetOrders(val ReportCount) {
+	s.Orders = val
+}
+
+// SetGoodsAmount sets the value of GoodsAmount.
+func (s *SalesBestSellerRow) SetGoodsAmount(val Money) {
+	s.GoodsAmount = val
+}
+
+// SetReturnedQuantity sets the value of ReturnedQuantity.
+func (s *SalesBestSellerRow) SetReturnedQuantity(val ReportCount) {
+	s.ReturnedQuantity = val
+}
+
+// Ref: #/components/schemas/SalesBestSellersReport
+type SalesBestSellersReport struct {
+	Status    SalesBestSellersReportStatus `json:"status"`
+	Period    ReportPeriod                 `json:"period"`
+	Level     SalesBestSellersReportLevel  `json:"level"`
+	Basis     SalesBestSellersReportBasis  `json:"basis"`
+	Rows      []SalesBestSellerRow         `json:"rows"`
+	TotalRows ReportCount                  `json:"totalRows"`
+}
+
+// GetStatus returns the value of Status.
+func (s *SalesBestSellersReport) GetStatus() SalesBestSellersReportStatus {
+	return s.Status
+}
+
+// GetPeriod returns the value of Period.
+func (s *SalesBestSellersReport) GetPeriod() ReportPeriod {
+	return s.Period
+}
+
+// GetLevel returns the value of Level.
+func (s *SalesBestSellersReport) GetLevel() SalesBestSellersReportLevel {
+	return s.Level
+}
+
+// GetBasis returns the value of Basis.
+func (s *SalesBestSellersReport) GetBasis() SalesBestSellersReportBasis {
+	return s.Basis
+}
+
+// GetRows returns the value of Rows.
+func (s *SalesBestSellersReport) GetRows() []SalesBestSellerRow {
+	return s.Rows
+}
+
+// GetTotalRows returns the value of TotalRows.
+func (s *SalesBestSellersReport) GetTotalRows() ReportCount {
+	return s.TotalRows
+}
+
+// SetStatus sets the value of Status.
+func (s *SalesBestSellersReport) SetStatus(val SalesBestSellersReportStatus) {
+	s.Status = val
+}
+
+// SetPeriod sets the value of Period.
+func (s *SalesBestSellersReport) SetPeriod(val ReportPeriod) {
+	s.Period = val
+}
+
+// SetLevel sets the value of Level.
+func (s *SalesBestSellersReport) SetLevel(val SalesBestSellersReportLevel) {
+	s.Level = val
+}
+
+// SetBasis sets the value of Basis.
+func (s *SalesBestSellersReport) SetBasis(val SalesBestSellersReportBasis) {
+	s.Basis = val
+}
+
+// SetRows sets the value of Rows.
+func (s *SalesBestSellersReport) SetRows(val []SalesBestSellerRow) {
+	s.Rows = val
+}
+
+// SetTotalRows sets the value of TotalRows.
+func (s *SalesBestSellersReport) SetTotalRows(val ReportCount) {
+	s.TotalRows = val
+}
+
+type SalesBestSellersReportBasis string
+
+const (
+	SalesBestSellersReportBasisPlaced    SalesBestSellersReportBasis = "placed"
+	SalesBestSellersReportBasisDelivered SalesBestSellersReportBasis = "delivered"
+)
+
+// AllValues returns all SalesBestSellersReportBasis values.
+func (SalesBestSellersReportBasis) AllValues() []SalesBestSellersReportBasis {
+	return []SalesBestSellersReportBasis{
+		SalesBestSellersReportBasisPlaced,
+		SalesBestSellersReportBasisDelivered,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SalesBestSellersReportBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case SalesBestSellersReportBasisPlaced:
+		return []byte(s), nil
+	case SalesBestSellersReportBasisDelivered:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SalesBestSellersReportBasis) UnmarshalText(data []byte) error {
+	switch SalesBestSellersReportBasis(data) {
+	case SalesBestSellersReportBasisPlaced:
+		*s = SalesBestSellersReportBasisPlaced
+		return nil
+	case SalesBestSellersReportBasisDelivered:
+		*s = SalesBestSellersReportBasisDelivered
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type SalesBestSellersReportLevel string
+
+const (
+	SalesBestSellersReportLevelSku     SalesBestSellersReportLevel = "sku"
+	SalesBestSellersReportLevelProduct SalesBestSellersReportLevel = "product"
+)
+
+// AllValues returns all SalesBestSellersReportLevel values.
+func (SalesBestSellersReportLevel) AllValues() []SalesBestSellersReportLevel {
+	return []SalesBestSellersReportLevel{
+		SalesBestSellersReportLevelSku,
+		SalesBestSellersReportLevelProduct,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SalesBestSellersReportLevel) MarshalText() ([]byte, error) {
+	switch s {
+	case SalesBestSellersReportLevelSku:
+		return []byte(s), nil
+	case SalesBestSellersReportLevelProduct:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SalesBestSellersReportLevel) UnmarshalText(data []byte) error {
+	switch SalesBestSellersReportLevel(data) {
+	case SalesBestSellersReportLevelSku:
+		*s = SalesBestSellersReportLevelSku
+		return nil
+	case SalesBestSellersReportLevelProduct:
+		*s = SalesBestSellersReportLevelProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type SalesBestSellersReportStatus string
+
+const (
+	SalesBestSellersReportStatusReady SalesBestSellersReportStatus = "ready"
+)
+
+// AllValues returns all SalesBestSellersReportStatus values.
+func (SalesBestSellersReportStatus) AllValues() []SalesBestSellersReportStatus {
+	return []SalesBestSellersReportStatus{
+		SalesBestSellersReportStatusReady,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SalesBestSellersReportStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case SalesBestSellersReportStatusReady:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SalesBestSellersReportStatus) UnmarshalText(data []byte) error {
+	switch SalesBestSellersReportStatus(data) {
+	case SalesBestSellersReportStatusReady:
+		*s = SalesBestSellersReportStatusReady
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/SalesBestSellersResponse
+// SalesBestSellersResponse represents sum type.
+type SalesBestSellersResponse struct {
+	// Type selects the active sum variant, switch on this field.
+	Type                   SalesBestSellersResponseType
+	SalesBestSellersReport SalesBestSellersReport
+	RunInBackground        RunInBackground
+}
+
+// SalesBestSellersResponseType is oneOf type of SalesBestSellersResponse.
+type SalesBestSellersResponseType string
+
+// Possible values for SalesBestSellersResponseType.
+const (
+	SalesBestSellersReportSalesBestSellersResponse SalesBestSellersResponseType = "ready"
+	RunInBackgroundSalesBestSellersResponse        SalesBestSellersResponseType = "run_in_background"
+)
+
+// IsSalesBestSellersReport reports whether SalesBestSellersResponse is SalesBestSellersReport.
+func (s SalesBestSellersResponse) IsSalesBestSellersReport() bool {
+	return s.Type == SalesBestSellersReportSalesBestSellersResponse
+}
+
+// IsRunInBackground reports whether SalesBestSellersResponse is RunInBackground.
+func (s SalesBestSellersResponse) IsRunInBackground() bool {
+	return s.Type == RunInBackgroundSalesBestSellersResponse
+}
+
+// SetSalesBestSellersReport sets SalesBestSellersResponse to SalesBestSellersReport.
+func (s *SalesBestSellersResponse) SetSalesBestSellersReport(v SalesBestSellersReport) {
+	s.Type = SalesBestSellersReportSalesBestSellersResponse
+	s.SalesBestSellersReport = v
+}
+
+// GetSalesBestSellersReport returns SalesBestSellersReport and true boolean if SalesBestSellersResponse is SalesBestSellersReport.
+func (s SalesBestSellersResponse) GetSalesBestSellersReport() (v SalesBestSellersReport, ok bool) {
+	if !s.IsSalesBestSellersReport() {
+		return v, false
+	}
+	return s.SalesBestSellersReport, true
+}
+
+// NewSalesBestSellersReportSalesBestSellersResponse returns new SalesBestSellersResponse from SalesBestSellersReport.
+func NewSalesBestSellersReportSalesBestSellersResponse(v SalesBestSellersReport) SalesBestSellersResponse {
+	var s SalesBestSellersResponse
+	s.SetSalesBestSellersReport(v)
+	return s
+}
+
+// SetRunInBackground sets SalesBestSellersResponse to RunInBackground.
+func (s *SalesBestSellersResponse) SetRunInBackground(v RunInBackground) {
+	s.Type = RunInBackgroundSalesBestSellersResponse
+	s.RunInBackground = v
+}
+
+// GetRunInBackground returns RunInBackground and true boolean if SalesBestSellersResponse is RunInBackground.
+func (s SalesBestSellersResponse) GetRunInBackground() (v RunInBackground, ok bool) {
+	if !s.IsRunInBackground() {
+		return v, false
+	}
+	return s.RunInBackground, true
+}
+
+// NewRunInBackgroundSalesBestSellersResponse returns new SalesBestSellersResponse from RunInBackground.
+func NewRunInBackgroundSalesBestSellersResponse(v RunInBackground) SalesBestSellersResponse {
+	var s SalesBestSellersResponse
+	s.SetRunInBackground(v)
+	return s
+}
+
+func (*SalesBestSellersResponse) getSalesBestSellersRes() {}
+
+// Ref: #/components/schemas/SalesCarrierRow
+type SalesCarrierRow struct {
+	// Khóa hãng; self là hãng tự giao; rỗng ở dòng tổng.
+	CarrierKey string `json:"carrierKey"`
+	// Không có ở dòng tổng.
+	CarrierAccountId OptUUID              `json:"carrierAccountId"`
+	AccountName      OptString            `json:"accountName"`
+	Created          ReportCount          `json:"created"`
+	Cancelled        ReportCount          `json:"cancelled"`
+	InProgress       ReportCount          `json:"inProgress"`
+	Returning        ReportCount          `json:"returning"`
+	DeliveryFailed   ReportCount          `json:"deliveryFailed"`
+	Delivered        ReportCount          `json:"delivered"`
+	Returned         ReportCount          `json:"returned"`
+	SuccessRateBp    NilReportRateBp      `json:"successRateBp"`
+	FeeTotal         Money                `json:"feeTotal"`
+	FeeAvg           NilReportMoneyOrNull `json:"feeAvg"`
+	CodTotal         Money                `json:"codTotal"`
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *SalesCarrierRow) GetCarrierKey() string {
+	return s.CarrierKey
+}
+
+// GetCarrierAccountId returns the value of CarrierAccountId.
+func (s *SalesCarrierRow) GetCarrierAccountId() OptUUID {
+	return s.CarrierAccountId
+}
+
+// GetAccountName returns the value of AccountName.
+func (s *SalesCarrierRow) GetAccountName() OptString {
+	return s.AccountName
+}
+
+// GetCreated returns the value of Created.
+func (s *SalesCarrierRow) GetCreated() ReportCount {
+	return s.Created
+}
+
+// GetCancelled returns the value of Cancelled.
+func (s *SalesCarrierRow) GetCancelled() ReportCount {
+	return s.Cancelled
+}
+
+// GetInProgress returns the value of InProgress.
+func (s *SalesCarrierRow) GetInProgress() ReportCount {
+	return s.InProgress
+}
+
+// GetReturning returns the value of Returning.
+func (s *SalesCarrierRow) GetReturning() ReportCount {
+	return s.Returning
+}
+
+// GetDeliveryFailed returns the value of DeliveryFailed.
+func (s *SalesCarrierRow) GetDeliveryFailed() ReportCount {
+	return s.DeliveryFailed
+}
+
+// GetDelivered returns the value of Delivered.
+func (s *SalesCarrierRow) GetDelivered() ReportCount {
+	return s.Delivered
+}
+
+// GetReturned returns the value of Returned.
+func (s *SalesCarrierRow) GetReturned() ReportCount {
+	return s.Returned
+}
+
+// GetSuccessRateBp returns the value of SuccessRateBp.
+func (s *SalesCarrierRow) GetSuccessRateBp() NilReportRateBp {
+	return s.SuccessRateBp
+}
+
+// GetFeeTotal returns the value of FeeTotal.
+func (s *SalesCarrierRow) GetFeeTotal() Money {
+	return s.FeeTotal
+}
+
+// GetFeeAvg returns the value of FeeAvg.
+func (s *SalesCarrierRow) GetFeeAvg() NilReportMoneyOrNull {
+	return s.FeeAvg
+}
+
+// GetCodTotal returns the value of CodTotal.
+func (s *SalesCarrierRow) GetCodTotal() Money {
+	return s.CodTotal
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *SalesCarrierRow) SetCarrierKey(val string) {
+	s.CarrierKey = val
+}
+
+// SetCarrierAccountId sets the value of CarrierAccountId.
+func (s *SalesCarrierRow) SetCarrierAccountId(val OptUUID) {
+	s.CarrierAccountId = val
+}
+
+// SetAccountName sets the value of AccountName.
+func (s *SalesCarrierRow) SetAccountName(val OptString) {
+	s.AccountName = val
+}
+
+// SetCreated sets the value of Created.
+func (s *SalesCarrierRow) SetCreated(val ReportCount) {
+	s.Created = val
+}
+
+// SetCancelled sets the value of Cancelled.
+func (s *SalesCarrierRow) SetCancelled(val ReportCount) {
+	s.Cancelled = val
+}
+
+// SetInProgress sets the value of InProgress.
+func (s *SalesCarrierRow) SetInProgress(val ReportCount) {
+	s.InProgress = val
+}
+
+// SetReturning sets the value of Returning.
+func (s *SalesCarrierRow) SetReturning(val ReportCount) {
+	s.Returning = val
+}
+
+// SetDeliveryFailed sets the value of DeliveryFailed.
+func (s *SalesCarrierRow) SetDeliveryFailed(val ReportCount) {
+	s.DeliveryFailed = val
+}
+
+// SetDelivered sets the value of Delivered.
+func (s *SalesCarrierRow) SetDelivered(val ReportCount) {
+	s.Delivered = val
+}
+
+// SetReturned sets the value of Returned.
+func (s *SalesCarrierRow) SetReturned(val ReportCount) {
+	s.Returned = val
+}
+
+// SetSuccessRateBp sets the value of SuccessRateBp.
+func (s *SalesCarrierRow) SetSuccessRateBp(val NilReportRateBp) {
+	s.SuccessRateBp = val
+}
+
+// SetFeeTotal sets the value of FeeTotal.
+func (s *SalesCarrierRow) SetFeeTotal(val Money) {
+	s.FeeTotal = val
+}
+
+// SetFeeAvg sets the value of FeeAvg.
+func (s *SalesCarrierRow) SetFeeAvg(val NilReportMoneyOrNull) {
+	s.FeeAvg = val
+}
+
+// SetCodTotal sets the value of CodTotal.
+func (s *SalesCarrierRow) SetCodTotal(val Money) {
+	s.CodTotal = val
+}
+
+// Ref: #/components/schemas/SalesCarriersReport
+type SalesCarriersReport struct {
+	Status SalesCarriersReportStatus `json:"status"`
+	Period ReportPeriod              `json:"period"`
+	Rows   []SalesCarrierRow         `json:"rows"`
+	Totals SalesCarrierRow           `json:"totals"`
+}
+
+// GetStatus returns the value of Status.
+func (s *SalesCarriersReport) GetStatus() SalesCarriersReportStatus {
+	return s.Status
+}
+
+// GetPeriod returns the value of Period.
+func (s *SalesCarriersReport) GetPeriod() ReportPeriod {
+	return s.Period
+}
+
+// GetRows returns the value of Rows.
+func (s *SalesCarriersReport) GetRows() []SalesCarrierRow {
+	return s.Rows
+}
+
+// GetTotals returns the value of Totals.
+func (s *SalesCarriersReport) GetTotals() SalesCarrierRow {
+	return s.Totals
+}
+
+// SetStatus sets the value of Status.
+func (s *SalesCarriersReport) SetStatus(val SalesCarriersReportStatus) {
+	s.Status = val
+}
+
+// SetPeriod sets the value of Period.
+func (s *SalesCarriersReport) SetPeriod(val ReportPeriod) {
+	s.Period = val
+}
+
+// SetRows sets the value of Rows.
+func (s *SalesCarriersReport) SetRows(val []SalesCarrierRow) {
+	s.Rows = val
+}
+
+// SetTotals sets the value of Totals.
+func (s *SalesCarriersReport) SetTotals(val SalesCarrierRow) {
+	s.Totals = val
+}
+
+// Ref: #/components/schemas/SalesCarriersReportResponse
+// SalesCarriersReportResponse represents sum type.
+type SalesCarriersReportResponse struct {
+	// Type selects the active sum variant, switch on this field.
+	Type                SalesCarriersReportResponseType
+	SalesCarriersReport SalesCarriersReport
+	RunInBackground     RunInBackground
+}
+
+// SalesCarriersReportResponseType is oneOf type of SalesCarriersReportResponse.
+type SalesCarriersReportResponseType string
+
+// Possible values for SalesCarriersReportResponseType.
+const (
+	SalesCarriersReportSalesCarriersReportResponse SalesCarriersReportResponseType = "ready"
+	RunInBackgroundSalesCarriersReportResponse     SalesCarriersReportResponseType = "run_in_background"
+)
+
+// IsSalesCarriersReport reports whether SalesCarriersReportResponse is SalesCarriersReport.
+func (s SalesCarriersReportResponse) IsSalesCarriersReport() bool {
+	return s.Type == SalesCarriersReportSalesCarriersReportResponse
+}
+
+// IsRunInBackground reports whether SalesCarriersReportResponse is RunInBackground.
+func (s SalesCarriersReportResponse) IsRunInBackground() bool {
+	return s.Type == RunInBackgroundSalesCarriersReportResponse
+}
+
+// SetSalesCarriersReport sets SalesCarriersReportResponse to SalesCarriersReport.
+func (s *SalesCarriersReportResponse) SetSalesCarriersReport(v SalesCarriersReport) {
+	s.Type = SalesCarriersReportSalesCarriersReportResponse
+	s.SalesCarriersReport = v
+}
+
+// GetSalesCarriersReport returns SalesCarriersReport and true boolean if SalesCarriersReportResponse is SalesCarriersReport.
+func (s SalesCarriersReportResponse) GetSalesCarriersReport() (v SalesCarriersReport, ok bool) {
+	if !s.IsSalesCarriersReport() {
+		return v, false
+	}
+	return s.SalesCarriersReport, true
+}
+
+// NewSalesCarriersReportSalesCarriersReportResponse returns new SalesCarriersReportResponse from SalesCarriersReport.
+func NewSalesCarriersReportSalesCarriersReportResponse(v SalesCarriersReport) SalesCarriersReportResponse {
+	var s SalesCarriersReportResponse
+	s.SetSalesCarriersReport(v)
+	return s
+}
+
+// SetRunInBackground sets SalesCarriersReportResponse to RunInBackground.
+func (s *SalesCarriersReportResponse) SetRunInBackground(v RunInBackground) {
+	s.Type = RunInBackgroundSalesCarriersReportResponse
+	s.RunInBackground = v
+}
+
+// GetRunInBackground returns RunInBackground and true boolean if SalesCarriersReportResponse is RunInBackground.
+func (s SalesCarriersReportResponse) GetRunInBackground() (v RunInBackground, ok bool) {
+	if !s.IsRunInBackground() {
+		return v, false
+	}
+	return s.RunInBackground, true
+}
+
+// NewRunInBackgroundSalesCarriersReportResponse returns new SalesCarriersReportResponse from RunInBackground.
+func NewRunInBackgroundSalesCarriersReportResponse(v RunInBackground) SalesCarriersReportResponse {
+	var s SalesCarriersReportResponse
+	s.SetRunInBackground(v)
+	return s
+}
+
+func (*SalesCarriersReportResponse) getSalesCarriersReportRes() {}
+
+type SalesCarriersReportStatus string
+
+const (
+	SalesCarriersReportStatusReady SalesCarriersReportStatus = "ready"
+)
+
+// AllValues returns all SalesCarriersReportStatus values.
+func (SalesCarriersReportStatus) AllValues() []SalesCarriersReportStatus {
+	return []SalesCarriersReportStatus{
+		SalesCarriersReportStatusReady,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SalesCarriersReportStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case SalesCarriersReportStatusReady:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SalesCarriersReportStatus) UnmarshalText(data []byte) error {
+	switch SalesCarriersReportStatus(data) {
+	case SalesCarriersReportStatusReady:
+		*s = SalesCarriersReportStatusReady
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/SalesDashboardChannelRow
+type SalesDashboardChannelRow struct {
+	// Facebook, web, manual, unknown.
+	Channel string        `json:"channel"`
+	Placed  ReportAmounts `json:"placed"`
+	Active  ReportAmounts `json:"active"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *SalesDashboardChannelRow) GetChannel() string {
+	return s.Channel
+}
+
+// GetPlaced returns the value of Placed.
+func (s *SalesDashboardChannelRow) GetPlaced() ReportAmounts {
+	return s.Placed
+}
+
+// GetActive returns the value of Active.
+func (s *SalesDashboardChannelRow) GetActive() ReportAmounts {
+	return s.Active
+}
+
+// SetChannel sets the value of Channel.
+func (s *SalesDashboardChannelRow) SetChannel(val string) {
+	s.Channel = val
+}
+
+// SetPlaced sets the value of Placed.
+func (s *SalesDashboardChannelRow) SetPlaced(val ReportAmounts) {
+	s.Placed = val
+}
+
+// SetActive sets the value of Active.
+func (s *SalesDashboardChannelRow) SetActive(val ReportAmounts) {
+	s.Active = val
+}
+
+// Ref: #/components/schemas/SalesDashboardDayRow
+type SalesDashboardDayRow struct {
+	Day       time.Time     `json:"day"`
+	Active    ReportAmounts `json:"active"`
+	Delivered ReportAmounts `json:"delivered"`
+}
+
+// GetDay returns the value of Day.
+func (s *SalesDashboardDayRow) GetDay() time.Time {
+	return s.Day
+}
+
+// GetActive returns the value of Active.
+func (s *SalesDashboardDayRow) GetActive() ReportAmounts {
+	return s.Active
+}
+
+// GetDelivered returns the value of Delivered.
+func (s *SalesDashboardDayRow) GetDelivered() ReportAmounts {
+	return s.Delivered
+}
+
+// SetDay sets the value of Day.
+func (s *SalesDashboardDayRow) SetDay(val time.Time) {
+	s.Day = val
+}
+
+// SetActive sets the value of Active.
+func (s *SalesDashboardDayRow) SetActive(val ReportAmounts) {
+	s.Active = val
+}
+
+// SetDelivered sets the value of Delivered.
+func (s *SalesDashboardDayRow) SetDelivered(val ReportAmounts) {
+	s.Delivered = val
+}
+
+// Ref: #/components/schemas/SalesDashboardReport
+type SalesDashboardReport struct {
+	Status         SalesDashboardReportStatus `json:"status"`
+	Period         ReportPeriod               `json:"period"`
+	GeneratedAt    time.Time                  `json:"generatedAt"`
+	Placed         ReportAmounts              `json:"placed"`
+	Active         ReportAmounts              `json:"active"`
+	Cancelled      ReportAmounts              `json:"cancelled"`
+	Delivered      ReportAmounts              `json:"delivered"`
+	Returned       ReportAmounts              `json:"returned"`
+	AvgGoodsAmount NilReportMoneyOrNull       `json:"avgGoodsAmount"`
+	// Phiếu khách trả nhận trong kỳ (theo Page của đơn gốc).
+	CustomerReturns SalesDashboardReportCustomerReturns `json:"customerReturns"`
+	// Số hiện tại, không theo kỳ.
+	Pending   SalesDashboardReportPending `json:"pending"`
+	ByChannel []SalesDashboardChannelRow  `json:"byChannel"`
+	// Chỉ khi kỳ dài hơn một ngày.
+	ByDay []SalesDashboardDayRow `json:"byDay"`
+}
+
+// GetStatus returns the value of Status.
+func (s *SalesDashboardReport) GetStatus() SalesDashboardReportStatus {
+	return s.Status
+}
+
+// GetPeriod returns the value of Period.
+func (s *SalesDashboardReport) GetPeriod() ReportPeriod {
+	return s.Period
+}
+
+// GetGeneratedAt returns the value of GeneratedAt.
+func (s *SalesDashboardReport) GetGeneratedAt() time.Time {
+	return s.GeneratedAt
+}
+
+// GetPlaced returns the value of Placed.
+func (s *SalesDashboardReport) GetPlaced() ReportAmounts {
+	return s.Placed
+}
+
+// GetActive returns the value of Active.
+func (s *SalesDashboardReport) GetActive() ReportAmounts {
+	return s.Active
+}
+
+// GetCancelled returns the value of Cancelled.
+func (s *SalesDashboardReport) GetCancelled() ReportAmounts {
+	return s.Cancelled
+}
+
+// GetDelivered returns the value of Delivered.
+func (s *SalesDashboardReport) GetDelivered() ReportAmounts {
+	return s.Delivered
+}
+
+// GetReturned returns the value of Returned.
+func (s *SalesDashboardReport) GetReturned() ReportAmounts {
+	return s.Returned
+}
+
+// GetAvgGoodsAmount returns the value of AvgGoodsAmount.
+func (s *SalesDashboardReport) GetAvgGoodsAmount() NilReportMoneyOrNull {
+	return s.AvgGoodsAmount
+}
+
+// GetCustomerReturns returns the value of CustomerReturns.
+func (s *SalesDashboardReport) GetCustomerReturns() SalesDashboardReportCustomerReturns {
+	return s.CustomerReturns
+}
+
+// GetPending returns the value of Pending.
+func (s *SalesDashboardReport) GetPending() SalesDashboardReportPending {
+	return s.Pending
+}
+
+// GetByChannel returns the value of ByChannel.
+func (s *SalesDashboardReport) GetByChannel() []SalesDashboardChannelRow {
+	return s.ByChannel
+}
+
+// GetByDay returns the value of ByDay.
+func (s *SalesDashboardReport) GetByDay() []SalesDashboardDayRow {
+	return s.ByDay
+}
+
+// SetStatus sets the value of Status.
+func (s *SalesDashboardReport) SetStatus(val SalesDashboardReportStatus) {
+	s.Status = val
+}
+
+// SetPeriod sets the value of Period.
+func (s *SalesDashboardReport) SetPeriod(val ReportPeriod) {
+	s.Period = val
+}
+
+// SetGeneratedAt sets the value of GeneratedAt.
+func (s *SalesDashboardReport) SetGeneratedAt(val time.Time) {
+	s.GeneratedAt = val
+}
+
+// SetPlaced sets the value of Placed.
+func (s *SalesDashboardReport) SetPlaced(val ReportAmounts) {
+	s.Placed = val
+}
+
+// SetActive sets the value of Active.
+func (s *SalesDashboardReport) SetActive(val ReportAmounts) {
+	s.Active = val
+}
+
+// SetCancelled sets the value of Cancelled.
+func (s *SalesDashboardReport) SetCancelled(val ReportAmounts) {
+	s.Cancelled = val
+}
+
+// SetDelivered sets the value of Delivered.
+func (s *SalesDashboardReport) SetDelivered(val ReportAmounts) {
+	s.Delivered = val
+}
+
+// SetReturned sets the value of Returned.
+func (s *SalesDashboardReport) SetReturned(val ReportAmounts) {
+	s.Returned = val
+}
+
+// SetAvgGoodsAmount sets the value of AvgGoodsAmount.
+func (s *SalesDashboardReport) SetAvgGoodsAmount(val NilReportMoneyOrNull) {
+	s.AvgGoodsAmount = val
+}
+
+// SetCustomerReturns sets the value of CustomerReturns.
+func (s *SalesDashboardReport) SetCustomerReturns(val SalesDashboardReportCustomerReturns) {
+	s.CustomerReturns = val
+}
+
+// SetPending sets the value of Pending.
+func (s *SalesDashboardReport) SetPending(val SalesDashboardReportPending) {
+	s.Pending = val
+}
+
+// SetByChannel sets the value of ByChannel.
+func (s *SalesDashboardReport) SetByChannel(val []SalesDashboardChannelRow) {
+	s.ByChannel = val
+}
+
+// SetByDay sets the value of ByDay.
+func (s *SalesDashboardReport) SetByDay(val []SalesDashboardDayRow) {
+	s.ByDay = val
+}
+
+// Phiếu khách trả nhận trong kỳ (theo Page của đơn gốc).
+type SalesDashboardReportCustomerReturns struct {
+	Items        ReportCount `json:"items"`
+	RefundAmount Money       `json:"refundAmount"`
+}
+
+// GetItems returns the value of Items.
+func (s *SalesDashboardReportCustomerReturns) GetItems() ReportCount {
+	return s.Items
+}
+
+// GetRefundAmount returns the value of RefundAmount.
+func (s *SalesDashboardReportCustomerReturns) GetRefundAmount() Money {
+	return s.RefundAmount
+}
+
+// SetItems sets the value of Items.
+func (s *SalesDashboardReportCustomerReturns) SetItems(val ReportCount) {
+	s.Items = val
+}
+
+// SetRefundAmount sets the value of RefundAmount.
+func (s *SalesDashboardReportCustomerReturns) SetRefundAmount(val Money) {
+	s.RefundAmount = val
+}
+
+// Số hiện tại, không theo kỳ.
+type SalesDashboardReportPending struct {
+	Confirm         ReportCount `json:"confirm"`
+	Ship            ReportCount `json:"ship"`
+	CancelRequested ReportCount `json:"cancelRequested"`
+}
+
+// GetConfirm returns the value of Confirm.
+func (s *SalesDashboardReportPending) GetConfirm() ReportCount {
+	return s.Confirm
+}
+
+// GetShip returns the value of Ship.
+func (s *SalesDashboardReportPending) GetShip() ReportCount {
+	return s.Ship
+}
+
+// GetCancelRequested returns the value of CancelRequested.
+func (s *SalesDashboardReportPending) GetCancelRequested() ReportCount {
+	return s.CancelRequested
+}
+
+// SetConfirm sets the value of Confirm.
+func (s *SalesDashboardReportPending) SetConfirm(val ReportCount) {
+	s.Confirm = val
+}
+
+// SetShip sets the value of Ship.
+func (s *SalesDashboardReportPending) SetShip(val ReportCount) {
+	s.Ship = val
+}
+
+// SetCancelRequested sets the value of CancelRequested.
+func (s *SalesDashboardReportPending) SetCancelRequested(val ReportCount) {
+	s.CancelRequested = val
+}
+
+type SalesDashboardReportStatus string
+
+const (
+	SalesDashboardReportStatusReady SalesDashboardReportStatus = "ready"
+)
+
+// AllValues returns all SalesDashboardReportStatus values.
+func (SalesDashboardReportStatus) AllValues() []SalesDashboardReportStatus {
+	return []SalesDashboardReportStatus{
+		SalesDashboardReportStatusReady,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SalesDashboardReportStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case SalesDashboardReportStatusReady:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SalesDashboardReportStatus) UnmarshalText(data []byte) error {
+	switch SalesDashboardReportStatus(data) {
+	case SalesDashboardReportStatusReady:
+		*s = SalesDashboardReportStatusReady
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/SalesDashboardResponse
+// SalesDashboardResponse represents sum type.
+type SalesDashboardResponse struct {
+	// Type selects the active sum variant, switch on this field.
+	Type                 SalesDashboardResponseType
+	SalesDashboardReport SalesDashboardReport
+	RunInBackground      RunInBackground
+}
+
+// SalesDashboardResponseType is oneOf type of SalesDashboardResponse.
+type SalesDashboardResponseType string
+
+// Possible values for SalesDashboardResponseType.
+const (
+	SalesDashboardReportSalesDashboardResponse SalesDashboardResponseType = "ready"
+	RunInBackgroundSalesDashboardResponse      SalesDashboardResponseType = "run_in_background"
+)
+
+// IsSalesDashboardReport reports whether SalesDashboardResponse is SalesDashboardReport.
+func (s SalesDashboardResponse) IsSalesDashboardReport() bool {
+	return s.Type == SalesDashboardReportSalesDashboardResponse
+}
+
+// IsRunInBackground reports whether SalesDashboardResponse is RunInBackground.
+func (s SalesDashboardResponse) IsRunInBackground() bool {
+	return s.Type == RunInBackgroundSalesDashboardResponse
+}
+
+// SetSalesDashboardReport sets SalesDashboardResponse to SalesDashboardReport.
+func (s *SalesDashboardResponse) SetSalesDashboardReport(v SalesDashboardReport) {
+	s.Type = SalesDashboardReportSalesDashboardResponse
+	s.SalesDashboardReport = v
+}
+
+// GetSalesDashboardReport returns SalesDashboardReport and true boolean if SalesDashboardResponse is SalesDashboardReport.
+func (s SalesDashboardResponse) GetSalesDashboardReport() (v SalesDashboardReport, ok bool) {
+	if !s.IsSalesDashboardReport() {
+		return v, false
+	}
+	return s.SalesDashboardReport, true
+}
+
+// NewSalesDashboardReportSalesDashboardResponse returns new SalesDashboardResponse from SalesDashboardReport.
+func NewSalesDashboardReportSalesDashboardResponse(v SalesDashboardReport) SalesDashboardResponse {
+	var s SalesDashboardResponse
+	s.SetSalesDashboardReport(v)
+	return s
+}
+
+// SetRunInBackground sets SalesDashboardResponse to RunInBackground.
+func (s *SalesDashboardResponse) SetRunInBackground(v RunInBackground) {
+	s.Type = RunInBackgroundSalesDashboardResponse
+	s.RunInBackground = v
+}
+
+// GetRunInBackground returns RunInBackground and true boolean if SalesDashboardResponse is RunInBackground.
+func (s SalesDashboardResponse) GetRunInBackground() (v RunInBackground, ok bool) {
+	if !s.IsRunInBackground() {
+		return v, false
+	}
+	return s.RunInBackground, true
+}
+
+// NewRunInBackgroundSalesDashboardResponse returns new SalesDashboardResponse from RunInBackground.
+func NewRunInBackgroundSalesDashboardResponse(v RunInBackground) SalesDashboardResponse {
+	var s SalesDashboardResponse
+	s.SetRunInBackground(v)
+	return s
+}
+
+func (*SalesDashboardResponse) getSalesDashboardRes() {}
+
+// Ref: #/components/schemas/SalesOrdersDrilldown
+type SalesOrdersDrilldown struct {
+	Status SalesOrdersDrilldownStatus `json:"status"`
+	Total  ReportCount                `json:"total"`
+	Items  []SalesOrdersDrilldownItem `json:"items"`
+	// Có khi còn trang sau; gửi lại nguyên ở tham số cursor.
+	NextCursor OptString `json:"nextCursor"`
+}
+
+// GetStatus returns the value of Status.
+func (s *SalesOrdersDrilldown) GetStatus() SalesOrdersDrilldownStatus {
+	return s.Status
+}
+
+// GetTotal returns the value of Total.
+func (s *SalesOrdersDrilldown) GetTotal() ReportCount {
+	return s.Total
+}
+
+// GetItems returns the value of Items.
+func (s *SalesOrdersDrilldown) GetItems() []SalesOrdersDrilldownItem {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *SalesOrdersDrilldown) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetStatus sets the value of Status.
+func (s *SalesOrdersDrilldown) SetStatus(val SalesOrdersDrilldownStatus) {
+	s.Status = val
+}
+
+// SetTotal sets the value of Total.
+func (s *SalesOrdersDrilldown) SetTotal(val ReportCount) {
+	s.Total = val
+}
+
+// SetItems sets the value of Items.
+func (s *SalesOrdersDrilldown) SetItems(val []SalesOrdersDrilldownItem) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *SalesOrdersDrilldown) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+// Chỉ mã và số; không SĐT, địa chỉ, tên khách.
+// Ref: #/components/schemas/SalesOrdersDrilldownItem
+type SalesOrdersDrilldownItem struct {
+	OrderId            uuid.UUID   `json:"orderId"`
+	Code               string      `json:"code"`
+	CustomerCode       OptString   `json:"customerCode"`
+	PlacedAt           OptDateTime `json:"placedAt"`
+	CompletedAt        OptDateTime `json:"completedAt"`
+	StatusLabel        OrderLabel  `json:"statusLabel"`
+	Channel            string      `json:"channel"`
+	SourceName         OptString   `json:"sourceName"`
+	CareByName         OptString   `json:"careByName"`
+	CarrierKey         OptString   `json:"carrierKey"`
+	GoodsAmount        Money       `json:"goodsAmount"`
+	ShippingFeeCharged Money       `json:"shippingFeeCharged"`
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *SalesOrdersDrilldownItem) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetCode returns the value of Code.
+func (s *SalesOrdersDrilldownItem) GetCode() string {
+	return s.Code
+}
+
+// GetCustomerCode returns the value of CustomerCode.
+func (s *SalesOrdersDrilldownItem) GetCustomerCode() OptString {
+	return s.CustomerCode
+}
+
+// GetPlacedAt returns the value of PlacedAt.
+func (s *SalesOrdersDrilldownItem) GetPlacedAt() OptDateTime {
+	return s.PlacedAt
+}
+
+// GetCompletedAt returns the value of CompletedAt.
+func (s *SalesOrdersDrilldownItem) GetCompletedAt() OptDateTime {
+	return s.CompletedAt
+}
+
+// GetStatusLabel returns the value of StatusLabel.
+func (s *SalesOrdersDrilldownItem) GetStatusLabel() OrderLabel {
+	return s.StatusLabel
+}
+
+// GetChannel returns the value of Channel.
+func (s *SalesOrdersDrilldownItem) GetChannel() string {
+	return s.Channel
+}
+
+// GetSourceName returns the value of SourceName.
+func (s *SalesOrdersDrilldownItem) GetSourceName() OptString {
+	return s.SourceName
+}
+
+// GetCareByName returns the value of CareByName.
+func (s *SalesOrdersDrilldownItem) GetCareByName() OptString {
+	return s.CareByName
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *SalesOrdersDrilldownItem) GetCarrierKey() OptString {
+	return s.CarrierKey
+}
+
+// GetGoodsAmount returns the value of GoodsAmount.
+func (s *SalesOrdersDrilldownItem) GetGoodsAmount() Money {
+	return s.GoodsAmount
+}
+
+// GetShippingFeeCharged returns the value of ShippingFeeCharged.
+func (s *SalesOrdersDrilldownItem) GetShippingFeeCharged() Money {
+	return s.ShippingFeeCharged
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *SalesOrdersDrilldownItem) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetCode sets the value of Code.
+func (s *SalesOrdersDrilldownItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetCustomerCode sets the value of CustomerCode.
+func (s *SalesOrdersDrilldownItem) SetCustomerCode(val OptString) {
+	s.CustomerCode = val
+}
+
+// SetPlacedAt sets the value of PlacedAt.
+func (s *SalesOrdersDrilldownItem) SetPlacedAt(val OptDateTime) {
+	s.PlacedAt = val
+}
+
+// SetCompletedAt sets the value of CompletedAt.
+func (s *SalesOrdersDrilldownItem) SetCompletedAt(val OptDateTime) {
+	s.CompletedAt = val
+}
+
+// SetStatusLabel sets the value of StatusLabel.
+func (s *SalesOrdersDrilldownItem) SetStatusLabel(val OrderLabel) {
+	s.StatusLabel = val
+}
+
+// SetChannel sets the value of Channel.
+func (s *SalesOrdersDrilldownItem) SetChannel(val string) {
+	s.Channel = val
+}
+
+// SetSourceName sets the value of SourceName.
+func (s *SalesOrdersDrilldownItem) SetSourceName(val OptString) {
+	s.SourceName = val
+}
+
+// SetCareByName sets the value of CareByName.
+func (s *SalesOrdersDrilldownItem) SetCareByName(val OptString) {
+	s.CareByName = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *SalesOrdersDrilldownItem) SetCarrierKey(val OptString) {
+	s.CarrierKey = val
+}
+
+// SetGoodsAmount sets the value of GoodsAmount.
+func (s *SalesOrdersDrilldownItem) SetGoodsAmount(val Money) {
+	s.GoodsAmount = val
+}
+
+// SetShippingFeeCharged sets the value of ShippingFeeCharged.
+func (s *SalesOrdersDrilldownItem) SetShippingFeeCharged(val Money) {
+	s.ShippingFeeCharged = val
+}
+
+// Ref: #/components/schemas/SalesOrdersDrilldownResponse
+// SalesOrdersDrilldownResponse represents sum type.
+type SalesOrdersDrilldownResponse struct {
+	// Type selects the active sum variant, switch on this field.
+	Type                 SalesOrdersDrilldownResponseType
+	SalesOrdersDrilldown SalesOrdersDrilldown
+	RunInBackground      RunInBackground
+}
+
+// SalesOrdersDrilldownResponseType is oneOf type of SalesOrdersDrilldownResponse.
+type SalesOrdersDrilldownResponseType string
+
+// Possible values for SalesOrdersDrilldownResponseType.
+const (
+	SalesOrdersDrilldownSalesOrdersDrilldownResponse SalesOrdersDrilldownResponseType = "ready"
+	RunInBackgroundSalesOrdersDrilldownResponse      SalesOrdersDrilldownResponseType = "run_in_background"
+)
+
+// IsSalesOrdersDrilldown reports whether SalesOrdersDrilldownResponse is SalesOrdersDrilldown.
+func (s SalesOrdersDrilldownResponse) IsSalesOrdersDrilldown() bool {
+	return s.Type == SalesOrdersDrilldownSalesOrdersDrilldownResponse
+}
+
+// IsRunInBackground reports whether SalesOrdersDrilldownResponse is RunInBackground.
+func (s SalesOrdersDrilldownResponse) IsRunInBackground() bool {
+	return s.Type == RunInBackgroundSalesOrdersDrilldownResponse
+}
+
+// SetSalesOrdersDrilldown sets SalesOrdersDrilldownResponse to SalesOrdersDrilldown.
+func (s *SalesOrdersDrilldownResponse) SetSalesOrdersDrilldown(v SalesOrdersDrilldown) {
+	s.Type = SalesOrdersDrilldownSalesOrdersDrilldownResponse
+	s.SalesOrdersDrilldown = v
+}
+
+// GetSalesOrdersDrilldown returns SalesOrdersDrilldown and true boolean if SalesOrdersDrilldownResponse is SalesOrdersDrilldown.
+func (s SalesOrdersDrilldownResponse) GetSalesOrdersDrilldown() (v SalesOrdersDrilldown, ok bool) {
+	if !s.IsSalesOrdersDrilldown() {
+		return v, false
+	}
+	return s.SalesOrdersDrilldown, true
+}
+
+// NewSalesOrdersDrilldownSalesOrdersDrilldownResponse returns new SalesOrdersDrilldownResponse from SalesOrdersDrilldown.
+func NewSalesOrdersDrilldownSalesOrdersDrilldownResponse(v SalesOrdersDrilldown) SalesOrdersDrilldownResponse {
+	var s SalesOrdersDrilldownResponse
+	s.SetSalesOrdersDrilldown(v)
+	return s
+}
+
+// SetRunInBackground sets SalesOrdersDrilldownResponse to RunInBackground.
+func (s *SalesOrdersDrilldownResponse) SetRunInBackground(v RunInBackground) {
+	s.Type = RunInBackgroundSalesOrdersDrilldownResponse
+	s.RunInBackground = v
+}
+
+// GetRunInBackground returns RunInBackground and true boolean if SalesOrdersDrilldownResponse is RunInBackground.
+func (s SalesOrdersDrilldownResponse) GetRunInBackground() (v RunInBackground, ok bool) {
+	if !s.IsRunInBackground() {
+		return v, false
+	}
+	return s.RunInBackground, true
+}
+
+// NewRunInBackgroundSalesOrdersDrilldownResponse returns new SalesOrdersDrilldownResponse from RunInBackground.
+func NewRunInBackgroundSalesOrdersDrilldownResponse(v RunInBackground) SalesOrdersDrilldownResponse {
+	var s SalesOrdersDrilldownResponse
+	s.SetRunInBackground(v)
+	return s
+}
+
+func (*SalesOrdersDrilldownResponse) listSalesOrdersDrilldownRes() {}
+
+type SalesOrdersDrilldownStatus string
+
+const (
+	SalesOrdersDrilldownStatusReady SalesOrdersDrilldownStatus = "ready"
+)
+
+// AllValues returns all SalesOrdersDrilldownStatus values.
+func (SalesOrdersDrilldownStatus) AllValues() []SalesOrdersDrilldownStatus {
+	return []SalesOrdersDrilldownStatus{
+		SalesOrdersDrilldownStatusReady,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SalesOrdersDrilldownStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case SalesOrdersDrilldownStatusReady:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SalesOrdersDrilldownStatus) UnmarshalText(data []byte) error {
+	switch SalesOrdersDrilldownStatus(data) {
+	case SalesOrdersDrilldownStatusReady:
+		*s = SalesOrdersDrilldownStatusReady
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/SalesOrdersReport
+type SalesOrdersReport struct {
+	Status  SalesOrdersReportStatus `json:"status"`
+	Period  ReportPeriod            `json:"period"`
+	Basis   SalesOrdersReportBasis  `json:"basis"`
+	GroupBy ReportDimension         `json:"groupBy"`
+	Rows    []SalesOrdersRow        `json:"rows"`
+	Totals  SalesOrdersRow          `json:"totals"`
+}
+
+// GetStatus returns the value of Status.
+func (s *SalesOrdersReport) GetStatus() SalesOrdersReportStatus {
+	return s.Status
+}
+
+// GetPeriod returns the value of Period.
+func (s *SalesOrdersReport) GetPeriod() ReportPeriod {
+	return s.Period
+}
+
+// GetBasis returns the value of Basis.
+func (s *SalesOrdersReport) GetBasis() SalesOrdersReportBasis {
+	return s.Basis
+}
+
+// GetGroupBy returns the value of GroupBy.
+func (s *SalesOrdersReport) GetGroupBy() ReportDimension {
+	return s.GroupBy
+}
+
+// GetRows returns the value of Rows.
+func (s *SalesOrdersReport) GetRows() []SalesOrdersRow {
+	return s.Rows
+}
+
+// GetTotals returns the value of Totals.
+func (s *SalesOrdersReport) GetTotals() SalesOrdersRow {
+	return s.Totals
+}
+
+// SetStatus sets the value of Status.
+func (s *SalesOrdersReport) SetStatus(val SalesOrdersReportStatus) {
+	s.Status = val
+}
+
+// SetPeriod sets the value of Period.
+func (s *SalesOrdersReport) SetPeriod(val ReportPeriod) {
+	s.Period = val
+}
+
+// SetBasis sets the value of Basis.
+func (s *SalesOrdersReport) SetBasis(val SalesOrdersReportBasis) {
+	s.Basis = val
+}
+
+// SetGroupBy sets the value of GroupBy.
+func (s *SalesOrdersReport) SetGroupBy(val ReportDimension) {
+	s.GroupBy = val
+}
+
+// SetRows sets the value of Rows.
+func (s *SalesOrdersReport) SetRows(val []SalesOrdersRow) {
+	s.Rows = val
+}
+
+// SetTotals sets the value of Totals.
+func (s *SalesOrdersReport) SetTotals(val SalesOrdersRow) {
+	s.Totals = val
+}
+
+type SalesOrdersReportBasis string
+
+const (
+	SalesOrdersReportBasisPlaced    SalesOrdersReportBasis = "placed"
+	SalesOrdersReportBasisCompleted SalesOrdersReportBasis = "completed"
+)
+
+// AllValues returns all SalesOrdersReportBasis values.
+func (SalesOrdersReportBasis) AllValues() []SalesOrdersReportBasis {
+	return []SalesOrdersReportBasis{
+		SalesOrdersReportBasisPlaced,
+		SalesOrdersReportBasisCompleted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SalesOrdersReportBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case SalesOrdersReportBasisPlaced:
+		return []byte(s), nil
+	case SalesOrdersReportBasisCompleted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SalesOrdersReportBasis) UnmarshalText(data []byte) error {
+	switch SalesOrdersReportBasis(data) {
+	case SalesOrdersReportBasisPlaced:
+		*s = SalesOrdersReportBasisPlaced
+		return nil
+	case SalesOrdersReportBasisCompleted:
+		*s = SalesOrdersReportBasisCompleted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/SalesOrdersReportResponse
+// SalesOrdersReportResponse represents sum type.
+type SalesOrdersReportResponse struct {
+	// Type selects the active sum variant, switch on this field.
+	Type              SalesOrdersReportResponseType
+	SalesOrdersReport SalesOrdersReport
+	RunInBackground   RunInBackground
+}
+
+// SalesOrdersReportResponseType is oneOf type of SalesOrdersReportResponse.
+type SalesOrdersReportResponseType string
+
+// Possible values for SalesOrdersReportResponseType.
+const (
+	SalesOrdersReportSalesOrdersReportResponse SalesOrdersReportResponseType = "ready"
+	RunInBackgroundSalesOrdersReportResponse   SalesOrdersReportResponseType = "run_in_background"
+)
+
+// IsSalesOrdersReport reports whether SalesOrdersReportResponse is SalesOrdersReport.
+func (s SalesOrdersReportResponse) IsSalesOrdersReport() bool {
+	return s.Type == SalesOrdersReportSalesOrdersReportResponse
+}
+
+// IsRunInBackground reports whether SalesOrdersReportResponse is RunInBackground.
+func (s SalesOrdersReportResponse) IsRunInBackground() bool {
+	return s.Type == RunInBackgroundSalesOrdersReportResponse
+}
+
+// SetSalesOrdersReport sets SalesOrdersReportResponse to SalesOrdersReport.
+func (s *SalesOrdersReportResponse) SetSalesOrdersReport(v SalesOrdersReport) {
+	s.Type = SalesOrdersReportSalesOrdersReportResponse
+	s.SalesOrdersReport = v
+}
+
+// GetSalesOrdersReport returns SalesOrdersReport and true boolean if SalesOrdersReportResponse is SalesOrdersReport.
+func (s SalesOrdersReportResponse) GetSalesOrdersReport() (v SalesOrdersReport, ok bool) {
+	if !s.IsSalesOrdersReport() {
+		return v, false
+	}
+	return s.SalesOrdersReport, true
+}
+
+// NewSalesOrdersReportSalesOrdersReportResponse returns new SalesOrdersReportResponse from SalesOrdersReport.
+func NewSalesOrdersReportSalesOrdersReportResponse(v SalesOrdersReport) SalesOrdersReportResponse {
+	var s SalesOrdersReportResponse
+	s.SetSalesOrdersReport(v)
+	return s
+}
+
+// SetRunInBackground sets SalesOrdersReportResponse to RunInBackground.
+func (s *SalesOrdersReportResponse) SetRunInBackground(v RunInBackground) {
+	s.Type = RunInBackgroundSalesOrdersReportResponse
+	s.RunInBackground = v
+}
+
+// GetRunInBackground returns RunInBackground and true boolean if SalesOrdersReportResponse is RunInBackground.
+func (s SalesOrdersReportResponse) GetRunInBackground() (v RunInBackground, ok bool) {
+	if !s.IsRunInBackground() {
+		return v, false
+	}
+	return s.RunInBackground, true
+}
+
+// NewRunInBackgroundSalesOrdersReportResponse returns new SalesOrdersReportResponse from RunInBackground.
+func NewRunInBackgroundSalesOrdersReportResponse(v RunInBackground) SalesOrdersReportResponse {
+	var s SalesOrdersReportResponse
+	s.SetRunInBackground(v)
+	return s
+}
+
+func (*SalesOrdersReportResponse) getSalesOrdersReportRes() {}
+
+type SalesOrdersReportStatus string
+
+const (
+	SalesOrdersReportStatusReady SalesOrdersReportStatus = "ready"
+)
+
+// AllValues returns all SalesOrdersReportStatus values.
+func (SalesOrdersReportStatus) AllValues() []SalesOrdersReportStatus {
+	return []SalesOrdersReportStatus{
+		SalesOrdersReportStatusReady,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SalesOrdersReportStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case SalesOrdersReportStatusReady:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SalesOrdersReportStatus) UnmarshalText(data []byte) error {
+	switch SalesOrdersReportStatus(data) {
+	case SalesOrdersReportStatusReady:
+		*s = SalesOrdersReportStatusReady
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/SalesOrdersRow
+type SalesOrdersRow struct {
+	// Khóa dòng (mã nhãn, uuid, khóa hãng, ngày, hay unknown); gửi lại ở cellKey.
+	Key    string      `json:"key"`
+	Label  string      `json:"label"`
+	Orders ReportCount `json:"orders"`
+	// Null khi basis = completed.
+	Placed             NilInt64             `json:"placed"`
+	Active             NilInt64             `json:"active"`
+	Cancelled          NilInt64             `json:"cancelled"`
+	GoodsAmount        Money                `json:"goodsAmount"`
+	ShippingFeeCharged Money                `json:"shippingFeeCharged"`
+	AvgGoodsAmount     NilReportMoneyOrNull `json:"avgGoodsAmount"`
+	Delivered          ReportCount          `json:"delivered"`
+	Returned           ReportCount          `json:"returned"`
+	SuccessRateBp      NilReportRateBp      `json:"successRateBp"`
+}
+
+// GetKey returns the value of Key.
+func (s *SalesOrdersRow) GetKey() string {
+	return s.Key
+}
+
+// GetLabel returns the value of Label.
+func (s *SalesOrdersRow) GetLabel() string {
+	return s.Label
+}
+
+// GetOrders returns the value of Orders.
+func (s *SalesOrdersRow) GetOrders() ReportCount {
+	return s.Orders
+}
+
+// GetPlaced returns the value of Placed.
+func (s *SalesOrdersRow) GetPlaced() NilInt64 {
+	return s.Placed
+}
+
+// GetActive returns the value of Active.
+func (s *SalesOrdersRow) GetActive() NilInt64 {
+	return s.Active
+}
+
+// GetCancelled returns the value of Cancelled.
+func (s *SalesOrdersRow) GetCancelled() NilInt64 {
+	return s.Cancelled
+}
+
+// GetGoodsAmount returns the value of GoodsAmount.
+func (s *SalesOrdersRow) GetGoodsAmount() Money {
+	return s.GoodsAmount
+}
+
+// GetShippingFeeCharged returns the value of ShippingFeeCharged.
+func (s *SalesOrdersRow) GetShippingFeeCharged() Money {
+	return s.ShippingFeeCharged
+}
+
+// GetAvgGoodsAmount returns the value of AvgGoodsAmount.
+func (s *SalesOrdersRow) GetAvgGoodsAmount() NilReportMoneyOrNull {
+	return s.AvgGoodsAmount
+}
+
+// GetDelivered returns the value of Delivered.
+func (s *SalesOrdersRow) GetDelivered() ReportCount {
+	return s.Delivered
+}
+
+// GetReturned returns the value of Returned.
+func (s *SalesOrdersRow) GetReturned() ReportCount {
+	return s.Returned
+}
+
+// GetSuccessRateBp returns the value of SuccessRateBp.
+func (s *SalesOrdersRow) GetSuccessRateBp() NilReportRateBp {
+	return s.SuccessRateBp
+}
+
+// SetKey sets the value of Key.
+func (s *SalesOrdersRow) SetKey(val string) {
+	s.Key = val
+}
+
+// SetLabel sets the value of Label.
+func (s *SalesOrdersRow) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetOrders sets the value of Orders.
+func (s *SalesOrdersRow) SetOrders(val ReportCount) {
+	s.Orders = val
+}
+
+// SetPlaced sets the value of Placed.
+func (s *SalesOrdersRow) SetPlaced(val NilInt64) {
+	s.Placed = val
+}
+
+// SetActive sets the value of Active.
+func (s *SalesOrdersRow) SetActive(val NilInt64) {
+	s.Active = val
+}
+
+// SetCancelled sets the value of Cancelled.
+func (s *SalesOrdersRow) SetCancelled(val NilInt64) {
+	s.Cancelled = val
+}
+
+// SetGoodsAmount sets the value of GoodsAmount.
+func (s *SalesOrdersRow) SetGoodsAmount(val Money) {
+	s.GoodsAmount = val
+}
+
+// SetShippingFeeCharged sets the value of ShippingFeeCharged.
+func (s *SalesOrdersRow) SetShippingFeeCharged(val Money) {
+	s.ShippingFeeCharged = val
+}
+
+// SetAvgGoodsAmount sets the value of AvgGoodsAmount.
+func (s *SalesOrdersRow) SetAvgGoodsAmount(val NilReportMoneyOrNull) {
+	s.AvgGoodsAmount = val
+}
+
+// SetDelivered sets the value of Delivered.
+func (s *SalesOrdersRow) SetDelivered(val ReportCount) {
+	s.Delivered = val
+}
+
+// SetReturned sets the value of Returned.
+func (s *SalesOrdersRow) SetReturned(val ReportCount) {
+	s.Returned = val
+}
+
+// SetSuccessRateBp sets the value of SuccessRateBp.
+func (s *SalesOrdersRow) SetSuccessRateBp(val NilReportRateBp) {
+	s.SuccessRateBp = val
+}
+
+// Ref: #/components/schemas/SalesReportFilters
+type SalesReportFilters struct {
+	Sources     []ReportFilterOption `json:"sources"`
+	Staff       []ReportFilterOption `json:"staff"`
+	Pages       []ReportFilterOption `json:"pages"`
+	CarrierKeys []string             `json:"carrierKeys"`
+}
+
+// GetSources returns the value of Sources.
+func (s *SalesReportFilters) GetSources() []ReportFilterOption {
+	return s.Sources
+}
+
+// GetStaff returns the value of Staff.
+func (s *SalesReportFilters) GetStaff() []ReportFilterOption {
+	return s.Staff
+}
+
+// GetPages returns the value of Pages.
+func (s *SalesReportFilters) GetPages() []ReportFilterOption {
+	return s.Pages
+}
+
+// GetCarrierKeys returns the value of CarrierKeys.
+func (s *SalesReportFilters) GetCarrierKeys() []string {
+	return s.CarrierKeys
+}
+
+// SetSources sets the value of Sources.
+func (s *SalesReportFilters) SetSources(val []ReportFilterOption) {
+	s.Sources = val
+}
+
+// SetStaff sets the value of Staff.
+func (s *SalesReportFilters) SetStaff(val []ReportFilterOption) {
+	s.Staff = val
+}
+
+// SetPages sets the value of Pages.
+func (s *SalesReportFilters) SetPages(val []ReportFilterOption) {
+	s.Pages = val
+}
+
+// SetCarrierKeys sets the value of CarrierKeys.
+func (s *SalesReportFilters) SetCarrierKeys(val []string) {
+	s.CarrierKeys = val
+}
+
+func (*SalesReportFilters) getSalesReportFiltersRes() {}
 
 // Ref: #/components/schemas/SaveBannersRequest
 type SaveBannersRequest struct {

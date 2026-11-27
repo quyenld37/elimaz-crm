@@ -5856,6 +5856,397 @@ export type ResendMessageResult = {
     mayDuplicate: boolean;
 };
 
+/**
+ * Tiền trung bình làm tròn nửa lên tới đồng; null khi không có đơn
+ */
+export type ReportMoneyOrNull = number | null;
+
+/**
+ * Tỷ lệ phần vạn, làm tròn xuống; null khi mẫu số 0
+ */
+export type ReportRateBp = number | null;
+
+export type ReportCount = number;
+
+export type ReportPeriod = {
+    from: string;
+    to: string;
+};
+
+/**
+ * Báo cáo không chạy tại chỗ được (hết chỗ hay quá hạn giờ); màn hình tạo lần chạy nền cùng tham số
+ */
+export type RunInBackground = {
+    status: 'run_in_background';
+    reason: 'busy' | 'timeout';
+};
+
+/**
+ * Chiều nhóm của báo cáo đơn
+ */
+export type ReportDimension = 'status' | 'source' | 'care_by' | 'created_by' | 'channel' | 'page' | 'carrier' | 'day';
+
+/**
+ * Cột số của tổng quan hay báo cáo đơn mà danh sách chi tiết mở
+ */
+export type ReportMetric = 'placed' | 'placed_active' | 'cancelled' | 'delivered' | 'returned' | 'customer_returned' | 'pending_confirm' | 'pending_ship' | 'cancel_requested';
+
+export type ReportAmounts = {
+    orders: ReportCount;
+    goodsAmount: Money;
+    shippingFeeCharged: Money;
+};
+
+export type SalesDashboardReport = {
+    status: 'ready';
+    period: ReportPeriod;
+    generatedAt: string;
+    placed: ReportAmounts;
+    active: ReportAmounts;
+    cancelled: ReportAmounts;
+    delivered: ReportAmounts;
+    returned: ReportAmounts;
+    avgGoodsAmount: ReportMoneyOrNull;
+    /**
+     * Phiếu khách trả nhận trong kỳ (theo Page của đơn gốc)
+     */
+    customerReturns: {
+        items: ReportCount;
+        refundAmount: Money;
+    };
+    /**
+     * Số hiện tại, không theo kỳ
+     */
+    pending: {
+        confirm: ReportCount;
+        ship: ReportCount;
+        cancelRequested: ReportCount;
+    };
+    byChannel: Array<SalesDashboardChannelRow>;
+    /**
+     * Chỉ khi kỳ dài hơn một ngày
+     */
+    byDay: Array<SalesDashboardDayRow>;
+};
+
+export type SalesDashboardChannelRow = {
+    /**
+     * facebook, web, manual, unknown
+     */
+    channel: string;
+    placed: ReportAmounts;
+    active: ReportAmounts;
+};
+
+export type SalesDashboardDayRow = {
+    day: string;
+    active: ReportAmounts;
+    delivered: ReportAmounts;
+};
+
+export type SalesDashboardResponse = ({
+    status: 'ready';
+} & SalesDashboardReport) | ({
+    status: 'run_in_background';
+} & RunInBackground);
+
+export type SalesOrdersRow = {
+    /**
+     * Khóa dòng (mã nhãn, uuid, khóa hãng, ngày, hay unknown); gửi lại ở cellKey
+     */
+    key: string;
+    label: string;
+    orders: ReportCount;
+    /**
+     * null khi basis = completed
+     */
+    placed: number | null;
+    active: number | null;
+    cancelled: number | null;
+    goodsAmount: Money;
+    shippingFeeCharged: Money;
+    avgGoodsAmount: ReportMoneyOrNull;
+    delivered: ReportCount;
+    returned: ReportCount;
+    successRateBp: ReportRateBp;
+};
+
+export type SalesOrdersReport = {
+    status: 'ready';
+    period: ReportPeriod;
+    basis: 'placed' | 'completed';
+    groupBy: ReportDimension;
+    rows: Array<SalesOrdersRow>;
+    totals: SalesOrdersRow;
+};
+
+export type SalesOrdersReportResponse = ({
+    status: 'ready';
+} & SalesOrdersReport) | ({
+    status: 'run_in_background';
+} & RunInBackground);
+
+/**
+ * Chỉ mã và số; không SĐT, địa chỉ, tên khách
+ */
+export type SalesOrdersDrilldownItem = {
+    orderId: string;
+    code: string;
+    customerCode?: string;
+    placedAt?: string;
+    completedAt?: string;
+    statusLabel: OrderLabel;
+    channel: string;
+    sourceName?: string;
+    careByName?: string;
+    carrierKey?: string;
+    goodsAmount: Money;
+    shippingFeeCharged: Money;
+};
+
+export type SalesOrdersDrilldown = {
+    status: 'ready';
+    total: ReportCount;
+    items: Array<SalesOrdersDrilldownItem>;
+    /**
+     * Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+     */
+    nextCursor?: string;
+};
+
+export type SalesOrdersDrilldownResponse = ({
+    status: 'ready';
+} & SalesOrdersDrilldown) | ({
+    status: 'run_in_background';
+} & RunInBackground);
+
+export type SalesCarrierRow = {
+    /**
+     * Khóa hãng; self là hãng tự giao; rỗng ở dòng tổng
+     */
+    carrierKey: string;
+    /**
+     * Không có ở dòng tổng
+     */
+    carrierAccountId?: string;
+    accountName?: string;
+    created: ReportCount;
+    cancelled: ReportCount;
+    inProgress: ReportCount;
+    returning: ReportCount;
+    deliveryFailed: ReportCount;
+    delivered: ReportCount;
+    returned: ReportCount;
+    successRateBp: ReportRateBp;
+    feeTotal: Money;
+    feeAvg: ReportMoneyOrNull;
+    codTotal: Money;
+};
+
+export type SalesCarriersReport = {
+    status: 'ready';
+    period: ReportPeriod;
+    rows: Array<SalesCarrierRow>;
+    totals: SalesCarrierRow;
+};
+
+export type SalesCarriersReportResponse = ({
+    status: 'ready';
+} & SalesCarriersReport) | ({
+    status: 'run_in_background';
+} & RunInBackground);
+
+export type SalesBestSellerRow = {
+    productId: string;
+    /**
+     * Không có ở mức product
+     */
+    variantId?: string;
+    sku?: string;
+    name: string;
+    color?: string;
+    size?: string;
+    quantity: ReportCount;
+    orders: ReportCount;
+    goodsAmount: Money;
+    returnedQuantity: ReportCount;
+};
+
+export type SalesBestSellersReport = {
+    status: 'ready';
+    period: ReportPeriod;
+    level: 'sku' | 'product';
+    basis: 'placed' | 'delivered';
+    rows: Array<SalesBestSellerRow>;
+    totalRows: ReportCount;
+};
+
+export type SalesBestSellersResponse = ({
+    status: 'ready';
+} & SalesBestSellersReport) | ({
+    status: 'run_in_background';
+} & RunInBackground);
+
+export type ReportFilterOption = {
+    id: string;
+    name: string;
+};
+
+export type SalesReportFilters = {
+    sources: Array<ReportFilterOption>;
+    staff: Array<ReportFilterOption>;
+    pages: Array<ReportFilterOption>;
+    carrierKeys: Array<string>;
+};
+
+export type InventoryStockRow = {
+    variantId: string;
+    sku: string;
+    productName: string;
+    color: string;
+    size: string;
+    warehouseId: string;
+    warehouseName: string;
+    onHand: number;
+    held: number;
+    inTransit: number;
+    damaged: number;
+    /**
+     * onHand − damaged − held − inTransit
+     */
+    available: number;
+};
+
+export type InventoryStock = {
+    status: 'ready';
+    date: string;
+    source: 'live' | 'snapshot';
+    /**
+     * Ngày có bản chụp tồn đầu tiên; không có khi chưa chụp ngày nào
+     */
+    firstSnapshotDay?: string;
+    rows: Array<InventoryStockRow>;
+    /**
+     * Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+     */
+    nextCursor?: string;
+};
+
+export type InventoryStockResponse = ({
+    status: 'ready';
+} & InventoryStock) | ({
+    status: 'run_in_background';
+} & RunInBackground);
+
+export type InventoryMovementRow = {
+    variantId: string;
+    sku: string;
+    productName: string;
+    color: string;
+    size: string;
+    warehouseId: string;
+    opening: number;
+    imported: number;
+    returnedIn: number;
+    sold: number;
+    exportedOther: number;
+    /**
+     * Có dấu (kiểm kho, điều chỉnh)
+     */
+    adjusted: number;
+    /**
+     * opening + imported + returnedIn − sold − exportedOther + adjusted
+     */
+    closing: number;
+    damagedClosing: number;
+};
+
+export type InventoryMovements = {
+    status: 'ready';
+    period: ReportPeriod;
+    rows: Array<InventoryMovementRow>;
+    /**
+     * Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+     */
+    nextCursor?: string;
+};
+
+export type InventoryMovementsResponse = ({
+    status: 'ready';
+} & InventoryMovements) | ({
+    status: 'run_in_background';
+} & RunInBackground);
+
+/**
+ * Khóa báo cáo; họ sales: dashboard, orders, order_drilldown, carriers, best_sellers; họ inventory: stock, stock_movements, products; họ customers: customers
+ */
+export type ReportKey = 'dashboard' | 'orders' | 'order_drilldown' | 'carriers' | 'best_sellers' | 'stock' | 'stock_movements' | 'products' | 'customers';
+
+/**
+ * Tham số của báo cáo, cùng tên với tham số query của GET tương ứng (from, to, basis, groupBy, channel, sourceId,
+ * careBy, createdBy, pageId, carrierKey, cellDimension, cellKey, metric, level, date, warehouseId, q; products:
+ * status, q; customers: createdFrom, createdTo, lastOrderFrom, lastOrderTo, lifecycle, tagIds, minOrders). Chỉ mã,
+ * ngày, khóa lọc; trường lạ hay sai → 400 bad_params.
+ *
+ */
+export type ReportParams = {
+    [key: string]: unknown;
+};
+
+export type CreateReportRunRequest = {
+    report: ReportKey;
+    format: 'json' | 'xlsx';
+    params: ReportParams;
+};
+
+export type CreateCustomerExportRequest = {
+    params: ReportParams;
+};
+
+export type ReportRun = {
+    id: string;
+    family: 'sales' | 'inventory' | 'customers';
+    report: ReportKey;
+    format: 'json' | 'xlsx';
+    status: 'queued' | 'running' | 'ready' | 'failed' | 'expired';
+    /**
+     * Chỉ khi status = failed
+     */
+    reason?: 'too_heavy' | 'busy' | 'forbidden' | 'error';
+    params: ReportParams;
+    rowCount?: number;
+    /**
+     * Tệp đã cắt ở REPORT_MAX_ROWS dòng
+     */
+    truncated: boolean;
+    /**
+     * Kết quả (cùng hình dạng với GET của báo cáo, status ready); chỉ ở getXReportRun khi format json đã xong
+     */
+    result?: {
+        [key: string]: unknown;
+    };
+    createdAt: string;
+    finishedAt?: string;
+    expiresAt: string;
+    requestedByName: string;
+};
+
+export type ReportRunPage = {
+    items: Array<ReportRun>;
+    /**
+     * Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+     */
+    nextCursor?: string;
+};
+
+export type ReportFileLink = {
+    /**
+     * Đường dẫn tải ký sẵn, tải một lần trong hạn
+     */
+    url: string;
+    expiresAt: string;
+};
+
 export type ProductWritable = {
     id: string;
     code: string;
@@ -6014,6 +6405,68 @@ export type LiveCommentId = string;
 export type AttachmentFileId = string;
 
 export type AutomationRuleKindPath = AutomationRuleKind;
+
+/**
+ * Ngày đầu kỳ (giờ Việt Nam, YYYY-MM-DD, tính trọn ngày)
+ */
+export type ReportFrom = string;
+
+/**
+ * Ngày cuối kỳ (giờ Việt Nam, tính trọn ngày); tối đa 366 ngày tính cả hai đầu
+ */
+export type ReportTo = string;
+
+/**
+ * placed: theo ngày lên đơn (mặc định); completed: theo ngày giao thành công hay hoàn về kho (Q4)
+ */
+export type ReportBasis = 'placed' | 'completed';
+
+/**
+ * Kênh của đơn (lặp tham số cho nhiều kênh)
+ */
+export type ReportChannel = Array<OrderChannel>;
+
+/**
+ * Nguồn đơn (traffic_sources.id)
+ */
+export type ReportSourceId = Array<string>;
+
+/**
+ * Nhân viên phụ trách
+ */
+export type ReportCareBy = Array<string>;
+
+/**
+ * Nhân viên lên đơn
+ */
+export type ReportCreatedBy = Array<string>;
+
+/**
+ * Page (channel_accounts.id); ngoài phạm vi report.sales.read → 403 forbidden
+ */
+export type ReportPageId = Array<string>;
+
+/**
+ * Hãng của vận đơn hiện hành (vtp, best, spx, self…); unknown là đơn chưa gửi hãng
+ */
+export type ReportCarrierKey = Array<string>;
+
+/**
+ * Kho; bỏ trống là mọi kho trong phạm vi report.inventory.read; ngoài phạm vi → 403 forbidden
+ */
+export type ReportWarehouseId = string;
+
+/**
+ * Tiền tố SKU (không phân biệt dấu cách đầu cuối)
+ */
+export type ReportSkuPrefix = string;
+
+export type ReportPageLimit = number;
+
+/**
+ * Mã lần chạy (report_runs.id)
+ */
+export type ReportRunId = string;
 
 export type HealthLiveData = {
     body?: never;
@@ -16407,3 +16860,722 @@ export type ClaimLiveCommentResponses = {
 };
 
 export type ClaimLiveCommentResponse = ClaimLiveCommentResponses[keyof ClaimLiveCommentResponses];
+
+export type GetSalesDashboardData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Ngày đầu kỳ (giờ Việt Nam, YYYY-MM-DD, tính trọn ngày)
+         */
+        from: string;
+        /**
+         * Ngày cuối kỳ (giờ Việt Nam, tính trọn ngày); tối đa 366 ngày tính cả hai đầu
+         */
+        to: string;
+    };
+    url: '/api/v1/reports/sales/dashboard';
+};
+
+export type GetSalesDashboardErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetSalesDashboardError = GetSalesDashboardErrors[keyof GetSalesDashboardErrors];
+
+export type GetSalesDashboardResponses = {
+    /**
+     * getSalesDashboard
+     */
+    200: SalesDashboardResponse;
+};
+
+export type GetSalesDashboardResponse = GetSalesDashboardResponses[keyof GetSalesDashboardResponses];
+
+export type GetSalesOrdersReportData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Ngày đầu kỳ (giờ Việt Nam, YYYY-MM-DD, tính trọn ngày)
+         */
+        from: string;
+        /**
+         * Ngày cuối kỳ (giờ Việt Nam, tính trọn ngày); tối đa 366 ngày tính cả hai đầu
+         */
+        to: string;
+        /**
+         * placed: theo ngày lên đơn (mặc định); completed: theo ngày giao thành công hay hoàn về kho (Q4)
+         */
+        basis?: 'placed' | 'completed';
+        groupBy?: ReportDimension;
+        /**
+         * Kênh của đơn (lặp tham số cho nhiều kênh)
+         */
+        channel?: Array<OrderChannel>;
+        /**
+         * Nguồn đơn (traffic_sources.id)
+         */
+        sourceId?: Array<string>;
+        /**
+         * Nhân viên phụ trách
+         */
+        careBy?: Array<string>;
+        /**
+         * Nhân viên lên đơn
+         */
+        createdBy?: Array<string>;
+        /**
+         * Page (channel_accounts.id); ngoài phạm vi report.sales.read → 403 forbidden
+         */
+        pageId?: Array<string>;
+        /**
+         * Hãng của vận đơn hiện hành (vtp, best, spx, self…); unknown là đơn chưa gửi hãng
+         */
+        carrierKey?: Array<string>;
+    };
+    url: '/api/v1/reports/sales/orders';
+};
+
+export type GetSalesOrdersReportErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetSalesOrdersReportError = GetSalesOrdersReportErrors[keyof GetSalesOrdersReportErrors];
+
+export type GetSalesOrdersReportResponses = {
+    /**
+     * getSalesOrdersReport
+     */
+    200: SalesOrdersReportResponse;
+};
+
+export type GetSalesOrdersReportResponse = GetSalesOrdersReportResponses[keyof GetSalesOrdersReportResponses];
+
+export type ListSalesOrdersDrilldownData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Ngày đầu kỳ (giờ Việt Nam, YYYY-MM-DD, tính trọn ngày)
+         */
+        from: string;
+        /**
+         * Ngày cuối kỳ (giờ Việt Nam, tính trọn ngày); tối đa 366 ngày tính cả hai đầu
+         */
+        to: string;
+        /**
+         * placed: theo ngày lên đơn (mặc định); completed: theo ngày giao thành công hay hoàn về kho (Q4)
+         */
+        basis?: 'placed' | 'completed';
+        /**
+         * Kênh của đơn (lặp tham số cho nhiều kênh)
+         */
+        channel?: Array<OrderChannel>;
+        /**
+         * Nguồn đơn (traffic_sources.id)
+         */
+        sourceId?: Array<string>;
+        /**
+         * Nhân viên phụ trách
+         */
+        careBy?: Array<string>;
+        /**
+         * Nhân viên lên đơn
+         */
+        createdBy?: Array<string>;
+        /**
+         * Page (channel_accounts.id); ngoài phạm vi report.sales.read → 403 forbidden
+         */
+        pageId?: Array<string>;
+        /**
+         * Hãng của vận đơn hiện hành (vtp, best, spx, self…); unknown là đơn chưa gửi hãng
+         */
+        carrierKey?: Array<string>;
+        cellDimension?: ReportDimension;
+        /**
+         * Khóa dòng (key của SalesOrdersRow); cần cellDimension
+         */
+        cellKey?: string;
+        metric: ReportMetric;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/reports/sales/orders/drilldown';
+};
+
+export type ListSalesOrdersDrilldownErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListSalesOrdersDrilldownError = ListSalesOrdersDrilldownErrors[keyof ListSalesOrdersDrilldownErrors];
+
+export type ListSalesOrdersDrilldownResponses = {
+    /**
+     * listSalesOrdersDrilldown
+     */
+    200: SalesOrdersDrilldownResponse;
+};
+
+export type ListSalesOrdersDrilldownResponse = ListSalesOrdersDrilldownResponses[keyof ListSalesOrdersDrilldownResponses];
+
+export type GetSalesCarriersReportData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Ngày đầu kỳ (giờ Việt Nam, YYYY-MM-DD, tính trọn ngày)
+         */
+        from: string;
+        /**
+         * Ngày cuối kỳ (giờ Việt Nam, tính trọn ngày); tối đa 366 ngày tính cả hai đầu
+         */
+        to: string;
+    };
+    url: '/api/v1/reports/sales/carriers';
+};
+
+export type GetSalesCarriersReportErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetSalesCarriersReportError = GetSalesCarriersReportErrors[keyof GetSalesCarriersReportErrors];
+
+export type GetSalesCarriersReportResponses = {
+    /**
+     * getSalesCarriersReport
+     */
+    200: SalesCarriersReportResponse;
+};
+
+export type GetSalesCarriersReportResponse = GetSalesCarriersReportResponses[keyof GetSalesCarriersReportResponses];
+
+export type GetSalesBestSellersData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Ngày đầu kỳ (giờ Việt Nam, YYYY-MM-DD, tính trọn ngày)
+         */
+        from: string;
+        /**
+         * Ngày cuối kỳ (giờ Việt Nam, tính trọn ngày); tối đa 366 ngày tính cả hai đầu
+         */
+        to: string;
+        level?: 'sku' | 'product';
+        basis?: 'placed' | 'delivered';
+        limit?: number;
+    };
+    url: '/api/v1/reports/sales/best-sellers';
+};
+
+export type GetSalesBestSellersErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetSalesBestSellersError = GetSalesBestSellersErrors[keyof GetSalesBestSellersErrors];
+
+export type GetSalesBestSellersResponses = {
+    /**
+     * getSalesBestSellers
+     */
+    200: SalesBestSellersResponse;
+};
+
+export type GetSalesBestSellersResponse = GetSalesBestSellersResponses[keyof GetSalesBestSellersResponses];
+
+export type GetSalesReportFiltersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/reports/sales/filters';
+};
+
+export type GetSalesReportFiltersErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetSalesReportFiltersError = GetSalesReportFiltersErrors[keyof GetSalesReportFiltersErrors];
+
+export type GetSalesReportFiltersResponses = {
+    /**
+     * getSalesReportFilters
+     */
+    200: SalesReportFilters;
+};
+
+export type GetSalesReportFiltersResponse = GetSalesReportFiltersResponses[keyof GetSalesReportFiltersResponses];
+
+export type GetInventoryStockData = {
+    body?: never;
+    path?: never;
+    query?: {
+        date?: string;
+        /**
+         * Kho; bỏ trống là mọi kho trong phạm vi report.inventory.read; ngoài phạm vi → 403 forbidden
+         */
+        warehouseId?: string;
+        /**
+         * Tiền tố SKU (không phân biệt dấu cách đầu cuối)
+         */
+        q?: string;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/reports/inventory/stock';
+};
+
+export type GetInventoryStockErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetInventoryStockError = GetInventoryStockErrors[keyof GetInventoryStockErrors];
+
+export type GetInventoryStockResponses = {
+    /**
+     * getInventoryStock
+     */
+    200: InventoryStockResponse;
+};
+
+export type GetInventoryStockResponse = GetInventoryStockResponses[keyof GetInventoryStockResponses];
+
+export type GetInventoryMovementsData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Ngày đầu kỳ (giờ Việt Nam, YYYY-MM-DD, tính trọn ngày)
+         */
+        from: string;
+        /**
+         * Ngày cuối kỳ (giờ Việt Nam, tính trọn ngày); tối đa 366 ngày tính cả hai đầu
+         */
+        to: string;
+        /**
+         * Kho; bỏ trống là mọi kho trong phạm vi report.inventory.read; ngoài phạm vi → 403 forbidden
+         */
+        warehouseId?: string;
+        /**
+         * Tiền tố SKU (không phân biệt dấu cách đầu cuối)
+         */
+        q?: string;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/reports/inventory/movements';
+};
+
+export type GetInventoryMovementsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetInventoryMovementsError = GetInventoryMovementsErrors[keyof GetInventoryMovementsErrors];
+
+export type GetInventoryMovementsResponses = {
+    /**
+     * getInventoryMovements
+     */
+    200: InventoryMovementsResponse;
+};
+
+export type GetInventoryMovementsResponse = GetInventoryMovementsResponses[keyof GetInventoryMovementsResponses];
+
+export type ListSalesReportRunsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/reports/sales/runs';
+};
+
+export type ListSalesReportRunsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListSalesReportRunsError = ListSalesReportRunsErrors[keyof ListSalesReportRunsErrors];
+
+export type ListSalesReportRunsResponses = {
+    /**
+     * listSalesReportRuns
+     */
+    200: ReportRunPage;
+};
+
+export type ListSalesReportRunsResponse = ListSalesReportRunsResponses[keyof ListSalesReportRunsResponses];
+
+export type CreateSalesReportRunData = {
+    body: CreateReportRunRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/reports/sales/runs';
+};
+
+export type CreateSalesReportRunErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateSalesReportRunError = CreateSalesReportRunErrors[keyof CreateSalesReportRunErrors];
+
+export type CreateSalesReportRunResponses = {
+    /**
+     * Lần chạy đã xếp hàng
+     */
+    202: ReportRun;
+};
+
+export type CreateSalesReportRunResponse = CreateSalesReportRunResponses[keyof CreateSalesReportRunResponses];
+
+export type GetSalesReportRunData = {
+    body?: never;
+    path: {
+        /**
+         * Mã lần chạy (report_runs.id)
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/reports/sales/runs/{id}';
+};
+
+export type GetSalesReportRunErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetSalesReportRunError = GetSalesReportRunErrors[keyof GetSalesReportRunErrors];
+
+export type GetSalesReportRunResponses = {
+    /**
+     * getSalesReportRun
+     */
+    200: ReportRun;
+};
+
+export type GetSalesReportRunResponse = GetSalesReportRunResponses[keyof GetSalesReportRunResponses];
+
+export type GetSalesReportRunFileData = {
+    body?: never;
+    path: {
+        /**
+         * Mã lần chạy (report_runs.id)
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/reports/sales/runs/{id}/file';
+};
+
+export type GetSalesReportRunFileErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetSalesReportRunFileError = GetSalesReportRunFileErrors[keyof GetSalesReportRunFileErrors];
+
+export type GetSalesReportRunFileResponses = {
+    /**
+     * getSalesReportRunFile
+     */
+    200: ReportFileLink;
+};
+
+export type GetSalesReportRunFileResponse = GetSalesReportRunFileResponses[keyof GetSalesReportRunFileResponses];
+
+export type ListInventoryReportRunsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/reports/inventory/runs';
+};
+
+export type ListInventoryReportRunsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListInventoryReportRunsError = ListInventoryReportRunsErrors[keyof ListInventoryReportRunsErrors];
+
+export type ListInventoryReportRunsResponses = {
+    /**
+     * listInventoryReportRuns
+     */
+    200: ReportRunPage;
+};
+
+export type ListInventoryReportRunsResponse = ListInventoryReportRunsResponses[keyof ListInventoryReportRunsResponses];
+
+export type CreateInventoryReportRunData = {
+    body: CreateReportRunRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/reports/inventory/runs';
+};
+
+export type CreateInventoryReportRunErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateInventoryReportRunError = CreateInventoryReportRunErrors[keyof CreateInventoryReportRunErrors];
+
+export type CreateInventoryReportRunResponses = {
+    /**
+     * Lần chạy đã xếp hàng
+     */
+    202: ReportRun;
+};
+
+export type CreateInventoryReportRunResponse = CreateInventoryReportRunResponses[keyof CreateInventoryReportRunResponses];
+
+export type GetInventoryReportRunData = {
+    body?: never;
+    path: {
+        /**
+         * Mã lần chạy (report_runs.id)
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/reports/inventory/runs/{id}';
+};
+
+export type GetInventoryReportRunErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetInventoryReportRunError = GetInventoryReportRunErrors[keyof GetInventoryReportRunErrors];
+
+export type GetInventoryReportRunResponses = {
+    /**
+     * getInventoryReportRun
+     */
+    200: ReportRun;
+};
+
+export type GetInventoryReportRunResponse = GetInventoryReportRunResponses[keyof GetInventoryReportRunResponses];
+
+export type GetInventoryReportRunFileData = {
+    body?: never;
+    path: {
+        /**
+         * Mã lần chạy (report_runs.id)
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/reports/inventory/runs/{id}/file';
+};
+
+export type GetInventoryReportRunFileErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetInventoryReportRunFileError = GetInventoryReportRunFileErrors[keyof GetInventoryReportRunFileErrors];
+
+export type GetInventoryReportRunFileResponses = {
+    /**
+     * getInventoryReportRunFile
+     */
+    200: ReportFileLink;
+};
+
+export type GetInventoryReportRunFileResponse = GetInventoryReportRunFileResponses[keyof GetInventoryReportRunFileResponses];
+
+export type ListCustomerExportsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/reports/customers/exports';
+};
+
+export type ListCustomerExportsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListCustomerExportsError = ListCustomerExportsErrors[keyof ListCustomerExportsErrors];
+
+export type ListCustomerExportsResponses = {
+    /**
+     * listCustomerExports
+     */
+    200: ReportRunPage;
+};
+
+export type ListCustomerExportsResponse = ListCustomerExportsResponses[keyof ListCustomerExportsResponses];
+
+export type CreateCustomerExportData = {
+    body: CreateCustomerExportRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/reports/customers/exports';
+};
+
+export type CreateCustomerExportErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateCustomerExportError = CreateCustomerExportErrors[keyof CreateCustomerExportErrors];
+
+export type CreateCustomerExportResponses = {
+    /**
+     * Lần xuất đã xếp hàng
+     */
+    202: ReportRun;
+};
+
+export type CreateCustomerExportResponse = CreateCustomerExportResponses[keyof CreateCustomerExportResponses];
+
+export type GetCustomerExportData = {
+    body?: never;
+    path: {
+        /**
+         * Mã lần chạy (report_runs.id)
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/reports/customers/exports/{id}';
+};
+
+export type GetCustomerExportErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetCustomerExportError = GetCustomerExportErrors[keyof GetCustomerExportErrors];
+
+export type GetCustomerExportResponses = {
+    /**
+     * getCustomerExport
+     */
+    200: ReportRun;
+};
+
+export type GetCustomerExportResponse = GetCustomerExportResponses[keyof GetCustomerExportResponses];
+
+export type GetCustomerExportFileData = {
+    body?: never;
+    path: {
+        /**
+         * Mã lần chạy (report_runs.id)
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/reports/customers/exports/{id}/file';
+};
+
+export type GetCustomerExportFileErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetCustomerExportFileError = GetCustomerExportFileErrors[keyof GetCustomerExportFileErrors];
+
+export type GetCustomerExportFileResponses = {
+    /**
+     * getCustomerExportFile
+     */
+    200: ReportFileLink;
+};
+
+export type GetCustomerExportFileResponse = GetCustomerExportFileResponses[keyof GetCustomerExportFileResponses];
