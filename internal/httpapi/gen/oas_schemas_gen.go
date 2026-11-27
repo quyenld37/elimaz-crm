@@ -11281,12 +11281,20 @@ type CreateOrderOK Order
 
 func (*CreateOrderOK) createOrderRes() {}
 
-// Đúng một trong customerId (khách có sẵn), customer (khách mới hoặc tìm theo SĐT).
-// shipAddress bắt buộc khi không gửi intent (luật M1) và khi intent là confirmed.
+// Đúng một trong customerId (khách có sẵn), customer (khách mới; SĐT đã là của hồ
+// sơ khác thì khách mới không giữ số, đơn ghi cảnh báo
+// phone_belongs_to_other_customer, Task 435). shipAddress bắt buộc khi không gửi intent (luật
+// M1) và khi intent là confirmed.
 // Ref: #/components/schemas/CreateOrderRequest
 type CreateOrderRequest struct {
 	Customer   OptCreateOrderRequestCustomer `json:"customer"`
 	CustomerId OptUUID                       `json:"customerId"`
+	// Chỉ đi cùng customerId (gửi cùng customer → 400 invalid_input). true → SĐT người
+	// nhận (shipAddress.phone) là của khách: gắn vào hồ sơ có sẵn nếu chưa ai giữ số
+	// đó (nhóm khác đang giữ → không gắn, đơn ghi cảnh báo
+	// phone_belongs_to_other_customer). Không gửi hay false → chỉ là SĐT người nhận của
+	// đơn (Task 435, A-05).
+	PhoneIsCustomers OptBool `json:"phoneIsCustomers"`
 	// Không gửi → hành vi M1 (tạo thẳng confirmed).
 	Intent OptCreateOrderRequestIntent `json:"intent"`
 	// Bỏ trống → kho chính. Kho (kể cả kho chính) phải nằm trong phạm vi order.create
@@ -11324,6 +11332,11 @@ func (s *CreateOrderRequest) GetCustomer() OptCreateOrderRequestCustomer {
 // GetCustomerId returns the value of CustomerId.
 func (s *CreateOrderRequest) GetCustomerId() OptUUID {
 	return s.CustomerId
+}
+
+// GetPhoneIsCustomers returns the value of PhoneIsCustomers.
+func (s *CreateOrderRequest) GetPhoneIsCustomers() OptBool {
+	return s.PhoneIsCustomers
 }
 
 // GetIntent returns the value of Intent.
@@ -11404,6 +11417,11 @@ func (s *CreateOrderRequest) SetCustomer(val OptCreateOrderRequestCustomer) {
 // SetCustomerId sets the value of CustomerId.
 func (s *CreateOrderRequest) SetCustomerId(val OptUUID) {
 	s.CustomerId = val
+}
+
+// SetPhoneIsCustomers sets the value of PhoneIsCustomers.
+func (s *CreateOrderRequest) SetPhoneIsCustomers(val OptBool) {
+	s.PhoneIsCustomers = val
 }
 
 // SetIntent sets the value of Intent.

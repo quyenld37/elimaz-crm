@@ -111,7 +111,12 @@ export function addressState(a: AddressInput): "complete" | "empty" | "partial" 
 // Thân shipAddress gửi được khi có đủ ba trường bắt buộc (name, phone, line) của ShipAddress.
 const hasBaseAddress = (a: AddressInput) => [a.name, a.phone, a.line].every((v) => v.trim() !== "");
 
-export type PickedCustomer = { kind: "existing"; id: string } | { kind: "new" };
+/** existing.hasPhone: hồ sơ đã có SĐT (false: chưa có; không biết: bỏ trống, không gửi cờ SĐT của khách). */
+export type PickedCustomer = { kind: "existing"; id: string; hasPhone?: boolean } | { kind: "new" };
+
+/** Hồ sơ có danh tính SĐT chưa (Customer.identities). */
+export const hasPhoneIdentity = (c: { identities: { kind: string }[] }): boolean =>
+  c.identities.some((i) => i.kind === "phone");
 
 export interface FormLine {
   /** Dòng đang có của đơn đang sửa (giữ đơn giá cũ); không có: dòng mới. */
@@ -167,6 +172,11 @@ export function buildRequest(f: FormState, intent: Intent): CreateOrderRequest {
   const note = f.carrierNote.trim();
   const body: CreateOrderRequest = {
     ...(f.customer?.kind === "existing" ? { customerId: f.customer.id } : {}),
+    // A-05: khách có sẵn chưa có SĐT, ô "Số này là của khách" bật → máy chủ gắn SĐT người nhận vào hồ sơ. Khách đã có
+    // SĐT thì không gửi: số mới chỉ là SĐT người nhận của đơn.
+    ...(f.customer?.kind === "existing" && f.customer.hasPhone === false && f.phoneIsCustomers && a.phone.trim() !== ""
+      ? { phoneIsCustomers: true }
+      : {}),
     ...(f.customer?.kind === "new"
       ? {
           customer: {

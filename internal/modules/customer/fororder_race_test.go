@@ -11,23 +11,27 @@ import (
 	"elimaz.com.vn/crm/internal/modules/customer"
 )
 
-// 10 yêu cầu tìm-hoặc-tạo song song cùng SĐT mới: đúng 1 khách, 1 danh tính, cả 10 cùng CustomerID; không hồ sơ mồ côi
+// raceForOrder chạy n lần FindOrCreateForOrder song song với cùng đầu vào, mỗi lần một transaction.
+func raceForOrder(e *writeEnv, n int, in customer.OrderCustomerInput) ([]customer.OrderCustomer, []error) {
+	got := make([]customer.OrderCustomer, n)
+	errs := make([]error, n)
+	var wg sync.WaitGroup
+	for i := range n {
+		wg.Go(func() { got[i], errs[i] = e.forOrder(in) })
+	}
+	wg.Wait()
+	return got, errs
+}
+
+// 10 yêu cầu tìm-hoặc-tạo (nguồn web) song song cùng SĐT mới: đúng 1 khách, 1 danh tính, cả 10 cùng CustomerID; không hồ sơ mồ côi
 // (bên thua lùi savepoint), đúng một sự kiện customer.created.
 func TestFindOrCreateForOrderRace(t *testing.T) {
 	t.Parallel()
 	e := newWriteEnv(t)
 	const n = 10
-	got := make([]customer.OrderCustomer, n)
-	errs := make([]error, n)
-	var wg sync.WaitGroup
-	for i := range n {
-		wg.Go(func() {
-			got[i], errs[i] = e.forOrder(customer.OrderCustomerInput{
-				FullName: "Khách Đua", Phone: "0901000001", PhoneIsCustomers: true,
-			})
-		})
-	}
-	wg.Wait()
+	got, errs := raceForOrder(e, n, customer.OrderCustomerInput{
+		FullName: "Khách Đua", Phone: "0901000001", PhoneIsCustomers: true, Source: customer.SourceWeb,
+	})
 	expectOneCreated(t, errs, func(i int) (uuid.UUID, bool) { return got[i].CustomerID, got[i].Created })
 	if c := e.count(`SELECT count(*) FROM customer.customers WHERE full_name = 'Khách Đua'`); c != 1 {
 		t.Errorf("số khách: %d", c)
@@ -101,5 +105,44 @@ func expectOneCreated(t *testing.T, errs []error, at func(i int) (uuid.UUID, boo
 	}
 	if len(ids) != 1 || created != 1 {
 		t.Fatalf("mã khách %v, số lần tạo %d", ids, created)
+	}
+}
+
+// A-01: 10 yêu cầu của nhân viên (khách mới, cùng SĐT chưa ai giữ) song song: đúng một danh tính SĐT; ai thua không dùng
+// hồ sơ của bên thắng mà tạo khách riêng không số và nhận PhoneConflictWith trỏ gốc của bên thắng.
+func TestFindOrCreateForOrderRaceStaff(t *testing.T) {
+	t.Parallel()
+	e := newWriteEnv(t)
+	const n = 10
+	got, errs := raceForOrder(e, n, customer.OrderCustomerInput{
+		FullName: "Khách Đua Nhân Viên", Phone: "0901000002", PhoneIsCustomers: true,
+	})
+	withPhone := 0
+	var winner uuid.UUID
+	for i := range n {
+		if errs[i] != nil {
+			t.Fatalf("yêu cầu %d: %v", i, errs[i])
+		}
+		if !got[i].Created {
+			t.Errorf("yêu cầu %d không tạo khách riêng: %+v", i, got[i])
+		}
+		if got[i].PhoneConflictWith == nil {
+			withPhone++
+			winner = got[i].RootID
+		}
+	}
+	if withPhone != 1 {
+		t.Fatalf("%d yêu cầu giữ được SĐT, mong 1", withPhone)
+	}
+	for i := range n {
+		if got[i].PhoneConflictWith != nil && *got[i].PhoneConflictWith != winner {
+			t.Errorf("yêu cầu %d: PhoneConflictWith %v, mong %v", i, *got[i].PhoneConflictWith, winner)
+		}
+	}
+	if c := e.count(`SELECT count(*) FROM customer.customer_identities WHERE value = '+84901000002'`); c != 1 {
+		t.Errorf("số danh tính: %d", c)
+	}
+	if c := e.count(`SELECT count(*) FROM customer.customers WHERE full_name = 'Khách Đua Nhân Viên'`); c != n {
+		t.Errorf("số khách: %d, mong %d", c, n)
 	}
 }

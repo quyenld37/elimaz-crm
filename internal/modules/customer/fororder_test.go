@@ -47,7 +47,8 @@ func TestFindOrCreateForOrder(t *testing.T) {
 	t.Run("DH13 SĐT của nhóm khác", f.DH13)
 	t.Run("có mã khách, SĐT mới của khách", f.LinkNewPhone)
 	t.Run("SĐT của hồ sơ con cùng nhóm", f.SameGroup)
-	t.Run("không mã khách, SĐT của B", f.PhoneOfB)
+	t.Run("không mã khách, SĐT của B (đơn web)", f.PhoneOfB)
+	t.Run("A-01 nhân viên chọn khách mới, SĐT của B", f.StaffNewPhoneOfB)
 	t.Run("không mã khách, SĐT mới không phải của khách", f.NewNotCustomers)
 	t.Run("không mã khách, SĐT mới của khách", f.NewCustomers)
 	t.Run("lead sang customer ở đơn đầu tiên", f.Promote)
@@ -112,11 +113,35 @@ func (f *forOrderFixture) SameGroup(t *testing.T) {
 	}
 }
 
+// Đơn web: SĐT đã là danh tính của B → dùng hồ sơ B (hành vi cũ giữ nguyên cho nguồn web).
 func (f *forOrderFixture) PhoneOfB(t *testing.T) {
 	before := f.customers()
-	got := f.env(t).mustForOrder(customer.OrderCustomerInput{FullName: "Ai đó", Phone: "0987 654 321", PhoneIsCustomers: true})
-	if got.CustomerID != f.b.ID || got.RootID != f.b.RootID || got.Created || f.customers() != before {
+	got := f.env(t).mustForOrder(customer.OrderCustomerInput{
+		FullName: "Ai đó", Phone: "0987 654 321", PhoneIsCustomers: true, Source: customer.SourceWeb,
+	})
+	if got.CustomerID != f.b.ID || got.RootID != f.b.RootID || got.Created || got.PhoneConflictWith != nil ||
+		f.customers() != before {
 		t.Fatalf("kết quả: %+v", got)
+	}
+}
+
+// A-01 (Task 435): nhân viên chọn "khách mới" với SĐT đã thuộc B → khách mới KHÔNG gắn số đó, không dùng hồ sơ B,
+// trả PhoneConflictWith = gốc của B (đơn ghi cảnh báo phone_belongs_to_other_customer).
+func (f *forOrderFixture) StaffNewPhoneOfB(t *testing.T) {
+	before := f.customers()
+	bIdentities := f.env(t).identities(f.b.ID)
+	got := f.env(t).mustForOrder(customer.OrderCustomerInput{FullName: "Con của B", Phone: "0987 654 321", PhoneIsCustomers: true})
+	if !got.Created || got.CustomerID == f.b.ID || got.RootID == f.b.RootID || f.customers() != before+1 {
+		t.Fatalf("kết quả: %+v", got)
+	}
+	if got.PhoneConflictWith == nil || *got.PhoneConflictWith != f.b.RootID {
+		t.Fatalf("PhoneConflictWith: %v, mong gốc của B", got.PhoneConflictWith)
+	}
+	if f.env(t).identities(got.CustomerID) != 0 || f.env(t).identities(f.b.ID) != bIdentities {
+		t.Fatal("khách mới không được giữ SĐT, B không đổi danh tính")
+	}
+	if f.env(t).count(`SELECT count(*) FROM customer.customer_merges`) != 0 {
+		t.Fatal("không được gộp")
 	}
 }
 

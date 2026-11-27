@@ -72,6 +72,17 @@ export const OTHER: CustomerListItem = {
   stats: stats(3, 0),
 };
 
+/** Hồ sơ chưa có SĐT (lead); tìm bằng chữ "Lead Chưa Số" (Task 435, A-05). */
+export const C4 = "0195f3b2-0000-7000-8000-00000000c004";
+export const NO_PHONE: CustomerListItem = {
+  id: C4,
+  code: "KH000999",
+  fullName: "Lead Chưa Số",
+  phones: [],
+  matchedBy: "name",
+  stats: stats(0, 0),
+};
+
 export function customerOf(c: CustomerListItem): Customer {
   return {
     id: c.id,
@@ -247,6 +258,7 @@ export function installFake(): Fake {
       }
       if (p === "/api/v1/customers") {
         fake.customerCalls.push(q.get("q") ?? "");
+        if ((q.get("q") ?? "") === "Lead Chưa Số") return json({ items: [NO_PHONE] });
         const term = (q.get("q") ?? "").replace(/\D/g, "");
         const all = [...CUSTOMERS, OTHER];
         if (term.length >= 9)
@@ -255,7 +267,7 @@ export function installFake(): Fake {
       }
       const cm = /^\/api\/v1\/customers\/([^/]+)$/.exec(p);
       if (cm !== null) {
-        const c = [...CUSTOMERS, OTHER].find((x) => x.id === cm[1]);
+        const c = [...CUSTOMERS, OTHER, NO_PHONE].find((x) => x.id === cm[1]);
         return c === undefined ? json({ error: "not_found", request_id: "t" }, 404) : json(customerOf(c));
       }
       if (p === "/api/v1/admin-units") {
