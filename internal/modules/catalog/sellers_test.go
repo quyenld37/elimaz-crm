@@ -103,6 +103,9 @@ func refusedWrites(t *testing.T, e *catalogEnv, w catalog.Writer, wrong uuid.UUI
 			return errOf(w.AttachImage(ctx, tx, wrong, p.ID, p.Version, file, nil, e.actor))
 		},
 		"ReorderImages": func(tx pgx.Tx) error { return w.ReorderImages(ctx, tx, wrong, p.ID, p.Version, nil, e.actor) },
+		"ReorderVariants": func(tx pgx.Tx) error {
+			return w.ReorderVariants(ctx, tx, wrong, p.ID, p.Version, []uuid.UUID{v.ID}, e.actor)
+		},
 		"DeleteImage": func(tx pgx.Tx) error {
 			return errOf(w.DeleteImage(ctx, tx, wrong, p.ID, uuid.New(), e.actor))
 		},

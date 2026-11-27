@@ -786,6 +786,32 @@ paths:
                 $ref: "#/components/schemas/Variant"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/catalog/products/{id}/variants/order:
+    put:
+      operationId: reorderProductVariants
+      summary: Đặt thứ tự biến thể của mẫu (đúng đủ mã mọi biến thể, kể cả ngừng bán) khi version của mẫu còn khớp
+      description: >-
+        Thứ tự là thứ tự nhân viên và website thấy (Task 513). Danh sách thiếu, thừa, trùng hay có mã không thuộc mẫu →
+        422 invalid_input; version cũ → 409 version_conflict. Version mẫu tăng 1, version biến thể không đổi.
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/ProductID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderProductVariantsRequest"
+      responses:
+        "200":
+          description: Mẫu sau khi sắp lại
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/catalog/products/{id}/images:
     post:
       operationId: attachProductImage
@@ -9491,6 +9517,9 @@ components:
             $ref: "#/components/schemas/WebImage"
         variants:
           type: array
+          description: >-
+            Theo thứ tự nhân viên đặt trong CRM, rồi mã (Task 513); website giữ nguyên thứ tự mảng và suy thứ tự màu, cỡ
+            theo lần xuất hiện đầu tiên
           items:
             $ref: "#/components/schemas/WebVariant"
         updatedAt:
@@ -11564,6 +11593,7 @@ components:
           format: int64
         variants:
           type: array
+          description: Theo thứ tự nhân viên đặt (reorderProductVariants), rồi mã; biến thể mới ở cuối (Task 513)
           items:
             $ref: "#/components/schemas/Variant"
         images:
@@ -11638,6 +11668,22 @@ components:
           minLength: 1
           maxLength: 50
           description: Màu của một biến thể trong mẫu; bỏ trường này để ảnh thành ảnh chung
+    ReorderProductVariantsRequest:
+      type: object
+      additionalProperties: false
+      required: [productVersion, variantIds]
+      properties:
+        productVersion:
+          type: integer
+          format: int64
+        variantIds:
+          type: array
+          description: Mọi biến thể của mẫu theo thứ tự mới (trùng → 422 invalid_input như danh sách sai tập)
+          minItems: 1
+          maxItems: 200
+          items:
+            type: string
+            format: uuid
     ReorderProductImagesRequest:
       type: object
       additionalProperties: false

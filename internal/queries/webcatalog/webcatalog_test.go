@@ -109,6 +109,33 @@ func (e *env) exec(sql string, args ...any) {
 	})
 }
 
+// variantIDs: mã biến thể của mẫu theo mã (đọc bằng chủ bảng).
+func (e *env) variantIDs(product uuid.UUID) []uuid.UUID {
+	e.t.Helper()
+	var vs []uuid.UUID
+	e.owner(func(tx pgx.Tx) error {
+		rows, err := tx.Query(e.t.Context(), "SELECT id FROM catalog.variants WHERE product_id = $1 ORDER BY id", product)
+		if err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		vs, err = pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
+		return err //nolint:wrapcheck // test
+	})
+	return vs
+}
+
+// byID: ProductsByID với view mặc định.
+func (e *env) byID(ids []uuid.UUID) []webcatalog.WebProduct {
+	e.t.Helper()
+	var ps []webcatalog.WebProduct
+	e.read(func(tx pgx.Tx) error {
+		var err error
+		ps, err = webcatalog.ProductsByID(e.t.Context(), tx, ids, view())
+		return err //nolint:wrapcheck // test
+	})
+	return ps
+}
+
 func (e *env) all() []uuid.UUID {
 	return append(slices.Clone(e.productsOfSeller[e.seller]), e.productsOfSeller[e.partner]...)
 }
@@ -279,31 +306,18 @@ func TestProducts_SellerSuspended(t *testing.T) {
 func TestProducts_VariantFields(t *testing.T) {
 	e := newEnv(t)
 	all := e.all()
-	var vs []uuid.UUID
+	vs := e.variantIDs(all[0])
 	e.owner(func(tx pgx.Tx) error {
-		rows, err := tx.Query(t.Context(), "SELECT id FROM catalog.variants WHERE product_id = $1 ORDER BY id", all[0])
-		if err != nil {
-			return err //nolint:wrapcheck // test
-		}
-		vs, err = pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
-		if err != nil {
-			return err //nolint:wrapcheck // test
-		}
 		catalogtest.Discontinue(t, tx, e.seller, vs[1])
 		invtest.SeedStock(t, tx, vs[0], e.warehouse, 3)
-		_, err = tx.Exec(t.Context(), "UPDATE catalog.variants SET weight_grams = 450 WHERE id = $1", vs[2])
+		_, err := tx.Exec(t.Context(), "UPDATE catalog.variants SET weight_grams = 450 WHERE id = $1", vs[2])
 		if err != nil {
 			return err //nolint:wrapcheck // test
 		}
 		_, err = tx.Exec(t.Context(), "UPDATE catalog.products SET status = 'draft' WHERE id = $1", all[1])
 		return err //nolint:wrapcheck // test
 	})
-	var ps []webcatalog.WebProduct
-	e.read(func(tx pgx.Tx) error {
-		var err error
-		ps, err = webcatalog.ProductsByID(t.Context(), tx, all[:2], view())
-		return err //nolint:wrapcheck // test
-	})
+	ps := e.byID(all[:2])
 	got := ps[0].Variants
 	if got[0].ID != vs[0] || !got[0].Available || !got[0].Sellable || got[0].Status != "active" || got[0].WeightGrams != nil {
 		t.Errorf("biến thể còn hàng: %+v", got[0])
@@ -620,4 +634,32 @@ func storeSQL(t *testing.T, file, name string) string {
 		t.Fatalf("không thấy câu %s", name)
 	}
 	return string(m[1])
+}
+
+// TestProducts_VariantOrder (Task 513): biến thể của mẫu trên API web theo vị trí nhân viên đặt, hòa vị trí thì theo mã;
+// mẫu khác trong cùng lần đọc giữ thứ tự riêng của nó.
+func TestProducts_VariantOrder(t *testing.T) {
+	e := newEnv(t)
+	all := e.all()
+	vs := e.variantIDs(all[0])
+	e.owner(func(tx pgx.Tx) error {
+		// vs[2] đứng đầu (1), vs[0] và vs[1] cùng vị trí 2 (hòa → theo mã).
+		_, err := tx.Exec(t.Context(), `UPDATE catalog.variants SET position = CASE id WHEN $1 THEN 1 ELSE 2 END
+			WHERE product_id = $2`, vs[2], all[0])
+		return err //nolint:wrapcheck // test
+	})
+	ps := e.byID(all[:2])
+	ids := func(p webcatalog.WebProduct) []uuid.UUID {
+		out := make([]uuid.UUID, len(p.Variants))
+		for i := range p.Variants {
+			out[i] = p.Variants[i].ID
+		}
+		return out
+	}
+	if got, want := ids(ps[0]), []uuid.UUID{vs[2], vs[0], vs[1]}; !slices.Equal(got, want) {
+		t.Errorf("thứ tự biến thể trên web: %v, mong %v", got, want)
+	}
+	if got := ids(ps[1]); len(got) != 3 || !slices.IsSortedFunc(got, func(a, b uuid.UUID) int { return slices.Compare(a[:], b[:]) }) {
+		t.Errorf("mẫu thứ hai (vị trí theo thứ tự chèn, mã uuidv7 tăng dần) phải theo mã: %v", got)
+	}
 }

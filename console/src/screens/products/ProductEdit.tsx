@@ -18,6 +18,7 @@ import {
   listAttributes,
   listCategories,
   listTags,
+  reorderProductVariants,
   setProductClassification,
   updateProduct,
   updateVariant,
@@ -29,6 +30,7 @@ import {
   type ProductClassification,
   type ProductImage,
   type ProductStatus,
+  type ReorderProductVariantsRequest,
   type SetClassificationRequest,
   type Tag,
   type UpdateProductRequest,
@@ -42,6 +44,7 @@ import { hasPermission } from "../../app/nav";
 import { TOPICS, queryKey } from "../../app/queryClient";
 import {
   applyClassification,
+  applyOrder,
   applyProduct,
   applyVariant,
   charCount,
@@ -50,6 +53,7 @@ import {
   createBody,
   draftFromProduct,
   emptyDraft,
+  orderIds,
   MAX_DESCRIPTION,
   savePlan,
   setCode,
@@ -199,6 +203,9 @@ function EditForm({ mode, productId = "", initialImages = NO_IMAGES, uploads, in
   const add = useWriteAction((key, b: { id: string; body: AddVariantRequest }) =>
     unwrap(addVariant({ path: { id: b.id }, body: b.body, headers: headers(key) })),
   );
+  const reorder = useWriteAction((key, b: { id: string; body: ReorderProductVariantsRequest }) =>
+    unwrap(reorderProductVariants({ path: { id: b.id }, body: b.body, headers: headers(key) })),
+  );
   const updV = useWriteAction((key, b: { id: string; body: UpdateVariantRequest }) =>
     unwrap(updateVariant({ path: { id: b.id }, body: b.body, headers: headers(key) })),
   );
@@ -231,6 +238,10 @@ function EditForm({ mode, productId = "", initialImages = NO_IMAGES, uploads, in
       case "add": {
         const r = await add.run({ id: productId, body: { productVersion: v, ...step.body } });
         return r.ok ? { ok: true, pair: applyVariant(p, step.key, r.data) } : r;
+      }
+      case "order": {
+        const r = await reorder.run({ id: productId, body: { productVersion: v, variantIds: orderIds(p.edit) } });
+        return r.ok ? { ok: true, pair: applyOrder(p, r.data) } : r;
       }
       case "variant": {
         const r = await updV.run({ id: step.id, body: step.body });
@@ -465,7 +476,7 @@ function EditForm({ mode, productId = "", initialImages = NO_IMAGES, uploads, in
             />
           </div>
         </div>
-        <VariantGrid draft={edit} errors={rowErrors} readOnly={readOnly} onChange={setEdit} />
+        <VariantGrid draft={edit} errors={rowErrors} readOnly={readOnly} busy={saving} onChange={setEdit} />
         {fieldErr.variants !== undefined && <p className="field-err">{fieldErr.variants}</p>}
       </fieldset>
 

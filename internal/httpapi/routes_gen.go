@@ -73,6 +73,7 @@ var Routes = []Route{
 	{Method: "GET", Pattern: "GET /api/v1/catalog/products/{id}/images/{imageId}/original", OperationID: "getOriginalImageURL", Permission: "catalog.manage", Auth: "access"},
 	{Method: "POST", Pattern: "POST /api/v1/catalog/products/{id}/images/{imageId}/restore", OperationID: "restoreProductImage", Permission: "catalog.manage", Write: true, IdempotencyMode: "required", Auth: "access"},
 	{Method: "POST", Pattern: "POST /api/v1/catalog/products/{id}/variants", OperationID: "addVariant", Permission: "catalog.manage", Write: true, IdempotencyMode: "required", Auth: "access"},
+	{Method: "PUT", Pattern: "PUT /api/v1/catalog/products/{id}/variants/order", OperationID: "reorderProductVariants", Permission: "catalog.manage", Write: true, IdempotencyMode: "required", Auth: "access"},
 	{Method: "GET", Pattern: "GET /api/v1/catalog/tags", OperationID: "listTags", Permission: "catalog.read", Auth: "access"},
 	{Method: "POST", Pattern: "POST /api/v1/catalog/tags", OperationID: "createTag", Permission: "catalog.manage", Write: true, IdempotencyMode: "required", Auth: "access"},
 	{Method: "GET", Pattern: "GET /api/v1/catalog/variants/search", OperationID: "searchVariants", Permission: "catalog.read", Auth: "access"},

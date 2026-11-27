@@ -40,6 +40,18 @@ func (h *handler) ReorderProductImages(ctx context.Context, req *gen.ReorderProd
 	})
 }
 
+// ReorderProductVariants (PUT /api/v1/catalog/products/{id}/variants/order, catalog.manage) đặt thứ tự mọi biến thể
+// của mẫu khi version còn khớp (Task 513); trả mẫu như reorderProductImages.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ReorderProductVariants(ctx context.Context, req *gen.ReorderProductVariantsRequest,
+	params gen.ReorderProductVariantsParams,
+) (gen.ReorderProductVariantsRes, error) {
+	return h.imageWrite(ctx, http.StatusOK, params.ID, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) error {
+		return w.ReorderVariants(ctx, tx, seller, params.ID, req.ProductVersion, req.VariantIds, u)
+	})
+}
+
 // SetProductImageColor (PUT /api/v1/catalog/products/{id}/images/{imageId}/color, catalog.manage) đặt màu của một ảnh
 // đang hiện khi version còn khớp (thiếu color → ảnh chung).
 //
@@ -75,8 +87,8 @@ func (h *handler) RestoreProductImage(ctx context.Context, params gen.RestorePro
 }
 
 // imageWrite chạy change trong catalogWriteAsDefaultSeller rồi đọc lại mẫu productID kèm ảnh trong cùng transaction
-// (câu trả lời của bốn operation ảnh là mẫu sau khi đổi). Mẫu của người bán khác người bán mặc định → ErrNotFound
-// (catalog lọc người bán, ADR-29).
+// (câu trả lời của các operation ảnh và của reorderProductVariants là mẫu sau khi đổi). Mẫu của người bán khác người
+// bán mặc định → ErrNotFound (catalog lọc người bán, ADR-29).
 func (h *handler) imageWrite(ctx context.Context, status int, productID uuid.UUID,
 	change func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) error,
 ) (*gen.Product, error) {

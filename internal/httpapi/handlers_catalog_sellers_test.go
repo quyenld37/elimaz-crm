@@ -34,6 +34,7 @@ func TestCatalogAPI_PartnerSellerIs404(t *testing.T) {
 		{"getClassification", http.MethodGet, p + "/classification", ""},
 		{"setProductClassification", http.MethodPut, p + "/classification", `{"version":1,"attributeValueIds":[],"tagIds":[]}`},
 		{"reorderProductImages", http.MethodPut, p + "/images/order", `{"productVersion":1,"imageIds":["` + uuid.NewString() + `"]}`},
+		{"reorderProductVariants", http.MethodPut, p + "/variants/order", `{"productVersion":1,"variantIds":["` + vid.String() + `"]}`},
 		{"deleteProductImage", http.MethodDelete, p + "/images/" + uuid.NewString(), ""},
 	} {
 		key := ""

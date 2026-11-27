@@ -149,6 +149,7 @@ func domainErrorSnapshot() []snapshotCase {
 		{"catalog.ErrNotForSale", catalog.ErrNotForSale, http.StatusConflict, "not_for_sale"},
 		{"catalog.ErrInvalidPrice", catalog.ErrInvalidPrice, http.StatusUnprocessableEntity, "invalid_price"},
 		{"catalog.ErrInvalidWeight", catalog.ErrInvalidWeight, http.StatusUnprocessableEntity, "invalid_input"},
+		{"catalog.ErrVariantOrderMismatch", catalog.ErrVariantOrderMismatch, http.StatusUnprocessableEntity, "invalid_input"},
 		{"web.ErrBadQuery", web.ErrBadQuery, http.StatusBadRequest, "bad_request"},
 		// Đơn web (Task 194): kiểu lỗi chi tiết của order.CreateFromWeb và giới hạn đơn theo SĐT.
 		{"order.QuoteChangedError", &order.QuoteChangedError{}, http.StatusUnprocessableEntity, "quote_changed"},

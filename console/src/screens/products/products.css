@@ -117,6 +117,9 @@
 .vtbl td .input {
   width: 100%;
 }
+.vtbl .c-ord {
+  width: 152px;
+}
 .vtbl .c-sku {
   width: 190px;
 }
@@ -128,6 +131,35 @@
 }
 .vtbl .c-st {
   width: 150px;
+}
+/* Cột Thứ tự (Task 513; khối <style> của docs/mockups/m5/variant-order.html; .ord như web-carriers.css). */
+.v-ord {
+  display: inline-flex;
+  gap: 4px;
+}
+.v-grip {
+  cursor: grab;
+}
+.vtbl tr.is-drag td {
+  opacity: 0.5;
+}
+.vtbl tr.is-moved td {
+  background: var(--surface);
+}
+.vtbl td.v-name {
+  overflow-wrap: anywhere;
+}
+.vtbl .ord {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--edge);
+  font-size: 12px;
+  font-weight: 700;
+  flex: none;
 }
 .v-f {
   display: grid;

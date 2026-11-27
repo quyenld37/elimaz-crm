@@ -23,6 +23,7 @@ vi.mock("../../api", async (orig) => ({
   listAttributes: vi.fn(),
   getMe: vi.fn(),
   reorderProductImages: vi.fn(),
+  reorderProductVariants: vi.fn(),
   deleteProductImage: vi.fn(),
   createUpload: vi.fn(),
 }));
@@ -322,6 +323,53 @@ describe("ProductEdit — sửa mẫu", () => {
     await screen.findByRole("heading", { name: NAME_80 });
     expect(screen.queryByRole("button", { name: "Lưu mẫu" })).toBeNull();
     expect(screen.getByRole("textbox", { name: "Tên mẫu *" }).matches(":disabled")).toBe(true);
+    expect(screen.queryByRole("button", { name: "Đưa Đen · M lên" })).toBeNull();
+  });
+
+  it("dời biến thể, thêm size → addVariant rồi reorderProductVariants (mọi biến thể theo bảng, version kế), rồi updateVariant (Task 513)", async () => {
+    renderEdit(mockApi(), `/san-pham/${PID}`);
+    await screen.findByRole("heading", { name: NAME_80 });
+    fireEvent.click(screen.getByRole("button", { name: "Đưa Đen · M lên" }));
+    expect(screen.getAllByText("Có thay đổi chưa lưu").length).toBeGreaterThan(0);
+    addVia("Thêm size", "L");
+    fireEvent.change(screen.getByRole("textbox", { name: "Giá bán của Đen · L" }), { target: { value: "420.000" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Giá bán của Đen · S" }), { target: { value: "360.000" } });
+    const l = variant(3, "Đen", "L", { price: 420000 });
+    vi.mocked(api.addVariant).mockImplementation(() => ok(l, 201));
+    vi.mocked(api.reorderProductVariants).mockImplementation(() =>
+      ok({
+        ...product,
+        version: 7,
+        variants: [variant(2, "Đen", "M", { version: 4 }), variant(1, "Đen", "S"), l],
+      }),
+    );
+    vi.mocked(api.updateVariant).mockImplementation(() => ok(variant(1, "Đen", "S", { version: 2, price: 360000 })));
+    clickSave();
+    await waitFor(() => {
+      expect(api.updateVariant).toHaveBeenCalledTimes(1);
+    });
+    expect(vi.mocked(api.addVariant).mock.calls[0]?.[0].body.productVersion).toBe(5);
+    const call = vi.mocked(api.reorderProductVariants).mock.calls[0]?.[0];
+    expect(call?.path).toEqual({ id: PID });
+    expect(call?.body).toEqual({
+      productVersion: 6,
+      variantIds: [variant(2, "x", "x").id, variant(1, "x", "x").id, l.id],
+    });
+    expect(call?.headers["Idempotency-Key"]).toBeTruthy();
+    expect(vi.mocked(api.updateVariant).mock.calls[0]?.[0].body).toEqual({ version: 1, price: 360000 });
+  });
+
+  it("sắp thứ tự báo version_conflict → Mẫu đã thay đổi; không gửi bước nào khác", async () => {
+    renderEdit(mockApi(), `/san-pham/${PID}`);
+    await screen.findByRole("heading", { name: NAME_80 });
+    fireEvent.click(screen.getByRole("button", { name: "Đưa Đen · S xuống" }));
+    vi.mocked(api.reorderProductVariants).mockImplementation(() => fail(409, "version_conflict"));
+    clickSave();
+    await waitFor(() => {
+      expect(api.reorderProductVariants).toHaveBeenCalledTimes(1);
+    });
+    expect(await screen.findByText(/Mẫu đã thay đổi/)).toBeTruthy();
+    expect(api.addVariant).not.toHaveBeenCalled();
   });
 
   it("mẫu không có (404) → câu không tìm thấy; mã không phải uuid → không gọi API", async () => {

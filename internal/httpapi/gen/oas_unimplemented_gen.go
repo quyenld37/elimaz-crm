@@ -2131,6 +2131,17 @@ func (UnimplementedHandler) ReorderProductImages(ctx context.Context, req *Reord
 	return r, ht.ErrNotImplemented
 }
 
+// ReorderProductVariants implements reorderProductVariants operation.
+//
+// Thứ tự là thứ tự nhân viên và website thấy (Task 513). Danh sách thiếu, thừa,
+// trùng hay có mã không thuộc mẫu → 422 invalid_input; version cũ → 409 version_conflict.
+// Version mẫu tăng 1, version biến thể không đổi.
+//
+// PUT /api/v1/catalog/products/{id}/variants/order
+func (UnimplementedHandler) ReorderProductVariants(ctx context.Context, req *ReorderProductVariantsRequest, params ReorderProductVariantsParams) (r ReorderProductVariantsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ReorderWebCarriers implements reorderWebCarriers operation.
 //
 // AccountIds là mọi tài khoản đang hiện trên web (showOnWeb, trừ revoked) theo thứ tự
