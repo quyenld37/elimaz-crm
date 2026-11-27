@@ -2457,3 +2457,48 @@ type PromotionWebCampaignsV struct {
 	Revision    int32
 	UpdatedAt   time.Time
 }
+
+type ReportingReportRun struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	SellerID    uuid.UUID
+	Family      string
+	Report      string
+	Format      string
+	Params      []byte
+	RequestedBy uuid.UUID
+	Status      string
+	Reason      pgtype.Text
+	RowCount    pgtype.Int4
+	Truncated   bool
+	Result      []byte
+	FileID      *uuid.UUID
+	FileBytes   pgtype.Int8
+	JobID       *uuid.UUID
+	CreatedAt   time.Time
+	StartedAt   *time.Time
+	FinishedAt  *time.Time
+	ExpiresAt   time.Time
+	Version     int32
+}
+
+type ReportingStockDailySnapshot struct {
+	TenantID    uuid.UUID
+	Day         pgtype.Date
+	WarehouseID uuid.UUID
+	VariantID   uuid.UUID
+	SellerID    uuid.UUID
+	OnHand      int32
+	Held        int32
+	InTransit   int32
+	Damaged     int32
+}
+
+type ReportingStockSnapshotDay struct {
+	ID       uuid.UUID
+	TenantID uuid.UUID
+	Day      pgtype.Date
+	CutoffAt time.Time
+	RowCount int32
+	TakenAt  time.Time
+}

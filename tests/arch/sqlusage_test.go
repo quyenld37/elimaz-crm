@@ -139,6 +139,28 @@ func tableRefs(sql string) []string {
 	return st.out
 }
 
+// writeRefs trả tên bảng mà sql ghi: sau UPDATE (trừ FOR [NO KEY] UPDATE), INSERT INTO, DELETE FROM, MERGE INTO.
+func writeRefs(sql string) []string {
+	st := newSQLTables(sql)
+	for i := range st.toks {
+		switch st.up(i) {
+		case "UPDATE":
+			if prev := st.up(i - 1); prev != "FOR" && prev != "KEY" && prev != "DO" && prev != "THEN" {
+				st.item(i+1, false)
+			}
+		case "INTO":
+			if prev := st.up(i - 1); prev == "INSERT" || prev == "MERGE" {
+				st.item(i+1, false)
+			}
+		case "FROM":
+			if st.up(i-1) == "DELETE" {
+				st.item(i+1, false)
+			}
+		}
+	}
+	return st.out
+}
+
 // schemaOfModule: module "order" dùng schema "ord" (05 quy ước chung); module khác trùng tên.
 func schemaOfModule(module string) string {
 	if module == "order" {
@@ -185,6 +207,18 @@ func viewReadExceptions() map[string][]string {
 		// Constraints "Ranh giới module"; Task M3-09 ResolveAccount, Task M3-12 lệnh tạo vận đơn).
 		// Danh mục địa giới để khớp với mã của từng hãng (Task M3-18): customer.ListWards chặn 50 xã mỗi lần.
 		"fulfillment": {"inventory.warehouses_v", "customer.admin_units_v"},
+		// reporting chỉ đọc view của module bán hàng, kho, khách để dựng báo cáo, không nhập Go (kế hoạch M6, Global
+		// Constraints "Module reporting"; Task 226, G7 sau Task 223). identity.users_v đi theo moduleCalls.
+		"reporting": {
+			"catalog.sellers_v", "catalog.products_v", "catalog.variants_v",
+			"inventory.stock_available_v", "inventory.stock_ledger_v", "inventory.warehouses_v",
+			"ord.orders_v", "ord.order_items_v", "ord.order_status_history_v", "ord.returns_v", "ord.return_items_v",
+			"ord.traffic_sources_v",
+			"customer.customers_v", "customer.customer_identities_v", "customer.customer_tag_links_v",
+			"customer.customer_tags_v",
+			"fulfillment.shipments_v", "fulfillment.carrier_accounts_v",
+			"channel.channel_accounts_v",
+		},
 	}
 }
 
@@ -253,6 +287,15 @@ func checkSQL(where, module, sql string, views map[string][]string) []string {
 		}
 		if v := checkRef(module, strings.ToLower(ident), views); v != "" {
 			out = append(out, where+": "+v)
+		}
+	}
+	// View _v công bố chỉ để đọc (ADR-27): không module nào ghi vào view của schema khác, kể cả view nằm trong ngoại
+	// lệ đọc (Task 226). Bảng của schema khác đã bị báo ở trên.
+	for _, ident := range writeRefs(sql) {
+		ident = strings.ToLower(ident)
+		schema, name, ok := strings.Cut(ident, ".")
+		if ok && strings.HasSuffix(name, "_v") && (module == queriesPkg || schema != schemaOfModule(module)) {
+			out = append(out, where+": module "+module+" ghi vào "+ident+" (view chỉ để đọc)")
 		}
 	}
 	return out
@@ -360,6 +403,11 @@ func TestSQLUsageViewRules(t *testing.T) {
 		// Kế hoạch M5 (Task 196): queries/weborders chỉ nhắc view _v đã công bố của ord, fulfillment.
 		"queries/weborders/ok.sql":  0,
 		"queries/weborders/bad.sql": 2, // ord.orders, catalog.variants_v
+		// Kế hoạch M6 (Task 226): reporting đọc view đã công bố của module khác, không đọc bảng, không ghi view.
+		"queries/reporting/m6_view_ok.sql":    0,
+		"queries/reporting/m6_own.sql":        0,
+		"queries/reporting/m6_table.sql":      1, // ord.orders
+		"queries/reporting/m6_write_view.sql": 1, // ghi ord.orders_v
 	}
 	for file, n := range want {
 		var lines []string
@@ -377,6 +425,8 @@ func TestSQLUsageViewRules(t *testing.T) {
 		"list_dynsql.go:", "platform.file_variants", "catalog.products",
 		"queries/webcatalog chỉ được nhắc view _v", "webcatalog/bad.sql: view catalog.secret_v chưa công bố",
 		"queries/weborders chỉ được nhắc view _v của ord, fulfillment (catalog.variants_v)",
+		"m6_table.sql: module reporting nhắc schema ord (ord.orders)",
+		"m6_write_view.sql: module reporting ghi vào ord.orders_v",
 	} {
 		if !slices.ContainsFunc(got, func(f string) bool { return strings.Contains(f, must) }) {
 			t.Errorf("không dòng nào chứa %q: %q", must, got)

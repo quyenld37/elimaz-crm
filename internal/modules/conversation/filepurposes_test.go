@@ -16,6 +16,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/order"
+	"elimaz.com.vn/crm/internal/modules/reporting"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/testkit"
 	"elimaz.com.vn/crm/migrations"
@@ -25,7 +26,8 @@ import (
 func tablePurposes() []files.Purpose {
 	ps := append(files.M1Purposes(), customer.ImportPurpose(), fulfillment.LabelPurpose(), cash.StatementPurpose(),
 		order.RequestPhotoPurpose(), content.BannerPurpose(), conversation.OutgoingImageFilePurpose())
-	return append(ps, conversation.InboundFilePurposes()...)
+	ps = append(ps, conversation.InboundFilePurposes()...)
+	return append(ps, reporting.FilePurposes()...)
 }
 
 // migrationUp là phần Up của migration name.
