@@ -37,6 +37,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order"
+	"elimaz.com.vn/crm/internal/modules/reporting"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
@@ -173,14 +174,7 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 
 	logger.Info("khởi động", slog.Any("config", cfg))
 	// Sổ mục đích tệp trong Go phải khớp platform.file_purposes (Task M1-41): lệch là lỗi khởi động, không phục vụ.
-	// Mốc sau gọi files.RegisterPurpose ở đây, trước lần kiểm này: customer_import (M2, Task M2-13), carrier_label và
-	// cod_statement (M3, Task M3-04).
-	customer.RegisterFilePurposes()
-	fulfillment.RegisterFilePurposes()  // carrier_label (M3, Task M3-04, 0306)
-	cash.RegisterFilePurposes()         // cod_statement (M3, Task M3-04, 0306)
-	order.RegisterFilePurposes()        // order_request_photo (M5, Task 195, 0504)
-	content.RegisterFilePurposes()      // web_banner (M5, Task 453, 0521)
-	conversation.RegisterFilePurposes() // chat_outgoing (M4, Task 156, 0413); chat_image, chat_attachment, chat_avatar (Task 155, 0404)
+	registerFilePurposes()
 	if cfg.Role == config.RoleAPI || cfg.Role == config.RoleWorker {
 		if err := files.CheckPurposes(ctx, d); err != nil {
 			return fmt.Errorf("kiểm mục đích tệp: %w", err)
@@ -639,4 +633,17 @@ func healthcheck(ctx context.Context, cfg config.Config) error {
 	case config.RoleMigrate:
 	}
 	return errNoHealthcheck
+}
+
+// registerFilePurposes đăng ký mục đích tệp của các mốc sau vào sổ của tiến trình, trước files.CheckPurposes lúc khởi
+// động (test TestRegisterFilePurposes_MatchTable đòi sổ khớp bảng): customer_import (M2, Task M2-13), carrier_label và
+// cod_statement (M3, Task M3-04).
+func registerFilePurposes() {
+	customer.RegisterFilePurposes()
+	fulfillment.RegisterFilePurposes()  // carrier_label (M3, Task M3-04, 0306)
+	cash.RegisterFilePurposes()         // cod_statement (M3, Task M3-04, 0306)
+	order.RegisterFilePurposes()        // order_request_photo (M5, Task 195, 0504)
+	content.RegisterFilePurposes()      // web_banner (M5, Task 453, 0521)
+	reporting.RegisterFilePurposes()    // report_export, customer_export (M6, Task 226, 0604)
+	conversation.RegisterFilePurposes() // chat_outgoing (M4, Task 156, 0413); chat_image, chat_attachment, chat_avatar (Task 155, 0404)
 }

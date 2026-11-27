@@ -32,7 +32,7 @@ func moduleCalls() map[string][]string {
 		"channel":      {"identity"},
 		"conversation": {"channel", "customer", "order", "identity"}, // M4 Q1: conversation điều phối chốt live
 		"affiliate":    nil,                                          // chỉ nghe sự kiện order.*
-		"reporting":    nil,                                          // chỉ đọc view
+		"reporting":    {"identity"},                                 // M6 (Task 226): identity công khai; module khác chỉ đọc view
 	}
 }
 
@@ -310,6 +310,7 @@ func TestBoundariesTestdata(t *testing.T) {
 		"internal/modules/identity nhập net/http: (b)",
 		"internal/modules/inventory nhập elimaz.com.vn/crm/internal/modules/order: (a)",
 		"internal/modules/modcache nhập elimaz.com.vn/crm/internal/platform/cache: (l)",
+		"internal/modules/reporting nhập elimaz.com.vn/crm/internal/modules/order: (a)",
 		"internal/platform/queue nhập elimaz.com.vn/crm/internal/modules/order: (c)",
 		"internal/queries nhập elimaz.com.vn/crm/internal/modules/catalog: (f)",
 		"internal/queries/orderview nhập elimaz.com.vn/crm/internal/modules/order: (i)",
@@ -382,6 +383,14 @@ func TestBoundariesNotCalledModule(t *testing.T) {
 		{"internal/modules/order", modPrefix + "internal/queries/orderview", ""},
 		{"internal/modules/order/internal/state", modPrefix + "internal/queries/orderview", ""},
 		{"internal/queries", modPrefix + "internal/queries/orderview", ""},
+		// Kế hoạch M6 (Task 226): reporting chỉ gọi identity (phần công khai); đọc module khác qua view.
+		{"internal/modules/reporting", modPrefix + "internal/modules/identity", ""},
+		{"internal/modules/reporting/internal/x", modPrefix + "internal/modules/identity", ""},
+		{"internal/modules/reporting", modPrefix + "internal/modules/order", "(a)"},
+		{"internal/modules/reporting", modPrefix + "internal/modules/inventory", "(a)"},
+		{"internal/modules/reporting", modPrefix + "internal/modules/identity/internal/store", "(a)"},
+		{"internal/modules/reporting", modPrefix + "internal/platform/files", ""},
+		{"internal/modules/reporting", modPrefix + "internal/queries/orderview", ""},
 	}
 	checkCases(t, cases)
 }
