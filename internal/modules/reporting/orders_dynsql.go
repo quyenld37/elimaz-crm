@@ -101,6 +101,16 @@ const orderSetColumns = `o.id AS order_id, %s AS event_at, o.code, o.customer_id
 // theo f.Basis trên bảng sự kiện bằng khoảng UTC (dùng chỉ mục), các bộ lọc của f và điều kiện của cell. Mỗi đơn có
 // tối đa một dòng, mốc event_at là dòng sự kiện sớm nhất khớp. Giá trị lạ → ErrBadParams, trước khi có câu nào.
 func orderSet(s DataScope, f OrderFilter, m Metric, cell *Cell, b *sqlBuilder) (string, error) {
+	sel, err := orderSetSelect(s, f, m, cell, b)
+	if err != nil {
+		return "", err
+	}
+	return "order_set AS (\n\t" + sel + "\n)", nil
+}
+
+// orderSetSelect là thân SELECT của CTE order_set (xem orderSet). Câu dùng nhiều tập trong một lượt đặt mỗi tập trong
+// một "(WITH order_set AS (…) …)" riêng.
+func orderSetSelect(s DataScope, f OrderFilter, m Metric, cell *Cell, b *sqlBuilder) (string, error) {
 	rule, err := ruleFor(f, m)
 	if err != nil {
 		return "", err
@@ -128,9 +138,9 @@ func orderSet(s DataScope, f OrderFilter, m Metric, cell *Cell, b *sqlBuilder) (
 	inner := "SELECT DISTINCT ON (o.id) " + fmt.Sprintf(orderSetColumns, at) + "\n\tFROM " + from +
 		"\n\tWHERE " + strings.Join(conds, "\n\t  AND ") + "\n\tORDER BY o.id, " + at
 	if outer == "" {
-		return "order_set AS (\n\t" + inner + "\n)", nil
+		return inner, nil
 	}
-	return "order_set AS (\n\tSELECT * FROM (" + inner + ") AS first_event WHERE " + outer + "\n)", nil
+	return "SELECT * FROM (" + inner + ") AS first_event WHERE " + outer, nil
 }
 
 // ruleFor chọn quy tắc của cột số m theo cơ sở ngày; kiểm cơ sở ngày, cột số, kỳ.
