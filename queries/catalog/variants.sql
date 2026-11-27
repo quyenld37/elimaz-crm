@@ -3,8 +3,8 @@
 
 -- name: InsertVariant :one
 -- id rỗng (uuid.Nil) → uuidv7() như mặc định của cột (id đặt trước: lệnh seed-web-fixture, Task 218). Vị trí (cuối + 1
--- trong mẫu) do trigger variants_position của 0532 điền (Task 513): câu này không nhắc cột position để còn chạy trên schema
--- trước 0532 (test dựng dữ liệu cũ, bản cũ của máy chủ lúc triển khai); bên gọi đã khóa dòng mẫu (hay vừa tạo mẫu trong
+-- trong mẫu) do trigger variants_position của 0533 điền (Task 513): câu này không nhắc cột position để còn chạy trên schema
+-- trước 0533 (test dựng dữ liệu cũ, bản cũ của máy chủ lúc triển khai); bên gọi đã khóa dòng mẫu (hay vừa tạo mẫu trong
 -- tx) nên hai lần thêm không cùng vị trí.
 INSERT INTO catalog.variants
     (id, tenant_id, seller_id, product_id, sku, barcode, color, color_hex, size, price, cost_price)

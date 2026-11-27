@@ -21,7 +21,7 @@ Kế hoạch: M5 `../../docs/superpowers/plans/2026-11-18-crm-m5-website-flash-s
   `editRules.ts` (giữ thứ tự máy chủ, bước lưu `order`, `applyOrder`, bỏ sắp lại theo màu × size của dòng đã lưu),
   `ProductEdit.tsx` (chạy bước `order`); test `VariantGrid.test.tsx`, `editRules.test.ts`, `ProductEdit.test.tsx`.
   Client sinh lại `console/src/api/**`.
-- Câu sqlc, bảng, pha migration: migration mới **0532** (pha mở rộng, chỉ thêm): `catalog.variants.position int NOT NULL
+- Câu sqlc, bảng, pha migration: migration mới **0533** (ban đầu 0532, đổi sau gộp, xem «Gộp vào main») (pha mở rộng, chỉ thêm): `catalog.variants.position int NOT NULL
   DEFAULT 0 CHECK (position >= 0)`, điền một lần bằng `row_number() OVER (PARTITION BY tenant_id, product_id ORDER BY
   created_at, id)` (tạm `NO FORCE ROW LEVEL SECURITY` như 0201, ép lại ngay), `GRANT UPDATE (position)`; trigger
   `variants_position` (`BEFORE INSERT`, hàm `catalog.variants_position_default`, quyền người chèn): câu chèn để vị trí 0 →
@@ -123,7 +123,7 @@ cmd/crm `TestSeedWebFixture_VariantOrder`; console vitest
 | Hai người cùng version: đúng một thành công; vị trí vẫn 1..n | `TestReorderVariants_Concurrent` (và `TestReorderImages_Concurrent` dùng chung `oneWinner`) | như trên | `--- PASS: TestReorderVariants_Concurrent (2.14s)` |
 | Migration điền vị trí theo (created_at, id), từng mẫu, RLS ép lại | `TestVariantPositionBackfill` | như trên | `--- PASS: TestVariantPositionBackfill (2.14s)` |
 | Trigger: chèn không vị trí → cuối + 1; có vị trí → giữ; mẫu riêng | `TestVariantPositionTrigger` | `go test -race -count=1 -run '^TestVariantPositionTrigger$' ./internal/modules/catalog/` | `ok … catalog 1.885s` |
-| Dữ liệu cũ dựng trên schema trước 0532 vẫn chạy | `TestMigrateM1Data`, `TestSchemaExtendsM1Orders`, `TestReturnItemsQty_BackfillM2`, `TestMigrateM1CashData` | `go test -count=1 -run '^…$' ./internal/modules/fulfillment/` (và order, cash) | `ok` cả ba gói (đỏ ở lượt ci đầu, trước trigger) |
+| Dữ liệu cũ dựng trên schema trước 0533 vẫn chạy | `TestMigrateM1Data`, `TestSchemaExtendsM1Orders`, `TestReturnItemsQty_BackfillM2`, `TestMigrateM1CashData` | `go test -count=1 -run '^…$' ./internal/modules/fulfillment/` (và order, cash) | `ok` cả ba gói (đỏ ở lượt ci đầu, trước trigger) |
 | HTTP: 200 trả mẫu theo thứ tự, 409, 422 invalid_input, 403 chỉ xem, 404 tenant khác, gửi lại cùng khóa | `TestCatalogAPI_ReorderVariants` | `go test -race -count=1 -run '^TestCatalogAPI_ReorderVariants$' ./internal/httpapi/` | `ok … httpapi 2.290s` |
 | API web trả biến thể theo vị trí rồi mã | `TestProducts_VariantOrder`, `TestProducts_VariantFields` | `go test -race -count=1 -run '^(TestProducts_VariantFields\|TestProducts_VariantOrder)$' -v ./internal/queries/webcatalog/` | `--- PASS` cả hai |
 | seed-web-fixture: thứ tự như tệp, tệp đổi → sắp lại, biến thể chỉ ở CRM đứng sau | `TestSeedWebFixture_VariantOrder`, `TestSeedWebFixture_CreatedAtOrder` | `go test -race -count=1 -run '^(TestSeedWebFixture_VariantOrder\|TestSeedWebFixture_CreatedAtOrder)$' -v ./cmd/crm/` | `--- PASS` cả hai |
@@ -150,6 +150,28 @@ cmd/crm `TestSeedWebFixture_VariantOrder`; console vitest
   phạm vi danh mục web của task này: cần chủ shop chọn.
 - `catalog.variants_v.position` và cột `position` không có index riêng; đọc theo mẫu dùng `variants_product_idx`.
 
+## Gộp vào main
+
+Sửa sau gộp (điều phối 27/11): gộp vào main bị chặn vì trùng số migration — main đã có `migrations/0532_flash_sales.sql`
+(Task 199).
+
+- `git merge main` vào task-513 (một lần, commit 169794a7). Xung đột chỉ ở mã sinh (`console/src/api/index.ts`,
+  `console/src/api/sdk.gen.ts`, `internal/httpapi/gen/oas_router_gen.go`); `openapi.yaml` tự gộp không xung đột → lấy một
+  bên rồi `make gen` sinh lại từ bản gộp (có cả `reorderProductVariants` và các operation flash sale).
+- `git mv migrations/0532_catalog_variant_position.sql migrations/0533_catalog_variant_position.sql` (số trống kế tiếp sau
+  0532 của main; nội dung migration không đổi). Sửa chỗ nhắc số/tên: `internal/modules/catalog/variant_order_test.go`
+  (tên tệp đọc trong `backfillSQL` và chú thích), chú thích `queries/catalog/variants.sql` (→ `make gen` cập nhật chú thích
+  `internal/modules/catalog/internal/store/variants.sql.go`), tệp task này. Không đổi hành vi nào khác.
+- Thứ tự mới: 0532_flash_sales (FK tới `catalog.variants`, không nhắc `position` hay `variants_v`) chạy trước 0533; 0533 chỉ
+  thêm cột, trigger và thay `catalog.variants_v` — không phụ thuộc nhau.
+
+| Tiêu chí | Test | Lệnh | Kết quả |
+|---|---|---|---|
+| Migration 0533 đọc được, điền vị trí, trigger, sắp lại | `TestReorderVariants`, `TestVariantPositionBackfill`, `TestVariantPositionTrigger` | `go test -race -count=1 -run '^(TestReorderVariants\|TestVariantPositionBackfill\|TestVariantPositionTrigger)$' ./internal/modules/catalog/` | `ok … catalog 3.593s` |
+| Dữ liệu cũ trước 0533 vẫn chạy sau khi có 0532_flash_sales | `TestMigrateM1Data`, `TestSchemaExtendsM1Orders`, `TestReturnItemsQty_BackfillM2`, `TestMigrateM1CashData` | `go test -count=1 -run '^(…)$' ./internal/modules/fulfillment/ ./internal/modules/order/ ./internal/modules/cash/` | `ok` cả ba gói |
+| Kiến trúc, lint, mã lặp | — | `go test -count=1 ./tests/arch/`; `golangci-lint run ./internal/modules/catalog/...`; `make jscpd` | `ok … 101.353s`; `0 issues.`; `Found 0 clones.` |
+| Cổng tĩnh + test gói đổi và phụ thuộc trên bản đã gộp | — | ci-task (sau gộp) | `CI-TASK XANH (từ xa trên blacksmith, so với điểm tách nhánh 2846a2c5…)`, run 45938457884 (static, test 1, test 2 success) |
+
 ## Reviewer
 
 Kết luận: ĐẠT (lượt 2).
@@ -160,3 +182,7 @@ Kết luận: ĐẠT (lượt 2).
   sửa cho đúng. Backend không có lỗi tính đúng.
 - Lượt 2: ĐẠT, không phát hiện phải sửa. Ghi chú không bắt buộc: lưu bắt đầu đúng lúc đang kéo thì `dragging` có thể còn
   giữ tới lần kéo sau (không đổi thứ tự sai; gần như không xảy ra).
+- Lượt 3 (sửa sau gộp, đổi 0532 → 0533): ĐẠT, không phát hiện phải sửa. Đã kiểm: không còn chỗ nhắc nhầm 0532 cho migration
+  của task này; 0533 trống trên main; 0532_flash_sales chỉ có FK tới `catalog.variants`, không nhắc `position`/`variants_v`
+  nên thứ tự không phụ thuộc sai; mã sinh khớp nguồn; nội dung migration giữ nguyên (similarity 100%). Ghi chú: main đã có
+  thêm 74b6fdd1 (Task 225, không thêm migration) — điều phối viên nên dò lại số migration ngay trước lúc gộp.

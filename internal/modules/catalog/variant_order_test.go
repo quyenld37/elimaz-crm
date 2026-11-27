@@ -194,10 +194,10 @@ func oneWinner(t *testing.T, try func(i int) error) {
 	}
 }
 
-// backfillSQL: đoạn điền vị trí cho dòng có sẵn của migration 0532 (từ NO FORCE tới FORCE ROW LEVEL SECURITY).
+// backfillSQL: đoạn điền vị trí cho dòng có sẵn của migration 0533 (từ NO FORCE tới FORCE ROW LEVEL SECURITY).
 func backfillSQL(t *testing.T) string {
 	t.Helper()
-	raw, err := fs.ReadFile(migrations.FS, "0532_catalog_variant_position.sql")
+	raw, err := fs.ReadFile(migrations.FS, "0533_catalog_variant_position.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,12 +206,12 @@ func backfillSQL(t *testing.T) string {
 	const end = "ALTER TABLE catalog.variants FORCE ROW LEVEL SECURITY;"
 	stop := strings.Index(s, end)
 	if start < 0 || stop < start {
-		t.Fatal("không thấy đoạn điền vị trí trong 0532")
+		t.Fatal("không thấy đoạn điền vị trí trong 0533")
 	}
 	return s[start : stop+len(end)]
 }
 
-// TestVariantPositionBackfill (migration 0532): dòng có sẵn nhận vị trí 1..n theo (created_at, id) trong từng mẫu, mỗi
+// TestVariantPositionBackfill (migration 0533): dòng có sẵn nhận vị trí 1..n theo (created_at, id) trong từng mẫu, mỗi
 // tenant riêng; RLS bị ép lại sau khi điền.
 func TestVariantPositionBackfill(t *testing.T) {
 	t.Parallel()
@@ -222,7 +222,7 @@ func TestVariantPositionBackfill(t *testing.T) {
 		{SKU: "AO01-DEN-M", Color: "Đen", Size: "M", Price: 100000},
 	}})
 	ids := variantIDs(p.Variants)
-	// Như dữ liệu trước 0532: vị trí 0; ids[4] tạo sớm nhất, ids[1], ids[2] cùng mốc (hòa → theo id).
+	// Như dữ liệu trước 0533: vị trí 0; ids[4] tạo sớm nhất, ids[1], ids[2] cùng mốc (hòa → theo id).
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(t.Context(), `UPDATE catalog.variants SET position = 0, created_at = '2026-01-02'`); err != nil {
 			return err //nolint:wrapcheck // test
@@ -231,7 +231,7 @@ func TestVariantPositionBackfill(t *testing.T) {
 		return err //nolint:wrapcheck // test
 	})
 	if _, err := e.staff.Owner.Pool.Exec(t.Context(), backfillSQL(t)); err != nil {
-		t.Fatalf("chạy đoạn điền của 0532: %v", err)
+		t.Fatalf("chạy đoạn điền của 0533: %v", err)
 	}
 	want := []uuid.UUID{ids[4], ids[0], ids[1], ids[2], ids[3], ids[5]}
 	got := e.mustGet(p.ID)
@@ -248,7 +248,7 @@ func TestVariantPositionBackfill(t *testing.T) {
 	}
 }
 
-// TestVariantPositionTrigger (migration 0532): câu chèn không đặt vị trí (InsertVariant, chèn thẳng như dữ liệu thử) →
+// TestVariantPositionTrigger (migration 0533): câu chèn không đặt vị trí (InsertVariant, chèn thẳng như dữ liệu thử) →
 // cuối + 1 trong đúng mẫu; câu chèn có vị trí giữ nguyên vị trí đó; mẫu khác đánh số riêng.
 func TestVariantPositionTrigger(t *testing.T) {
 	t.Parallel()

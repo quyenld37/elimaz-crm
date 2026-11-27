@@ -117,8 +117,8 @@ type InsertVariantRow struct {
 // Biến thể màu/size (kế hoạch M1, Task M1-27). Chạy trong tenancy.WithTenant. Mọi câu đọc, khóa, sửa có seller_id (ADR-29;
 // tests/arch/sellerfilter_test.go, Task M1-37).
 // id rỗng (uuid.Nil) → uuidv7() như mặc định của cột (id đặt trước: lệnh seed-web-fixture, Task 218). Vị trí (cuối + 1
-// trong mẫu) do trigger variants_position của 0532 điền (Task 513): câu này không nhắc cột position để còn chạy trên schema
-// trước 0532 (test dựng dữ liệu cũ, bản cũ của máy chủ lúc triển khai); bên gọi đã khóa dòng mẫu (hay vừa tạo mẫu trong
+// trong mẫu) do trigger variants_position của 0533 điền (Task 513): câu này không nhắc cột position để còn chạy trên schema
+// trước 0533 (test dựng dữ liệu cũ, bản cũ của máy chủ lúc triển khai); bên gọi đã khóa dòng mẫu (hay vừa tạo mẫu trong
 // tx) nên hai lần thêm không cùng vị trí.
 func (q *Queries) InsertVariant(ctx context.Context, arg InsertVariantParams) (InsertVariantRow, error) {
 	row := q.db.QueryRow(ctx, insertVariant,
