@@ -1,7 +1,7 @@
 #!/bin/sh
 # Dựng bucket cho SeaweedFS dev (kế hoạch M1, Task M1-40). Chạy bằng danh tính crm-admin, chạy nhiều lần không lỗi.
 # Chạy trong image SeaweedFS (có curl hỗ trợ --aws-sigv4), qua dịch vụ s3-bootstrap của docker/compose.dev.yml:
-#   bootstrap.sh main    <endpoint> <tệp cấu hình>   kho chính: <tiền tố>tmp, …public, …originals, …private
+#   bootstrap.sh main    <endpoint> <tệp cấu hình>   kho chính: <tiền tố>tmp, …public, …originals, …private, …exports
 #   bootstrap.sh offsite <endpoint> <tệp cấu hình>   kho ngoài giả: <tiền tố>public, …originals, …private
 # CONSOLE_ORIGINS (phân cách bằng dấu phẩy): gốc được phép PUT thẳng vào crm-tmp bằng đường dẫn ký sẵn.
 # S3_BUCKET_PREFIX (kho chính) và FILESYNC_DST_BUCKET_PREFIX (kho ngoài giả), mặc định crm-: tiền tố tên bucket, cùng
@@ -9,6 +9,9 @@
 # WEED_MASTER (mặc định localhost:9333, tức chạy trong chính container SeaweedFS): master cho weed shell, để bật
 # lifecycle TTL fast path của crm-tmp (Task 410, C-08: `weed server` không chạy lifecycle worker; không có fast path thì
 # quy tắc hết hạn 1 ngày không xóa gì, đo 19/11/2026 ở docs/do-luong/seaweedfs-m1.md).
+# <tiền tố>exports (Task 515, kế hoạch M6 G5): tệp xuất báo cáo, danh sách khách; không giữ phiên bản, không chép ra kho
+# ngoài (filesync chỉ chép public, originals, private), tự xóa theo tiền tố khóa: reports/ 7 ngày, customers/ 1 ngày
+# (fast path gắn ttlSec theo luật khớp tiền tố, đo 27/11/2026).
 #
 # Quyền xóa (ADR-36): quyền "Write" của SeaweedFS gồm cả xóa vĩnh viễn một phiên bản, tắt giữ phiên bản và đặt quy
 # tắc hết hạn (đo ngày 18/11/2026, docs/do-luong/seaweedfs-m1.md), nên mỗi bucket có chính sách từ chối các việc đó
@@ -71,6 +74,18 @@ policy() {
 # Việc làm mất bản cũ hay nới cấu hình bucket; danh tính ứng dụng không bao giờ cần. Tên việc phân biệt hoa thường
 # (SeaweedFS 4.48 nhận "PutBucketCors", bỏ qua "PutBucketCORS"); mỗi tên có ca kiểm trong tests/probe.
 loosen="DeleteObjectVersion PutBucketVersioning PutLifecycleConfiguration PutBucketPolicy DeleteBucketPolicy PutBucketCors DeleteBucketCors DeleteBucket"
+# fastpath <bucket>: bật lifecycle TTL fast path. PutObject gắn ttlSec theo luật Expiration khớp khóa và ghi vào volume
+# có Ttl; filer và volume server tự xóa khi hết hạn, không cần tiến trình nào khác. Chỉ có tác dụng với đối tượng ghi
+# SAU lệnh này, chỉ cho bucket không giữ phiên bản.
+fastpath() {
+  fp=$(printf 's3.bucket.lifecycle.fastpath -name %s -enable\ns3.bucket.lifecycle.fastpath -name %s\n' "$1" "$1" |
+    timeout 60 weed shell -master="$master" 2>&1) || true
+  case "$fp" in
+    *"fast path: enabled"*) echo "bootstrap: hạn TTL fast path $1: bật" ;;
+    *) echo "bootstrap: không bật được TTL fast path của $1 (master $master):" >&2; echo "$fp" >&2; exit 1 ;;
+  esac
+}
+
 versioning='<VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Status>Enabled</Status></VersioningConfiguration>'
 
 case "$role" in
@@ -91,14 +106,16 @@ case "$role" in
     for o in $(printf '%s' "$origins" | tr ',' ' '); do rules="$rules<AllowedOrigin>$o</AllowedOrigin>"; done
     must "CORS ${p}tmp" 200 -- PUT "/${p}tmp?cors" \
       "<CORSConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><CORSRule>$rules<AllowedMethod>PUT</AllowedMethod><AllowedHeader>*</AllowedHeader><ExposeHeader>ETag</ExposeHeader><MaxAgeSeconds>3000</MaxAgeSeconds></CORSRule></CORSConfiguration>"
-    # Fast path: PutObject gắn ttlSec 86400 và ghi vào volume Ttl:1d, filer và volume server tự xóa khi hết hạn (R10:
-    # ảnh thô còn EXIF/GPS không nằm lại). Chỉ có tác dụng với đối tượng ghi SAU lệnh này; bucket không giữ phiên bản.
-    fp=$(printf 's3.bucket.lifecycle.fastpath -name %s -enable\ns3.bucket.lifecycle.fastpath -name %s\n' "${p}tmp" "${p}tmp" |
-      timeout 60 weed shell -master="$master" 2>&1) || true
-    case "$fp" in
-      *"fast path: enabled"*) echo "bootstrap: hạn TTL fast path ${p}tmp: bật" ;;
-      *) echo "bootstrap: không bật được TTL fast path của ${p}tmp (master $master):" >&2; echo "$fp" >&2; exit 1 ;;
-    esac
+    # Fast path của crm-tmp: ttlSec 86400, volume Ttl:1d (R10: ảnh thô còn EXIF/GPS không nằm lại).
+    fastpath "${p}tmp"
+    # Tệp xuất: không bật giữ phiên bản (fast path không áp cho bucket giữ phiên bản). crm-app không xóa được gì, kể cả
+    # DeleteObject (bucket không phiên bản: xóa là mất hẳn, ADR-36); chỉ luật hết hạn dọn.
+    must "tạo ${p}exports" 200 409 -- PUT "/${p}exports"
+    # shellcheck disable=SC2086
+    must "chính sách ${p}exports" 200 204 -- PUT "/${p}exports?policy" "$(policy "${p}exports" crm-app DeleteObject $loosen)"
+    must "hạn theo tiền tố ${p}exports" 200 -- PUT "/${p}exports?lifecycle" \
+      '<LifecycleConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Rule><ID>reports-7-ngay</ID><Filter><Prefix>reports/</Prefix></Filter><Status>Enabled</Status><Expiration><Days>7</Days></Expiration></Rule><Rule><ID>customers-1-ngay</ID><Filter><Prefix>customers/</Prefix></Filter><Status>Enabled</Status><Expiration><Days>1</Days></Expiration></Rule></LifecycleConfiguration>'
+    fastpath "${p}exports"
     ;;
   offsite)
     for b in "${p}public" "${p}originals" "${p}private"; do

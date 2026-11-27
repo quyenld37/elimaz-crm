@@ -57,6 +57,11 @@ không phải dừng ở Step 2 vì view.
 
 ## Điều cần chủ shop quyết trước Task M6-14 (không chặn M6-01–M6-13)
 
+> **Đã chốt và làm (27/11/2026):** G5 chọn (a); Task 515 dựng bucket `crm-exports` (không giữ phiên bản, không chép
+> kho ngoài, `reports/` 7 ngày, `customers/` 1 ngày), `files.BucketExports`, `files.ExportKey`, `Purpose.KeyPrefix`,
+> migration `0606`. Khóa tệp xuất thành `reports/<tenant>/<runID>/<sha256>.xlsx`, `customers/<tenant>/…` (thay QĐ-223-2).
+> Xem `docs/tasks/task-515.md`.
+
 Kế hoạch đặt hạn tự xóa 7 ngày (tệp báo cáo) và 24 giờ (danh sách khách) bằng quy tắc theo tiền tố của bucket
 `crm-private`. Trên hạ tầng hiện có, cách này không làm được, vì ba lẽ:
 

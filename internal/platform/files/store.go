@@ -12,26 +12,26 @@ import (
 	"context"
 	"errors"
 	"io"
+	"slices"
 	"time"
 )
 
 // Bucket là bucket logic; tên bucket thật trên kho là tiền tố cấu hình (S3_BUCKET_PREFIX) + giá trị này.
 type Bucket string
 
-// Bốn bucket của ADR-36 (Task M1-40 dựng): tạm (tự xóa sau 1 ngày), ảnh công khai, ảnh gốc, riêng tư.
+// Bốn bucket của ADR-36 (Task M1-40 dựng): tạm (tự xóa sau 1 ngày), ảnh công khai, ảnh gốc, riêng tư; và bucket tệp
+// xuất của M6 (Task 515): không giữ phiên bản, không chép ra kho ngoài, tự xóa theo tiền tố khóa (ExportReportsPrefix,
+// ExportCustomersPrefix; luật ở docker/seaweedfs/bootstrap.sh).
 const (
 	BucketTmp       Bucket = "tmp"
 	BucketPublic    Bucket = "public"
 	BucketOriginals Bucket = "originals"
 	BucketPrivate   Bucket = "private"
+	BucketExports   Bucket = "exports"
 )
 
 func (b Bucket) valid() bool {
-	switch b {
-	case BucketTmp, BucketPublic, BucketOriginals, BucketPrivate:
-		return true
-	}
-	return false
+	return slices.Contains([]Bucket{BucketTmp, BucketPublic, BucketOriginals, BucketPrivate, BucketExports}, b)
 }
 
 // PresignedPut là đường dẫn PUT ký sẵn: trình duyệt gửi đúng URL với đúng Headers (chữ ký gồm cả content-length,

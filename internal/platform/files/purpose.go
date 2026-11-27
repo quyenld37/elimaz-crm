@@ -49,6 +49,9 @@ type Purpose struct {
 	// AnyType (M4 Task 155): nhận mọi loại tệp (AllowedTypes phải rỗng); chỉ cho tệp máy chủ ghi, không tải lên, không
 	// phải ảnh (tệp khách gửi trong hộp chat: loại do máy chủ nhận dạng theo nội dung, chỉ cho tải về).
 	AnyType bool
+	// KeyPrefix (Task 515): bắt buộc với BucketExports, là ExportReportsPrefix hay ExportCustomersPrefix (quyết định hạn
+	// tự xóa của tệp); rỗng với bucket khác.
+	KeyPrefix string
 	// MinWidth > 0 (Task 453): ảnh hẹp hơn bị rejected too_small (imager kiểm trước khi giải mã, files kiểm lại kết
 	// quả); 0 = không kiểm.
 	MinWidth int
@@ -99,6 +102,12 @@ func (p Purpose) validate() error {
 		return fmt.Errorf("%s: bộ kích thước riêng phải ≥ %d, cho ảnh công khai", p.Key, purposePresetBase)
 	case p.MinWidth < 0 || (p.MinWidth > 0 && !p.Image):
 		return fmt.Errorf("%s: MinWidth phải ≥ 0, chỉ cho ảnh", p.Key)
+	case p.Bucket == BucketExports && (p.Upload || p.Image):
+		return fmt.Errorf("%s: bucket exports chỉ cho tệp máy chủ ghi, không ảnh", p.Key)
+	case p.Bucket == BucketExports && p.KeyPrefix != ExportReportsPrefix && p.KeyPrefix != ExportCustomersPrefix:
+		return fmt.Errorf("%s: bucket exports đòi KeyPrefix %q hay %q", p.Key, ExportReportsPrefix, ExportCustomersPrefix)
+	case p.Bucket != BucketExports && p.KeyPrefix != "":
+		return fmt.Errorf("%s: KeyPrefix chỉ cho bucket exports", p.Key)
 	}
 	return nil
 }
@@ -106,7 +115,7 @@ func (p Purpose) validate() error {
 func samePurpose(a, b Purpose) bool {
 	return a.Key == b.Key && a.Bucket == b.Bucket && slices.Equal(a.AllowedTypes, b.AllowedTypes) &&
 		a.MaxBytes == b.MaxBytes && a.Image == b.Image && a.Upload == b.Upload && a.Private == b.Private &&
-		a.Preset == b.Preset && a.MinWidth == b.MinWidth && a.AnyType == b.AnyType
+		a.Preset == b.Preset && a.MinWidth == b.MinWidth && a.AnyType == b.AnyType && a.KeyPrefix == b.KeyPrefix
 }
 
 // Registry là sổ mục đích tệp. Dùng sổ mặc định qua RegisterPurpose, PurposeOf; NewRegistry chỉ để test so một tập

@@ -21,6 +21,9 @@ func TestKeys_Formats(t *testing.T) {
 		"original":    {files.OriginalKey(sha), "orig/" + sha},
 		"variant":     {files.VariantKey(sha, 1, 640, "webp"), "img/" + sha + "/v1/640.webp"},
 		"private var": {files.PrivateVariantKey(ten, fid, 2, 1600, "jpeg"), "priv/" + ten.String() + "/" + fid.String() + "/v2/1600.jpeg"},
+		// Task 515: tiền tố của bucket exports đứng đầu khóa (luật hết hạn S3 chỉ khớp tiền tố đầu), tenant ngay sau.
+		"export reports":   {files.ExportKey(files.ExportReportsPrefix, ten, fid.String()+"/"+sha+".xlsx"), "reports/" + ten.String() + "/" + fid.String() + "/" + sha + ".xlsx"},
+		"export customers": {files.ExportKey(files.ExportCustomersPrefix, ten, "x.xlsx"), "customers/" + ten.String() + "/x.xlsx"},
 	}
 	for name, c := range cases {
 		if c[0] != c[1] {

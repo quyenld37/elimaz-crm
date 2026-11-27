@@ -82,6 +82,9 @@ func TestLoad_ReportBadValues(t *testing.T) {
 		{"REPORT_MAX_ROWS", "0"},
 		{"REPORT_MAX_ROWS", "1048576"},
 		{"REPORT_FILE_TTL", "30m"},
+		// Task 515: hạn ứng dụng không vượt hạn kho tự xóa của crm-exports (reports/ 7 ngày, customers/ 1 ngày).
+		{"REPORT_FILE_TTL", "169h"},
+		{"CUSTOMER_EXPORT_TTL", "25h"},
 		{"CUSTOMER_EXPORT_TTL", "169h"},
 		{"REPORT_TMP_DIR", "tmp/reports"},
 	}

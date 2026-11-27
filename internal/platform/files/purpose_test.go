@@ -101,6 +101,16 @@ func TestPurposes_TableConstraints(t *testing.T) {
 	if err := e.addPurposeRow("test_bad", "public", "private"); pgCode(err) != "23514" {
 		t.Fatalf("mode private, bucket public phải lỗi CHECK 23514, nhận %v", err)
 	}
+	// Task 515 (migration 0606): bucket exports nhận được ở cả danh mục mục đích và platform.files; bucket lạ vẫn lỗi.
+	if err := e.addPurposeRow("test_exp_check", "exports", "standard"); err != nil {
+		t.Fatalf("bucket exports phải nhận được: %v", err)
+	}
+	if err := e.addPurposeRow("test_bad_bucket", "khac", "standard"); pgCode(err) != "23514" {
+		t.Fatalf("bucket lạ phải lỗi CHECK 23514, nhận %v", err)
+	}
+	if err := e.addPurposeRow("test_exp_priv", "exports", "private"); pgCode(err) != "23514" {
+		t.Fatalf("mode private, bucket exports phải lỗi CHECK 23514, nhận %v", err)
+	}
 	if err := e.addPurposeRow("X", "private", "standard"); pgCode(err) != "23514" {
 		t.Fatalf("khóa sai dạng phải lỗi CHECK, nhận %v", err)
 	}
@@ -131,6 +141,12 @@ func TestRegisterPurpose_PanicsOnInvalid(t *testing.T) {
 		"AnyType cho tải lên":          {Key: "test_p7", Bucket: files.BucketPrivate, MaxBytes: 1, AnyType: true, Upload: true},
 		"AnyType cho ảnh":              {Key: "test_p8", Bucket: files.BucketPrivate, MaxBytes: 1, AnyType: true, Image: true},
 		"khai lại khác":                {Key: "product_image", Bucket: files.BucketPrivate, AllowedTypes: []string{"image/jpeg"}, MaxBytes: 1},
+		// Task 515: bucket exports chỉ cho tệp máy chủ ghi, phải có một trong hai tiền tố hạn xóa; tiền tố chỉ cho exports.
+		"exports thiếu KeyPrefix": {Key: "test_e1", Bucket: files.BucketExports, AllowedTypes: []string{"a/b"}, MaxBytes: 1},
+		"exports KeyPrefix lạ":    {Key: "test_e2", Bucket: files.BucketExports, AllowedTypes: []string{"a/b"}, MaxBytes: 1, KeyPrefix: "priv/"},
+		"exports cho tải lên":     {Key: "test_e3", Bucket: files.BucketExports, AllowedTypes: []string{"a/b"}, MaxBytes: 1, KeyPrefix: files.ExportReportsPrefix, Upload: true},
+		"exports cho ảnh":         {Key: "test_e4", Bucket: files.BucketExports, AllowedTypes: []string{"image/jpeg"}, MaxBytes: 1, KeyPrefix: files.ExportReportsPrefix, Image: true},
+		"KeyPrefix ngoài exports": {Key: "test_e5", Bucket: files.BucketPrivate, AllowedTypes: []string{"a/b"}, MaxBytes: 1, KeyPrefix: files.ExportReportsPrefix},
 	}
 	for name, p := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -168,6 +184,12 @@ func TestRegisterPurpose_PanicsOnEachChangedField(t *testing.T) {
 		"Image":    func() files.Purpose { p := img; p.Image = !p.Image; return p },
 		"Upload":   func() files.Purpose { p := img; p.Upload = !p.Upload; return p },
 		"Private":  func() files.Purpose { p := priv; p.Private = false; return p },
+		"KeyPrefix": func() files.Purpose {
+			p := testExportsPurpose("test_exp_reports", files.ExportReportsPrefix)
+			files.RegisterPurpose(p)
+			p.KeyPrefix = files.ExportCustomersPrefix
+			return p
+		},
 		"AnyType": func() files.Purpose {
 			p := testAnyTypePurpose()
 			files.RegisterPurpose(p)

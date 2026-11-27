@@ -54,6 +54,24 @@ Ràng buộc với Task 409: trần thử lại xử lý ảnh (`IMAGE_RETRY_MAX
 tư chỉ có bản gốc ở `crm-tmp` (ảnh thường cũng vậy tới khi chép sang `crm-originals`), thử lại sau hạn thì lượt đó ra
 `source_missing` (RUNBOOK "Hạn 24 giờ của crm-tmp").
 
+## Hạn theo tiền tố của crm-exports (Task 515; kế hoạch M6 G5)
+
+Đo ngày 27/11/2026 trên bộ compose riêng `crm-t515` (SeaweedFS 4.48 ghim, Docker Desktop, Apple Silicon). Bucket không
+giữ phiên bản, hai luật `Expiration` lọc theo tiền tố (`reports/` 7 ngày, `customers/` 1 ngày), bật fast path.
+
+| Phép đo | Kết quả |
+|---|---|
+| PutObject `reports/…` bằng `crm-app` | `ttlSec: 604800`, chunk ở volume collection `crm-exports` `Ttl:1w` |
+| PutObject `customers/…` | `ttlSec: 86400`, volume `Ttl:1d` |
+| PutObject khóa ngoài hai tiền tố (đo tay, ứng dụng không ghi khóa như vậy) | `ttlSec: 0` |
+| `GetBucketVersioning` | trạng thái rỗng (chưa từng bật); PutObject không trả `VersionId` |
+| `crm-app` DeleteObject, bật/tắt phiên bản, đổi luật, chính sách, CORS, xóa bucket | AccessDenied (chính sách bucket) |
+| `crm-filesync` liệt kê `crm-exports` ở kho chính | bị từ chối; kho ngoài giả không có bucket này |
+| Chạy lại `bootstrap.sh main` | `tạo crm-exports: 409`, các bước sau 200/204, không lỗi |
+
+Kết luận: fast path xét luật theo tiền tố của từng khóa lúc ghi, nên một bucket có hai hạn khác nhau mà không cần lifecycle
+worker. Test: `tests/probe/exports_test.go` (`TestExports_*`), `TestAppCannotLoosenBuckets/crm-exports`.
+
 ## Quyền xóa: điều ADR-36 phải biết
 
 Quyền `Write` trong `s3.json` của SeaweedFS 4.48 **gồm cả** xóa vĩnh viễn một phiên bản, tắt giữ phiên bản
