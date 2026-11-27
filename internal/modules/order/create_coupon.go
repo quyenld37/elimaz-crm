@@ -20,10 +20,11 @@ import (
 var errCouponTotalsMoved = errors.New("order: không ghi được tổng tiền sau khi dùng mã")
 
 // applyCoupon dùng mã p.coupon cho đơn orderID vừa chèn (Create bước 6; ADR-46 nhóm 10, sau đơn nhóm 7, trước tồn
-// nhóm 11): promotion.Writer.Redeem với tạm tính sau giảm dòng và giảm tay cấp đơn, SĐT là danh tính SĐT của khách
-// nếu đầu vào có, không thì SĐT người nhận; bị từ chối → lỗi bọc *promotion.RejectError. Phần giảm khác 0: tính lại
-// bằng pricing.Compute với CouponDiscount, ghi tổng đơn (cod_amount = grand_total) và phần chia về dòng itemIDs (thứ
-// tự nhập). Chỉ sửa dòng của chính đơn vừa chèn. Đơn web (p.web): nền và phần chia về dòng theo couponBases như
+// nhóm 11): promotion.Writer.Redeem với tạm tính sau giảm dòng và giảm tay cấp đơn, SĐT là SĐT nhập cho khách nếu có,
+// không thì SĐT người nhận (mã gắn SĐT còn khớp khi SĐT đó là danh tính của nhóm khách — promotion kiểm, cùng luật với
+// lúc sửa đơn); bị từ chối (kể cả phần giảm 0: zero_discount) → lỗi bọc *promotion.RejectError. Tính lại bằng
+// pricing.Compute với CouponDiscount, ghi tổng đơn (cod_amount = grand_total) và phần chia về dòng itemIDs (thứ tự
+// nhập). Chỉ sửa dòng của chính đơn vừa chèn. Đơn web (p.web): nền và phần chia về dòng theo couponBases như
 // QuoteWeb.
 func (w Writer) applyCoupon(ctx context.Context, tx pgx.Tx, p prepared, d drafted, cust customer.OrderCustomer,
 	orderID uuid.UUID, itemIDs []uuid.UUID, a Actor, now time.Time,
@@ -46,9 +47,6 @@ func (w Writer) applyCoupon(ctx context.Context, tx pgx.Tx, p prepared, d drafte
 		})
 	if err != nil {
 		return fmt.Errorf("dùng mã giảm giá: %w", err)
-	}
-	if r.Discount == 0 {
-		return nil
 	}
 	in := d.pricing
 	in.CouponDiscount = r.Discount

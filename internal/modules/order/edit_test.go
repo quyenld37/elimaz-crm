@@ -247,16 +247,8 @@ func TestEdit_Coupon(t *testing.T) {
 	e := newM2Env(t)
 	min600 := e.editCoupon("MIN600", 600000)
 	other := e.editCoupon("KHAC", 0)
-	v1, v2 := e.variant(250000, 10), e.variant(180000, 10)
-	in := e.m2Input(0, ln(v1, 2, 0), ln(v2, 1, 0))
-	in.CouponCode = "MIN600"
-	o := e.mustCreateM2(in).Order
-	if o.CouponDiscount != 68000 {
-		t.Fatalf("đơn có mã: %+v", o)
-	}
-	i1, i2 := itemOf(t, o, v1), itemOf(t, o, v2)
-	got := e.mustEdit(o.ID, order.EditInput{Version: o.Version, Lines: editLines(editKeep(i1, 3, 0), editKeep(i2, 1, 0))},
-		e.actor)
+	o, i1, i2, got := e.couponOrderEdited(t, "MIN600")
+	v2 := i2.VariantID
 	if got.CouponDiscount != 93000 || got.GrandTotal != 837000 ||
 		e.count(`SELECT discount::int FROM promotion.coupon_redemptions WHERE order_id = $1 AND status = 'active'`,
 			o.ID) != 93000 {
@@ -295,21 +287,44 @@ func TestEdit_Coupon(t *testing.T) {
 	}
 }
 
+// couponOrderEdited tạo đơn 2 × 250.000 (dòng i1) + 1 × 180.000 (dòng i2) dùng mã code (10%: giảm 68.000), rồi sửa
+// i1 thành 3 cái (tạm tính 930.000). Trả đơn trước khi sửa, hai dòng, đơn sau sửa.
+func (e *orderEnv) couponOrderEdited(t *testing.T, code string) (o order.Order, i1, i2 order.Item, got order.Order) {
+	t.Helper()
+	v1, v2 := e.variant(250000, 10), e.variant(180000, 10)
+	in := e.m2Input(0, ln(v1, 2, 0), ln(v2, 1, 0))
+	in.CouponCode = code
+	o = e.mustCreateM2(in).Order
+	if o.CouponDiscount != 68000 {
+		t.Fatalf("đơn có mã: %+v", o)
+	}
+	i1, i2 = itemOf(t, o, v1), itemOf(t, o, v2)
+	got = e.mustEdit(o.ID, order.EditInput{Version: o.Version, Lines: editLines(editKeep(i1, 3, 0), editKeep(i2, 1, 0))},
+		e.actor)
+	return o, i1, i2, got
+}
+
 // editCoupon tạo mã 10% không trần, điều kiện tạm tính tối thiểu minSubtotal, còn hạn ở giờ thử.
 func (e *orderEnv) editCoupon(code string, minSubtotal int64) uuid.UUID {
+	e.t.Helper()
+	return e.createCoupon(promotion.CouponInput{
+		Code: code, Name: "Mã thử " + code, DiscountKind: promotion.KindPercent, Value: 1000,
+		MinSubtotal: minSubtotal, ReleaseOnCancel: true,
+		ValidFrom: time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), ValidTo: time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC),
+	})
+}
+
+// createCoupon tạo mã theo in bằng promotion.Writer.CreateCoupon (người tạo e.actor); trả mã của mã.
+func (e *orderEnv) createCoupon(in promotion.CouponInput) uuid.UUID {
 	e.t.Helper()
 	var out promotion.Coupon
 	if err := e.app(func(tx pgx.Tx) error {
 		var err error
 		out, err = promotion.Writer{}.CreateCoupon(e.t.Context(), tx, promotion.Actor{TenantID: e.tenant, UserID: e.actor.UserID},
-			promotion.CouponInput{
-				Code: code, Name: "Mã thử " + code, DiscountKind: promotion.KindPercent, Value: 1000,
-				MinSubtotal: minSubtotal, ReleaseOnCancel: true,
-				ValidFrom: time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), ValidTo: time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC),
-			})
+			in)
 		return err //nolint:wrapcheck // test
 	}); err != nil {
-		e.t.Fatalf("tạo mã %s: %v", code, err)
+		e.t.Fatalf("tạo mã %s: %v", in.Code, err)
 	}
 	return out.ID
 }

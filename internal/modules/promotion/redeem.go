@@ -9,8 +9,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/promotion/internal/store"
 	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/logging"
 )
 
 // Lý do trả lượt khi Detach (sửa đơn bỏ mã, đổi mã).
@@ -63,13 +65,14 @@ type Used struct {
 }
 
 // Redeem dùng mã code (không phân biệt hoa thường) cho đơn o trong tx của bên gọi: khóa dòng mã (ADR-46 nhóm 10:
-// coupons → coupon_customer_uses → coupon_redemptions), đổi khách gắn mã về gốc hiện tại, Evaluate, tăng used_count có
-// điều kiện (0 dòng → exhausted), tăng lượt của hồ sơ in.CustomerID có điều kiện tổng lượt của cả nhóm khách hiện tại
-// dưới per_customer_limit (0 dòng → customer_limit), chèn lượt của đơn (khách: in.CustomerID) hoặc đổi dòng released
-// cũ của cùng (mã, đơn) về active, rồi phát coupon.used (customerId: in.CustomerRootID). Từ chối → *RejectError
-// (errors.Is ErrCouponRejected); bên gọi lùi cả transaction. Đơn đã có lượt active → lỗi (bên gọi Detach trước). Writer
-// thiếu Events hoặc Queue, hay in.CustomerID rỗng → lỗi trước khi đọc gì. Bên gọi giữ khóa hồ sơ và gốc của khách
-// (customer.FindOrCreateForOrder) để nhóm không đổi tới cuối tx.
+// coupons → coupon_customer_uses → coupon_redemptions), đổi khách gắn mã về gốc hiện tại, đọc SĐT gắn mã có là danh
+// tính của nhóm khách (ownsBoundPhone), Evaluate, tăng used_count có điều kiện (0 dòng → exhausted), tăng lượt của hồ
+// sơ in.CustomerID có điều kiện tổng lượt của cả nhóm khách hiện tại dưới per_customer_limit (0 dòng →
+// customer_limit), chèn lượt của đơn (khách: in.CustomerID) hoặc đổi dòng released cũ của cùng (mã, đơn) về active,
+// rồi phát coupon.used (customerId: in.CustomerRootID). Từ chối → *RejectError (errors.Is ErrCouponRejected); bên gọi
+// lùi cả transaction. Đơn đã có lượt active → lỗi (bên gọi Detach trước). Writer thiếu Events hoặc Queue, hay
+// in.CustomerID rỗng → lỗi trước khi đọc gì. Bên gọi giữ khóa hồ sơ và gốc của khách (customer.FindOrCreateForOrder)
+// để nhóm không đổi tới cuối tx.
 func (w Writer) Redeem(ctx context.Context, tx pgx.Tx, code string, o OrderRef, in EvalInput) (Redemption, error) {
 	if w.Events == nil || w.Queue == nil {
 		return Redemption{}, errWriterNotWired
@@ -88,6 +91,9 @@ func (w Writer) Redeem(ctx context.Context, tx pgx.Tx, code string, o OrderRef, 
 	}
 	c := couponFrom(store.CouponByCodeRow(row))
 	if err := currentBound(ctx, q, &c); err != nil {
+		return Redemption{}, err
+	}
+	if err := ownsBoundPhone(ctx, tx, c, &in); err != nil {
 		return Redemption{}, err
 	}
 	discount, reason := Evaluate(c, in)
@@ -202,18 +208,17 @@ func release(ctx context.Context, tx pgx.Tx, orderID uuid.UUID, reason string, h
 	return true, nil
 }
 
-// Reprice tính lại phần giảm của lượt mã đang hiệu lực của đơn orderID theo in (sửa đơn) và ghi lại. Đơn không có
-// lượt active → (0, nil). Điều kiện của mã không còn đạt → *RejectError (bên gọi Detach hoặc lùi). Không đổi lượt.
-func Reprice(ctx context.Context, tx pgx.Tx, orderID uuid.UUID, in EvalInput) (discount int64, err error) {
+// Reprice tính lại phần giảm của lượt mã đang hiệu lực của đơn orderID theo tạm tính base mới (sửa đơn giữ mã) và ghi
+// lại. Chỉ kiểm luật phụ thuộc tiền (amountOf: min_subtotal, phần giảm > 0); luật trạng thái, hạn, kênh, người bán,
+// gắn khách đã kiểm lúc áp mã nên mã tắt hay hết hạn sau đó vẫn giữ cho đơn (Task 433, C-03). Đơn không có lượt active
+// → (0, nil). Không đạt → *RejectError (bên gọi Detach hoặc lùi). Không đổi lượt.
+func Reprice(ctx context.Context, tx pgx.Tx, orderID uuid.UUID, base int64) (discount int64, err error) {
 	q := store.New(tx)
 	c, r, ok, err := lockActive(ctx, q, orderID)
 	if err != nil || !ok {
 		return 0, err
 	}
-	if err := currentBound(ctx, q, &c); err != nil {
-		return 0, err
-	}
-	discount, reason := Evaluate(c, in)
+	discount, reason := amountOf(c, base)
 	if reason != "" {
 		return 0, &RejectError{Reason: reason}
 	}
@@ -268,6 +273,26 @@ func currentBound(ctx context.Context, q *store.Queries, c *Coupon) error {
 	return nil
 }
 
+// ownsBoundPhone ghi in.phoneOwned: mã c gắn SĐT và SĐT đó là danh tính SĐT của nhóm khách của đơn (hồ sơ
+// in.CustomerID, không có thì in.CustomerRootID), đọc bằng customer.HasPhone (chỉ đọc, không khóa). Mã không gắn SĐT
+// hay đơn chưa có khách: không đọc gì.
+func ownsBoundPhone(ctx context.Context, tx pgx.Tx, c Coupon, in *EvalInput) error {
+	in.phoneOwned = false
+	cust := in.CustomerID
+	if cust == uuid.Nil {
+		cust = in.CustomerRootID
+	}
+	if c.BoundPhone == "" || cust == uuid.Nil {
+		return nil
+	}
+	owned, err := customer.HasPhone(ctx, tx, cust, logging.Phone(c.BoundPhone))
+	if err != nil {
+		return fmt.Errorf("đọc SĐT của khách cho mã gắn SĐT: %w", err)
+	}
+	in.phoneOwned = owned
+	return nil
+}
+
 // CheckResult là kết quả kiểm mã cho form lên đơn (CouponCheck của hợp đồng API).
 type CheckResult struct {
 	OK            bool
@@ -277,9 +302,10 @@ type CheckResult struct {
 	RemainingUses *int32    // lượt còn của mã (nil: không giới hạn, hoặc mã bị từ chối trước bước kiểm lượt)
 }
 
-// Check kiểm mã code cho đơn in mà không đổi gì, không khóa: đổi khách gắn mã về gốc hiện tại, Evaluate, rồi lượt còn
-// lại của mã (hết → exhausted) và tổng lượt của nhóm khách in.CustomerRootID (đủ → customer_limit; Nil → bỏ qua). Mã bị từ chối là kết quả (OK = false), không
-// phải lỗi; kết quả có thể khác lúc Redeem nếu người khác dùng mã giữa hai lần.
+// Check kiểm mã code cho đơn in mà không đổi gì, không khóa: đổi khách gắn mã về gốc hiện tại, ownsBoundPhone,
+// Evaluate, rồi lượt còn lại của mã (hết → exhausted) và tổng lượt của nhóm khách in.CustomerRootID (đủ →
+// customer_limit; Nil → bỏ qua). Mã bị từ chối là kết quả (OK = false), không phải lỗi; kết quả có thể khác lúc Redeem
+// nếu người khác dùng mã giữa hai lần.
 func Check(ctx context.Context, tx pgx.Tx, code string, in EvalInput) (CheckResult, error) {
 	q := store.New(tx)
 	row, err := q.CouponByCode(ctx, code)
@@ -291,6 +317,9 @@ func Check(ctx context.Context, tx pgx.Tx, code string, in EvalInput) (CheckResu
 	}
 	c := couponFrom(row)
 	if err := currentBound(ctx, q, &c); err != nil {
+		return CheckResult{}, err
+	}
+	if err := ownsBoundPhone(ctx, tx, c, &in); err != nil {
 		return CheckResult{}, err
 	}
 	res := CheckResult{CouponID: c.ID}

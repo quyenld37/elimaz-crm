@@ -34,9 +34,9 @@ ca database có giảm cấp đơn sau đổi giá (E-06), AT07 phần "đổi k
 | B-06 | nghi ngờ | internal/httpapi/handlers_order_returns.go:65-103 | Phiếu đổi tạo đơn thay thế (giữ hàng, có thể `confirmed`) chỉ với quyền `order.return`, không kiểm phạm vi kho | Task 436 (quyết định quyền) |
 | C-01 | lớn | internal/modules/promotion/evaluate.go:72; manage.go:194 | Như A-02 (thấy từ vùng mã giảm giá) | Task 430 |
 | C-02 | lớn | internal/modules/order/edit.go:483 | Sửa đơn: nhân viên không có quyền duyệt tăng tiền giảm tay tùy ý nếu tỷ lệ không vượt tỷ lệ đã duyệt | **Đã sửa** (test `TestEdit_DiscountApprovalAmountUp`) |
-| C-03 | nhỏ | internal/modules/promotion/redeem.go:201; order/edit.go:552 | Sửa đơn khi mã đã hết hạn/tắt → `coupon_rejected`; luật SĐT gắn mã lúc sửa khác lúc tạo | Task 433 |
-| C-04 | nghi ngờ | internal/modules/order/returns.go:633 | Đơn hãng hoàn (giao không thành) không trả lượt mã; Q2 chưa nói ca này | Task 433 (cần chủ shop) |
-| C-05 | nhỏ | internal/modules/promotion/redeem.go:81-95 | Mã tính ra giảm 0đ vẫn tiêu một lượt | Task 433 |
+| C-03 | nhỏ | internal/modules/promotion/redeem.go:201; order/edit.go:552 | Sửa đơn khi mã đã hết hạn/tắt → `coupon_rejected`; luật SĐT gắn mã lúc sửa khác lúc tạo | **Đã sửa** (Task 433: `Reprice` chỉ luật theo tiền; SĐT gắn mã khớp cả danh tính của nhóm khách) |
+| C-04 | nghi ngờ | internal/modules/order/returns.go:633 | Đơn hãng hoàn (giao không thành) không trả lượt mã; Q2 chưa nói ca này | **Đã sửa** (Task 433: kho nhận phiếu `carrier_return` → `promotion.Release`) |
+| C-05 | nhỏ | internal/modules/promotion/redeem.go:81-95 | Mã tính ra giảm 0đ vẫn tiêu một lượt | **Đã sửa** (Task 433: lý do `zero_discount`) |
 | D-01 | nhỏ | console/src/screens/don/DuplicatePairs.tsx:42-43, 112-116 | Hộp "Hủy đơn này" ở màn Đơn trùng hứa nhả hàng, trả lượt cả khi đơn đã gửi hãng | Task 432 |
 | D-02 | nhỏ | console/src/screens/len-don/OrderForm.tsx:245-258 | Sửa đơn có mã %: tổng tạm tính dùng số giảm cũ khi dòng đổi | Task 437 |
 | D-03 | nhỏ | console/src/screens/don/OrderList.tsx:139 | Bộ lọc "Hôm nay" cố định lúc mở màn, sai khi màn mở qua nửa đêm | **Đã sửa** (`useVnToday`; vitest `OrderList.test.tsx`) |

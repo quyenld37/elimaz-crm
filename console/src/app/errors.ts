@@ -227,6 +227,7 @@ export const COUPON_REASON_MESSAGES: Readonly<Record<string, string>> = {
   bound_other: "Mã dành riêng cho khách khác",
   customer_limit: "Khách đã dùng hết lượt của mã này",
   seller: "Mã không áp cho sản phẩm của người bán này",
+  zero_discount: "Mã không giảm được cho đơn này",
 };
 
 /** Lỗi API có mã (thân {"error", "request_id", ...}). code rỗng khi thân không đúng dạng (ví dụ 502 của cổng vào). */

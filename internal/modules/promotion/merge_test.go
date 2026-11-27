@@ -105,7 +105,7 @@ func TestBoundCustomer_FollowsMerge(t *testing.T) {
 		t.Fatalf("sau gộp, Redeem mã của A cho đơn của B: %v", err)
 	}
 	if err := e.app(func(tx pgx.Tx) error {
-		_, err := promotion.Reprice(e.t.Context(), tx, o, e.inputOf(b))
+		_, err := promotion.Reprice(e.t.Context(), tx, o, e.inputOf(b).Base)
 		return err //nolint:wrapcheck // test
 	}); err != nil {
 		t.Fatalf("sau gộp, Reprice: %v", err)

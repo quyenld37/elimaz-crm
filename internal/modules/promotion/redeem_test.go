@@ -442,39 +442,92 @@ func TestDetach_ThenRedeemAgain(t *testing.T) {
 	}
 }
 
+// Reprice (sửa đơn giữ mã): tính lại phần giảm theo base mới; chỉ kiểm luật phụ thuộc tiền (min_subtotal, phần giảm
+// > 0). C-03 (Task 433): mã đã tắt hay hết hạn sau lúc áp vẫn được tính lại, không bị từ chối.
 func TestReprice(t *testing.T) {
 	e := newEnv(t)
 	id, cust, o := e.redeemed(spec{minSubtotal: 300000})
-	reprice := func(base int64) (int64, error) {
+	reprice := func(order uuid.UUID, base int64) (int64, error) {
 		var d int64
 		err := e.app(func(tx pgx.Tx) error {
 			var err error
-			d, err = promotion.Reprice(e.t.Context(), tx, o, e.input(cust, base))
+			d, err = promotion.Reprice(e.t.Context(), tx, order, base)
 			return err //nolint:wrapcheck // test
 		})
 		return d, err
 	}
-	d, err := reprice(660000)
+	d, err := reprice(o, 660000)
 	if err != nil || d != 50000 {
 		t.Fatalf("Reprice = %d, %v", d, err)
 	}
 	if got := e.count(`SELECT discount FROM promotion.coupon_redemptions WHERE order_id = $1`, o); got != 50000 {
 		t.Fatalf("discount đã ghi %d", got)
 	}
-	if _, err := reprice(299999); reason(err) != promotion.ReasonMinSubtotal {
+	if _, err := reprice(o, 299999); reason(err) != promotion.ReasonMinSubtotal {
 		t.Fatalf("dưới min_subtotal: %v", err)
+	}
+	// Mã bị tắt và hết hạn sau lúc áp: vẫn tính lại.
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(e.t.Context(), `UPDATE promotion.coupons SET status = 'disabled',
+			valid_to = now() - interval '1 minute', valid_from = now() - interval '2 hours' WHERE id = $1`, id)
+		return err //nolint:wrapcheck // test
+	})
+	if d, err := reprice(o, 400000); err != nil || d != 40000 {
+		t.Fatalf("mã đã tắt, hết hạn: Reprice = %d, %v; mong 40.000", d, err)
 	}
 	if e.usedCount(id) != 1 {
 		t.Fatal("Reprice đổi lượt")
 	}
 	// Đơn không có mã: phần giảm 0.
-	o2 := e.order(cust)
-	err = e.app(func(tx pgx.Tx) error {
-		d, err = promotion.Reprice(e.t.Context(), tx, o2, e.input(cust, 100))
+	if d, err := reprice(e.order(cust), 100); err != nil || d != 0 {
+		t.Fatalf("đơn không mã: %d, %v", d, err)
+	}
+}
+
+// C-05 (Task 433): Reprice ra phần giảm 0 (mã 0,01% trên base nhỏ) → zero_discount, không ghi lại phần giảm.
+func TestReprice_ZeroDiscount(t *testing.T) {
+	e := newEnv(t)
+	_, _, o := e.redeemed(spec{kind: promotion.KindPercent, value: 1})
+	err := e.app(func(tx pgx.Tx) error {
+		_, err := promotion.Reprice(e.t.Context(), tx, o, 9999)
 		return err //nolint:wrapcheck // test
 	})
-	if err != nil || d != 0 {
-		t.Fatalf("đơn không mã: %d, %v", d, err)
+	if reason(err) != promotion.ReasonZeroDiscount {
+		t.Fatalf("Reprice base 9.999: %v, mong zero_discount", err)
+	}
+	if got := e.count(`SELECT discount FROM promotion.coupon_redemptions WHERE order_id = $1`, o); got != 40 {
+		t.Fatalf("discount đã ghi %d, mong giữ 40", got)
+	}
+}
+
+// C-05 (Task 433): mã tính ra giảm 0 đồng → Redeem từ chối zero_discount, không tăng used_count, lượt của khách, không
+// chèn dòng lượt; Check báo cùng lý do và không đổi gì.
+func TestRedeem_ZeroDiscount(t *testing.T) {
+	e := newEnv(t)
+	id := e.coupon(spec{kind: promotion.KindPercent, value: 1, maxUses: ptr(int32(1)), perCustomer: ptr(int32(1))})
+	cust := e.customer()
+	o := e.order(cust)
+	var r promotion.CheckResult
+	if err := e.app(func(tx pgx.Tx) error {
+		var err error
+		r, err = promotion.Check(e.t.Context(), tx, e.code(id), e.input(cust, 9999))
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if r.OK || r.Reason != promotion.ReasonZeroDiscount || r.Discount != 0 {
+		t.Fatalf("Check = %+v, mong zero_discount", r)
+	}
+	if _, err := e.redeem(e.code(id), o, e.input(cust, 9999)); reason(err) != promotion.ReasonZeroDiscount {
+		t.Fatalf("Redeem = %v, mong zero_discount", err)
+	}
+	if e.usedCount(id) != 0 || e.customerUsed(id, cust) != 0 ||
+		e.count(`SELECT count(*) FROM promotion.coupon_redemptions WHERE coupon_id = $1`, id) != 0 {
+		t.Fatal("mã giảm 0 vẫn tiêu lượt")
+	}
+	// Base đủ để giảm 1 đồng → dùng được, mã 1 lượt còn nguyên lượt.
+	if red, err := e.redeem(e.code(id), o, e.input(cust, 10000)); err != nil || red.Discount != 1 {
+		t.Fatalf("Redeem base 10.000 = %+v, %v", red, err)
 	}
 }
 
@@ -642,8 +695,12 @@ func TestRedeem_EmitsCouponUsed(t *testing.T) {
 		t.Errorf("sự kiện coupon.used: %d, mong 1", n)
 	}
 	o2 := e.order(cust)
-	if _, err := e.redeem(e.code(id), o2, e.input(cust, 0)); err != nil {
-		t.Fatalf("lượt thứ hai (phần giảm 0): %v", err)
+	if _, err := e.redeem(e.code(id), o2, e.input(cust, 0)); reason(err) != promotion.ReasonZeroDiscount {
+		t.Fatalf("lượt thứ hai (phần giảm 0): %v, mong zero_discount (Task 433)", err)
+	}
+	if n := e.staff.CountIn(t, e.tenant, `SELECT count(*) FROM platform.domain_events WHERE topic = 'coupon.used'
+		AND aggregate_id = $1`, o2.String()); n != 0 {
+		t.Errorf("mã giảm 0 vẫn phát sự kiện: %d", n)
 	}
 	o3 := e.order(cust)
 	if _, err := e.redeem("KHONGCO", o3, e.input(cust, 400000)); reason(err) != promotion.ReasonNotFound {
@@ -661,7 +718,7 @@ func TestRedeem_EmitsCouponUsed(t *testing.T) {
 	if err == nil {
 		t.Fatal("Writer thiếu Events, Queue mà Redeem không lỗi")
 	}
-	if n := e.staff.CountIn(t, e.tenant, `SELECT used_count FROM promotion.coupons WHERE id = $1`, id); n != 2 {
-		t.Errorf("used_count = %d, mong 2", n)
+	if n := e.staff.CountIn(t, e.tenant, `SELECT used_count FROM promotion.coupons WHERE id = $1`, id); n != 1 {
+		t.Errorf("used_count = %d, mong 1 (lượt giảm 0 không tính, Task 433)", n)
 	}
 }

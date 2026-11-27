@@ -159,6 +159,10 @@ func (e *orderEnv) editInvariants(orders []order.Order, vs, coupons []uuid.UUID)
 		if used := e.usedCount(c); used != active {
 			return fmt.Sprintf("mã %s: used_count %d, lượt active %d", c, used, active)
 		}
+		if zero := e.count(`SELECT count(*) FROM promotion.coupon_redemptions WHERE coupon_id = $1 AND status = 'active'
+			AND discount = 0`, c); zero != 0 {
+			return fmt.Sprintf("mã %s: %d lượt active giảm 0 đồng (Task 433)", c, zero)
+		}
 	}
 	return ""
 }
