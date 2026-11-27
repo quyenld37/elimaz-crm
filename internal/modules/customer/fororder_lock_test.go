@@ -23,7 +23,7 @@ func TestFindOrCreateForOrder_LocksRootAgainstMerge(t *testing.T) {
 			return customer.OrderCustomerInput{CustomerID: &x.ID}
 		},
 		"tìm theo SĐT của khách": func(customer.Customer) customer.OrderCustomerInput {
-			return customer.OrderCustomerInput{FullName: "Ai đó", Phone: "0903000001", PhoneIsCustomers: true}
+			return customer.OrderCustomerInput{FullName: "Ai đó", Phone: "0903000001", PhoneIsCustomers: true, Source: customer.SourceWeb}
 		},
 	} {
 		t.Run(name, func(t *testing.T) {

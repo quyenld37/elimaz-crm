@@ -155,12 +155,16 @@ func createOrderInput(req *gen.CreateOrderRequest, key uuid.UUID) (order.CreateI
 	switch {
 	case hasCust == req.CustomerId.Set:
 		return order.CreateInput{}, fmt.Errorf("tạo đơn cần đúng một trong customerId, customer: %w", order.ErrInvalidInput)
+	case hasCust && req.PhoneIsCustomers.Set:
+		return order.CreateInput{}, fmt.Errorf("phoneIsCustomers chỉ đi cùng customerId: %w", order.ErrInvalidInput)
 	case hasCust:
 		in.Customer = customer.OrderCustomerInput{
 			FullName: c.FullName, Phone: string(c.Phone.Or("")), PhoneIsCustomers: c.PhoneIsCustomers.Or(false),
 		}
 	default:
-		in.Customer = customer.OrderCustomerInput{CustomerID: optUUID(req.CustomerId)}
+		in.Customer = customer.OrderCustomerInput{
+			CustomerID: optUUID(req.CustomerId), PhoneIsCustomers: req.PhoneIsCustomers.Or(false),
+		}
 	}
 	if a, ok := req.ShipAddress.Get(); ok {
 		in.ShipAddress = shipAddressIn(a)

@@ -25723,6 +25723,12 @@ func (s *CreateOrderRequest) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.PhoneIsCustomers.Set {
+			e.FieldStart("phoneIsCustomers")
+			s.PhoneIsCustomers.Encode(e)
+		}
+	}
+	{
 		if s.Intent.Set {
 			e.FieldStart("intent")
 			s.Intent.Encode(e)
@@ -25808,23 +25814,24 @@ func (s *CreateOrderRequest) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCreateOrderRequest = [16]string{
+var jsonFieldsNameOfCreateOrderRequest = [17]string{
 	0:  "customer",
 	1:  "customerId",
-	2:  "intent",
-	3:  "warehouseId",
-	4:  "items",
-	5:  "shipAddress",
-	6:  "shippingFee",
-	7:  "orderDiscount",
-	8:  "couponCode",
-	9:  "trafficSourceId",
-	10: "carrierNote",
-	11: "careBy",
-	12: "conversationId",
-	13: "channel",
-	14: "externalRef",
-	15: "referralRef",
+	2:  "phoneIsCustomers",
+	3:  "intent",
+	4:  "warehouseId",
+	5:  "items",
+	6:  "shipAddress",
+	7:  "shippingFee",
+	8:  "orderDiscount",
+	9:  "couponCode",
+	10: "trafficSourceId",
+	11: "carrierNote",
+	12: "careBy",
+	13: "conversationId",
+	14: "channel",
+	15: "externalRef",
+	16: "referralRef",
 }
 
 // Decode decodes CreateOrderRequest from json.
@@ -25832,7 +25839,7 @@ func (s *CreateOrderRequest) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode CreateOrderRequest to nil")
 	}
-	var requiredBitSet [2]uint8
+	var requiredBitSet [3]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -25856,6 +25863,16 @@ func (s *CreateOrderRequest) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"customerId\"")
 			}
+		case "phoneIsCustomers":
+			if err := func() error {
+				s.PhoneIsCustomers.Reset()
+				if err := s.PhoneIsCustomers.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"phoneIsCustomers\"")
+			}
 		case "intent":
 			if err := func() error {
 				s.Intent.Reset()
@@ -25877,7 +25894,7 @@ func (s *CreateOrderRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"warehouseId\"")
 			}
 		case "items":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Items = make([]CreateOrderRequestItemsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -25905,7 +25922,7 @@ func (s *CreateOrderRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"shipAddress\"")
 			}
 		case "shippingFee":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.ShippingFee.Decode(d); err != nil {
 					return err
@@ -26013,8 +26030,9 @@ func (s *CreateOrderRequest) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
-		0b01010000,
+	for i, mask := range [3]uint8{
+		0b10100000,
+		0b00000000,
 		0b00000000,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {

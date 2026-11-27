@@ -11,6 +11,7 @@ import { Link } from "react-router";
 import {
   checkOrderDuplicates,
   createOrder,
+  getCustomer,
   getMe,
   getOrderSettings,
   listTrafficSources,
@@ -29,7 +30,7 @@ import { moneyInput, parseMoney } from "../products/editRules";
 import { formatMoney } from "../products/productRules";
 import { AddressFields } from "./AddressFields";
 import { CouponField, useCouponCheck } from "./CouponField";
-import { CustomerPicker, type CustomerChoice } from "./CustomerPicker";
+import { CUSTOMER_TOPIC, CustomerPicker, type CustomerChoice } from "./CustomerPicker";
 import {
   EMPTY_ADDRESS,
   PENDING_TEXT,
@@ -37,6 +38,7 @@ import {
   buildRequest,
   buildUpdate,
   cleanPhone,
+  hasPhoneIdentity,
   saveBlock,
   warningText,
   type FormState,
@@ -283,9 +285,23 @@ export function OrderForm({
   const totals = after.totals;
   const itemCount = qtys.reduce<number>((s, q) => s + (q ?? 0), 0);
 
+  const pickedId = customer?.kind === "existing" ? customer.id : "";
+  const pickedDetail = useQuery({
+    queryKey: queryKey(CUSTOMER_TOPIC, "detail", pickedId),
+    enabled: pickedId !== "",
+    queryFn: () => unwrap(getCustomer({ path: { id: pickedId } })),
+  });
   const form: FormState = {
     customer:
-      customer === null ? null : customer.kind === "new" ? { kind: "new" } : { kind: "existing", id: customer.id },
+      customer === null
+        ? null
+        : customer.kind === "new"
+          ? { kind: "new" }
+          : {
+              kind: "existing",
+              id: customer.id,
+              ...(pickedDetail.data === undefined ? {} : { hasPhone: hasPhoneIdentity(pickedDetail.data) }),
+            },
     lines: lines.map((l, i) => ({
       ...(l.itemId === undefined ? {} : { itemId: l.itemId }),
       variantId: l.variantId,
@@ -590,6 +606,9 @@ export function OrderForm({
             customer={customer}
             phoneIsCustomers={phoneIsCustomers}
             onPhoneIsCustomers={setPhoneIsCustomers}
+            onUseCustomer={(c) => {
+              setCustomer({ kind: "existing", ...c });
+            }}
           />
           {addressFromMessage !== undefined && (
             <button

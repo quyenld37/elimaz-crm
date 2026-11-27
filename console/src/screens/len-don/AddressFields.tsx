@@ -10,7 +10,7 @@ import { queryKey } from "../../app/queryClient";
 import { SEARCH_DELAY_MS, useDebounced } from "../inventory/Balances";
 import type { CustomerChoice } from "./CustomerPicker";
 import { CUSTOMER_TOPIC } from "./CustomerPicker";
-import { cleanPhone, displayPhone, type AddressInput } from "./orderRules";
+import { cleanPhone, displayPhone, hasPhoneIdentity, type AddressInput } from "./orderRules";
 import { useCombo } from "./useCombo";
 
 const ADMIN_TOPIC = "customer.admin-units";
@@ -23,9 +23,18 @@ export interface AddressFieldsProps {
   customer: CustomerChoice | null;
   phoneIsCustomers: boolean;
   onPhoneIsCustomers: (v: boolean) => void;
+  /** "Dùng hồ sơ X": chọn hồ sơ đang giữ SĐT làm khách của đơn (không bao giờ tự gộp). */
+  onUseCustomer: (c: { id: string; code: string; fullName: string }) => void;
 }
 
-export function AddressFields({ value, onChange, customer, phoneIsCustomers, onPhoneIsCustomers }: AddressFieldsProps) {
+export function AddressFields({
+  value,
+  onChange,
+  customer,
+  phoneIsCustomers,
+  onPhoneIsCustomers,
+  onUseCustomer,
+}: AddressFieldsProps) {
   const id = useId();
   const set = (patch: Partial<AddressInput>) => {
     onChange({ ...value, ...patch });
@@ -37,6 +46,10 @@ export function AddressFields({ value, onChange, customer, phoneIsCustomers, onP
     queryFn: () => unwrap(getCustomer({ path: { id: customerId } })),
   });
   const saved = customerId === "" ? [] : (detail.data?.addresses ?? []);
+  // A-05: khách có sẵn chưa có SĐT → ô "Số này là của khách" (bật sẵn, đơn đầu); đã có SĐT → số mới chỉ ở địa chỉ giao.
+  const existingNoPhone = customer?.kind === "existing" && detail.data !== undefined && !hasPhoneIdentity(detail.data);
+  // A-01: khách mới mà số đã thuộc hồ sơ khác, nhân viên bấm "Vẫn tạo khách mới" cho đúng số này.
+  const [keepNewFor, setKeepNewFor] = useState("");
   const [showSaved, setShowSaved] = useState(false);
 
   const phone = useDebounced(cleanPhone(value.phone), SEARCH_DELAY_MS);
@@ -126,21 +139,54 @@ export function AddressFields({ value, onChange, customer, phoneIsCustomers, onP
       </div>
       {other !== undefined && (
         <div className="box box-soft" style={{ marginTop: 12 }}>
-          <b>Có thể là cùng một khách.</b> Số {displayPhone(phone)} đang là SĐT của hồ sơ khác ({other.code} ·{" "}
-          {other.fullName}).{" "}
-          {customer?.kind === "existing"
-            ? `Số này chỉ ghi ở địa chỉ giao, không gắn vào hồ sơ ${customer.fullName}. Không tự gộp.`
-            : "Không tự gộp."}
-          {customer?.kind === "existing" && (
-            <div className="row" style={{ marginTop: 8 }}>
-              <Link className="btn btn-line" to={`/khach/${customer.id}/gop?voi=${other.id}`}>
-                Xem hai hồ sơ
-              </Link>
-            </div>
+          {customer?.kind === "new" ? (
+            <>
+              <b>Số này đang là của khách {other.fullName}.</b> ({other.code}) Khách mới sẽ không giữ số này, không tự
+              gộp vào hồ sơ đó; đơn ghi cảnh báo "SĐT thuộc hồ sơ khách khác".
+              {keepNewFor === phone ? (
+                <p className="hint">Đã chọn: vẫn tạo khách mới, không gắn số {displayPhone(phone)}.</p>
+              ) : (
+                <div className="row" style={{ marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className="btn btn-line"
+                    onClick={() => {
+                      onUseCustomer({ id: other.id, code: other.code, fullName: other.fullName });
+                    }}
+                  >
+                    Dùng hồ sơ {other.fullName}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-quiet"
+                    onClick={() => {
+                      setKeepNewFor(phone);
+                    }}
+                  >
+                    Vẫn tạo khách mới
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <b>Có thể là cùng một khách.</b> Số {displayPhone(phone)} đang là SĐT của hồ sơ khác ({other.code} ·{" "}
+              {other.fullName}).{" "}
+              {customer?.kind === "existing"
+                ? `Số này chỉ ghi ở địa chỉ giao, không gắn vào hồ sơ ${customer.fullName}. Không tự gộp.`
+                : "Không tự gộp."}
+              {customer?.kind === "existing" && (
+                <div className="row" style={{ marginTop: 8 }}>
+                  <Link className="btn btn-line" to={`/khach/${customer.id}/gop?voi=${other.id}`}>
+                    Xem hai hồ sơ
+                  </Link>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
-      {customer?.kind === "new" && (
+      {(customer?.kind === "new" || existingNoPhone) && other === undefined && (
         <>
           <label className="check" style={{ marginTop: 8 }}>
             <input
@@ -152,7 +198,11 @@ export function AddressFields({ value, onChange, customer, phoneIsCustomers, onP
             />{" "}
             Số này là của khách (gắn vào hồ sơ)
           </label>
-          <p className="hint">Bật sẵn cho khách mới; tắt khi khách đặt hộ người khác.</p>
+          <p className="hint">
+            {customer.kind === "new"
+              ? "Bật sẵn cho khách mới; tắt khi khách đặt hộ người khác."
+              : "Hồ sơ này chưa có SĐT: bật sẵn để gắn số vào hồ sơ ở đơn đầu; tắt khi khách đặt hộ người khác."}
+          </p>
         </>
       )}
       <div className="grid-f" style={{ marginTop: 12 }}>

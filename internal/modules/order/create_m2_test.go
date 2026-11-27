@@ -15,6 +15,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/modules/promotion"
 	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 )
@@ -397,6 +398,63 @@ func TestCreate_PhoneOwnership(t *testing.T) {
 	if res.Order.CustomerID != a.ID || len(res.Warnings) != 1 ||
 		res.Warnings[0].Code != order.WarningPhoneBelongsToOtherCustomer || res.Warnings[0].RefID != b.RootID {
 		t.Errorf("cảnh báo: %+v", res)
+	}
+}
+
+// inputFor là đầu vào đơn M2 một dòng cho khách c, người nhận có SĐT shipPhone.
+func (e *orderEnv) inputFor(v uuid.UUID, c customer.OrderCustomerInput, shipPhone string) order.CreateInput {
+	in := e.m2Input(0, ln(v, 1, 0))
+	in.Customer = c
+	in.ShipAddress.Phone = logging.Phone(shipPhone)
+	return in
+}
+
+// A-01 (Task 435): nhân viên lên đơn "khách mới" với SĐT đã thuộc khách B → đơn KHÔNG gắn vào B: khách mới (tên vừa gõ)
+// không giữ số, đơn ghi cảnh báo phone_belongs_to_other_customer trỏ gốc của B, B không đổi danh tính. Chọn "Dùng hồ sơ
+// B" (gửi mã khách B) thì đơn gắn vào B, không cảnh báo.
+func TestCreate_NewCustomerWithPhoneOfOther_A01(t *testing.T) {
+	t.Parallel()
+	e := newM2Env(t)
+	v := e.variant(1000, 10)
+	b := e.newCustomer("Chị B", momPhone)
+	res := e.mustCreateM2(e.inputFor(v, customer.OrderCustomerInput{FullName: "Con của B", Phone: momPhone, PhoneIsCustomers: true}, "0912000333"))
+	if res.Order.CustomerID == b.ID || len(res.Warnings) != 1 ||
+		res.Warnings[0].Code != order.WarningPhoneBelongsToOtherCustomer || res.Warnings[0].RefID != b.RootID {
+		t.Fatalf("đơn khách mới: %+v, cảnh báo %+v", res.Order, res.Warnings)
+	}
+	if n := e.count(`SELECT count(*) FROM customer.customer_identities WHERE customer_id = $1`, res.Order.CustomerID); n != 0 {
+		t.Errorf("khách mới có %d danh tính, mong 0", n)
+	}
+	if n := e.count(`SELECT count(*) FROM customer.customer_identities WHERE customer_id = $1`, b.ID); n != 1 {
+		t.Errorf("B có %d danh tính, mong 1", n)
+	}
+	in := e.inputFor(v, customer.OrderCustomerInput{CustomerID: &b.ID, Phone: momPhone, PhoneIsCustomers: true}, "0912000333")
+	if r := e.mustCreateM2(in); r.Order.CustomerID != b.ID || len(r.Warnings) != 0 {
+		t.Errorf("Dùng hồ sơ B: %+v, cảnh báo %+v", r.Order, r.Warnings)
+	}
+}
+
+// A-05 (Task 435): khách có sẵn chưa có SĐT, đơn đầu gửi SĐT người nhận kèm cờ "của khách" → số gắn vào hồ sơ; khách đã
+// có SĐT khác mà không gửi cờ → số người nhận chỉ nằm ở địa chỉ giao, không thêm danh tính.
+func TestCreate_ExistingCustomerWithoutPhone_A05(t *testing.T) {
+	t.Parallel()
+	e := newM2Env(t)
+	v := e.variant(1000, 10)
+	a := e.newCustomer("Anh A", "")
+	first := e.inputFor(v, customer.OrderCustomerInput{CustomerID: &a.ID, PhoneIsCustomers: true}, momPhone) // SĐT lấy từ người nhận
+	if r := e.mustCreateM2(first); r.Order.CustomerID != a.ID || len(r.Warnings) != 0 {
+		t.Fatalf("đơn đầu: %+v, cảnh báo %+v", r.Order, r.Warnings)
+	}
+	if n := e.count(`SELECT count(*) FROM customer.customer_identities WHERE customer_id = $1 AND value = $2`, a.ID, momPhoneNorm); n != 1 {
+		t.Errorf("A có %d danh tính %s, mong 1", n, momPhoneNorm)
+	}
+	c := e.newCustomer("Chị C", "0911222333")
+	second := e.inputFor(v, customer.OrderCustomerInput{CustomerID: &c.ID}, "0912000999")
+	if r := e.mustCreateM2(second); r.Order.CustomerID != c.ID {
+		t.Fatalf("đơn của C: %+v", r.Order)
+	}
+	if n := e.count(`SELECT count(*) FROM customer.customer_identities WHERE customer_id = $1`, c.ID); n != 1 {
+		t.Errorf("C có %d danh tính, mong 1 (SĐT người nhận không tự thêm)", n)
 	}
 }
 

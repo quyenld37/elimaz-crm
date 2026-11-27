@@ -177,6 +177,28 @@ describe("buildRequest", () => {
     expect(b.customerId).toBeUndefined();
     expect(b.customer).toEqual({ fullName: "Nguyễn Văn Tùng", phone: "0987654321", phoneIsCustomers: true });
   });
+  it("A-05: khách có sẵn chưa có SĐT + cờ bật + có SĐT người nhận → phoneIsCustomers cùng customerId", () => {
+    const b = buildRequest(
+      form({ customer: { kind: "existing", id: C1, hasPhone: false }, phoneIsCustomers: true }),
+      "new",
+    );
+    expect(b.customerId).toBe(C1);
+    expect(b.phoneIsCustomers).toBe(true);
+    expect(b.customer).toBeUndefined();
+  });
+  it("A-05: khách có SĐT, chưa biết, cờ tắt hay SĐT người nhận rỗng → không gửi phoneIsCustomers", () => {
+    const sent = (p: Partial<FormState>) => buildRequest(form(p), "new").phoneIsCustomers;
+    expect(sent({ customer: { kind: "existing", id: C1, hasPhone: true }, phoneIsCustomers: true })).toBeUndefined();
+    expect(sent({ customer: { kind: "existing", id: C1 }, phoneIsCustomers: true })).toBeUndefined();
+    expect(sent({ customer: { kind: "existing", id: C1, hasPhone: false }, phoneIsCustomers: false })).toBeUndefined();
+    expect(
+      sent({
+        customer: { kind: "existing", id: C1, hasPhone: false },
+        phoneIsCustomers: true,
+        address: { name: "A", phone: " ", line: "x", provinceCode: "", wardCode: "" },
+      }),
+    ).toBeUndefined();
+  });
   it("địa chỉ rỗng → không gửi shipAddress; dòng không giảm → không gửi lineDiscount; thiếu tỉnh xã → không gửi mã", () => {
     const b = buildRequest(
       form({

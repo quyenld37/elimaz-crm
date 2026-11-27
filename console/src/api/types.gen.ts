@@ -455,7 +455,7 @@ export type PlatformHealth = {
 };
 
 /**
- * Đúng một trong customerId (khách có sẵn), customer (khách mới hoặc tìm theo SĐT). shipAddress bắt buộc khi không gửi intent (luật M1) và khi intent là confirmed.
+ * Đúng một trong customerId (khách có sẵn), customer (khách mới; SĐT đã là của hồ sơ khác thì khách mới không giữ số, đơn ghi cảnh báo phone_belongs_to_other_customer, Task 435). shipAddress bắt buộc khi không gửi intent (luật M1) và khi intent là confirmed.
  */
 export type CreateOrderRequest = {
     customer?: {
@@ -467,6 +467,10 @@ export type CreateOrderRequest = {
         phoneIsCustomers?: boolean;
     };
     customerId?: string;
+    /**
+     * Chỉ đi cùng customerId (gửi cùng customer → 400 invalid_input). true → SĐT người nhận (shipAddress.phone) là của khách: gắn vào hồ sơ có sẵn nếu chưa ai giữ số đó (nhóm khác đang giữ → không gắn, đơn ghi cảnh báo phone_belongs_to_other_customer). Không gửi hay false → chỉ là SĐT người nhận của đơn (Task 435, A-05).
+     */
+    phoneIsCustomers?: boolean;
     /**
      * Không gửi → hành vi M1 (tạo thẳng confirmed)
      */

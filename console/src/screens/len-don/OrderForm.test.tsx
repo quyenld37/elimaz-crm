@@ -3,7 +3,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Order } from "../../api";
-import { C1, C3, O_OLD, S_MANUAL, S_ZALO, V1, V2, installFake, order, renderForm, type Fake } from "./orderTestkit";
+import { C1, C3, C4, O_OLD, S_MANUAL, S_ZALO, V1, V2, installFake, order, renderForm, type Fake } from "./orderTestkit";
 
 let fake: Fake;
 
@@ -52,6 +52,15 @@ async function fillAddress() {
   fireEvent.change(screen.getByRole("textbox", { name: "Số nhà, đường *" }), {
     target: { value: "Số 12 ngõ 68 Trần Thái Tông" },
   });
+}
+
+/** Chờ nút lưu sáng rồi lưu và xác nhận; trả sau khi màn báo đã tạo đơn. */
+async function saveAndWait() {
+  await waitFor(() => {
+    expect(confirmBtn().disabled).toBe(false);
+  });
+  fireEvent.click(confirmBtn());
+  await screen.findByText("Đã tạo đơn DH0001236.");
 }
 
 async function readyOrder() {
@@ -199,8 +208,75 @@ describe("chọn khách, sản phẩm, tiền (trạng thái A, B)", () => {
     const box = await screen.findByText("Có thể là cùng một khách.");
     expect(box.parentElement?.textContent).toContain("KH001877");
     expect(screen.getByRole("link", { name: "Xem hai hồ sơ" }).getAttribute("href")).toBe(`/khach/${C1}/gop?voi=${C3}`);
-    // createOrder với customerId không mang được cờ SĐT của khách: ô chỉ có ở khách mới (ghi ở tệp task).
+    // C1 đã có SĐT: số người nhận chỉ là SĐT của đơn, không có ô gắn số vào hồ sơ (A-05).
     expect(screen.queryByRole("checkbox", { name: "Số này là của khách (gắn vào hồ sơ)" })).toBeNull();
+  });
+
+  it("A-01: khách mới mà SĐT đã thuộc hồ sơ khác: hai nút, Dùng hồ sơ đó chọn hồ sơ có sẵn, không tự gộp", async () => {
+    renderForm();
+    fireEvent.change(customerBox(), { target: { value: "Lan Anh" } });
+    fireEvent.click(await screen.findByRole("option", { name: /Khách mới/ }));
+    fireEvent.change(screen.getByRole("textbox", { name: "SĐT người nhận *" }), { target: { value: "0987 654 321" } });
+    const box = (await screen.findByText("Số này đang là của khách Nguyễn Văn Tùng.")).parentElement;
+    expect(box?.textContent).toContain("Khách mới sẽ không giữ số này");
+    expect(box?.textContent).not.toContain("Không tự gộp.Không tự gộp");
+    // Ô "Số này là của khách" không còn (số đã có chủ).
+    expect(screen.queryByRole("checkbox", { name: "Số này là của khách (gắn vào hồ sơ)" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Dùng hồ sơ Nguyễn Văn Tùng" }));
+    expect(await screen.findByText("KH001877", { selector: ".chip" })).toBeTruthy();
+  });
+
+  it("A-01: Vẫn tạo khách mới: ghi nhận lựa chọn, khách vẫn là khách mới và gửi phoneIsCustomers (máy chủ không gắn số)", async () => {
+    renderForm();
+    fireEvent.change(customerBox(), { target: { value: "Lan Anh" } });
+    fireEvent.click(await screen.findByRole("option", { name: /Khách mới/ }));
+    await addProduct("DAM0123-BE-M");
+    await fillAddress();
+    fireEvent.click(await screen.findByRole("button", { name: "Vẫn tạo khách mới" }));
+    expect(await screen.findByText(/Đã chọn: vẫn tạo khách mới/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Vẫn tạo khách mới" })).toBeNull();
+    await saveAndWait();
+    expect(fake.writes[0]?.body.customerId).toBeUndefined();
+    expect(fake.writes[0]?.body.customer).toEqual({
+      fullName: "Nguyễn Văn Tùng",
+      phone: "0987654321",
+      phoneIsCustomers: true,
+    });
+  });
+
+  it("A-05: khách có sẵn chưa có SĐT: ô Số này là của khách bật sẵn, gửi phoneIsCustomers cùng customerId; tắt thì không gửi", async () => {
+    const pickLead = async () => {
+      renderForm();
+      fireEvent.change(customerBox(), { target: { value: "Lead Chưa Số" } });
+      fireEvent.click(await screen.findByRole("option", { name: /^Lead Chưa Số/ }));
+      await screen.findByText("KH000999", { selector: ".chip" });
+      await addProduct("DAM0123-BE-M");
+      await fillAddress();
+    };
+    await pickLead();
+    const check = await screen.findByRole<HTMLInputElement>("checkbox", {
+      name: "Số này là của khách (gắn vào hồ sơ)",
+    });
+    expect(check.checked).toBe(true);
+    await saveAndWait();
+    expect(fake.writes[0]?.body.customerId).toBe(C4);
+    expect(fake.writes[0]?.body.phoneIsCustomers).toBe(true);
+    expect(fake.writes[0]?.body.customer).toBeUndefined();
+    cleanup();
+    await pickLead();
+    const off = await screen.findByRole<HTMLInputElement>("checkbox", { name: "Số này là của khách (gắn vào hồ sơ)" });
+    fireEvent.click(off);
+    await saveAndWait();
+    expect(fake.writes).toHaveLength(2);
+    expect(fake.writes[1]?.body.phoneIsCustomers).toBeUndefined();
+  });
+
+  it("A-05: khách có sẵn đã có SĐT: không gửi phoneIsCustomers, số người nhận chỉ ở địa chỉ giao", async () => {
+    await readyOrder();
+    fireEvent.click(confirmBtn());
+    await screen.findByText("Đã tạo đơn DH0001236.");
+    expect(fake.writes[0]?.body.customerId).toBe(C1);
+    expect(fake.writes[0]?.body.phoneIsCustomers).toBeUndefined();
   });
 
   it("giảm tay vượt ngưỡng với người không có quyền duyệt: cảnh báo trước khi lưu", async () => {

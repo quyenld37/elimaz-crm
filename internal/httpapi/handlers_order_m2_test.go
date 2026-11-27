@@ -118,17 +118,23 @@ func TestOrderAPI_CreateM2Refusals(t *testing.T) {
 		http.StatusBadRequest, "invalid_input")
 }
 
+// orderForSomeoneElse tạo khách có sẵn rồi một đơn confirmed cho khách đó với người nhận có SĐT phone; extra là trường
+// thêm của thân (có dấu phẩy đầu). Trả mã khách, đơn và mã biến thể.
+func (e *orderAPIEnv) orderForSomeoneElse(key, phone, extra string) (a any, o map[string]any, v uuid.UUID) {
+	e.m2Prepare()
+	v = e.variant(e.shop.Seller, 1000, 5)
+	a = e.mustCreate("a", orderBody(0, line(v, 1)))["customerId"]
+	body := `{"customerId":"` + fmt.Sprint(a) + `"` + extra + `,"intent":"confirmed","items":[` + m2Line(v, 1, 0) +
+		`],"shipAddress":` + strings.Replace(fullAddr, "0901234567", phone, 1) + `,"shippingFee":0}`
+	return a, e.mustCreate(key, body), v
+}
+
 // DH12 qua API: khách A đặt hộ, SĐT người nhận của mẹ, phoneIsCustomers vắng → ship_phone là số đó, A không có danh
 // tính mới.
 func TestOrderAPI_OrderForSomeoneElse(t *testing.T) {
 	t.Parallel()
 	e := newOrderAPIEnv(t)
-	e.m2Prepare()
-	v := e.variant(e.shop.Seller, 1000, 5)
-	a := e.mustCreate("a", orderBody(0, line(v, 1)))["customerId"]
-	body := `{"customerId":"` + fmt.Sprint(a) + `","intent":"confirmed","items":[` + m2Line(v, 1, 0) +
-		`],"shipAddress":` + strings.Replace(fullAddr, "0901234567", "0912000111", 1) + `,"shippingFee":0}`
-	o := e.mustCreate("dh12", body)
+	a, o, _ := e.orderForSomeoneElse("dh12", "0912000111", "")
 	if o["customerId"] != a {
 		t.Errorf("khách = %v, mong %v", o["customerId"], a)
 	}
@@ -138,6 +144,22 @@ func TestOrderAPI_OrderForSomeoneElse(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM customer.customer_identities WHERE customer_id = $1`, a); n != 0 {
 		t.Errorf("A có %d danh tính, mong 0", n)
 	}
+}
+
+// A-05 qua API (Task 435): phoneIsCustomers ở gốc thân đi cùng customerId → SĐT người nhận gắn vào hồ sơ chưa có số;
+// gửi cùng customer → 400 invalid_input.
+func TestOrderAPI_PhoneIsCustomersWithCustomerID(t *testing.T) {
+	t.Parallel()
+	e := newOrderAPIEnv(t)
+	a, o, v := e.orderForSomeoneElse("a05", "0912000222", `,"phoneIsCustomers":true`)
+	if o["customerId"] != a {
+		t.Errorf("khách = %v, mong %v", o["customerId"], a)
+	}
+	if n := e.count(`SELECT count(*) FROM customer.customer_identities WHERE customer_id = $1 AND value = '+84912000222'`, a); n != 1 {
+		t.Errorf("A có %d danh tính +84912000222, mong 1", n)
+	}
+	both := strings.Replace(m2Body("new", "", 0, m2Line(v, 1, 0)), `{"customer"`, `{"phoneIsCustomers":true,"customer"`, 1)
+	expect(t, "phoneIsCustomers cùng customer", e.post("a05b", both), http.StatusBadRequest, "invalid_input")
 }
 
 // DH07/AT06: bản ghi chống trùng hết hạn (đã xóa) mà gửi lại cùng khóa, cùng thân → 200 đơn cũ, vẫn 1 đơn; cùng khóa,

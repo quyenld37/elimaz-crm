@@ -39,9 +39,11 @@ type OrderCustomer struct {
 // FindOrCreateForOrder chọn hoặc tạo khách cho một đơn trong tx của bên gọi (05 mục 1):
 //   - Có CustomerID: dùng hồ sơ đó (không có → ErrNotFound). PhoneIsCustomers và SĐT chưa thuộc ai → chèn danh tính
 //     (nguồn order); SĐT thuộc cùng nhóm → không làm gì; thuộc nhóm khác → không gắn, trả PhoneConflictWith.
-//   - Không CustomerID, PhoneIsCustomers và SĐT đã là danh tính → dùng hồ sơ giữ nó (Created = false).
+//   - Không CustomerID, PhoneIsCustomers và SĐT đã là danh tính của X: nguồn web dùng hồ sơ X (Created = false); nguồn
+//     khác (nhân viên, A-01) không gắn vào X: tạo khách mới không số và trả PhoneConflictWith = gốc của X.
 //   - Còn lại: tạo khách mới (lifecycle customer); chỉ chèn danh tính khi PhoneIsCustomers (DH12). Hai yêu cầu cùng SĐT
-//     mới chạy song song: bên thua lùi savepoint (hồ sơ vừa chèn biến mất, chưa ai thấy) và dùng hồ sơ của bên thắng.
+//     mới chạy song song: bên thua lùi savepoint (hồ sơ vừa chèn biến mất, chưa ai thấy), rồi theo luật trên (web: dùng
+//     hồ sơ bên thắng; nhân viên: khách riêng không số).
 //
 // Hồ sơ gốc đang lead thì sang customer (đơn đầu tiên). Hồ sơ có sẵn (chọn hay tìm theo SĐT) luôn được khóa cùng gốc
 // (ADR-46 nhóm 5) trước khi promote: RootID trả về là gốc đọc dưới khóa, giữ tới cuối tx của bên gọi (mã giảm giá đếm
@@ -121,16 +123,25 @@ func (w Writer) useExisting(ctx context.Context, tx pgx.Tx, id uuid.UUID, linkPh
 }
 
 // findOrCreate: không có mã khách; tìm theo SĐT (chỉ khi linkPhone) rồi tạo khách mới.
+//
+// SĐT đã là danh tính của hồ sơ X (lúc tra, hay do một yêu cầu song song vừa giữ):
+//   - nguồn web: dùng hồ sơ X (khách website tự khai SĐT của mình);
+//   - nguồn khác (nhân viên lên đơn, A-01): không tự gắn vào X. Tạo khách mới không giữ số đó và trả PhoneConflictWith =
+//     gốc của X để đơn ghi cảnh báo; nhân viên chủ động chọn "Dùng hồ sơ X" thì gửi mã khách của X.
 func (w Writer) findOrCreate(ctx context.Context, tx pgx.Tx, fullName string, linkPhone bool, source string, a Actor,
 	now time.Time, out *OrderCustomer,
 ) error {
+	attachToOwner := source == SourceWeb
 	if linkPhone {
 		o, found, err := identityOwner(ctx, tx, IdentityPhone, "", string(out.Phone))
 		if err != nil {
 			return err
 		}
 		if found {
-			return lockFound(ctx, tx, o.customerID, o.rootID, out)
+			if attachToOwner {
+				return lockFound(ctx, tx, o.customerID, o.rootID, out)
+			}
+			return w.createWithoutPhone(ctx, tx, fullName, source, a, now, o.rootID, out)
 		}
 	}
 	in := CreateInput{FullName: fullName, Source: source}
@@ -141,10 +152,26 @@ func (w Writer) findOrCreate(ctx context.Context, tx pgx.Tx, fullName string, li
 	if err != nil {
 		return err
 	}
-	if taken != nil { // yêu cầu song song vừa giữ SĐT này: dùng hồ sơ của bên đó
-		return lockFound(ctx, tx, taken.customerID, taken.rootID, out)
+	if taken != nil { // yêu cầu song song vừa giữ SĐT này
+		if attachToOwner {
+			return lockFound(ctx, tx, taken.customerID, taken.rootID, out)
+		}
+		return w.createWithoutPhone(ctx, tx, fullName, source, a, now, taken.rootID, out)
 	}
 	out.CustomerID, out.RootID, out.Created = c.ID, c.RootID, true
+	return nil
+}
+
+// createWithoutPhone tạo khách mới không giữ SĐT (nhóm conflict đang giữ nó) và ghi PhoneConflictWith.
+func (w Writer) createWithoutPhone(ctx context.Context, tx pgx.Tx, fullName, source string, a Actor, now time.Time,
+	conflict uuid.UUID, out *OrderCustomer,
+) error {
+	c, _, err := w.create(ctx, tx, CreateInput{FullName: fullName, Source: source}, string(LifecycleCustomer), a, now)
+	if err != nil {
+		return err
+	}
+	out.CustomerID, out.RootID, out.Created = c.ID, c.RootID, true
+	out.PhoneConflictWith = &conflict
 	return nil
 }
 
