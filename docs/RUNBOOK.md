@@ -409,6 +409,44 @@ CRM_ROLE=migrate go run ./cmd/crm seed-web-fixture --file /tmp/elimaz-fixture.js
 - Chưa làm (tệp task 218, 511): ảnh sản phẩm (cần kho tệp và worker xử lý ảnh); giữ thứ tự biến thể của fixture (CRM
   chưa có thứ tự biến thể do nhân viên đặt; web và màn hình nhân viên cùng xếp theo thứ tự tạo).
 
+## Nhập dữ liệu website đêm mở (`crm import-website-data`, Task 467)
+
+Nhập một lần dữ liệu admin cũ của website (chiến dịch giảm giá, banner trang chủ kèm ảnh, bộ phối, góp ý, cài đặt quà
+sinh nhật, tạm dừng nhận đơn web, hãng trên web) vào một tenant CRM. Đầu vào là thư mục `admin-export-<giờ>/` do
+website xuất (`node scripts/export-admin-data-for-crm.ts --out-dir <thư mục ngoài repo>`, Task 466; data.json
+`version` 1). Không đọc Nhanh, không gọi website. **Hồ sơ sinh nhật không nhập ở đây** (website
+`scripts/import-birthdays-to-crm.ts`); `unmatched.json` chỉ được đếm, không nhập.
+
+1. Chép thư mục xuất lên máy chủ (thư mục 0700: có SĐT, nội dung góp ý), gắn vào container worker chỉ đọc.
+2. Chạy khô (cùng đường trong một transaction rồi lùi; không tải ảnh, chỉ kiểm tệp ảnh tại máy):
+
+```sh
+docker compose -f /srv/crm/compose.prod.yml --env-file /srv/crm/crm.env exec -T crm-worker \
+  /crm import-website-data --dir /import/admin-export-<giờ> --tenant <mã tenant UUID> --dry-run
+# import-website-data: CHẠY KHÔ (đã lùi, không ghi gì), tenant <mã>
+# loại                   thêm  bỏ qua   lỗi
+# góp ý                    20       0     0
+# …
+# - chiến dịch: <mã> đang bật trên website → nhập ở tạm dừng: xem trước rồi bật lại
+```
+
+3. Đọc từng dòng «lỗi»: mẫu chưa có trong CRM, danh mục không khớp đúng một danh mục theo đường tên, ảnh banner hỏng,
+   ảnh bộ phối là ảnh riêng SKU, hãng không có tài khoản đang hoạt động… Sửa dữ liệu CRM (hay xuất lại ở website) rồi
+   chạy khô lại tới khi chỉ còn lỗi đã chấp nhận.
+4. Chạy thật: thay `--dry-run` bằng `--apply` (tuỳ chọn `--image-wait 3m`). Phải chạy trong container **worker**
+   (`CRM_ROLE=worker`: có S3_*; vai trò khác thoát 2 «--apply cần kho tệp»), và tiến trình worker phải đang chạy để
+   xử lý ảnh banner (`file.process`). Mỗi loại một transaction (thứ tự khóa ADR-46); một bản ghi lỗi không làm hỏng
+   bản ghi khác; ảnh banner hỏng chỉ làm banner đó lỗi.
+5. Chạy lại bao nhiêu lần cũng được: khóa là `id` của website (chiến dịch, banner, bộ phối, góp ý); cài đặt so giá trị
+   trước khi ghi; nhân viên CRM đã lưu khác thì giữ của CRM. Lần hai in toàn «bỏ qua», 0 thêm.
+
+Mã thoát: 0 xong không lỗi; 1 có bản ghi lỗi (xem bảng) hay database lỗi; 2 sai cờ, thư mục, `version` lạ, tenant
+không có, `--apply` không có kho tệp. Bảng và log chỉ có số, mã, lý do (không SĐT, tên, nội dung góp ý). Chiến dịch
+đang bật trên website nhập ở **tạm dừng** (chủ shop OK 27/11): nhân viên xem trước rồi bật lại trên màn Chiến dịch.
+Không chuyển yêu cầu đơn cũ, nhật ký cũ. Đường lui: dữ liệu đã nhập là dữ liệu thường của CRM (sửa, xóa trên màn hình;
+audit `actor_type = 'system'`, `actor_id` là mã cố định của `import-website-data`). Chạy thật trên máy chủ: M7 (chưa
+chạy; Task 467 chỉ chạy khô trên database thử riêng, xem `docs/tasks/task-467.md`).
+
 ## Đọc cảnh báo và việc phải làm (Task 19, Task 20)
 
 Cảnh báo đến Telegram: `urgent` vào kênh gấp, nhắc lại mỗi 30 phút khi còn; `normal` vào kênh thường, cùng key 10 phút

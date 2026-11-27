@@ -163,3 +163,18 @@ SELECT c.category_id AS id, c.slug AS code, c.name,
           AND p.status = 'active')::int AS model_count
 FROM catalog.categories_v AS c
 WHERE c.category_id = ANY(sqlc.arg(ids)::uuid[]);
+
+-- name: InsertImportedWebCampaign :one
+-- Nhập chiến dịch từ website (Task 467): giữ id, trạng thái (draft/paused), ngày tạo; revision 1. Trùng id hay link_key
+-- → 0 dòng (không hỏng tx), bên gọi phân biệt bằng WebCampaignIDExists.
+INSERT INTO promotion.web_campaigns (id, tenant_id, seller_id, name, percent, scope, allow_coupon, clearance, starts_at,
+                                     ends_at, state, created_by, created_at, updated_at)
+VALUES (@id, NULLIF(current_setting('app.tenant_id', true), '')::uuid, @seller_id, @name, @percent, @scope,
+        @allow_coupon, @clearance, @starts_at, @ends_at, @state, @created_by, @created_at, @created_at)
+ON CONFLICT DO NOTHING
+RETURNING id, seller_id, name, percent, scope, allow_coupon, clearance, starts_at, ends_at, state, link_key, revision,
+          preview_revision, preview_models, preview_variants, created_by, created_at, updated_by, updated_at;
+
+-- name: WebCampaignIDExists :one
+-- Chiến dịch id có ở tenant này không (mọi người bán, kể cả đã xóa).
+SELECT EXISTS (SELECT 1 FROM promotion.web_campaigns WHERE id = @id) AS found;
