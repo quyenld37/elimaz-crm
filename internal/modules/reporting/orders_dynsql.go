@@ -128,10 +128,13 @@ func orderSet(s DataScope, f OrderFilter, m Metric, cell *Cell, b *sqlBuilder) (
 	inner := "SELECT DISTINCT ON (o.id) " + fmt.Sprintf(orderSetColumns, at) + "\n\tFROM " + from +
 		"\n\tWHERE " + strings.Join(conds, "\n\t  AND ") + "\n\tORDER BY o.id, " + at
 	if outer == "" {
-		return "order_set AS (\n\t" + inner + "\n)", nil
+		return orderSetName + " AS (\n\t" + inner + "\n)", nil
 	}
-	return "order_set AS (\n\tSELECT * FROM (" + inner + ") AS first_event WHERE " + outer + "\n)", nil
+	return orderSetName + " AS (\n\tSELECT * FROM (" + inner + ") AS first_event WHERE " + outer + "\n)", nil
 }
+
+// orderSetName là tên CTE do orderSet dựng; câu dùng tập đơn nhắc tên qua hằng này (CTE khai ở chuỗi khác).
+const orderSetName = "order_set"
 
 // ruleFor chọn quy tắc của cột số m theo cơ sở ngày; kiểm cơ sở ngày, cột số, kỳ.
 func ruleFor(f OrderFilter, m Metric) (metricRule, error) {
