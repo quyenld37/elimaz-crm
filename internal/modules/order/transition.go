@@ -100,7 +100,7 @@ func (w Writer) applyTransitionWith(ctx context.Context, tx pgx.Tx, o *Order, to
 ) error {
 	if err := state.Check(state.Status(o.Status), to, state.Conditions{
 		HasCurrentShipment: o.CurrentShipmentID != nil, AddressComplete: o.AddressComplete,
-		PendingReason: o.PendingReason, CarrierCorrection: opt.carrierCorrection,
+		PendingReason: o.PendingReason, CarrierCorrection: opt.carrierCorrection, WebChannel: o.Channel == ChannelWeb,
 	}); err != nil {
 		return stateError(err)
 	}

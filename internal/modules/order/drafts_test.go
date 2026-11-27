@@ -107,7 +107,7 @@ func TestExpireDrafts_Limit(t *testing.T) {
 	}
 }
 
-// Background của order khai lịch order.expire_drafts mỗi 60 giây theo tenant và handler cùng Kind; handler chạy
+// Background của order khai lịch order.expire_drafts mỗi 15 giây (M5 Task 202; M2: 60 giây) theo tenant và handler cùng Kind; handler chạy
 // ExpireDrafts với giờ của background.Deps.Now (B-05, Task 436: không gọi time.Now trong module) trong tx của việc và trả
 // {"expired": n}; dòng lịch sử hủy mang đúng giờ đó (một đồng hồ cho lịch sử đơn).
 func TestExpireDraftsSchedule(t *testing.T) {
@@ -123,7 +123,7 @@ func TestExpireDraftsSchedule(t *testing.T) {
 		t.Fatalf("lịch, việc nền: %d, %d", len(parts.Schedules), len(parts.JobHandlers))
 	}
 	s, h := parts.Schedules[0], parts.JobHandlers[0]
-	if order.ExpireDraftsSchedule != "order.expire_drafts" || s.Name != order.ExpireDraftsSchedule || s.Every != time.Minute ||
+	if order.ExpireDraftsSchedule != "order.expire_drafts" || s.Name != order.ExpireDraftsSchedule || s.Every != 15*time.Second ||
 		!s.PerTenant || s.Kind.Name != h.Kind().Name {
 		t.Fatalf("lịch: %+v, handler %s", s, h.Kind().Name)
 	}

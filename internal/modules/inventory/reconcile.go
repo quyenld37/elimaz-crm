@@ -16,8 +16,9 @@ import (
 )
 
 // Đối chiếu tồn hằng đêm (kế hoạch M1, Task M1-36; spec 05 mục 2, KH13): mỗi tenant mỗi đêm so ba điều trên mọi dòng
-// số dư — (a) mỗi ngăn: tổng sổ = cột số dư; (b) held = tổng giữ hàng held; (c) in_transit = tổng giữ hàng in_transit
-// — ghi một dòng inventory.reconcile_runs; có lệch thì ghi lệnh cảnh báo. Chỉ báo, không sửa số.
+// số dư — (a) mỗi ngăn: tổng sổ = cột số dư; (b) held = tổng giữ hàng held + đơn vị suất flash sale còn trống của đợt
+// scheduled/open (M5 Task 202, 05 mục 7.4); (c) in_transit = tổng giữ hàng in_transit — và phép so đơn vị flash sale
+// (reconcile_flash.go); ghi một dòng inventory.reconcile_runs; có lệch thì ghi lệnh cảnh báo. Chỉ báo, không sửa số.
 
 const (
 	// ReconcileSchedule là tên lịch (dòng platform.schedules chèn sẵn ở migration 0122: kỳ đầu 19:30 UTC).
@@ -33,15 +34,17 @@ const (
 // Các phép so (Mismatch.Check).
 const (
 	CheckLedgerVsBalance       = "ledger_vs_balance"          // tổng sổ của ngăn Bucket khác cột số dư
-	CheckHeldVsReservations    = "held_vs_reservations"       // held khác tổng giữ hàng đang held
+	CheckHeldVsReservations    = "held_vs_reservations"       // held khác giữ hàng đang held + đơn vị flash còn trống
 	CheckTransitVsReservations = "in_transit_vs_reservations" // in_transit khác tổng giữ hàng đang in_transit
 )
 
 // Mismatch là một mục lệch: Expected là số theo sổ (CheckLedgerVsBalance) hoặc theo giữ hàng, Actual là cột số dư.
-// Bucket chỉ có ở CheckLedgerVsBalance. Không chứa tên hay dữ liệu khách.
+// Bucket chỉ có ở CheckLedgerVsBalance. Mục CheckFlashUnits chỉ có FlashItemID (không biến thể, kho). Không chứa tên
+// hay dữ liệu khách.
 type Mismatch struct {
-	VariantID   uuid.UUID `json:"variantId"`
-	WarehouseID uuid.UUID `json:"warehouseId"`
+	VariantID   uuid.UUID `json:"variantId,omitzero"`
+	WarehouseID uuid.UUID `json:"warehouseId,omitzero"`
+	FlashItemID uuid.UUID `json:"flashItemId,omitzero"`
 	Check       string    `json:"check"`
 	Bucket      string    `json:"bucket,omitempty"`
 	Expected    int64     `json:"expected"`
@@ -83,6 +86,11 @@ func Reconcile(ctx context.Context, tx pgx.Tx, batch int) (Run, error) {
 		}
 		afterV, afterW = rows[len(rows)-1].VariantID, rows[len(rows)-1].WarehouseID
 	}
+	flash, err := flashMismatches(ctx, q)
+	if err != nil {
+		return Run{}, err
+	}
+	run.Mismatches = append(run.Mismatches, flash...)
 	run.OK = len(run.Mismatches) == 0
 	raw, err := json.Marshal(run.Mismatches)
 	if err != nil {
@@ -111,7 +119,7 @@ func compare(r store.ReconcileBatchRow) []Mismatch {
 	add(CheckLedgerVsBalance, string(bucketHeld), r.LedgerHeld, r.Held)
 	add(CheckLedgerVsBalance, string(bucketInTransit), r.LedgerInTransit, r.InTransit)
 	add(CheckLedgerVsBalance, string(bucketDamaged), r.LedgerDamaged, r.Damaged)
-	add(CheckHeldVsReservations, "", r.ReservedHeld, r.Held)
+	add(CheckHeldVsReservations, "", r.ReservedHeld+r.FlashAvailable, r.Held)
 	add(CheckTransitVsReservations, "", r.ReservedInTransit, r.InTransit)
 	return out
 }
@@ -122,8 +130,9 @@ func ReconcileKind() queue.Kind {
 	return queue.Kind{Name: "task." + ReconcileSchedule, Policy: queue.Policy{MaxAttempts: 1, ExpiresAfter: ReconcileEvery}}
 }
 
-// NewReconcileHandler trả handler (transactional, theo tenant) của ReconcileKind: Reconcile rồi, khi có lệch, ghi lệnh
-// StockMismatchAlertKind cùng tx (DedupeKey = mã lần chạy). Kết quả {"checked": n, "mismatches": m}.
+// NewReconcileHandler trả handler (transactional, theo tenant) của ReconcileKind: Reconcile rồi, khi có lệch tồn, ghi
+// lệnh StockMismatchAlertKind; khi có lệch đơn vị flash sale, ghi lệnh FlashMismatchAlertKind; cùng tx (DedupeKey = mã
+// lần chạy). Kết quả {"checked": n, "mismatches": m}.
 func NewReconcileHandler(q queue.JobQueue) queue.Handler { //nolint:ireturn // Worker nhận Handler
 	return reconcileHandler{q: q}
 }
@@ -140,17 +149,22 @@ func (h reconcileHandler) Handle(ctx context.Context, j queue.Job, tx pgx.Tx) (j
 	if err != nil {
 		return nil, err
 	}
-	if !run.OK {
-		variants := map[uuid.UUID]struct{}{}
-		for _, m := range run.Mismatches {
+	variants := map[uuid.UUID]struct{}{}
+	for _, m := range run.Mismatches {
+		if m.Check != CheckFlashUnits {
 			variants[m.VariantID] = struct{}{}
 		}
+	}
+	if len(variants) > 0 {
 		if _, _, err := h.q.Enqueue(ctx, tx, stockMismatchKind(), queue.NewJob{
 			TenantID: j.TenantID, DedupeKey: run.ID.String(),
 			Payload: mismatchPayload{RunID: run.ID, Count: len(variants)},
 		}); err != nil {
 			return nil, fmt.Errorf("ghi lệnh cảnh báo lệch sổ: %w", err)
 		}
+	}
+	if err := h.enqueueFlashAlert(ctx, tx, j, run); err != nil {
+		return nil, err
 	}
 	out, err := json.Marshal(map[string]int{"checked": run.Checked, "mismatches": len(run.Mismatches)})
 	if err != nil {

@@ -134,6 +134,9 @@ func (w Writer) Edit(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID, in 
 	if err := checkEditable(cur, p.fields); err != nil {
 		return EditResult{}, err
 	}
+	if err := checkFlashLinesKept(ctx, q, cur, p.fields); err != nil {
+		return EditResult{}, err
+	}
 	e := editRun{w: w, stock: stock, tx: tx, q: q, cur: cur, tenant: locked.TenantID, p: p, a: a, now: now}
 	if err := e.run(ctx); err != nil {
 		return EditResult{}, err
@@ -713,6 +716,22 @@ func (e *editRun) applyStock(ctx context.Context) error {
 	}
 	if n != int64(len(ids)) {
 		return fmt.Errorf("%w: xóa %d/%d dòng đơn", ErrVersionConflict, n, len(ids)) // đã khóa: không xảy ra
+	}
+	return nil
+}
+
+// checkFlashLinesKept: đơn có dòng flash sale không sửa được dòng (kế hoạch M5 Task 202): số đơn vị suất, claims của
+// khách gắn đúng số lượng dòng flash; đổi số lượng hay xóa dòng làm lệch và chặn đường nhả suất → ErrInvalidTransition.
+func checkFlashLinesKept(ctx context.Context, q *store.Queries, cur Order, fields []string) error {
+	if !slices.Contains(fields, EditFieldLines) {
+		return nil
+	}
+	rows, err := q.FlashLinesOfOrder(ctx, store.FlashLinesOfOrderParams{SellerID: cur.SellerID, OrderID: cur.ID})
+	if err != nil {
+		return fmt.Errorf("đọc dòng flash của đơn: %w", err)
+	}
+	if len(rows) > 0 {
+		return fmt.Errorf("%w: đơn flash sale không sửa dòng", ErrInvalidTransition)
 	}
 	return nil
 }

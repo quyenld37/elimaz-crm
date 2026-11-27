@@ -15,7 +15,7 @@ import (
 const lockOrder = `-- name: LockOrder :one
 
 SELECT id, tenant_id, seller_id, customer_id, status, pending_reason, current_shipment_id, address_complete, version,
-       grand_total, prepaid_total, cod_amount, payment_status, packing_status, order_type, warehouse_id
+       grand_total, prepaid_total, cod_amount, payment_status, packing_status, order_type, warehouse_id, channel
 FROM ord.orders
 WHERE seller_id = $1 AND id = $2
 FOR UPDATE
@@ -43,6 +43,7 @@ type LockOrderRow struct {
 	PackingStatus     string
 	OrderType         string
 	WarehouseID       uuid.UUID
+	Channel           string
 }
 
 // Đơn tối thiểu (kế hoạch M1, Task M1-30; 05 mục 2). Chạy trong tenancy.WithTenant. Thứ tự khóa ADR-46 nhóm 7.
@@ -70,6 +71,7 @@ func (q *Queries) LockOrder(ctx context.Context, arg LockOrderParams) (LockOrder
 		&i.PackingStatus,
 		&i.OrderType,
 		&i.WarehouseID,
+		&i.Channel,
 	)
 	return i, err
 }

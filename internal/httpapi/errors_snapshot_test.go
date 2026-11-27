@@ -178,6 +178,7 @@ func domainErrorSnapshot() []snapshotCase {
 		{"order.ErrRequestNotFound", order.ErrRequestNotFound, http.StatusNotFound, "not_found"},
 		{"order.ErrRequestLimit", order.ErrRequestLimit, http.StatusTooManyRequests, "too_fast"},
 		{"order.ErrCannotCancel", order.ErrCannotCancel, http.StatusUnprocessableEntity, "cannot_cancel"},
+		{"order.ErrHoldExpired", order.ErrHoldExpired, http.StatusUnprocessableEntity, "hold_expired"},
 		// Banner trang chủ (Task 453).
 		{"content.ErrRevisionConflict", content.ErrRevisionConflict, http.StatusConflict, "version_conflict"},
 		{"content.ErrTooManyBanners", content.ErrTooManyBanners, http.StatusUnprocessableEntity, "too_many_banners"},
