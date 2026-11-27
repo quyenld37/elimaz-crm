@@ -8,6 +8,7 @@ trong M6». Mở `index.html` để xem ảnh của mọi màn; mỗi trang HTML
 | Việc | Ai | Ngày | Kết quả |
 |---|---|---|---|
 | Chốt hình sáu màn (Điểm dừng B, Q-X8, C3-3; soát ba cỡ 1512, 390, 360, agent `design-critic`) | Điều phối viên | 27/11/2026 | Claude chốt thay chủ shop 27/11 (chủ shop: "m tự chốt đi") |
+| Task 241 (M6-18) code màn Tồn, Tệp xuất, ba nút xuất theo hình đã chốt; hành vi (b) chấm số tệp mới, (c) nút xuất khách, (d) nút xuất sản phẩm đã làm | Claude | 27/11/2026 | xong ở nhánh task-241, chờ chủ shop xem |
 | Xem lại ảnh (không chặn) | Chủ shop | — | chờ |
 | OK riêng từng hành vi (a)–(d) dưới đây | Chủ shop | 27/11/2026 | Claude chốt thay chủ shop 27/11; chủ shop xem lại khi có mặt |
 

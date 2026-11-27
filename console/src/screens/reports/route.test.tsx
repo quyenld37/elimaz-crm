@@ -14,6 +14,8 @@ describe("route.tsx của màn Báo cáo", () => {
   it("khai đúng path, nhãn, nhóm Báo cáo, quyền, trang ẩn, also, order", () => {
     expect(routeRows(screens)).toEqual([
       ["/bao-cao/tong-quan", "Tổng quan", "Báo cáo", "report.sales.read", false, [], 10],
+      ["/bao-cao/ton-kho", "Tồn và xuất nhập tồn", "Báo cáo", "report.inventory.read", false, [], 50],
+      ["/bao-cao/tep-xuat", "Tệp xuất", "Báo cáo", "report.sales.read", false, [], 60],
     ]);
   });
 
@@ -23,10 +25,11 @@ describe("route.tsx của màn Báo cáo", () => {
   });
 
   it("chỉ người có report.sales.read thấy mục Tổng quan trên menu", () => {
-    const [overview] = screens;
-    if (overview === undefined) throw new Error("thiếu màn");
+    const [overview, stock] = screens;
+    if (overview === undefined || stock === undefined) throw new Error("thiếu màn");
     expect(canSee(grantsOf("report.sales.read"), overview)).toBe(true);
     expect(canSee(grantsOf("report.inventory.read"), overview)).toBe(false);
+    expect(canSee(grantsOf("report.inventory.read"), stock)).toBe(true);
     expect(navSections(screens, grantsOf("report.sales.read")).map((s) => s.group)).toEqual(["Báo cáo"]);
     expect(navSections(screens, [])).toEqual([]);
   });

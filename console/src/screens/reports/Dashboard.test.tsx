@@ -2,8 +2,8 @@
 // Màn Tổng quan /bao-cao/tong-quan (Task 239, M6-16; mockup docs/m6/mockup/tong-quan.html trạng thái A–H; BC01, BC05):
 // số của kịch bản chín đơn, khối Chờ xử lý, bấm ô mở danh sách chi tiết, chạy nền, xuất Excel theo quyền, trạng thái
 // trống/lỗi/bận, phạm vi một Page.
-import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import {
   BACKGROUND,
   DASH,
@@ -14,21 +14,13 @@ import {
   amounts,
   busySteps,
   fakeReports,
+  installFakeNow,
   settleRun,
   orderRow,
   renderDashboard,
 } from "./reportsTestkit";
 
-beforeEach(() => {
-  // Chỉ giả ngày: 27/11/2026 14:32 giờ Việt Nam. waitFor của Testing Library vẫn chạy bằng đồng hồ thật.
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(new Date("2026-11-27T07:32:05Z"));
-});
-afterEach(() => {
-  cleanup();
-  vi.unstubAllGlobals();
-  vi.useRealTimers();
-});
+installFakeNow();
 
 const kpi = (name: RegExp) => screen.getByRole("link", { name });
 

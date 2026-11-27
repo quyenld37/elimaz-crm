@@ -8,6 +8,7 @@ import {
   C2,
   C3,
   LONG_COMPANY,
+  T1,
   T3,
   grantsOf,
   installFake,
@@ -140,5 +141,97 @@ describe("Danh sách khách", () => {
     expect(w?.path).toBe("/api/v1/customers");
     expect(w?.key).not.toBeNull();
     expect(w?.body).toEqual({ fullName: "Ngô Lan", phone: "0903111222" });
+  });
+});
+
+describe("Nút Xuất danh sách khách (Task 241, M6-18; hành vi (c); mockup nut-xuat.html trạng thái A–B)", () => {
+  const CUSTOMER_RUN = {
+    id: "run-1",
+    family: "customers",
+    report: "customers",
+    format: "xlsx",
+    status: "queued",
+    params: {},
+    truncated: false,
+    createdAt: "2026-11-27T07:00:00Z",
+    expiresAt: "2026-11-28T07:00:00Z",
+    requestedByName: "Lan",
+  };
+  const exportBtn = () => screen.queryByRole("button", { name: "Xuất danh sách khách" });
+  const openDialog = async () => {
+    renderAt("/khach");
+    fireEvent.click(await screen.findByRole("button", { name: "Xuất danh sách khách" }));
+    return screen.findByRole("dialog", { hidden: true });
+  };
+
+  it("người không có customer.export không thấy nút; có thì nút nằm giữa Nhập Excel và Thêm khách", async () => {
+    fake.grants = grantsOf("customer.write", "customer.import", "files.upload");
+    renderAt("/khach");
+    await screen.findByRole("row", { name: /KH000231/ });
+    expect(exportBtn()).toBeNull();
+    cleanup();
+    fake.grants = grantsOf("customer.write", "customer.import", "files.upload", "customer.export");
+    renderAt("/khach");
+    await screen.findByRole("button", { name: "Xuất danh sách khách" });
+    const names = screen.getAllByRole("button").map((b) => b.textContent);
+    expect(names.indexOf("Nhập Excel")).toBeLessThan(names.indexOf("Xuất danh sách khách"));
+    expect(names.indexOf("Xuất danh sách khách")).toBeLessThan(names.indexOf("Thêm khách"));
+  });
+
+  it("customer.export chỉ ở phạm vi một Page (không phải all) → không có nút", async () => {
+    fake.grants = [
+      { permission: "customer.read", scope: { type: "all", id: "" } },
+      { permission: "customer.export", scope: { type: "page", id: "p1" } },
+    ];
+    renderAt("/khach");
+    await screen.findByRole("row", { name: /KH000231/ });
+    expect(exportBtn()).toBeNull();
+  });
+
+  it("hộp lọc chỉ có ô chọn, ngày, số (không ô chữ); Xuất gửi đúng params và một POST có khóa", async () => {
+    fake.grants = grantsOf("customer.export");
+    fake.replies = [{ status: 202, body: CUSTOMER_RUN }];
+    const dlg = await openDialog();
+    expect(within(dlg).queryAllByRole("textbox").length).toBe(0);
+    expect(within(dlg).getByText(/Tệp có tên và SĐT khách/)).toBeTruthy();
+    fireEvent.click(await within(dlg).findByLabelText("Khách quen"));
+    fireEvent.change(within(dlg).getByLabelText("Loại khách"), { target: { value: "customer" } });
+    fireEvent.change(within(dlg).getByLabelText("Tạo từ ngày"), { target: { value: "2026-11-01" } });
+    fireEvent.change(within(dlg).getByLabelText("Tạo đến ngày"), { target: { value: "2026-11-27" } });
+    fireEvent.change(within(dlg).getByLabelText("Số đơn tối thiểu"), { target: { value: "2" } });
+    const go = within(dlg).getByRole("button", { name: "Xuất" });
+    fireEvent.click(go);
+    fireEvent.click(go);
+    expect(await within(dlg).findByText("Đang tạo tệp, xem ở Tệp xuất")).toBeTruthy();
+    expect(fake.writes.length).toBe(1);
+    const w = fake.writes[0];
+    expect(w?.path).toBe("/api/v1/reports/customers/exports");
+    expect(w?.key).not.toBeNull();
+    expect(w?.body).toEqual({
+      params: { createdFrom: "2026-11-01", createdTo: "2026-11-27", lifecycle: "customer", tagIds: [T1], minOrders: 2 },
+    });
+  });
+
+  it("không chọn gì → params rỗng; ngày bắt đầu sau ngày kết thúc khóa nút Xuất", async () => {
+    fake.grants = grantsOf("customer.export");
+    fake.replies = [{ status: 202, body: CUSTOMER_RUN }];
+    const dlg = await openDialog();
+    fireEvent.change(within(dlg).getByLabelText("Mua lần cuối từ ngày"), { target: { value: "2026-11-20" } });
+    fireEvent.change(within(dlg).getByLabelText("Mua lần cuối đến ngày"), { target: { value: "2026-11-10" } });
+    expect(within(dlg).getByRole("button", { name: "Xuất" }).hasAttribute("disabled")).toBe(true);
+    expect(within(dlg).getByText(/Ngày bắt đầu sau ngày kết thúc/)).toBeTruthy();
+    fireEvent.change(within(dlg).getByLabelText("Mua lần cuối từ ngày"), { target: { value: "" } });
+    fireEvent.change(within(dlg).getByLabelText("Mua lần cuối đến ngày"), { target: { value: "" } });
+    fireEvent.click(within(dlg).getByRole("button", { name: "Xuất" }));
+    await within(dlg).findByText("Đang tạo tệp, xem ở Tệp xuất");
+    expect(fake.writes[0]?.body).toEqual({ params: {} });
+  });
+
+  it("403 export_forbidden hiện câu riêng và hộp vẫn mở", async () => {
+    fake.grants = grantsOf("customer.export");
+    fake.replies = [{ status: 403, body: { error: "export_forbidden", request_id: "t" } }];
+    const dlg = await openDialog();
+    fireEvent.click(within(dlg).getByRole("button", { name: "Xuất" }));
+    expect(await within(dlg).findByText("Bạn chưa được cấp quyền xuất Excel")).toBeTruthy();
   });
 });

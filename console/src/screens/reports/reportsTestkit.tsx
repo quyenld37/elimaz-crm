@@ -1,9 +1,9 @@
 // API giả (fetch) cho test vitest của màn Báo cáo (Task 239, M6-16). Chỉ test nhập tệp này. Số của kịch bản chín đơn
 // (docs/m6/tieu-chi.md, mockup tong-quan.html trạng thái A): 8 đơn lên, 7 chưa hủy, doanh số 1.910.000, TB 272.857.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, waitFor } from "@testing-library/react";
+import { act, cleanup, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import type { Grant, Me, ReportRun, SalesDashboardReport, SalesOrdersDrilldownItem } from "../../api";
 import { onRealtimeChanged } from "../../app/queryClient";
 import { NOT_FOUND, ORDER_PAGE, bodyOf, page, renderScreens, reply, type Write } from "../../app/screenTestkit";
@@ -209,13 +209,20 @@ function writeRoute(f: ReportsFake, path: string, body: Record<string, unknown>)
   return reply(run, 202);
 }
 
-/** Thay fetch bằng API giả (đọc: readRoute; ghi: ghi lại kèm Idempotency-Key, trả lần chạy mới). */
-export function stubReports(f: ReportsFake): ReportsFake {
+/**
+ * Thay fetch bằng API giả: đọc theo `read`; ghi (ghi lại kèm Idempotency-Key) theo câu trả lời xếp sẵn hoặc `write`.
+ * Dùng chung cho test của Tổng quan và của báo cáo tồn (inventoryTestkit).
+ */
+export function stubApi<F extends Pick<ReportsFake, "writes" | "failPosts" | "hold" | "replies">>(
+  f: F,
+  read: (f: F, path: string, q: URLSearchParams) => Response,
+  write: (f: F, path: string, body: Record<string, unknown>) => Response,
+) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (req: Request) => {
       const url = new URL(req.url);
-      if (req.method === "GET") return readRoute(f, url.pathname, url.searchParams);
+      if (req.method === "GET") return read(f, url.pathname, url.searchParams);
       const body = await bodyOf(req);
       f.writes.push({ method: req.method, path: url.pathname, key: req.headers.get("Idempotency-Key"), body });
       if (f.failPosts > 0) {
@@ -224,9 +231,27 @@ export function stubReports(f: ReportsFake): ReportsFake {
       }
       if (f.hold !== null) await f.hold;
       const queued = f.replies.shift();
-      return queued === undefined ? writeRoute(f, url.pathname, body) : reply(queued.body, queued.status);
+      return queued === undefined ? write(f, url.pathname, body) : reply(queued.body, queued.status);
     }),
   );
+}
+
+/** Giả ngày 27/11/2026 14:32 giờ Việt Nam cho cả tệp test (chỉ giả ngày; waitFor vẫn chạy bằng đồng hồ thật). */
+export function installFakeNow() {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-27T07:32:05Z"));
+  });
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+}
+
+/** Thay fetch bằng API giả của Tổng quan (đọc: readRoute; ghi: trả lần chạy mới). */
+export function stubReports(f: ReportsFake): ReportsFake {
+  stubApi(f, readRoute, writeRoute);
   return f;
 }
 

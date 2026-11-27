@@ -3,10 +3,11 @@
 // đúng lần chạy đó: xong → "Tệp … đã sẵn sàng — Tải về" ngay trên màn đang mở. Không thêm API mới.
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { getSalesReportRunFile, type ReportKey, type ReportParams } from "../../api";
+import { getSalesReportRunFile, type ReportFileLink, type ReportKey, type ReportParams } from "../../api";
 import { errorMessage, unwrap } from "../../app/errors";
 import { useWriteAction } from "../../app/idempotency";
 import { queryKey } from "../../app/queryClient";
+import { openFile } from "./openFile";
 import { TOPIC_RUN_FINISHED, failedText, salesRunApi, type RunApi } from "./useReport";
 
 export type ExportStage = "idle" | "waiting" | "ready" | "failed" | "error";
@@ -29,17 +30,11 @@ export interface ExportOptions {
   params: ReportParams;
   title: string;
   runApi?: RunApi;
+  runFile?: (id: string) => Promise<ReportFileLink>;
 }
 
-/** Chỉ mở đường dẫn http(s) của kho tệp, không mở chuỗi lạ. */
-function openable(url: string): boolean {
-  try {
-    const p = new URL(url).protocol;
-    return p === "https:" || p === "http:";
-  } catch {
-    return false;
-  }
-}
+/** Lấy đường tải của một lần chạy (mặc định họ bán hàng; tồn kho truyền bản của họ inventory). */
+export const salesRunFile = (id: string): Promise<ReportFileLink> => unwrap(getSalesReportRunFile({ path: { id } }));
 
 export function useExportRun(o: ExportOptions): ExportRun {
   const runApi = o.runApi ?? salesRunApi;
@@ -68,10 +63,9 @@ export function useExportRun(o: ExportOptions): ExportRun {
   const download = () => {
     if (runId === null) return;
     setDownloadError(null);
-    void unwrap(getSalesReportRunFile({ path: { id: runId } })).then(
+    void (o.runFile ?? salesRunFile)(runId).then(
       (link) => {
-        if (openable(link.url)) window.location.assign(link.url);
-        else setDownloadError("Đường dẫn tải không hợp lệ. Thử lại sau.");
+        setDownloadError(openFile(link.url));
       },
       (e: unknown) => {
         setDownloadError(errorMessage(e));

@@ -34,6 +34,7 @@ import {
   writeFilters,
   type Filters,
 } from "./productRules";
+import { ProductsExportButton } from "../reports/ProductsExportButton";
 import "./products.css";
 
 export const TEXT_EMPTY_SHOP = "Chưa có mẫu nào";
@@ -137,6 +138,7 @@ export function ProductList() {
           <Link className="btn btn-line" to={IMPORT_EXCEL}>
             Nhập Excel
           </Link>
+          <ProductsExportButton />
           <Link className="btn btn-dark" to={NEW_PRODUCT}>
             Thêm mẫu
           </Link>

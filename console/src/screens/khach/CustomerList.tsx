@@ -13,6 +13,7 @@ import { formatMoney } from "../products/productRules";
 import { CreateCustomerDialog } from "./CreateCustomerDialog";
 import { CUSTOMER_TOPIC, usePerms, useTags } from "./customerData";
 import { markTail } from "./customerRules";
+import { ExportCustomersButton } from "./ExportCustomersButton";
 import { ImportDialog } from "./ImportDialog";
 import { TagsDialog } from "./TagRuleEditor";
 import "../don/don.css";
@@ -87,6 +88,7 @@ export function CustomerList() {
           Nhập Excel
         </button>
       )}
+      <ExportCustomersButton />
       {canCreate && (
         <button
           type="button"

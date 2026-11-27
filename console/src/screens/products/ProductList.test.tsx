@@ -277,3 +277,26 @@ describe("ProductList", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("Bạn chưa được cấp quyền làm việc này");
   });
 });
+
+describe("Nút Xuất danh sách sản phẩm (Task 241, M6-18; hành vi (d); mockup nut-xuat.html trạng thái C)", () => {
+  const all = (permission: string): Grant => ({ permission, scope: { type: "all", id: "" } });
+
+  it("có report.inventory.read và report.export toàn shop: nút cạnh Nhập Excel, trước Thêm mẫu", async () => {
+    const me = mockApi([all("catalog.read"), all("report.inventory.read"), all("report.export")]);
+    renderList(me);
+    const btn = await screen.findByRole("button", { name: "Xuất danh sách sản phẩm" });
+    const row = btn.closest(".row");
+    const names = Array.from(row?.querySelectorAll("a,button") ?? []).map((e) => e.textContent);
+    expect(names).toEqual(["Nhập Excel", "Xuất danh sách sản phẩm", "Thêm mẫu"]);
+  });
+
+  it("thiếu report.export hoặc report.inventory.read: không có nút", async () => {
+    renderList(mockApi([all("catalog.read"), all("report.inventory.read")]));
+    await screen.findByRole("heading", { name: TEXT_EMPTY_SHOP });
+    expect(screen.queryByRole("button", { name: "Xuất danh sách sản phẩm" })).toBeNull();
+    cleanup();
+    renderList(mockApi([all("catalog.read"), all("report.export")]));
+    await screen.findByRole("heading", { name: TEXT_EMPTY_SHOP });
+    expect(screen.queryByRole("button", { name: "Xuất danh sách sản phẩm" })).toBeNull();
+  });
+});
