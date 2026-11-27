@@ -206,7 +206,9 @@ func viewReadExceptions() map[string][]string {
 		// fulfillment đọc địa chỉ lấy hàng của kho để gửi hãng mà không nhập gói inventory (kế hoạch M3, Global
 		// Constraints "Ranh giới module"; Task M3-09 ResolveAccount, Task M3-12 lệnh tạo vận đơn).
 		// Danh mục địa giới để khớp với mã của từng hãng (Task M3-18): customer.ListWards chặn 50 xã mỗi lần.
-		"fulfillment": {"inventory.warehouses_v", "customer.admin_units_v"},
+		// Đảo "Thành công" (kế hoạch M3, Task M3-27): luật chặn đọc tiền đã về shop của vận đơn mà không nhập gói cash
+		// (cash đã nhập fulfillment: nhập ngược sẽ thành vòng).
+		"fulfillment": {"inventory.warehouses_v", "customer.admin_units_v", "cash.shipment_cod_v", "cash.cod_transfers_v"},
 		// inventory đối chiếu đêm đơn vị suất flash sale với trạng thái đợt và dòng đơn (kế hoạch M5 Task 202) mà không
 		// nhập gói promotion, order (promotion, order đã nhập inventory: nhập ngược sẽ thành vòng).
 		"inventory": {"promotion.flash_sales_v", "promotion.flash_sale_items_v", "ord.order_items_v"},

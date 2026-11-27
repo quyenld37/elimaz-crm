@@ -22,6 +22,7 @@ const (
 	codeTrackingCodeConflict      = "tracking_code_conflict"
 	codeCarrierNotOnWeb           = "carrier_not_on_web"
 	codeLastWebCarrier            = "last_web_carrier"
+	codeCorrectionBlocked         = "correction_blocked"
 )
 
 // fulfillmentError đổi lỗi nghiệp vụ của vận chuyển (và thiếu quyền ở kho của tài khoản hãng) sang mã HTTP.
@@ -64,6 +65,11 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		// Nhập mã tay, cập nhật tay trạng thái vận đơn (M3, Task M3-15).
 		{fulfillment.ErrManualReasonRequired, http.StatusUnprocessableEntity, codeInvalidInput},
 		{fulfillment.ErrManualNotAllowed, http.StatusConflict, codeInvalidTransition},
+		// Đảo "Thành công" (M3, Task M3-27): token khác → preview_stale; tiền đã về shop → correction_blocked.
+		{fulfillment.ErrCorrectionInvalid, http.StatusUnprocessableEntity, codeInvalidInput},
+		{fulfillment.ErrCorrectionNotAllowed, http.StatusConflict, codeInvalidTransition},
+		{fulfillment.ErrCorrectionBlocked, http.StatusConflict, codeCorrectionBlocked},
+		{fulfillment.ErrCorrectionStale, http.StatusConflict, codePreviewStale},
 		// In nhãn (M3, Task M3-16).
 		{fulfillment.ErrLabelBatchInvalid, http.StatusBadRequest, codeInvalidInput},
 		// Đổi địa chỉ sau khi gửi hãng (M3, Task M3-17; chỉ mã có sẵn trong hợp đồng).

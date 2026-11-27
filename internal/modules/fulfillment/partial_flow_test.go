@@ -347,19 +347,12 @@ func TestPartialDelivery_ManualReversalRefused(t *testing.T) {
 	t.Parallel()
 	e := newApplyEnv(t)
 	o, vA, vB := e.d1()
-	acc := e.manualAccount("best", "best-tay-partial")
-	sv, err := e.ship(fulfillment.ShipInput{OrderID: o.ID, CarrierAccountID: acc, TrackingCode: trackingCode()})
-	if err != nil {
-		t.Fatalf("tạo vận đơn tay: %v", err)
-	}
+	sv := e.manualShipping(o, e.manualAccount("best", "best-tay-partial"))
 	now := time.Now().UTC()
-	e.mustSetManual(sv.ID, fulfillment.ManualStatusInput{
-		To: fulfillment.StatusShipping, At: now.Add(-2 * time.Hour), Reason: "Đã lấy hàng",
-	})
 	if _, err := e.recordPartial(sv.ID, td09Collected, td09Lines(o, vA, vB)...); err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.setManual(sv.ID, fulfillment.ManualStatusInput{
+	_, err := e.setManual(sv.ID, fulfillment.ManualStatusInput{
 		To: fulfillment.StatusReturning, At: now.Add(-time.Hour), Reason: "Khách đổi ý",
 	})
 	if !errors.Is(err, fulfillment.ErrManualNotAllowed) {

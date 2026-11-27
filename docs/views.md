@@ -64,8 +64,8 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 | `conversation.automation_rules_v` (một dòng mỗi (Page, loại) đã lưu; không có `config`; B2-11; M7 thêm cột thì thêm ở cuối, R3) | `tenant_id, id, channel_account_id, kind, enabled, updated_at, version` | 165 | M7 (báo cáo sẵn sàng: mỗi Page có dòng cấu hình) |
 | `conversation.call_logs_v` (Q14; không có `note` — dữ liệu cá nhân) | `tenant_id, id, customer_id, conversation_id, order_id, outcome, callback_at, created_by, created_at` | 169 | hồ sơ khách, dòng thời gian khách (C7), M6, M7 |
 | `cash.cod_balances_v` (tối thiểu; M3 mở rộng) | `shipment_id, account, balance` | 32 | M3 trở đi |
-| `cash.shipment_cod_v` (số dư từng ngăn theo vận đơn, dạng ngang; vận đơn chưa có dòng sổ thì không có dòng) | `tenant_id, shipment_id, to_collect, carrier_holding, shop_received, carrier_fee, sales_clearing` | 93 | M3 trở đi |
-| `cash.cod_transfers_v` (không `idempotency_key`, `actor_id`) | `tenant_id, id, shipment_id, kind, statement_line_id, reverses_transfer_id, reason, actor_type, occurred_at` | 93 | M3, M6, M7 |
+| `cash.shipment_cod_v` (số dư từng ngăn theo vận đơn, dạng ngang; vận đơn chưa có dòng sổ thì không có dòng) | `tenant_id, shipment_id, to_collect, carrier_holding, shop_received, carrier_fee, sales_clearing` | 93 | M3 trở đi; `fulfillment` (luật chặn đảo "Thành công", `queries/fulfillment/correction.sql`, Task 118) |
+| `cash.cod_transfers_v` (không `idempotency_key`, `actor_id`) | `tenant_id, id, shipment_id, kind, statement_line_id, reverses_transfer_id, reason, actor_type, occurred_at` | 93 | M3 (`fulfillment`: bút toán remitted còn sống, Task 118), M6, M7 |
 | `cash.payments_v` | `tenant_id, id, order_id, method, amount, received_at, actor_id` | 93, 119 | M3, M6, M7 |
 | `cash.refund_obligations_v` | `tenant_id, id, order_id, return_id, source, amount, paid_amount, status` | 93 | M3, M6, M7 |
 | `cash.reconcile_runs_v` | `tenant_id, id, ran_at, ok, findings` | 93 | M7 (A22) |

@@ -67,12 +67,7 @@ func TestMotDonDiTron(t *testing.T) {
 	sh := r.mustCall(http.MethodPost, "/api/v1/orders/"+orderID+"/shipments",
 		map[string]any{"carrierAccountId": s.shop.Account}, http.StatusAccepted)
 	shipmentID := str(sh["id"])
-	var tracking string
-	waitFor(t, stepBudget, "vận đơn awaiting_pickup", func() bool {
-		got := r.mustCall(http.MethodGet, "/api/v1/shipments/"+shipmentID, nil, http.StatusOK)
-		tracking = str(got["trackingCode"])
-		return got["status"] == "awaiting_pickup" && tracking != ""
-	})
+	tracking := r.awaitingTracking(shipmentID)
 	mark("tạo vận đơn → awaiting_pickup", start)
 
 	start = time.Now()

@@ -279,12 +279,19 @@ func (a authAlert) Execute(ctx context.Context, j queue.Job) (commands.Outcome, 
 		return commands.Outcome{Status: commands.StatusRejected, Reason: reasonAlerter}, nil
 	}
 	text := fmt.Sprintf("Hãng %s từ chối khóa API của tài khoản %s: cần nhập lại khóa rồi kiểm kết nối", p.CarrierKey, p.AccountID)
-	if err := a.n.Notify(ctx, "carrier-auth:"+p.AccountID.String(), severityNormal, text); err != nil {
-		if a.log != nil {
-			a.log.WarnContext(ctx, "gửi cảnh báo khóa API hãng lỗi", slog.String("account_id", p.AccountID.String()),
-				slog.String("error", queue.ErrorText(err)))
+	return notifyNormal(ctx, a.n, a.log, "carrier-auth:"+p.AccountID.String(), text, "gửi cảnh báo khóa API hãng lỗi",
+		slog.String("account_id", p.AccountID.String())), nil
+}
+
+// notifyNormal gửi cảnh báo thường text với key qua n (khác nil): lỗi → log một lần msg kèm attr (logger nil: không
+// log), not_sent (tự gửi lại); gửi được → done.
+func notifyNormal(ctx context.Context, n Notifier, logger *slog.Logger, key, text, msg string, attr slog.Attr,
+) commands.Outcome {
+	if err := n.Notify(ctx, key, severityNormal, text); err != nil {
+		if logger != nil {
+			logger.WarnContext(ctx, msg, attr, slog.String("error", queue.ErrorText(err)))
 		}
-		return commands.Outcome{Status: commands.StatusNotSent, Reason: reasonAlertFailed}, nil
+		return commands.Outcome{Status: commands.StatusNotSent, Reason: reasonAlertFailed}
 	}
-	return commands.Outcome{Status: commands.StatusDone}, nil
+	return commands.Outcome{Status: commands.StatusDone}
 }

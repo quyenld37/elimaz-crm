@@ -23,7 +23,8 @@ import (
 // shipment.status_changed, không ở đây.
 
 const (
-	reasonCarrierCorrected  = "carrier_corrected" // lý do đảo "đã giao" (order.ReverseDelivery)
+	reasonCarrierCorrected  = "carrier_corrected" // lý do đảo "đã giao" khi hãng sửa lại (order.ReverseDelivery)
+	reasonStaffCorrected    = "staff_corrected"   // lý do đảo "đã giao" khi nhân viên sửa nhầm (Task M3-27)
 	outcomeDelivered        = "delivered"
 	outcomeCarrierReturning = "carrier_returning"
 	anomalyCancelConflict   = "cancel_conflict"
@@ -59,8 +60,7 @@ func (r *applyRun) effect(ctx context.Context, ef shipstate.Effect, next shipsta
 			_, err = r.w.OnShipmentCancelRejected(ctx, r.tx, r.sh.SellerID, r.sh.OrderID, r.sh.ID, r.actor, r.now)
 		}
 	case shipstate.EffDeliveryReversed:
-		_, err = r.w.ReverseDelivery(ctx, r.tx, r.sh.SellerID, r.sh.OrderID, r.sh.ID, eventID, reasonCarrierCorrected,
-			r.actor, r.now)
+		err = r.reverseDelivery(ctx, eventID)
 	}
 	if err == nil {
 		return nil
@@ -168,4 +168,19 @@ func (s *Service) publishCallback(ctx context.Context, tx pgx.Tx, tenantID, id u
 		return fmt.Errorf("báo hiệu %s: %w", signalCallbackChanged, err)
 	}
 	return nil
+}
+
+// reverseDelivery đảo "đã giao" của đơn (order.ReverseDelivery, chứng từ = dòng lịch sử eventID): lý do
+// staff_corrected khi nhân viên sửa nhầm, carrier_corrected khi hãng sửa lại; hãng sửa lại mà đơn thật sự được đảo thì
+// ghi thêm lệnh cảnh báo carrier-corrected (Task M3-27).
+func (r *applyRun) reverseDelivery(ctx context.Context, eventID uuid.UUID) error {
+	reason := reasonCarrierCorrected
+	if r.in.Source == SrcStaff {
+		reason = reasonStaffCorrected
+	}
+	applied, err := r.w.ReverseDelivery(ctx, r.tx, r.sh.SellerID, r.sh.OrderID, r.sh.ID, eventID, reason, r.actor, r.now)
+	if err != nil || !applied || r.in.Source != SrcCarrierAPI {
+		return err //nolint:wrapcheck // effect bọc tên tác động
+	}
+	return r.correctedAlert(ctx, eventID)
 }

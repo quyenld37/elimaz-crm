@@ -409,6 +409,8 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 		alerts, digest, inventory.NewShortageAlertCommand(alerter, logger), inventory.NewStockMismatchCommand(alerter, logger),
 		inventory.NewFlashMismatchCommand(alerter, logger),
 		fulfillment.NewAuthAlertCommand(alerter, logger), fulfillment.NewTrackAlertCommand(d, alerter, logger),
+		// Cảnh báo hãng sửa Thành công sang Đang chuyển hoàn (Task M3-27): lệnh do tác động delivery_reversed ghi.
+		fulfillment.NewCorrectedAlertCommand(alerter, logger),
 		cash.NewRemittedReturnedAlertCommand(alerter),
 		cash.NewReconcileAlertCommand(alerter),
 		// Cảnh báo đơn kẹt mỗi ngày (Task M3-20): lệnh do lịch fulfillment.stuck ghi.

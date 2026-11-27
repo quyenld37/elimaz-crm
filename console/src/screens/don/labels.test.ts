@@ -136,6 +136,8 @@ describe("labels", () => {
     expect(historyReasonText("manual_discount_over_threshold")).toBe("Giảm tay vượt mức duyệt");
     expect(historyReasonText("duplicate")).toBe("Đơn trùng");
     expect(historyReasonText("discount_approved")).toBe("Đã duyệt giảm giá");
+    expect(historyReasonText("carrier_corrected")).toBe("Hãng sửa trạng thái từ Thành công sang Đang chuyển hoàn");
+    expect(historyReasonText("staff_corrected")).toBe("Nhân viên đổi Thành công sang Đang chuyển hoàn");
     expect(historyReasonText("la_qua")).toBeNull();
     expect(historyReasonText(undefined)).toBeNull();
   });
