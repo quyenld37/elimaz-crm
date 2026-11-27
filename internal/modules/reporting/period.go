@@ -1,6 +1,7 @@
 package reporting
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -24,6 +25,18 @@ type Period struct {
 // Days là số ngày của kỳ (tính cả hai đầu).
 func (p Period) Days() int {
 	return int(p.End.Sub(p.Start) / (24 * time.Hour))
+}
+
+// MarshalJSON ghi kỳ theo ReportPeriod của hợp đồng: {"from": FromDay, "to": ToDay}.
+func (p Period) MarshalJSON() ([]byte, error) {
+	b, err := json.Marshal(struct {
+		From string `json:"from"`
+		To   string `json:"to"`
+	}{p.FromDay, p.ToDay})
+	if err != nil {
+		return nil, fmt.Errorf("ghi kỳ: %w", err)
+	}
+	return b, nil
 }
 
 // IsZero cho biết kỳ chưa được đặt.

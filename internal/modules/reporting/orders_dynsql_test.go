@@ -146,21 +146,7 @@ func TestOrderSet_NineOrders(t *testing.T) {
 	placed := OrderFilter{Period: day, Basis: BasisPlaced}
 	completed := OrderFilter{Period: day, Basis: BasisCompleted}
 
-	// Người bán partner có một đơn cùng ngày; tenant B có một đơn cùng ngày.
-	partner := e.seed.Seller("NCC1", "partner")
-	pv := e.seed.Variant(partner, "Hàng ký gửi", "KG-1")
-	at := time.Date(2026, 11, 17, 3, 0, 0, 0, time.UTC)
-	partnerOrder := e.seed.Order(reportseed.OrderSpec{
-		Seller: partner, Channel: "facebook", Page: sc.P1, Items: []reportseed.Item{{Variant: pv, Qty: 1, Price: 99_000}},
-		History: []reportseed.Step{{To: "new", At: at}, {To: "confirmed", At: at.Add(time.Minute)}},
-	})
-	tb := e.st.Tenant(t, "b")
-	sb := reportseed.New(t, e.st.Owner, tb)
-	bv := sb.Variant(sb.Own(), "Áo B", "AOB-1")
-	sb.Order(reportseed.OrderSpec{
-		Channel: "manual", Items: []reportseed.Item{{Variant: bv, Qty: 1, Price: 10_000}},
-		History: []reportseed.Step{{To: "new", At: at}},
-	})
+	partnerOrder, partner := e.outsiders(t, sc.P1)
 
 	all := e.all
 	e.want(t, "placed", all, placed, MetricPlaced, nil, o("O1", "O2", "O3", "O4", "O5", "O6", "O8", "O9")...)
