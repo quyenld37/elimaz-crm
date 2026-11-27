@@ -50,6 +50,8 @@ func webError(err error) (status int, code string, ok bool) {
 		{order.ErrShipCarrierUnavailable, http.StatusUnprocessableEntity, codeShippingCarrierUnavailable},
 		{order.ErrShipFeeMismatch, http.StatusUnprocessableEntity, codeShippingFeeMismatch},
 		{order.ErrShipUnverified, http.StatusServiceUnavailable, codeRetryLater},
+		// Lượt mua flash sale (Task 201): đơn vị suất đang bị lượt khác khóa → thử lại, không lưu.
+		{order.ErrFlashRetry, http.StatusServiceUnavailable, codeRetryLater},
 		{order.ErrReasonRequired, http.StatusUnprocessableEntity, codeInvalidInput},
 		{order.ErrWindowClosed, http.StatusUnprocessableEntity, codeWindowClosed},
 		{order.ErrQtyExceeded, http.StatusUnprocessableEntity, codeQtyExceeded},

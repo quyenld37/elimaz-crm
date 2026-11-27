@@ -174,6 +174,12 @@ func validateWebOrder(in WebOrderInput) error {
 	return nil
 }
 
+// webIdempotencyKey là khóa nghiệp vụ (orders.idempotency_key) của đơn web mã ngoài ref: đơn website thường
+// (CreateFromWeb) và đơn nháp của lượt mua flash (BuyFlash) dùng chung, nên một mã ngoài chỉ thành một đơn.
+func webIdempotencyKey(ref string) uuid.UUID {
+	return uuid.NewSHA1(uuid.NameSpaceURL, []byte("web:"+ref))
+}
+
 // webOrderByRef: đơn web đã có của mã ngoài ref → (kết quả Replayed, true).
 func webOrderByRef(ctx context.Context, tx pgx.Tx, seller uuid.UUID, ref string) (WebOrderResult, bool, error) {
 	r, err := store.New(tx).WebOrderByExternalRef(ctx, store.WebOrderByExternalRefParams{
@@ -309,7 +315,7 @@ func (o *webOrder) insert(ctx context.Context, sp pgx.Tx, q WebQuote) (WebOrderR
 	}
 	addr := o.in.ShipAddress
 	cr, err := o.w.create(ctx, sp, CreateInput{
-		IdempotencyKey: uuid.NewSHA1(uuid.NameSpaceURL, []byte("web:"+o.in.ExternalRef)),
+		IdempotencyKey: webIdempotencyKey(o.in.ExternalRef),
 		SellerID:       o.seller, Channel: ChannelWeb, ExternalRef: o.in.ExternalRef, TrafficSourceID: &o.source,
 		Customer: customer.OrderCustomerInput{
 			FullName: o.in.Customer.Name, Phone: string(o.in.Customer.Phone), PhoneIsCustomers: true, Source: customer.SourceWeb,
