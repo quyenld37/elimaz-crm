@@ -39,6 +39,23 @@ Package cache là lớp nối Valkey duy nhất của CRM (ADR-39, kế hoạch 
 ```go
 func EntityKey(prefix string, tenant uuid.UUID, parts ...string) (string, error)
 func SubjectKey(secret []byte, kind, value string) string
+type Admission struct {
+	Admitted   bool
+	RetryAfter time.Duration
+	Reason     string
+	Degraded   bool
+}
+func (a *Admission) Release()
+type AdmissionGate interface {
+	Admit(ctx context.Context, tenant, item uuid.UUID) *Admission
+
+	SoldOut(ctx context.Context, tenant, item uuid.UUID) (soldOut, known bool)
+
+	SetState(ctx context.Context, tenant, item uuid.UUID, remaining int, soldOut bool) error
+
+	Remaining(ctx context.Context, tenant uuid.UUID, items []uuid.UUID) map[uuid.UUID]int
+}
+func NewAdmissionGate(c *Conn, o GateOptions, m *metrics.Registry) AdmissionGate
 type Breaker struct {
 }
 func NewBreaker(name string, o BreakerOptions, m *metrics.Registry) *Breaker
@@ -61,6 +78,10 @@ type DialOptions struct {
 	Metrics   *metrics.Registry
 	Name      string
 	Tracing   bool
+}
+type GateOptions struct {
+	PerSecond, GlobalPerSecond, FallbackPerSecond, FallbackGlobalPerSecond, MaxInflight int
+	Now                                                                                 func() time.Time
 }
 type Health string
 type Limit struct {
