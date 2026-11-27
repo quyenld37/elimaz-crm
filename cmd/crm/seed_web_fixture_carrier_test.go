@@ -111,13 +111,7 @@ func TestSeedWebFixture_WebCarrierFailureRollsBack(t *testing.T) {
 // Ngày tạo của mẫu = mốc cố định + position giây (sắp xếp «Mới nhất» của website ổn định theo tệp).
 func TestSeedWebFixture_CreatedAtOrder(t *testing.T) {
 	t.Parallel()
-	e := newSeedEnv(t)
-	raw := readFixture(t)
-	fx, err := parseWebFixture(raw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	e.seed(raw)
+	e, fx := seededFixture(t)
 	got := map[uuid.UUID]time.Time{}
 	e.app(func(tx pgx.Tx) error {
 		rows, err := tx.Query(t.Context(), "SELECT id, created_at FROM catalog.products")

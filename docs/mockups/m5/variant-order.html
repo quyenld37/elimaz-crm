@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M5 — Thứ tự biến thể</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="../m3/m3.css">
+<link rel="stylesheet" href="m5.css">
+<style>
+/* Chép từ khối <style> của ../m1/san-pham-sua.html (thẻ Biến thể), thêm cột Thứ tự (Task 513). */
+.opt-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.opt-row .tag { min-height: var(--tap); }
+.opt-row .input { width: 160px; }
+.v-frame { margin-top: 16px; } .v-hint { margin-top: 8px; }
+.vtbl td .input, .vtbl td .select-wrap { min-width: 0; }
+.vtbl td .input { width: 100%; }
+.vtbl .c-ord { width: 152px; } .vtbl .c-sku { width: 190px; } .vtbl .c-bar { width: 170px; } .vtbl .c-pr { width: 140px; } .vtbl .c-st { width: 150px; }
+.v-ord { display: inline-flex; gap: 4px; }
+.v-grip { cursor: grab; }
+.vtbl tr.is-drag td { opacity: 0.5; }
+.vtbl tr.is-moved td { background: var(--surface); }
+.vtbl td.v-name { overflow-wrap: anywhere; }
+@media (max-width: 759px) {
+	.vtbl td .input, .vtbl td .select-wrap { flex: 0 1 62%; }
+	.vtbl td.v-name { font-weight: 700; justify-content: flex-start; }
+}
+</style>
+</head>
+<body data-page="san-pham-sua" data-title="Sửa mẫu DAM0123">
+<div class="app"><main class="main">
+<div class="page-h"><div class="grow"><p class="crumb">Sản phẩm / Danh sách sản phẩm / DAM0123</p><h1>Thứ tự biến thể</h1><p class="sub">Thẻ "Biến thể" của màn Sửa mẫu (mockup M1 <a class="cell-a" href="../m1/san-pham-sua.html">Sửa mẫu</a>) thêm cột Thứ tự. Phần còn lại của màn giữ nguyên.</p></div></div>
+<p class="mk" style="margin-bottom:16px"><b>Mockup:</b> Task 513. Thứ tự là một phần của bản nháp: kéo, bấm ↑ ↓ chỉ đổi trên màn; nút Lưu gửi một lần sắp lại (reorderProductVariants) cùng các thay đổi khác. Dòng nền xám là dòng đã dời so với bản đã lưu.</p>
+
+<section class="st" data-ca="thu-tu da-doi"><p class="xs">TRẠNG THÁI A</p><h2>Đã dời "Be · S" lên vị trí 3 (chưa lưu); biến thể ngừng bán vẫn xếp được</h2></section>
+<section class="card">
+<div class="row-between"><h2>Biến thể</h2><span class="row" style="gap:8px"><span class="chip chip-line">Thứ tự đã đổi, chưa lưu</span><span class="small muted">2 màu × 3 size = 6 biến thể</span></span></div>
+<div class="grid-f">
+<div class="field"><span>Màu</span><div class="opt-row"><span class="tag">Đen</span><span class="tag">Be</span><input class="input" placeholder="Thêm màu" aria-label="Thêm màu"></div></div>
+<div class="field"><span>Size</span><div class="opt-row"><span class="tag">S</span><span class="tag">M</span><span class="tag">L</span><input class="input" placeholder="Thêm size" aria-label="Thêm size"></div></div>
+</div>
+<div class="tbl-frame v-frame"><table class="tbl vtbl">
+<thead><tr><th class="c-ord">Thứ tự</th><th>Biến thể</th><th class="c-sku">SKU *</th><th class="c-bar">Barcode</th><th class="c-pr">Giá bán *</th><th class="c-pr">Giá nhập</th><th class="c-st">Trạng thái</th></tr></thead>
+<tbody>
+<tr class=""><td data-label="Thứ tự" class="c-ord"><span class="v-ord"><button type="button" class="ibtn v-grip" aria-label="Kéo để dời Đen · S">⠿</button><button type="button" class="ibtn" aria-label="Đưa Đen · S lên" disabled>↑</button><button type="button" class="ibtn" aria-label="Đưa Đen · S xuống">↓</button></span></td><td class="v-name lead">Đen · S</td><td data-label="SKU"><input class="input" value="DAM0123-DEN-S"></td><td data-label="Barcode"><input class="input num" value="2000000000015"></td><td data-label="Giá bán"><input class="input num" value="350.000"></td><td data-label="Giá nhập"><input class="input num" value="180.000"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Đang bán</option></select></span></td></tr>
+<tr class=""><td data-label="Thứ tự" class="c-ord"><span class="v-ord"><button type="button" class="ibtn v-grip" aria-label="Kéo để dời Đen · M">⠿</button><button type="button" class="ibtn" aria-label="Đưa Đen · M lên">↑</button><button type="button" class="ibtn" aria-label="Đưa Đen · M xuống">↓</button></span></td><td class="v-name lead">Đen · M</td><td data-label="SKU"><input class="input" value="DAM0123-DEN-M"></td><td data-label="Barcode"><input class="input num" value="2000000000022"></td><td data-label="Giá bán"><input class="input num" value="350.000"></td><td data-label="Giá nhập"><input class="input num" value="180.000"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Đang bán</option></select></span></td></tr>
+<tr class="is-moved"><td data-label="Thứ tự" class="c-ord"><span class="v-ord"><button type="button" class="ibtn v-grip" aria-label="Kéo để dời Be · S">⠿</button><button type="button" class="ibtn" aria-label="Đưa Be · S lên">↑</button><button type="button" class="ibtn" aria-label="Đưa Be · S xuống">↓</button></span></td><td class="v-name lead">Be · S</td><td data-label="SKU"><input class="input" value="DAM0123-BE-S"></td><td data-label="Barcode"><input class="input num" value="2000000000039"></td><td data-label="Giá bán"><input class="input num" value="350.000"></td><td data-label="Giá nhập"><input class="input num" value="180.000"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Đang bán</option></select></span></td></tr>
+<tr class=""><td data-label="Thứ tự" class="c-ord"><span class="v-ord"><button type="button" class="ibtn v-grip" aria-label="Kéo để dời Đen · L">⠿</button><button type="button" class="ibtn" aria-label="Đưa Đen · L lên">↑</button><button type="button" class="ibtn" aria-label="Đưa Đen · L xuống">↓</button></span></td><td class="v-name lead">Đen · L</td><td data-label="SKU"><input class="input" value="DAM0123-DEN-L"></td><td data-label="Barcode"><input class="input num" value="2000000000046"></td><td data-label="Giá bán"><input class="input num" value="420.000"></td><td data-label="Giá nhập"><input class="input num" value="190.000"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Đang bán</option></select></span></td></tr>
+<tr class=""><td data-label="Thứ tự" class="c-ord"><span class="v-ord"><button type="button" class="ibtn v-grip" aria-label="Kéo để dời Be · M">⠿</button><button type="button" class="ibtn" aria-label="Đưa Be · M lên">↑</button><button type="button" class="ibtn" aria-label="Đưa Be · M xuống">↓</button></span></td><td class="v-name lead">Be · M</td><td data-label="SKU"><input class="input" value="DAM0123-BE-M"></td><td data-label="Barcode"><input class="input num" value="2000000000053"></td><td data-label="Giá bán"><input class="input num" value="350.000"></td><td data-label="Giá nhập"><input class="input num" value="180.000"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Đang bán</option></select></span></td></tr>
+<tr class="is-muted"><td data-label="Thứ tự" class="c-ord"><span class="v-ord"><button type="button" class="ibtn v-grip" aria-label="Kéo để dời Be · L">⠿</button><button type="button" class="ibtn" aria-label="Đưa Be · L lên">↑</button><button type="button" class="ibtn" aria-label="Đưa Be · L xuống" disabled>↓</button></span></td><td class="v-name lead">Be · L</td><td data-label="SKU"><input class="input" value="DAM0123-BE-L"></td><td data-label="Barcode"><input class="input num" value="2000000000060"></td><td data-label="Giá bán"><input class="input num" value="420.000"></td><td data-label="Giá nhập"><input class="input num" value="190.000"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Ngừng bán</option></select></span></td></tr>
+</tbody></table></div>
+<p class="hint v-hint">Thứ tự ở đây là thứ tự khách thấy trên website. Kéo ⠿ hoặc bấm ↑ ↓ để đổi (trên ⠿ dùng được phím mũi tên lên, xuống); thứ tự lưu cùng nút Lưu. Barcode để trống thì CRM tự sinh mã EAN-13 bắt đầu bằng 2 khi lưu; biến thể đã lưu không xóa, chỉ chuyển "Ngừng bán".</p>
+</section>
+
+<section class="st" data-ca="dang-keo dong-moi ten-dai"><p class="xs">TRẠNG THÁI B</p><h2>Đang kéo "Đen · L"; dòng mới chưa lưu (tên màu 50 ký tự) ở cuối cũng kéo được</h2></section>
+<section class="card">
+<div class="row-between"><h2>Biến thể</h2><span class="small muted">6 biến thể</span></div>
+<div class="tbl-frame v-frame"><table class="tbl vtbl">
+<thead><tr><th class="c-ord">Thứ tự</th><th>Biến thể</th><th class="c-sku">SKU *</th><th class="c-bar">Barcode</th><th class="c-pr">Giá bán *</th><th class="c-pr">Giá nhập</th><th class="c-st">Trạng thái</th></tr></thead>
+<tbody>
+<tr class=""><td data-label="Thứ tự" class="c-ord"><span class="v-ord"><button type="button" class="ibtn v-grip" aria-label="Kéo để dời Đen · S">⠿</button><button type="button" class="ibtn" aria-label="Đưa Đen · S lên" disabled>↑</button><button type="button" class="ibtn" aria-label="Đưa Đen · S xuống">↓</button></span></td><td class="v-name lead">Đen · S</td><td data-label="SKU"><input class="input" value="DAM0123-DEN-S"></td><td data-label="Barcode"><input class="input num" value="2000000000015"></td><td data-label="Giá bán"><input class="input num" value="350.000"></td><td data-label="Giá nhập"><input class="input num" value="180.000"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Đang bán</option></select></span></td></tr>
+<tr class=""><td data-label="Thứ tự" class="c-ord"><span class="v-ord"><button type="button" class="ibtn v-grip" aria-label="Kéo để dời Đen · M">⠿</button><button type="button" class="ibtn" aria-label="Đưa Đen · M lên">↑</button><button type="button" class="ibtn" aria-label="Đưa Đen · M xuống">↓</button></span></td><td class="v-name lead">Đen · M</td><td data-label="SKU"><input class="input" value="DAM0123-DEN-M"></td><td data-label="Barcode"><input class="input num" value="2000000000022"></td><td data-label="Giá bán"><input class="input num" value="350.000"></td><td data-label="Giá nhập"><input class="input num" value="180.000"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Đang bán</option></select></span></td></tr>
+<tr class="is-moved"><td data-label="Thứ tự" class="c-ord"><span class="v-ord"><button type="button" class="ibtn v-grip" aria-label="Kéo để dời Be · S">⠿</button><button type="button" class="ibtn" aria-label="Đưa Be · S lên">↑</button><button type="button" class="ibtn" aria-label="Đưa Be · S xuống">↓</button></span></td><td class="v-name lead">Be · S</td><td data-label="SKU"><input class="input" value="DAM0123-BE-S"></td><td data-label="Barcode"><input class="input num" value="2000000000039"></td><td data-label="Giá bán"><input class="input num" value="350.000"></td><td data-label="Giá nhập"><input class="input num" value="180.000"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Đang bán</option></select></span></td></tr>
+<tr class="is-drag"><td data-label="Thứ tự" class="c-ord"><span class="v-ord"><button type="button" class="ibtn v-grip" aria-label="Kéo để dời Đen · L">⠿</button><button type="button" class="ibtn" aria-label="Đưa Đen · L lên">↑</button><button type="button" class="ibtn" aria-label="Đưa Đen · L xuống">↓</button></span></td><td class="v-name lead">Đen · L</td><td data-label="SKU"><input class="input" value="DAM0123-DEN-L"></td><td data-label="Barcode"><input class="input num" value="2000000000046"></td><td data-label="Giá bán"><input class="input num" value="420.000"></td><td data-label="Giá nhập"><input class="input num" value="190.000"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Đang bán</option></select></span></td></tr>
+<tr class=""><td data-label="Thứ tự" class="c-ord"><span class="v-ord"><button type="button" class="ibtn v-grip" aria-label="Kéo để dời Be · M">⠿</button><button type="button" class="ibtn" aria-label="Đưa Be · M lên">↑</button><button type="button" class="ibtn" aria-label="Đưa Be · M xuống">↓</button></span></td><td class="v-name lead">Be · M</td><td data-label="SKU"><input class="input" value="DAM0123-BE-M"></td><td data-label="Barcode"><input class="input num" value="2000000000053"></td><td data-label="Giá bán"><input class="input num" value="350.000"></td><td data-label="Giá nhập"><input class="input num" value="180.000"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Đang bán</option></select></span></td></tr>
+<tr class=""><td data-label="Thứ tự" class="c-ord"><span class="v-ord"><button type="button" class="ibtn v-grip" aria-label="Kéo để dời Xanh rêu đậm pha ánh kim loại bạc phong cách cổ điển · XXL">⠿</button><button type="button" class="ibtn" aria-label="Đưa Xanh rêu đậm pha ánh kim loại bạc phong cách cổ điển · XXL lên">↑</button><button type="button" class="ibtn" aria-label="Đưa Xanh rêu đậm pha ánh kim loại bạc phong cách cổ điển · XXL xuống" disabled>↓</button></span></td><td class="v-name lead">Xanh rêu đậm pha ánh kim loại bạc phong cách cổ điển · XXL</td><td data-label="SKU"><input class="input" value="DAM0123-XANHREU-XXL"></td><td data-label="Barcode"><input class="input num" placeholder="Tự sinh khi lưu"></td><td data-label="Giá bán"><input class="input num" value="420.000"></td><td data-label="Giá nhập"><input class="input num" value=""></td><td data-label="Trạng thái"><span class="small muted">Mới, chưa lưu</span></td></tr>
+</tbody></table></div>
+<p class="hint v-hint">Thứ tự ở đây là thứ tự khách thấy trên website. Kéo ⠿ hoặc bấm ↑ ↓ để đổi (trên ⠿ dùng được phím mũi tên lên, xuống); thứ tự lưu cùng nút Lưu. Barcode để trống thì CRM tự sinh mã EAN-13 bắt đầu bằng 2 khi lưu; biến thể đã lưu không xóa, chỉ chuyển "Ngừng bán".</p>
+</section>
+
+<section class="st" data-ca="chi-xem"><p class="xs">TRẠNG THÁI C</p><h2>Chỉ xem (không có quyền sửa sản phẩm): chỉ số thứ tự, không tay nắm, không nút</h2></section>
+<section class="card">
+<div class="row-between"><h2>Biến thể</h2><span class="small muted">2 màu × 3 size = 6 biến thể</span></div>
+<div class="tbl-frame v-frame"><table class="tbl vtbl">
+<thead><tr><th class="c-ord">Thứ tự</th><th>Biến thể</th><th class="c-sku">SKU *</th><th class="c-bar">Barcode</th><th class="c-pr">Giá bán *</th><th class="c-pr">Giá nhập</th><th class="c-st">Trạng thái</th></tr></thead>
+<tbody>
+<tr class=""><td data-label="Thứ tự" class="c-ord"><span class="ord">1</span></td><td class="v-name lead">Đen · S</td><td data-label="SKU"><input class="input" value="DAM0123-DEN-S" disabled></td><td data-label="Barcode"><input class="input num" value="2000000000015" disabled></td><td data-label="Giá bán"><input class="input num" value="350.000" disabled></td><td data-label="Giá nhập"><input class="input num" value="180.000" disabled></td><td data-label="Trạng thái"><span class="select-wrap"><select disabled><option>Đang bán</option></select></span></td></tr>
+<tr class=""><td data-label="Thứ tự" class="c-ord"><span class="ord">2</span></td><td class="v-name lead">Đen · M</td><td data-label="SKU"><input class="input" value="DAM0123-DEN-M" disabled></td><td data-label="Barcode"><input class="input num" value="2000000000022" disabled></td><td data-label="Giá bán"><input class="input num" value="350.000" disabled></td><td data-label="Giá nhập"><input class="input num" value="180.000" disabled></td><td data-label="Trạng thái"><span class="select-wrap"><select disabled><option>Đang bán</option></select></span></td></tr>
+<tr class="is-moved"><td data-label="Thứ tự" class="c-ord"><span class="ord">3</span></td><td class="v-name lead">Be · S</td><td data-label="SKU"><input class="input" value="DAM0123-BE-S" disabled></td><td data-label="Barcode"><input class="input num" value="2000000000039" disabled></td><td data-label="Giá bán"><input class="input num" value="350.000" disabled></td><td data-label="Giá nhập"><input class="input num" value="180.000" disabled></td><td data-label="Trạng thái"><span class="select-wrap"><select disabled><option>Đang bán</option></select></span></td></tr>
+<tr class=""><td data-label="Thứ tự" class="c-ord"><span class="ord">4</span></td><td class="v-name lead">Đen · L</td><td data-label="SKU"><input class="input" value="DAM0123-DEN-L" disabled></td><td data-label="Barcode"><input class="input num" value="2000000000046" disabled></td><td data-label="Giá bán"><input class="input num" value="420.000" disabled></td><td data-label="Giá nhập"><input class="input num" value="190.000" disabled></td><td data-label="Trạng thái"><span class="select-wrap"><select disabled><option>Đang bán</option></select></span></td></tr>
+<tr class=""><td data-label="Thứ tự" class="c-ord"><span class="ord">5</span></td><td class="v-name lead">Be · M</td><td data-label="SKU"><input class="input" value="DAM0123-BE-M" disabled></td><td data-label="Barcode"><input class="input num" value="2000000000053" disabled></td><td data-label="Giá bán"><input class="input num" value="350.000" disabled></td><td data-label="Giá nhập"><input class="input num" value="180.000" disabled></td><td data-label="Trạng thái"><span class="select-wrap"><select disabled><option>Đang bán</option></select></span></td></tr>
+<tr class="is-muted"><td data-label="Thứ tự" class="c-ord"><span class="ord">6</span></td><td class="v-name lead">Be · L</td><td data-label="SKU"><input class="input" value="DAM0123-BE-L" disabled></td><td data-label="Barcode"><input class="input num" value="2000000000060" disabled></td><td data-label="Giá bán"><input class="input num" value="420.000" disabled></td><td data-label="Giá nhập"><input class="input num" value="190.000" disabled></td><td data-label="Trạng thái"><span class="select-wrap"><select disabled><option>Ngừng bán</option></select></span></td></tr>
+</tbody></table></div>
+</section>
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

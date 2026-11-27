@@ -38,7 +38,7 @@ type PermissionDef struct {
 }
 
 // Permissions là mọi quyền của CRM: M0 (kế hoạch M0 Task 7), M1 (kế hoạch M1 Task M1-26), M2 (Task M2-01), M3
-// (Task M3-04), M4 (Task 143) và M5. Bảng chuẩn kèm việc
+// (Task M3-04), M4 (Task 143), M5 và M6 (Task 225). Bảng chuẩn kèm việc
 // của từng quyền: docs/quyen.md (test giữ hai bên khớp). Mốc sau chỉ thêm quyền, không đổi loại phạm vi của quyền
 // đã có (ngoại lệ đã duyệt: Task 315 lượt 2 chuyển sáu quyền quản trị sang ScopeShop). Quyền mới ghi chính sách
 // toàn shop hay quản trị là ScopeShop. Route khai quyền ngoài danh sách này thì tests/arch đỏ.
@@ -129,6 +129,14 @@ var Permissions = []PermissionDef{ //nolint:gochecknoglobals // danh sách hằn
 	{"conversation.assign", ScopeByTarget},
 	{"conversation.settings", ScopeByTarget},
 	{"live.operate", ScopeByTarget},
+	// M6 (kế hoạch M6 Task M6-02 = Task 225): xem báo cáo bán hàng theo Page, báo cáo tồn theo kho; xuất Excel, xem
+	// tệp xuất của mọi người, xuất danh sách khách là việc nhạy cảm chỉ hiệu lực ở gán toàn shop (Q13, Q14,
+	// QĐ-223-6): ScopeShop.
+	{"report.sales.read", ScopeByTarget},
+	{"report.inventory.read", ScopeByTarget},
+	{"report.export", ScopeShop},
+	{"report.exports.manage", ScopeShop},
+	{"customer.export", ScopeShop},
 }
 
 // Loại phạm vi của một grant (cột user_role_grants.scope_type).

@@ -21,7 +21,7 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m5-website-flash-sale
   `flash_not_active`, `flash_ended`.
 - Chỗ dùng trên màn hình: chưa có màn đợt flash sale (màn ở task sau); `console/src/api/**` sinh lại, `errors.ts` thêm
   câu tiếng Việt cho 4 mã mới.
-- Câu sqlc, bảng, pha migration: migration `0533_flash_ledger_doc_types.sql` (số trống kế tiếp sau 0532 trên main; kế
+- Câu sqlc, bảng, pha migration: migration `0540_flash_ledger_doc_types.sql` (ban đầu 0533, đổi sau gộp, xem «Gộp vào main»; kế
   hoạch ghi 0508) — pha mở rộng: nới CHECK `doc_type` của `inventory.stock_ledger` thêm `flash_hold`, `flash_release`
   (DROP rồi ADD NOT VALID + VALIDATE, giữ đủ 7 giá trị cũ; không đụng `stock_documents`). Ràng buộc
   `stock_ledger_step_key UNIQUE (tenant_id, doc_type, doc_id, variant_id, warehouse_id, bucket, step)` của M1 vẫn
@@ -134,7 +134,7 @@ không deadlock). 6.12 sự kiện, lỗi chỉ mang mã; không dữ liệu kh�
 
 ## Khác kế hoạch
 
-- Migration số 0533 (kế hoạch 0508): main đã tới 0532.
+- Migration số 0540 (kế hoạch 0508): lúc làm lấy 0533, trùng 0533 của Task 513 trên main nên điều phối viên cấp 0540.
 - Test rapid chạy theo số lượt của gói promotion (200, `TestMain`) thay vì 50: đổi cờ `rapid.checks` cho riêng một
   test không an toàn khi các test của gói chạy song song; 200 lượt mất ~12 s.
 - Ca "đóng đợt có 4 trống và 2 giữ" nằm ở test inventory (`TestFlashAddAndClose`), nơi dựng được dòng đơn thật cho
@@ -154,6 +154,26 @@ không deadlock). 6.12 sự kiện, lỗi chỉ mang mã; không dữ liệu kh�
 - (Reviewer vòng 1) Thêm suất vẫn nhận khi đợt đã quá giờ kết thúc mà nhịp chưa chạy (tối đa ~15 s); nhịp sau đóng và
   trả suất, sổ không sai.
 
+## Gộp vào main
+
+Lượt sửa sau gộp (27/11, điều phối viên giao): gộp vào main bị chặn vì trùng số migration — main đã có
+`migrations/0533_catalog_variant_position.sql` (Task 513).
+
+- `git merge main` vào task-200 (một lần). Xung đột chỉ ở mã sinh (`console/src/api/index.ts`, `console/src/api/sdk.gen.ts`,
+  `internal/httpapi/gen/oas_router_gen.go`); `openapi/openapi.yaml`, `docs/quyen.md`, `docs/views.md`, `errors.ts` tự gộp
+  sạch, giữ đủ hai bên. Mã sinh: lấy một bên rồi `make gen` sinh lại từ `openapi.yaml` đã gộp.
+- `git mv migrations/0533_flash_ledger_doc_types.sql migrations/0540_flash_ledger_doc_types.sql` (số 0540 do điều phối
+  viên cấp; đã kiểm main và mọi nhánh `task-*`: không nhánh nào có 05(34–49)). Sửa chỗ nhắc số: chú thích đầu migration,
+  `internal/modules/inventory/flash.go` (chú thích CHECK doc_type), tệp task này (Ảnh hưởng, Khác kế hoạch).
+- Thứ tự chạy mới: 0532_flash_sales → 0533_catalog_variant_position (Task 513) → 0540_flash_ledger_doc_types. 0540 chỉ
+  nới CHECK của `inventory.stock_ledger`, không phụ thuộc 0533 của Task 513. Không đổi hành vi nào khác.
+- Bằng chứng: `go build ./...` qua; `go test -count=1 -run '^(TestFlashAddAndClose|TestFlashTick_CloseManyNoDeadlock)$'
+  ./internal/modules/inventory/ ./internal/modules/promotion/` → `ok` cả hai gói; `make jscpd` → `Found 0 clones`;
+  `scripts/agent/ci-task.sh` (bản đã gộp, tree 33237a5e) → toàn bộ test (affected.py: migration 0540 có `DROP`):
+  `REMOTE-TEST XANH https://github.com/quyenld37/elimaz-crm/actions/runs/45942479038`, `CI-TASK XANH (từ xa trên
+  blacksmith …)` — static, test (1), test (2) success. Test kiến trúc chạy trên Mac hết giờ 600 s vì máy quá tải (nhiều
+  phiên chạy cùng lúc), không có ca đỏ; trên bể từ xa (job static/test) xanh.
+
 ## Reviewer
 
 Vòng 1: CẦN SỬA — `Tick` đóng nhiều đợt khóa số dư theo từng đợt (mỗi đợt tăng dần nhưng cả transaction không), có
@@ -164,5 +184,12 @@ Ghi chú không bắt buộc của reviewer chép vào "Việc phát hiện thê
 Vòng 2: ĐẠT — lỗi deadlock vòng 1 đã sửa đúng (`LockFlashStock` một lần cho mọi đợt cần đóng, ORDER BY variant_id,
 warehouse_id FOR UPDATE); không phát hiện mới. Ghi chú không bắt buộc: test mới dựa vào id đợt A < B (uuidv7 theo thứ tự
 tạo nên luôn đúng) và một `time.Sleep` 300 ms để dựng tình huống (máy chậm thì có thể bỏ sót, không đỏ giả).
+
+Vòng 3 (sửa sau gộp, đổi 0533 → 0540): ĐẠT, không phát hiện phải sửa. Đã kiểm: không còn chỗ nhắc nhầm 0533 cho
+migration của task này; 0540 trống ở mọi nhánh; SQL migration chỉ đổi chú thích; 0540 không phụ thuộc 0533 của Task 513;
+gộp giữ đủ hai bên (numstat so MERGE_HEAD khớp phần riêng của 041d4ec3, kể cả openapi.yaml, errors.ts, views.md,
+errors_snapshot_test.go); mã sinh không còn dấu xung đột. Ghi chú không bắt buộc: task-516 giữ 0535 < 0540, gộp sau
+task-200 thì migration chạy không theo thứ tự số (đã có test `internal/platform/db/migrate_test.go` cho ca này) —
+điều phối viên lưu ý.
 
 Kết luận: ĐẠT

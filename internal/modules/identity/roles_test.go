@@ -44,6 +44,8 @@ func TestDefaultRoles_Content(t *testing.T) {
 			"order.requests.read", "order.requests.manage",
 			// M4 (Task 143).
 			"conversation.read", "conversation.reply", "live.operate", "files.upload",
+			// M6 (Task 225).
+			"report.sales.read",
 		},
 		"warehouse": {
 			"catalog.read", "inventory.read", "inventory.documents.create", "inventory.stocktake", "fulfillment.read",
@@ -53,6 +55,8 @@ func TestDefaultRoles_Content(t *testing.T) {
 			// M3 (Task M3-04).
 			"fulfillment.carrier_accounts.read", "fulfillment.quote", "fulfillment.cancel", "fulfillment.print",
 			"fulfillment.pack", "fulfillment.manual_status", "inventory.aged.read",
+			// M6 (Task 225).
+			"report.inventory.read",
 		},
 		"accountant": {
 			"catalog.read", "inventory.read", "order.read", "fulfillment.read", "realtime.subscribe",
@@ -61,6 +65,8 @@ func TestDefaultRoles_Content(t *testing.T) {
 			// M3 (Task M3-04).
 			"cash.cod.read", "cash.statements.import", "cash.statements.confirm", "cash.adjust", "cash.payments.record",
 			"cash.refunds.record", "files.upload",
+			// M6 (Task 225).
+			"report.sales.read", "report.export",
 		},
 	}
 	names := map[string]string{"owner": "Chủ", "manager": "Quản lý", "sale": "Bán hàng", "warehouse": "Kho", "accountant": "Kế toán"}

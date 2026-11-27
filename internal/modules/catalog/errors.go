@@ -28,6 +28,9 @@ var (
 	ErrInvalidPrice = errors.New("catalog: giá không hợp lệ")
 	// ErrInvalidWeight: cân nặng của biến thể ngoài [MinWeightGrams, MaxWeightGrams] (QĐ30 của M5).
 	ErrInvalidWeight = errors.New("catalog: cân nặng không hợp lệ")
+	// ErrVariantOrderMismatch: danh sách sắp thứ tự biến thể không đúng tập biến thể của mẫu (thiếu, thừa, trùng, mã lạ;
+	// Task 513).
+	ErrVariantOrderMismatch = errors.New("catalog: danh sách biến thể không khớp mẫu")
 	// ErrInvalidInput: mã, tên, màu, size, SKU, barcode, màu hex hay trạng thái không hợp lệ.
 	ErrInvalidInput = errors.New("catalog: dữ liệu mẫu không hợp lệ")
 	// ErrCategoryCycle: cha mới của danh mục là chính nó hay nằm trong cây con của nó.

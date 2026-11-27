@@ -205,6 +205,10 @@ type CreateCouponRes interface {
 	createCouponRes()
 }
 
+type CreateCustomerExportRes interface {
+	createCustomerExportRes()
+}
+
 type CreateCustomerRes interface {
 	createCustomerRes()
 }
@@ -215,6 +219,10 @@ type CreateCustomerTagRes interface {
 
 type CreateFlashSaleRes interface {
 	createFlashSaleRes()
+}
+
+type CreateInventoryReportRunRes interface {
+	createInventoryReportRunRes()
 }
 
 type CreateLabelBatchRes interface {
@@ -243,6 +251,10 @@ type CreateReturnRes interface {
 
 type CreateRoleRes interface {
 	createRoleRes()
+}
+
+type CreateSalesReportRunRes interface {
+	createSalesReportRunRes()
 }
 
 type CreateServiceKeyRes interface {
@@ -373,6 +385,14 @@ type GetCustomerDeliveryStatsRes interface {
 	getCustomerDeliveryStatsRes()
 }
 
+type GetCustomerExportFileRes interface {
+	getCustomerExportFileRes()
+}
+
+type GetCustomerExportRes interface {
+	getCustomerExportRes()
+}
+
 type GetCustomerImportRes interface {
 	getCustomerImportRes()
 }
@@ -403,6 +423,22 @@ type GetFlashSaleRes interface {
 
 type GetFulfillmentSettingsRes interface {
 	getFulfillmentSettingsRes()
+}
+
+type GetInventoryMovementsRes interface {
+	getInventoryMovementsRes()
+}
+
+type GetInventoryReportRunFileRes interface {
+	getInventoryReportRunFileRes()
+}
+
+type GetInventoryReportRunRes interface {
+	getInventoryReportRunRes()
+}
+
+type GetInventoryStockRes interface {
+	getInventoryStockRes()
 }
 
 type GetLabelBatchRes interface {
@@ -467,6 +503,34 @@ type GetProductRes interface {
 
 type GetReturnRes interface {
 	getReturnRes()
+}
+
+type GetSalesBestSellersRes interface {
+	getSalesBestSellersRes()
+}
+
+type GetSalesCarriersReportRes interface {
+	getSalesCarriersReportRes()
+}
+
+type GetSalesDashboardRes interface {
+	getSalesDashboardRes()
+}
+
+type GetSalesOrdersReportRes interface {
+	getSalesOrdersReportRes()
+}
+
+type GetSalesReportFiltersRes interface {
+	getSalesReportFiltersRes()
+}
+
+type GetSalesReportRunFileRes interface {
+	getSalesReportRunFileRes()
+}
+
+type GetSalesReportRunRes interface {
+	getSalesReportRunRes()
 }
 
 type GetShipmentCodRes interface {
@@ -625,6 +689,10 @@ type ListCustomerConversationsRes interface {
 	listCustomerConversationsRes()
 }
 
+type ListCustomerExportsRes interface {
+	listCustomerExportsRes()
+}
+
 type ListCustomerMergeCandidatesRes interface {
 	listCustomerMergeCandidatesRes()
 }
@@ -647,6 +715,10 @@ type ListFlashSalesRes interface {
 
 type ListFollowUpsRes interface {
 	listFollowUpsRes()
+}
+
+type ListInventoryReportRunsRes interface {
+	listInventoryReportRunsRes()
 }
 
 type ListJobsRes interface {
@@ -739,6 +811,14 @@ type ListRolesRes interface {
 
 type ListRolesToManageRes interface {
 	listRolesToManageRes()
+}
+
+type ListSalesOrdersDrilldownRes interface {
+	listSalesOrdersDrilldownRes()
+}
+
+type ListSalesReportRunsRes interface {
+	listSalesReportRunsRes()
 }
 
 type ListServiceKeysRes interface {
@@ -899,6 +979,10 @@ type RenderReplyTemplateRes interface {
 
 type ReorderProductImagesRes interface {
 	reorderProductImagesRes()
+}
+
+type ReorderProductVariantsRes interface {
+	reorderProductVariantsRes()
 }
 
 type ReorderWebCarriersRes interface {

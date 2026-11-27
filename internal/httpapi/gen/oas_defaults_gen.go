@@ -27,6 +27,14 @@ func (s *FlashItemInput) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *SalesOrdersReport) setDefaults() {
+	{
+		val := ReportDimension("status")
+		s.GroupBy = val
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *WebCampaignInput) setDefaults() {
 	{
 		val := bool(false)

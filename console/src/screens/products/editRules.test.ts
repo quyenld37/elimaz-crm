@@ -5,11 +5,15 @@ import type { Product, ProductClassification, Variant } from "../../api";
 import { editBlocks, newBlock } from "./articleRules";
 import {
   addOption,
+  applyOrder,
   applyProduct,
+  applyVariant,
   canRemoveOption,
   createBody,
   draftFromProduct,
   emptyDraft,
+  moveRow,
+  orderIds,
   parseMoney,
   removeOption,
   savePlan,
@@ -118,16 +122,16 @@ describe("lưới màu × size", () => {
     expect(d.colors).toEqual(["Đen"]);
     expect(d.rows.length).toBe(1);
   });
-  it("mẫu đã lưu: màu, size theo thứ tự xuất hiện; dòng xếp theo màu rồi size; giá hiện 350.000", () => {
+  it("mẫu đã lưu: màu, size theo thứ tự xuất hiện; dòng giữ thứ tự của máy chủ (Task 513); giá hiện 350.000", () => {
     const d = draftFromProduct(
       product([variant(1, "Be", "M"), variant(2, "Đen", "S"), variant(3, "Be", "S", { costPrice: undefined })]),
       CLS,
     );
     expect(d.colors).toEqual(["Be", "Đen"]);
     expect(d.sizes).toEqual(["M", "S"]);
-    expect(d.rows.map((r) => `${r.color}·${r.size}`)).toEqual(["Be·M", "Be·S", "Đen·S"]);
+    expect(d.rows.map((r) => `${r.color}·${r.size}`)).toEqual(["Be·M", "Đen·S", "Be·S"]);
     expect(d.rows[0]?.price).toBe("350.000");
-    expect(d.rows[1]?.costPrice).toBe("");
+    expect(d.rows[2]?.costPrice).toBe("");
   });
   it("version của bản nháp là version nhỏ hơn của mẫu và phân loại (đọc lệch thì lưu báo xung đột, không đè)", () => {
     expect(draftFromProduct(product([]), { ...CLS, version: 9 }).version).toBe(7);
@@ -234,6 +238,90 @@ describe("savePlan", () => {
   it("thứ tự nhãn khác nhau nhưng cùng tập → không đổi", () => {
     const b2 = { ...base, tagIds: ["a", "b"] };
     expect(savePlan(b2, { ...b2, tagIds: ["b", "a"] })).toEqual([]);
+  });
+});
+
+describe("thứ tự biến thể (Task 513)", () => {
+  const names = (d: Draft) => d.rows.map((r) => `${r.color}·${r.size}`);
+  const base = draftFromProduct(
+    product([variant(1, "Đen", "S"), variant(2, "Đen", "M"), variant(3, "Be", "S"), variant(4, "Be", "M")]),
+    CLS,
+  );
+
+  it("dời dòng: moveRow đổi chỗ, đánh dấu dòng đã dời; dời ra ngoài biên → giữ trong bảng", () => {
+    const d = moveRow(base, 2, 0);
+    expect(names(d)).toEqual(["Be·S", "Đen·S", "Đen·M", "Be·M"]);
+    expect(d.moved).toEqual([variant(3, "Be", "S").id]);
+    expect(names(moveRow(base, 3, 99))).toEqual(names(base));
+    expect(names(moveRow(base, 0, -1))).toEqual(names(base));
+    expect(base.moved).toBeUndefined();
+  });
+
+  it("chưa dời → không bước order; dời rồi dời lại như cũ → không bước order", () => {
+    expect(savePlan(base, base)).toEqual([]);
+    expect(savePlan(base, moveRow(moveRow(base, 0, 1), 1, 0))).toEqual([]);
+  });
+
+  it("dời → một bước order gửi mọi biến thể theo thứ tự mới", () => {
+    const e = moveRow(base, 3, 1);
+    expect(savePlan(base, e)).toEqual([{ kind: "order" }]);
+    expect(orderIds(e)).toEqual([1, 4, 2, 3].map((i) => variant(i, "x", "x").id));
+  });
+
+  it("chưa ai dời: dòng mới xếp theo màu × size sau các dòng đã lưu, không cần bước order", () => {
+    const e = addOption(addOption(base, "size", "L"), "color", "Xanh");
+    expect(names(e)).toEqual(["Đen·S", "Đen·M", "Be·S", "Be·M", "Đen·L", "Be·L", "Xanh·S", "Xanh·M", "Xanh·L"]);
+    expect(savePlan(base, e).map((s) => s.kind)).toEqual(Array(5).fill("add"));
+  });
+
+  it("đã dời: dòng sinh thêm vào cuối; dòng mới cũng dời được → bước order sau thêm, trước sửa biến thể", () => {
+    let e = moveRow(base, 3, 0);
+    e = addOption(e, "size", "L");
+    expect(names(e)).toEqual(["Be·M", "Đen·S", "Đen·M", "Be·S", "Đen·L", "Be·L"]);
+    e = moveRow(e, 5, 1);
+    e = setRow(e, e.rows[0]?.key ?? "", { price: "400.000" });
+    expect(savePlan(base, e).map((s) => s.kind)).toEqual(["add", "add", "order", "variant"]);
+  });
+
+  it("dời một dòng mới chưa lưu nhưng dòng đã lưu không đổi chỗ với nhau → vẫn cần order nếu khác thứ tự máy chủ", () => {
+    let e = addOption(base, "size", "L");
+    e = moveRow(e, 4, 0);
+    expect(savePlan(base, e).map((s) => s.kind)).toEqual(["add", "add", "order"]);
+  });
+
+  it("thêm biến thể xong: dòng giữ chỗ trong bản nháp, bản đã lưu thêm vào cuối như máy chủ", () => {
+    let e = moveRow(base, 3, 0);
+    e = addOption(e, "size", "L");
+    const key = e.rows[4]?.key ?? "";
+    const p = applyVariant({ base, edit: e }, key, variant(5, "Đen", "L"));
+    expect(names(p.edit)).toEqual(["Be·M", "Đen·S", "Đen·M", "Be·S", "Đen·L", "Be·L"]);
+    expect(names(p.base)).toEqual(["Đen·S", "Đen·M", "Be·S", "Be·M", "Đen·L"]);
+    expect(p.edit.version).toBe(8);
+  });
+
+  it("bước order xong: bản đã lưu theo thứ tự máy chủ trả, version mới, hết đánh dấu → không còn thay đổi", () => {
+    const e = moveRow(base, 3, 0);
+    const p = applyOrder(
+      { base, edit: e },
+      product(
+        [4, 1, 2, 3].map((i) => variant(i, "x", "x")),
+        { version: 8 },
+      ),
+    );
+    expect(names(p.base)).toEqual(["Be·M", "Đen·S", "Đen·M", "Be·S"]);
+    expect(p.base.version).toBe(8);
+    expect(p.edit.version).toBe(8);
+    expect(p.edit.moved).toBeUndefined();
+    expect(savePlan(p.base, p.edit)).toEqual([]);
+  });
+
+  it("tạo mẫu mới: dời dòng → createBody gửi biến thể theo thứ tự bảng", () => {
+    const d = moveRow(newDraft(), 5, 0);
+    expect(
+      createBody(d)
+        .variants.map((v) => `${v.color}·${v.size}`)
+        .slice(0, 2),
+    ).toEqual(["Be·L", "Đen·S"]);
   });
 });
 

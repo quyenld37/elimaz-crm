@@ -266,12 +266,12 @@ SELECT v.variant_id, v.product_id, v.sku, v.barcode, v.color, v.size, v.price, v
 FROM unnest($2::uuid[]) AS pid (id)
 CROSS JOIN LATERAL (
     SELECT x.variant_id, x.product_id, x.sku, x.barcode, x.color, x.size, x.price, x.variant_status, x.sellable,
-           x.weight_grams
+           x.weight_grams, x.position
     FROM catalog.variants_v AS x
     WHERE x.product_id = pid.id
     OFFSET 0
 ) AS v
-ORDER BY v.product_id, v.variant_id
+ORDER BY v.product_id, v.position, v.variant_id
 `
 
 type VariantsOfParams struct {
@@ -293,7 +293,7 @@ type VariantsOfRow struct {
 	Available     int32
 }
 
-// Biến thể của các mẫu (theo thứ tự tạo) kèm số có thể bán ở kho warehouse_id (không có dòng số dư → 0). Đọc từng mẫu
+// Biến thể của các mẫu (theo vị trí nhân viên đặt rồi mã, Task 513) kèm số có thể bán ở kho warehouse_id (không có dòng số dư → 0). Đọc từng mẫu
 // (LATERAL … OFFSET 0 giữ vòng lặp theo mẫu: index biến thể theo mẫu, khóa chính của mẫu và của số dư).
 func (q *Queries) VariantsOf(ctx context.Context, arg VariantsOfParams) ([]VariantsOfRow, error) {
 	rows, err := q.db.Query(ctx, variantsOf, arg.WarehouseID, arg.ProductIds)

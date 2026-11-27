@@ -359,6 +359,14 @@ type Handler interface {
 	//
 	// POST /api/v1/customers
 	CreateCustomer(ctx context.Context, req *CreateCustomerRequest, params CreateCustomerParams) (CreateCustomerRes, error)
+	// CreateCustomerExport implements createCustomerExport operation.
+	//
+	// Customer.export chỉ hiệu lực ở gán toàn shop. params chỉ nhận mã, ngày, khóa lọc
+	// (không chữ tự do) → trường lạ 400 bad_params. Mỗi lần tạo, xong, tải ghi nhật
+	// ký (không có SĐT, tên).
+	//
+	// POST /api/v1/reports/customers/exports
+	CreateCustomerExport(ctx context.Context, req *CreateCustomerExportRequest, params CreateCustomerExportParams) (CreateCustomerExportRes, error)
 	// CreateCustomerTag implements createCustomerTag operation.
 	//
 	// Tạo nhãn khách (tên không trùng) (Task M2-12).
@@ -372,6 +380,12 @@ type Handler interface {
 	//
 	// POST /api/v1/flash-sales
 	CreateFlashSale(ctx context.Context, req *FlashSaleInput, params CreateFlashSaleParams) (CreateFlashSaleRes, error)
+	// CreateInventoryReportRun implements createInventoryReportRun operation.
+	//
+	// Như createSalesReportRun; report thuộc họ inventory (stock, stock_movements, products).
+	//
+	// POST /api/v1/reports/inventory/runs
+	CreateInventoryReportRun(ctx context.Context, req *CreateReportRunRequest, params CreateInventoryReportRunParams) (CreateInventoryReportRunRes, error)
 	// CreateLabelBatch implements createLabelBatch operation.
 	//
 	// In nhãn theo lô: nhóm vận đơn theo tài khoản hãng, mỗi nhóm một việc tải nhãn;
@@ -427,6 +441,14 @@ type Handler interface {
 	//
 	// POST /api/v1/identity/roles
 	CreateRole(ctx context.Context, req *CreateRoleRequest, params CreateRoleParams) (CreateRoleRes, error)
+	// CreateSalesReportRun implements createSalesReportRun operation.
+	//
+	// Xlsx cần thêm report.export (gán toàn shop) → không có thì 403 export_forbidden. report
+	// của họ khác → 400 unknown_report; params sai, có trường lạ → 400 bad_params. Mỗi
+	// người tối đa REPORT_MAX_PENDING_PER_USER lần đang chờ hay chạy → 429 too_many_runs.
+	//
+	// POST /api/v1/reports/sales/runs
+	CreateSalesReportRun(ctx context.Context, req *CreateReportRunRequest, params CreateSalesReportRunParams) (CreateSalesReportRunRes, error)
 	// CreateServiceKey implements createServiceKey operation.
 	//
 	// Gửi lại cùng Idempotency-Key → 409 already_processed (không tạo khóa thứ hai, không
@@ -646,6 +668,19 @@ type Handler interface {
 	//
 	// GET /api/v1/customers/{id}/delivery-stats
 	GetCustomerDeliveryStats(ctx context.Context, params GetCustomerDeliveryStatsParams) (GetCustomerDeliveryStatsRes, error)
+	// GetCustomerExport implements getCustomerExport operation.
+	//
+	// Một lần xuất danh sách khách (Task M6-15).
+	//
+	// GET /api/v1/reports/customers/exports/{id}
+	GetCustomerExport(ctx context.Context, params GetCustomerExportParams) (GetCustomerExportRes, error)
+	// GetCustomerExportFile implements getCustomerExportFile operation.
+	//
+	// Đường dẫn tải tệp danh sách khách (ký sẵn, hạn REPORT_LINK_TTL); mỗi lần gọi
+	// ghi nhật ký (Task M6-15).
+	//
+	// GET /api/v1/reports/customers/exports/{id}/file
+	GetCustomerExportFile(ctx context.Context, params GetCustomerExportFileParams) (GetCustomerExportFileRes, error)
 	// GetCustomerImport implements getCustomerImport operation.
 	//
 	// Trạng thái, số đếm và lỗi từng dòng (không giá trị) của một lần nhập
@@ -689,6 +724,34 @@ type Handler interface {
 	//
 	// GET /api/v1/fulfillment-settings
 	GetFulfillmentSettings(ctx context.Context) (GetFulfillmentSettingsRes, error)
+	// GetInventoryMovements implements getInventoryMovements operation.
+	//
+	// Xuất nhập tồn theo kỳ: đầu kỳ, nhập, nhập trả, bán, xuất khác, điều
+	// chỉnh, cuối kỳ (Task M6-11).
+	//
+	// GET /api/v1/reports/inventory/movements
+	GetInventoryMovements(ctx context.Context, params GetInventoryMovementsParams) (GetInventoryMovementsRes, error)
+	// GetInventoryReportRun implements getInventoryReportRun operation.
+	//
+	// Một lần chạy nền báo cáo tồn kho (Task M6-12).
+	//
+	// GET /api/v1/reports/inventory/runs/{id}
+	GetInventoryReportRun(ctx context.Context, params GetInventoryReportRunParams) (GetInventoryReportRunRes, error)
+	// GetInventoryReportRunFile implements getInventoryReportRunFile operation.
+	//
+	// Đường dẫn tải tệp Excel của lần chạy báo cáo tồn kho (Task M6-14).
+	//
+	// GET /api/v1/reports/inventory/runs/{id}/file
+	GetInventoryReportRunFile(ctx context.Context, params GetInventoryReportRunFileParams) (GetInventoryReportRunFileRes, error)
+	// GetInventoryStock implements getInventoryStock operation.
+	//
+	// Date bỏ trống là hôm nay (nguồn live); ngày đã qua đọc bản chụp (nguồn
+	// snapshot); ngày tương lai → 400 bad_date; trước bản chụp đầu tiên hay ngày chưa
+	// chụp → 404 no_snapshot. warehouseId ngoài phạm vi → 403 forbidden. q là tiền tố SKU.
+	// Dòng mọi ngăn bằng 0 bị ẩn.
+	//
+	// GET /api/v1/reports/inventory/stock
+	GetInventoryStock(ctx context.Context, params GetInventoryStockParams) (GetInventoryStockRes, error)
 	// GetLabelBatch implements getLabelBatch operation.
 	//
 	// Trạng thái lô nhãn; url ký sẵn 5 phút khi ready (Task M3-16).
@@ -797,6 +860,54 @@ type Handler interface {
 	//
 	// GET /api/v1/returns/{returnId}
 	GetReturn(ctx context.Context, params GetReturnParams) (GetReturnRes, error)
+	// GetSalesBestSellers implements getSalesBestSellers operation.
+	//
+	// Sản phẩm bán chạy theo SKU hay theo mẫu, theo đơn lên hay đơn thành công (Task
+	// M6-09).
+	//
+	// GET /api/v1/reports/sales/best-sellers
+	GetSalesBestSellers(ctx context.Context, params GetSalesBestSellersParams) (GetSalesBestSellersRes, error)
+	// GetSalesCarriersReport implements getSalesCarriersReport operation.
+	//
+	// Báo cáo hãng vận chuyển theo ngày tạo vận đơn: tỷ lệ thành công, hoàn, phí,
+	// COD (Task M6-08).
+	//
+	// GET /api/v1/reports/sales/carriers
+	GetSalesCarriersReport(ctx context.Context, params GetSalesCarriersReportParams) (GetSalesCarriersReportRes, error)
+	// GetSalesDashboard implements getSalesDashboard operation.
+	//
+	// Tổng quan: đơn lên, doanh số tiền hàng, hủy, thành công, hoàn, khách trả, chờ
+	// xử lý, theo kênh, theo ngày (BC01, Task M6-06).
+	//
+	// GET /api/v1/reports/sales/dashboard
+	GetSalesDashboard(ctx context.Context, params GetSalesDashboardParams) (GetSalesDashboardRes, error)
+	// GetSalesOrdersReport implements getSalesOrdersReport operation.
+	//
+	// Báo cáo đơn theo trạng thái, nguồn, nhân viên, kênh, Page, hãng, ngày (BC02, Task
+	// M6-07).
+	//
+	// GET /api/v1/reports/sales/orders
+	GetSalesOrdersReport(ctx context.Context, params GetSalesOrdersReportParams) (GetSalesOrdersReportRes, error)
+	// GetSalesReportFilters implements getSalesReportFilters operation.
+	//
+	// Lựa chọn của bộ lọc báo cáo bán hàng trong phạm vi người xem: nguồn, nhân
+	// viên, Page, hãng (Task M6-07).
+	//
+	// GET /api/v1/reports/sales/filters
+	GetSalesReportFilters(ctx context.Context) (GetSalesReportFiltersRes, error)
+	// GetSalesReportRun implements getSalesReportRun operation.
+	//
+	// Không phải người tạo và không có report.exports.manage → 404 run_not_found.
+	//
+	// GET /api/v1/reports/sales/runs/{id}
+	GetSalesReportRun(ctx context.Context, params GetSalesReportRunParams) (GetSalesReportRunRes, error)
+	// GetSalesReportRunFile implements getSalesReportRunFile operation.
+	//
+	// Cần report.export lúc tải (403 export_forbidden). Chưa xong, lỗi → 409 run_not_ready; quá
+	// hạn → 410 run_expired; lần chạy json → 400 bad_params.
+	//
+	// GET /api/v1/reports/sales/runs/{id}/file
+	GetSalesReportRunFile(ctx context.Context, params GetSalesReportRunFileParams) (GetSalesReportRunFileRes, error)
 	// GetShipment implements getShipment operation.
 	//
 	// Quyền fulfillment.read theo đích kho của tài khoản hãng của vận đơn.
@@ -1069,6 +1180,13 @@ type Handler interface {
 	//
 	// GET /api/v1/customers/{id}/conversations
 	ListCustomerConversations(ctx context.Context, params ListCustomerConversationsParams) (ListCustomerConversationsRes, error)
+	// ListCustomerExports implements listCustomerExports operation.
+	//
+	// Lần xuất danh sách khách: của mình, hay của mọi người khi có report.exports.manage
+	// (Task M6-15).
+	//
+	// GET /api/v1/reports/customers/exports
+	ListCustomerExports(ctx context.Context, params ListCustomerExportsParams) (ListCustomerExportsRes, error)
 	// ListCustomerMergeCandidates implements listCustomerMergeCandidates operation.
 	//
 	// Gợi ý "có thể là cùng một khách" theo SĐT trùng; không bao giờ tự gộp (Task
@@ -1110,6 +1228,12 @@ type Handler interface {
 	//
 	// GET /api/v1/follow-ups
 	ListFollowUps(ctx context.Context, params ListFollowUpsParams) (ListFollowUpsRes, error)
+	// ListInventoryReportRuns implements listInventoryReportRuns operation.
+	//
+	// Lần chạy nền báo cáo tồn kho, danh sách sản phẩm (Task M6-12).
+	//
+	// GET /api/v1/reports/inventory/runs
+	ListInventoryReportRuns(ctx context.Context, params ListInventoryReportRunsParams) (ListInventoryReportRunsRes, error)
 	// ListJobs implements listJobs operation.
 	//
 	// Việc nền cần người xử lý của tenant người gọi (không có payload).
@@ -1261,6 +1385,22 @@ type Handler interface {
 	//
 	// GET /api/v1/identity/roles/manage
 	ListRolesToManage(ctx context.Context) (ListRolesToManageRes, error)
+	// ListSalesOrdersDrilldown implements listSalesOrdersDrilldown operation.
+	//
+	// Cùng bộ lọc với getSalesOrdersReport. cellDimension + cellKey chọn một dòng của báo
+	// cáo (bỏ trống: cả bảng); metric chọn cột. Chỉ mã đơn, mã khách, trạng thái,
+	// tiền, kênh, nguồn, nhân viên, hãng; không SĐT, địa chỉ, tên khách. total đếm
+	// cả tập (trang sau giữ total của trang đầu qua con trỏ).
+	//
+	// GET /api/v1/reports/sales/orders/drilldown
+	ListSalesOrdersDrilldown(ctx context.Context, params ListSalesOrdersDrilldownParams) (ListSalesOrdersDrilldownRes, error)
+	// ListSalesReportRuns implements listSalesReportRuns operation.
+	//
+	// Lần chạy nền báo cáo bán hàng: của mình, hay của mọi người khi có
+	// report.exports.manage; mới nhất trước (Task M6-12).
+	//
+	// GET /api/v1/reports/sales/runs
+	ListSalesReportRuns(ctx context.Context, params ListSalesReportRunsParams) (ListSalesReportRunsRes, error)
 	// ListServiceKeys implements listServiceKeys operation.
 	//
 	// Khóa dịch vụ của website (không bao giờ kèm bí mật hay băm).
@@ -1526,6 +1666,14 @@ type Handler interface {
 	//
 	// PUT /api/v1/catalog/products/{id}/images/order
 	ReorderProductImages(ctx context.Context, req *ReorderProductImagesRequest, params ReorderProductImagesParams) (ReorderProductImagesRes, error)
+	// ReorderProductVariants implements reorderProductVariants operation.
+	//
+	// Thứ tự là thứ tự nhân viên và website thấy (Task 513). Danh sách thiếu, thừa,
+	// trùng hay có mã không thuộc mẫu → 422 invalid_input; version cũ → 409 version_conflict.
+	// Version mẫu tăng 1, version biến thể không đổi.
+	//
+	// PUT /api/v1/catalog/products/{id}/variants/order
+	ReorderProductVariants(ctx context.Context, req *ReorderProductVariantsRequest, params ReorderProductVariantsParams) (ReorderProductVariantsRes, error)
 	// ReorderWebCarriers implements reorderWebCarriers operation.
 	//
 	// AccountIds là mọi tài khoản đang hiện trên web (showOnWeb, trừ revoked) theo thứ tự

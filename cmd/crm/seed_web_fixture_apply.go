@@ -327,6 +327,36 @@ func (a *fixtureApply) variants(ctx context.Context, fp fixtureProduct) error {
 		version++
 		a.rep.Updated["variant"]++
 	}
+	return a.variantOrder(ctx, fp)
+}
+
+// variantOrder đặt thứ tự biến thể của mẫu theo tệp (Task 513): biến thể trong tệp theo thứ tự tệp, rồi biến thể chỉ có ở
+// CRM theo thứ tự hiện tại; đã đúng thì không ghi gì.
+func (a *fixtureApply) variantOrder(ctx context.Context, fp fixtureProduct) error {
+	p, err := catalog.GetProduct(ctx, a.tx, a.seller, fp.ID)
+	if err != nil {
+		return err //nolint:wrapcheck // catalog đã bọc
+	}
+	want := make([]uuid.UUID, 0, len(p.Variants))
+	inFile := make(map[uuid.UUID]bool, len(fp.Variants))
+	for _, fv := range fp.Variants {
+		want = append(want, fv.ID)
+		inFile[fv.ID] = true
+	}
+	have := make([]uuid.UUID, 0, len(p.Variants))
+	for _, v := range p.Variants {
+		have = append(have, v.ID)
+		if !inFile[v.ID] {
+			want = append(want, v.ID)
+		}
+	}
+	if slices.Equal(have, want) {
+		return nil
+	}
+	if err := a.cat.ReorderVariants(ctx, a.tx, a.seller, p.ID, p.Version, want, a.actor); err != nil {
+		return fmt.Errorf("sắp thứ tự biến thể của %s: %w", fp.Key, err)
+	}
+	a.rep.Updated["variant_order"]++
 	return nil
 }
 

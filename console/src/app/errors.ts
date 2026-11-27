@@ -200,6 +200,17 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
     "Khách của đơn không phải khách của hội thoại này. Lên đơn cho khách của hội thoại, hoặc gộp hồ sơ trước",
   send_not_allowed: "Không gửi được lúc này: đã quá thời hạn trả lời của Facebook hoặc khách đã chặn Page",
   template_variable_missing: "Mẫu trả lời thiếu thông tin để điền. Kiểm tra khách, đơn rồi thử lại",
+  // Báo cáo (M6, Task 225)
+  bad_params: "Bộ lọc của báo cáo không hợp lệ. Tải lại trang rồi chọn lại",
+  bad_date: "Ngày không hợp lệ: ngày đầu phải trước ngày cuối và không quá hôm nay",
+  range_too_long: "Khoảng thời gian tối đa 366 ngày. Thu hẹp khoảng rồi xem lại",
+  unknown_report: "Không có báo cáo này. Tải lại trang rồi thử lại",
+  export_forbidden: "Bạn chưa được cấp quyền xuất Excel",
+  run_not_found: "Không tìm thấy lần chạy báo cáo này",
+  no_snapshot: "Chưa có số tồn của ngày này. Chọn ngày khác",
+  run_not_ready: "Báo cáo chưa chạy xong. Chờ một lát rồi tải",
+  run_expired: "Tệp đã hết hạn tải. Chạy lại báo cáo để có tệp mới",
+  too_many_runs: "Bạn đang có nhiều báo cáo chờ chạy. Chờ xong bớt rồi tạo thêm",
 };
 
 /** Câu cho từng lý do từ chối mã giảm giá (CouponRejectReason: checkCoupon.reason, thân lỗi coupon_rejected.reason). */

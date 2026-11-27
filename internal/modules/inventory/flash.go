@@ -17,7 +17,7 @@ import (
 // trống (flash_release, held −). Không tạo phiếu kho. Thứ tự khóa ADR-46 nhóm 11: stock_balances theo (variant_id,
 // warehouse_id) tăng dần → flash_sale_units.
 
-// Loại chứng từ của sổ cho đợt flash sale (CHECK doc_type, migration 0533).
+// Loại chứng từ của sổ cho đợt flash sale (CHECK doc_type, migration 0540).
 const (
 	docFlashHold    = "flash_hold"
 	docFlashRelease = "flash_release"
