@@ -1,6 +1,7 @@
 package cash_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"sync"
@@ -241,8 +242,8 @@ func TestWaiveRefund(t *testing.T) {
 	}
 }
 
-// Đơn hủy chưa thu đồng nào → không nghĩa vụ. Phiếu trả loại exchange, carrier_return và đơn tạo thường → không
-// nghĩa vụ (exchange chuyển cho handleExchange, Task M3-25). Payload hỏng → queue.ErrPermanent.
+// Đơn hủy chưa thu đồng nào → không nghĩa vụ. Phiếu trả loại carrier_return và đơn tạo thường → không nghĩa vụ (phiếu
+// exchange: exchange_credit_test.go, Task M3-25). Payload hỏng → queue.ErrPermanent.
 func TestRefundsConsumer_NoObligation(t *testing.T) {
 	t.Parallel()
 	e := newPayEnv(t)
@@ -250,19 +251,7 @@ func TestRefundsConsumer_NoObligation(t *testing.T) {
 	e.mustDeliver(e.orderEvent(o.ID, order.TopicOrderCreated))
 	e.cancel(o.ID)
 	e.mustDeliver(e.orderEvent(o.ID, "order.cancelled"))
-	for _, kind := range []string{order.ReturnExchange, order.ReturnCarrier} {
-		p, err := json.Marshal(order.ReturnReceived{
-			Changed:  order.Changed{OrderID: o.ID, SellerID: e.seller, Version: 9, Status: order.StatusDelivered},
-			ReturnID: uuid.New(), Kind: kind, RefundAmount: 100000,
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		e.mustDeliver(events.StoredEvent{
-			ID: uuid.New(), TenantID: e.tenant, AggregateType: "order", AggregateID: o.ID.String(), Seq: 9,
-			Topic: order.TopicOrderPartiallyReturned, Payload: p,
-		})
-	}
+	e.mustDeliver(e.returnEvent(o.ID, uuid.New(), order.ReturnCarrier))
 	if obs := e.obligations(o.ID); len(obs) != 0 {
 		t.Errorf("có nghĩa vụ: %+v", obs)
 	}
@@ -312,25 +301,12 @@ func (e *payEnv) receivedReturn() (order.Order, uuid.UUID) {
 		ret uuid.UUID
 	)
 	if err := e.app(func(tx pgx.Tx) error {
-		var err error
-		if o, err = e.shop.Order(ctx, tx, e.seller, e.user, 0, order.ItemInput{VariantID: va, Qty: 1},
-			order.ItemInput{VariantID: vb, Qty: 2}); err != nil {
-			return err //nolint:wrapcheck // test
-		}
-		s, err := e.shop.Shipment(ctx, tx, e.seller, o.ID, e.user)
-		if err != nil {
-			return err //nolint:wrapcheck // test
-		}
-		for _, step := range []order.ShipmentStep{order.StepPickedUp, order.StepDelivered} {
-			if _, err := e.w.OnShipmentEvent(ctx, tx, e.seller, o.ID, s.ID, step, a, now); err != nil {
-				return err //nolint:wrapcheck // test
-			}
-		}
-		var ib uuid.UUID
-		for _, it := range o.Items {
-			if it.VariantID == vb {
-				ib = it.ID
-			}
+		var (
+			ib  uuid.UUID
+			err error
+		)
+		if o, ib, err = e.deliveredD1(ctx, tx, va, vb); err != nil {
+			return err
 		}
 		r, err := e.w.CreateReturn(ctx, tx, e.seller, o.ID, order.CreateReturnInput{
 			Kind: order.ReturnCustomer, Lines: []order.ReturnLineInput{{OrderItemID: ib, Quantity: 2}}, Reason: "Khách đổi ý",
@@ -349,4 +325,46 @@ func (e *payEnv) receivedReturn() (order.Order, uuid.UUID) {
 		e.t.Fatalf("dựng phiếu trả đã nhận: %v", err)
 	}
 	return o, ret
+}
+
+// deliveredD1 tạo trong tx đơn D1 (va ×1, vb ×2, ship 0) và giao bằng vận đơn thật (lấy hàng → đã giao); trả đơn và
+// dòng của vb.
+func (e *payEnv) deliveredD1(ctx context.Context, tx pgx.Tx, va, vb uuid.UUID) (order.Order, uuid.UUID, error) {
+	a, now := e.orderActor(), time.Now().UTC()
+	o, err := e.shop.Order(ctx, tx, e.seller, e.user, 0, order.ItemInput{VariantID: va, Qty: 1},
+		order.ItemInput{VariantID: vb, Qty: 2})
+	if err != nil {
+		return o, uuid.Nil, err //nolint:wrapcheck // test
+	}
+	s, err := e.shop.Shipment(ctx, tx, e.seller, o.ID, e.user)
+	if err != nil {
+		return o, uuid.Nil, err //nolint:wrapcheck // test
+	}
+	for _, step := range []order.ShipmentStep{order.StepPickedUp, order.StepDelivered} {
+		if _, err := e.w.OnShipmentEvent(ctx, tx, e.seller, o.ID, s.ID, step, a, now); err != nil {
+			return o, uuid.Nil, err //nolint:wrapcheck // test
+		}
+	}
+	for _, it := range o.Items {
+		if it.VariantID == vb {
+			return o, it.ID, nil
+		}
+	}
+	return o, uuid.Nil, nil
+}
+
+// returnEvent dựng order.partially_returned của đơn orderID cho phiếu returnID loại kind (tiền hoàn 100.000).
+func (e *payEnv) returnEvent(orderID, returnID uuid.UUID, kind string) events.StoredEvent {
+	e.t.Helper()
+	p, err := json.Marshal(order.ReturnReceived{
+		Changed:  order.Changed{OrderID: orderID, SellerID: e.seller, Version: 9, Status: order.StatusDelivered},
+		ReturnID: returnID, Kind: kind, RefundAmount: 100000,
+	})
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return events.StoredEvent{
+		ID: uuid.New(), TenantID: e.tenant, AggregateType: "order", AggregateID: orderID.String(), Seq: 9,
+		Topic: order.TopicOrderPartiallyReturned, Payload: p,
+	}
 }
