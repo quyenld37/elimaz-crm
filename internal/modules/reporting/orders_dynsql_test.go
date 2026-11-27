@@ -89,6 +89,16 @@ func newSetEnv(t *testing.T) setEnv {
 	return setEnv{st: st, tenant: tenant, seed: seed, all: DataScope{TenantID: tenant, SellerID: seed.Own(), AllPages: true}}
 }
 
+// newBulkEnv là setEnv có 100.000 đơn ngẫu nhiên (lặp lại được) từ 01/01/2025 tới 01/01/2027, cho test EXPLAIN.
+func newBulkEnv(t *testing.T) setEnv {
+	t.Helper()
+	e := newSetEnv(t)
+	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	e.seed.Bulk(100_000, rand.New(rand.NewPCG(7, 11)), //nolint:gosec // G404: dữ liệu thử lặp lại được, không phải bí mật
+		from, from.AddDate(2, 0, 0))
+	return e
+}
+
 func (e setEnv) want(t *testing.T, name string, s DataScope, f OrderFilter, m Metric, cell *Cell, want ...uuid.UUID) {
 	t.Helper()
 	rows, err := readSet(t.Context(), e.st.App, s, f, m, cell)
@@ -324,10 +334,7 @@ func (countTracer) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQueryEndDa
 // EXPLAIN bằng crm_app của tập placed 31 ngày (phạm vi all và phạm vi Page) trên 100.000 đơn: không Seq Scan.
 func TestOrderSet_ExplainNoSeqScan(t *testing.T) {
 	t.Parallel()
-	e := newSetEnv(t)
-	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	e.seed.Bulk(100_000, rand.New(rand.NewPCG(7, 11)), //nolint:gosec // G404: dữ liệu thử lặp lại được, không phải bí mật
-		from, from.AddDate(2, 0, 0))
+	e := newBulkEnv(t)
 	pages := e.seed.Pages()
 	f := OrderFilter{Period: mustPeriod(t, "2026-03-01", "2026-03-31"), Basis: BasisPlaced}
 	for _, c := range []struct {
