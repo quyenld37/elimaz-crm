@@ -30,6 +30,7 @@ func reportsError(err error) (status int, code string, ok bool) {
 		{reporting.ErrRangeTooLong, http.StatusBadRequest, codeRangeTooLong},
 		{reporting.ErrBadParams, http.StatusBadRequest, codeBadParams},
 		{reporting.ErrUnknownReport, http.StatusBadRequest, codeUnknownReport},
+		{reporting.ErrPageForbidden, http.StatusForbidden, codeForbidden},
 		{reporting.ErrNotImplemented, http.StatusNotImplemented, codeNotImplemented},
 	})
 }
@@ -39,12 +40,20 @@ func reportsError(err error) (status int, code string, ok bool) {
 //nolint:gochecknoglobals // bảng hằng chỉ đọc
 var reportDateParams = map[string]bool{"from": true, "to": true, "date": true}
 
-// reportParamError: tham số ngày của route báo cáo mà ogen không đọc được (sai dạng, không có trên lịch, thiếu) → 400
-// bad_date như ngày sai mà module bắt (hợp đồng M6: "sai dạng, from > to → 400 bad_date"), thay cho bad_request chung.
-func reportParamError(path string, err error) bool {
+// reportParamError: tham số query của route báo cáo mà ogen không đọc được → 400 với mã của hợp đồng M6: tham số ngày
+// (sai dạng, không có trên lịch, thiếu) → bad_date như ngày sai mà module bắt ("sai dạng, from > to → 400 bad_date");
+// tham số khác (enum groupBy, metric, basis, limit ngoài miền, thiếu metric…) → bad_params ("trường lạ hay sai → 400
+// bad_params", QĐ-230-4), thay cho bad_request chung.
+func reportParamError(path string, err error) (code string, ok bool) {
 	if !strings.HasPrefix(path, "/api/v1/reports/") {
-		return false
+		return "", false
 	}
 	var pe *ogenerrors.DecodeParamError
-	return errors.As(err, &pe) && pe.In == "query" && reportDateParams[pe.Name]
+	if !errors.As(err, &pe) || pe.In != "query" {
+		return "", false
+	}
+	if reportDateParams[pe.Name] {
+		return codeBadDate, true
+	}
+	return codeBadParams, true
 }

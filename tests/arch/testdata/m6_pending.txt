@@ -2,11 +2,8 @@
 # operation xóa dòng của mình (TestM6Contract_StatusCodes đỏ khi operation đã làm mà còn dòng, hay trả 501 mà không có
 # dòng). Đóng mốc (Task 244) đòi tệp này không còn dòng nào.
 getSalesDashboard
-getSalesOrdersReport
-listSalesOrdersDrilldown
 getSalesCarriersReport
 getSalesBestSellers
-getSalesReportFilters
 getInventoryStock
 getInventoryMovements
 createSalesReportRun

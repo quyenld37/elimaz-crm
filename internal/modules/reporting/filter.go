@@ -111,11 +111,6 @@ var (
 	}
 	// channelSet: kênh của đơn (CHECK orders_channel_check).
 	channelSet = map[string]bool{"facebook": true, "web": true, "manual": true}
-	// orderStatusSet: trạng thái thô của đơn (CHECK orders_status_check).
-	orderStatusSet = map[string]bool{
-		"draft": true, "new": true, "confirmed": true, "cancel_requested": true, "cancelled": true,
-		"delivered": true, "returned": true,
-	}
 	// carrierKeyRe: khóa hãng (CHECK carrier_accounts_carrier_key_check).
 	carrierKeyRe = regexp.MustCompile(`^[a-z][a-z0-9_]{0,31}$`)
 )
