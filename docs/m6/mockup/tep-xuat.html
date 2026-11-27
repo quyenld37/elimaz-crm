@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M6 — Báo cáo: Tệp xuất và chạy nền</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../../mockups/m1/m1.css">
+<link rel="stylesheet" href="../../mockups/m2/m2.css">
+<link rel="stylesheet" href="../../mockups/m3/m3.css">
+<link rel="stylesheet" href="m6.css">
+</head>
+<body data-page="tep-xuat" data-title="Tệp xuất">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Báo cáo / Tệp xuất</p><h1>Tệp xuất và chạy nền</h1><p class="sub">Các lần xuất Excel và báo cáo nặng chạy nền. Tệp báo cáo tải được trong 7 ngày, tệp danh sách khách 24 giờ; chỉ người tạo và người có quyền quản lý tệp xuất tải được, mỗi lần tải được ghi nhật ký.</p></div>
+	<div class="row"><button class="btn btn-quiet">Tải lại</button></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="bc04"><p class="xs">TRẠNG THÁI A · BC04</p><h2>Quản lý thấy lần chạy của mọi người; ba nhóm; đủ trạng thái</h2></section>
+<div class="stack">
+	<div class="box box-info small"><span data-ca="cua-toi">Nhân viên thấy lần chạy của mình.</span> <span data-ca="moi-nguoi">Người có quyền quản lý tệp xuất (Chủ, Quản lý) thấy lần chạy của mọi người, cột "Người tạo" cho biết ai tạo.</span></div>
+	<div class="meta" data-ca="tu-tai-lai"><span>Tự cập nhật khi một lần chạy xong (và mỗi 20 giây)</span></div>
+
+	<h3 data-ca="nhom-ban-hang">Báo cáo bán hàng</h3>
+	<div class="rt-frame scroll-x" data-ca="ds-lan-chay">
+	<table class="rt">
+		<thead><tr><th>Báo cáo</th><th class="l">Khoảng ngày</th><th class="l">Người tạo</th><th class="l">Trạng thái</th><th>Số dòng</th><th class="l">Hạn tải</th><th class="l">Thao tác</th></tr></thead>
+		<tbody>
+		<tr data-ca="tt-dang-cho"><td>Báo cáo đơn · Excel</td><td class="l">01/11 – 27/11/2026</td><td class="l"><span class="nm">Nguyễn Thị Lan</span></td><td class="l"><span class="run-st"><i class="dot"></i>Đang chờ</span></td><td>—</td><td class="l">—</td><td class="l"></td></tr>
+		<tr data-ca="tt-dang-chay"><td>Danh sách đơn chi tiết · Excel</td><td class="l">01/01 – 27/11/2026</td><td class="l"><span class="nm">Nguyễn Thị Lan</span></td><td class="l"><span class="run-st"><i class="dot"></i>Đang chạy</span></td><td>—</td><td class="l">—</td><td class="l"></td></tr>
+		<tr data-ca="tt-xong"><td>Báo cáo đơn · Excel</td><td class="l">21/11 – 27/11/2026</td><td class="l"><span class="nm is-narrow" title="Trần Nguyễn Hoàng Bảo Bình — trưởng ca live tối thứ Bảy và Chủ nhật, phụ trách Page ELIMAZ Công Sở và Page ELIMAZ Dạo Phố">Trần Nguyễn Hoàng Bảo Bình — trưởng ca live tối thứ Bảy và Chủ nhật, phụ trách Page ELIMAZ Công Sở và Page ELIMAZ Dạo Phố</span></td><td class="l"><span class="run-st ok-text"><i class="dot dot-ok"></i>Xong</span></td><td data-ca="so-dong">96</td><td class="l" data-ca="han-tai">04/12/2026 14:10</td><td class="l"><button class="btn btn-line" data-ca="tai-ve">Tải về</button></td></tr>
+		<tr data-ca="da-cat"><td>Danh sách đơn chi tiết · Excel</td><td class="l">01/01/2025 – 31/12/2025</td><td class="l"><span class="nm">Nguyễn Thị Lan</span></td><td class="l"><span class="run-st ok-text"><i class="dot dot-ok"></i>Xong</span><br><span class="chip chip-line">Đã cắt ở 200.000 dòng</span></td><td>200.000</td><td class="l">03/12/2026 09:02</td><td class="l"><button class="btn btn-line">Tải về</button></td></tr>
+		<tr><td>Tổng quan · bảng</td><td class="l">01/01 – 27/11/2026</td><td class="l"><span class="nm">Nguyễn Thị Lan</span></td><td class="l"><span class="run-st ok-text"><i class="dot dot-ok"></i>Xong</span></td><td>—</td><td class="l">28/11/2026 13:58</td><td class="l"><button class="btn btn-line" data-ca="xem">Xem</button></td></tr>
+		<tr data-ca="tt-loi-qua-nang"><td>Bán chạy · Excel</td><td class="l">01/01/2025 – 31/12/2025</td><td class="l"><span class="nm">Nguyễn Thị Lan</span></td><td class="l"><span class="run-st err-text"><i class="dot dot-err"></i>Lỗi: quá nặng</span></td><td>—</td><td class="l">—</td><td class="l"></td></tr>
+		<tr data-ca="tt-loi-ban"><td>Hãng vận chuyển · Excel</td><td class="l">01/11 – 27/11/2026</td><td class="l"><span class="nm">Trần Minh Thư</span></td><td class="l"><span class="run-st err-text"><i class="dot dot-err"></i>Lỗi: hệ thống bận, thử lại sau</span></td><td>—</td><td class="l">—</td><td class="l"></td></tr>
+		<tr data-ca="tt-loi-quyen"><td>Báo cáo đơn · Excel</td><td class="l">01/11 – 27/11/2026</td><td class="l"><span class="nm">Trần Minh Thư</span></td><td class="l"><span class="run-st err-text"><i class="dot dot-err"></i>Lỗi: không đủ quyền</span></td><td>—</td><td class="l">—</td><td class="l"></td></tr>
+		<tr data-ca="tt-loi"><td>Tổng quan · Excel</td><td class="l">20/11/2026</td><td class="l"><span class="nm">Nguyễn Thị Lan</span></td><td class="l"><span class="run-st err-text"><i class="dot dot-err"></i>Lỗi</span></td><td>—</td><td class="l">—</td><td class="l"></td></tr>
+		<tr data-ca="tt-het-han" class="is-muted"><td>Báo cáo đơn · Excel</td><td class="l">01/10 – 31/10/2026</td><td class="l"><span class="nm">Nguyễn Thị Lan</span></td><td class="l"><span class="run-st muted"><i class="dot"></i>Hết hạn</span></td><td>1.412</td><td class="l muted">08/11/2026 10:00</td><td class="l"></td></tr>
+		</tbody>
+	</table>
+	</div>
+
+	<h3 data-ca="nhom-ton">Báo cáo tồn kho</h3>
+	<div class="rt-frame scroll-x"><table class="rt">
+		<thead><tr><th>Báo cáo</th><th class="l">Ngày / kỳ</th><th class="l">Người tạo</th><th class="l">Trạng thái</th><th>Số dòng</th><th class="l">Hạn tải</th><th class="l">Thao tác</th></tr></thead>
+		<tbody>
+		<tr><td>Danh sách sản phẩm · Excel</td><td class="l">27/11/2026</td><td class="l"><span class="nm">Nguyễn Thị Lan</span></td><td class="l"><span class="run-st ok-text"><i class="dot dot-ok"></i>Xong</span></td><td>1.200</td><td class="l">04/12/2026 14:20</td><td class="l"><button class="btn btn-line">Tải về</button></td></tr>
+		<tr><td>Tồn · Excel</td><td class="l">20/11/2026</td><td class="l"><span class="nm">Phạm Quốc Huy</span></td><td class="l"><span class="run-st ok-text"><i class="dot dot-ok"></i>Xong</span></td><td>1.187</td><td class="l">04/12/2026 08:00</td><td class="l"><button class="btn btn-line">Tải về</button></td></tr>
+		</tbody>
+	</table></div>
+
+	<h3 data-ca="nhom-khach">Danh sách khách</h3>
+	<div class="rt-frame scroll-x"><table class="rt">
+		<thead><tr><th>Báo cáo</th><th class="l">Bộ lọc</th><th class="l">Người tạo</th><th class="l">Trạng thái</th><th>Số dòng</th><th class="l">Hạn tải</th><th class="l">Thao tác</th></tr></thead>
+		<tbody>
+		<tr><td>Danh sách khách · Excel</td><td class="l">Nhãn: Khách VIP</td><td class="l"><span class="nm">Nguyễn Thị Lan</span></td><td class="l"><span class="run-st ok-text"><i class="dot dot-ok"></i>Xong</span></td><td>842</td><td class="l">28/11/2026 09:15 (24 giờ)</td><td class="l"><button class="btn btn-line">Tải về</button></td></tr>
+		</tbody>
+	</table></div>
+	<p class="xs muted" data-ca="duong-dan-5-phut">Bấm Tải về: máy tạo đường dẫn tải có hạn 5 phút rồi mở ngay; bấm lại để có đường dẫn mới. Nhóm chỉ hiện khi bạn có quyền tương ứng (bán hàng, tồn kho, xuất danh sách khách).</p>
+	<p class="xs muted" data-ca="khong-o-cong-thuc">Tệp mở được bằng Excel, Google Sheets, LibreOffice. Không ô nào là công thức: nội dung bắt đầu bằng "=" hiện nguyên chữ.</p>
+</div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Thông báo: đang tạo tệp, chạy nền, xong; quá 5 lần chờ (429); tải tệp đã hết hạn (410)</h2></section>
+<div class="dlgs">
+	<div class="toast" role="status" data-ca="dang-tao-tep"><span class="grow">Đang tạo tệp, xem ở Tệp xuất.</span><a class="btn btn-line" href="#">Tệp xuất</a></div>
+	<div class="toast" role="status" data-ca="thong-bao-chay-nen"><span class="grow">Báo cáo nặng, đang chạy nền. Sẽ báo khi xong.</span></div>
+	<div class="toast" role="status" data-ca="thong-bao-xong"><span class="grow">Báo cáo đơn 21/11 – 27/11 đã xong.</span><button class="btn btn-line">Tải về</button></div>
+	<div class="box box-err stack-sm" data-ca="qua-5-lan"><b>Bạn đang có 5 lần chạy chưa xong.</b><p class="small">Chờ một lần xong rồi xuất tiếp.</p></div>
+	<div class="box box-err stack-sm" data-ca="het-han-410"><b>Tệp đã hết hạn và bị xóa.</b><p class="small">Xuất lại từ màn báo cáo.</p></div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Chưa có lần chạy; đang tải; lỗi</h2></section>
+<div class="dlgs">
+	<div class="empty" data-ca="0-lan-chay"><h2>Chưa có tệp xuất nào</h2><p class="muted">Bấm "Xuất Excel" trên một màn báo cáo; tệp sẽ hiện ở đây.</p></div>
+	<div class="box box-info stack-sm" data-ca="dang-tai"><b>Đang tải danh sách…</b></div>
+	<div class="box box-err stack-sm" data-ca="loi-tai"><b>Không tải được danh sách tệp xuất.</b><div class="row"><button class="btn btn-line">Thử lại</button></div></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

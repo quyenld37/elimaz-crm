@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M6 — Báo cáo vận hành — CRM ELIMAZ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../../mockups/m1/m1.css">
+<link rel="stylesheet" href="../../mockups/m2/m2.css">
+<link rel="stylesheet" href="../../mockups/m3/m3.css">
+<link rel="stylesheet" href="m6.css">
+<style>
+.doc { max-width: 1320px; margin: 0 auto; padding: 24px 40px 64px; display: grid; gap: 24px; }
+@media (max-width: 999px) { .doc { padding: 16px 16px 48px; } }
+.pair, .cur { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: 16px; margin-top: 8px; align-items: start; }
+figure { margin: 0; display: grid; gap: 4px; min-width: 0; }
+.pair img { width: 100%; height: 420px; object-fit: cover; object-position: top; border: 1px solid var(--rule); border-radius: var(--r-box); display: block; }
+figure > a { display: block; }
+figcaption a { display: inline-flex; min-height: var(--tap); align-items: center; }
+@media (max-width: 759px) { .pair, .cur { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .pair img { height: 260px; } }
+.tbl td { overflow-wrap: anywhere; }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (min-width: 760px) { .btbl td:first-child { width: 56px; } .btbl td:nth-child(2) { width: 160px; } .btbl td:last-child { width: 110px; } }
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="stack-sm">
+	<p class="xs label">CRM ELIMAZ · M6 BÁO CÁO VẬN HÀNH · TASK M6-01 (224) · 27/11/2026</p>
+	<h1>Mockup sáu màn báo cáo và hai nút xuất trên màn có sẵn</h1>
+	<p class="muted">Vẽ bằng đúng hệ thiết kế CRM đã duyệt ở M1 (<code>docs/mockups/m1/m1.css</code>) và thành phần M2, M3: chỉ màu, cỡ chữ, bo góc có sẵn; không thư viện biểu đồ (thanh ngang bằng CSS); không có gì chỉ hiện khi rê chuột. Số liệu là dữ liệu giả; trạng thái "Hôm nay" của Tổng quan, Báo cáo đơn và Bán chạy theo mẫu dùng số của kịch bản chín đơn (O1–O9) trong <code>docs/m6/tieu-chi.md</code>.</p>
+	<div class="box box-soft"><b>Trạng thái duyệt: chờ điều phối viên chốt hình (Điểm dừng B, Q-X8).</b> Bốn thay đổi hành vi (a)–(d) ở cuối trang cần chủ shop OK riêng từng dòng; dòng chưa OK không chặn việc code (Task 239–241, commit cục bộ), chỉ chặn đúng phần đó khi đưa lên staging (Task 244 bước 4).</div>
+</header>
+
+<section class="card">
+	<h2>Đọc trang này thế nào</h2>
+	<ul class="small" style="margin:8px 0 0;padding-left:20px">
+		<li><b>Đề xuất</b>: ảnh 1512 × 767 (laptop của chủ shop), 390 × 844 và 360 × 800 (điện thoại). Bấm ảnh để xem cả trang; nút "Mở mockup" mở trang HTML.</li>
+		<li>Mỗi màn có nhiều <b>trạng thái</b> (A, B, C…) xếp dọc: dữ liệu khó (tên sản phẩm 120 ký tự, tên nhân viên dài, tiền 9 chữ số, 1.200 mã hàng, 0 và 1 đơn, tỷ lệ "—"), đang tải, lỗi, hệ thống bận, chạy nền, người chỉ có quyền một Page / một kho, không có quyền.</li>
+		<li><b>Hiện tại</b>: chỉ có cho hai màn có sẵn bị thêm nút (danh sách khách, danh sách sản phẩm), chụp từ mockup đã duyệt của M2, M1. Sáu màn báo cáo là màn mới của CRM; chưa có ảnh Nhanh để đặt cạnh.</li>
+		<li>Khung viền đứt "Mockup:" là ghi chú, không phải giao diện. Ảnh và tự soát sinh lại bằng <code>docs/m6/mockup/soat.mjs</code>.</li>
+	</ul>
+	<div class="toc" style="margin-top:16px"><a class="btn btn-quiet" href="#tong-quan">M1 Tổng quan</a><a class="btn btn-quiet" href="#don">M2 Báo cáo đơn</a><a class="btn btn-quiet" href="#van-chuyen">M3 Hãng vận chuyển</a><a class="btn btn-quiet" href="#ban-chay">M4 Bán chạy</a><a class="btn btn-quiet" href="#ton-kho">M5 Tồn kho</a><a class="btn btn-quiet" href="#tep-xuat">M6 Tệp xuất</a><a class="btn btn-quiet" href="#nut-xuat">Nút xuất (c), (d)</a><a class="btn btn-quiet" href="#hanh-vi">Việc cần chủ shop OK</a></div>
+</section>
+
+<section class="card" id="menu">
+	<h2>Menu: nhóm mới "Báo cáo"</h2>
+	<p class="small">Nhóm "Báo cáo" đứng giữa "Kho" và "Hệ thống": Tổng quan · Báo cáo đơn · Hãng vận chuyển · Bán chạy · Tồn và xuất nhập tồn · Tệp xuất. Mục chỉ hiện với người có quyền (Sale chỉ thấy bốn mục bán hàng và Tệp xuất). Xem menu ở cột trái của mọi ảnh 1512.</p>
+</section>
+
+<section class="card scr" id="tong-quan">
+	<div class="row-between"><h2>M1 Tổng quan</h2><a class="btn btn-quiet" href="tong-quan.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Báo cáo → Tổng quan · <code>/bao-cao/tong-quan</code> · Task 239 (M6-16). <b>Ca:</b> BC01, BC05, C2, C3, C5. <b>Trạng thái:</b> A hôm nay: 7 ô số theo kỳ, khối Chờ xử lý (số hiện tại), bảng theo kênh (đơn lên, chưa hủy, doanh số, phí ship) có "Không xác định", "Cập nhật lúc", chú thích doanh số · B 7 ngày: bảng theo ngày có thanh ngang, một ngày 0 đơn · C tháng này 9 chữ số; Tùy chọn quá 366 ngày, ngày tương lai · D bấm ô → ngăn chi tiết "8 đơn" (điện thoại: trang riêng) · E chi tiết 1 đơn; 412 đơn có Xem thêm · F 0 đơn, đang tải, lỗi, 503 · G chạy nền, xong, quá nặng · H người chỉ có một Page (không nút xuất), 403.</p>
+	<div class="pair">
+		<figure><a href="tong-quan-1512.png"><img src="tong-quan-1512.png" alt="Đề xuất Tổng quan 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="tong-quan-390.png"><img src="tong-quan-390.png" alt="Đề xuất Tổng quan 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="tong-quan-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+
+<section class="card scr" id="don">
+	<div class="row-between"><h2>M2 Báo cáo đơn</h2><a class="btn btn-quiet" href="don.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Báo cáo → Báo cáo đơn · <code>/bao-cao/don</code> · Task 240 (M6-17). <b>Ca:</b> BC02, C4, C5, C6. <b>Trạng thái:</b> A theo ngày lên đơn, nhóm theo nhân viên phụ trách (An 4 / Bình 3 / Chưa phân công 1, tổng 8; An 66,67%), đủ 9 cột, dòng tổng, sáu bộ lọc · B bấm ô "4" → ngăn "4 đơn" · C theo ngày hoàn tất (ẩn cột đơn lên, hủy), nhóm theo kênh · D bộ lọc Page mở, theo ngày, 9 chữ số · E 1 đơn, 0 đơn, đang tải, lỗi, chạy nền · F một Page, 403.</p>
+	<div class="pair">
+		<figure><a href="don-1512.png"><img src="don-1512.png" alt="Đề xuất Báo cáo đơn 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="don-390.png"><img src="don-390.png" alt="Đề xuất Báo cáo đơn 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="don-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+
+<section class="card scr" id="van-chuyen">
+	<div class="row-between"><h2>M3 Hãng vận chuyển</h2><a class="btn btn-quiet" href="van-chuyen.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Báo cáo → Hãng vận chuyển · <code>/bao-cao/van-chuyen</code> · Task 240 (M6-17). <b>Ca:</b> BC02 (tỷ lệ hãng), C6. <b>Trạng thái:</b> A theo hãng và tài khoản (tên tài khoản dài), Tự giao, 12 cột (vận đơn tạo không gồm đã hủy), Viettel Post 66,67%, Best Express "—", dòng tổng; bấm tên hãng mở Báo cáo đơn · B COD 9 chữ số, 0 vận đơn, đang tải, lỗi.</p>
+	<div class="pair">
+		<figure><a href="van-chuyen-1512.png"><img src="van-chuyen-1512.png" alt="Đề xuất Hãng vận chuyển 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="van-chuyen-390.png"><img src="van-chuyen-390.png" alt="Đề xuất Hãng vận chuyển 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="van-chuyen-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+
+<section class="card scr" id="ban-chay">
+	<div class="row-between"><h2>M4 Bán chạy</h2><a class="btn btn-quiet" href="ban-chay.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Báo cáo → Bán chạy · <code>/bao-cao/ban-chay</code> · Task 240 (M6-17). <b>Trạng thái:</b> A theo SKU, đơn lên chưa hủy, 50 dòng đầu của 1.200 SKU, tên 120 ký tự, "Xem thêm (tới 500 dòng)" · B theo mẫu (Áo A 7, Quần B trước Váy C), đã xem tới 500 dòng · C 0 dòng, đang tải, lỗi.</p>
+	<div class="pair">
+		<figure><a href="ban-chay-1512.png"><img src="ban-chay-1512.png" alt="Đề xuất Bán chạy 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="ban-chay-390.png"><img src="ban-chay-390.png" alt="Đề xuất Bán chạy 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="ban-chay-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+
+<section class="card scr" id="ton-kho">
+	<div class="row-between"><h2>M5 Tồn và xuất nhập tồn</h2><a class="btn btn-quiet" href="ton-kho.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Báo cáo → Tồn và xuất nhập tồn · <code>/bao-cao/ton-kho</code> · Task 241 (M6-18). <b>Ca:</b> BC03. <b>Trạng thái:</b> A tab Tồn hôm nay, 1.200 mã, tên 120 ký tự, hết hàng, nút "Xuất danh sách sản phẩm" · B ngày đã qua (bản chụp 24:00), "Chưa có bản chụp trước ngày 15/11/2026" · C tab Xuất nhập tồn 7 cột, điều chỉnh âm, kỳ không có nhập xuất · D người chỉ có một kho (không nút xuất), đang tải, lỗi, 403.</p>
+	<div class="pair">
+		<figure><a href="ton-kho-1512.png"><img src="ton-kho-1512.png" alt="Đề xuất Tồn kho 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="ton-kho-390.png"><img src="ton-kho-390.png" alt="Đề xuất Tồn kho 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="ton-kho-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+
+<section class="card scr" id="tep-xuat">
+	<div class="row-between"><h2>M6 Tệp xuất và chạy nền</h2><a class="btn btn-quiet" href="tep-xuat.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Báo cáo → Tệp xuất · <code>/bao-cao/tep-xuat</code> · Task 241 (M6-18). <b>Ca:</b> BC04. <b>Trạng thái:</b> A Quản lý thấy lần chạy của mọi người (cột Người tạo), ba nhóm (bán hàng, tồn, khách), đủ trạng thái (Đang chờ, Đang chạy, Xong, Lỗi ×4, Hết hạn), "Đã cắt ở 200.000 dòng", hạn tải, Tải về / Xem · B thông báo đang tạo tệp, chạy nền, xong; 429 quá 5 lần; 410 hết hạn · C rỗng, đang tải, lỗi.</p>
+	<div class="pair">
+		<figure><a href="tep-xuat-1512.png"><img src="tep-xuat-1512.png" alt="Đề xuất Tệp xuất 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="tep-xuat-390.png"><img src="tep-xuat-390.png" alt="Đề xuất Tệp xuất 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="tep-xuat-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+
+<section class="card scr" id="nut-xuat">
+	<div class="row-between"><h2>Nút xuất trên hai màn có sẵn: (c) danh sách khách, (d) danh sách sản phẩm</h2><a class="btn btn-quiet" href="nut-xuat.html">Mở mockup</a></div>
+	<p class="small"><b>Màn:</b> Khách hàng (<code>console/src/screens/customers</code>, M2) và Sản phẩm (<code>console/src/screens/products</code>, M1) · Task 241 (M6-18). <b>Ca:</b> PQ06. <b>Trạng thái:</b> A nút và hộp "Xuất danh sách khách" (không ô chữ, cột tệp, hạn 24 giờ, ghi nhật ký) · B đang gửi; người không có quyền không thấy nút · C nút và hộp "Xuất danh sách sản phẩm" (cột theo mẫu nhập, không giá vốn); người không có quyền.</p>
+	<p class="label" style="margin-top:12px">Hiện tại (mockup đã duyệt của M2, M1)</p>
+	<div class="pair">
+		<figure><a href="hien-tai-khach-1512.png"><img src="hien-tai-khach-1512.png" alt="Hiện tại danh sách khách 1512" loading="lazy"></a><figcaption class="xs muted">Khách hàng 1512 · <a href="hien-tai-khach-390.png">ảnh 390</a></figcaption></figure>
+		<figure><a href="hien-tai-san-pham-1512.png"><img src="hien-tai-san-pham-1512.png" alt="Hiện tại danh sách sản phẩm 1512" loading="lazy"></a><figcaption class="xs muted">Sản phẩm 1512 · <a href="hien-tai-san-pham-390.png">ảnh 390</a></figcaption></figure>
+	</div>
+	<p class="label" style="margin-top:12px">Đề xuất</p>
+	<div class="pair">
+		<figure><a href="nut-xuat-1512.png"><img src="nut-xuat-1512.png" alt="Đề xuất nút xuất 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="nut-xuat-390.png"><img src="nut-xuat-390.png" alt="Đề xuất nút xuất 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="nut-xuat-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+
+<section class="card" id="hanh-vi">
+	<h2>Thay đổi hành vi cần chủ shop OK riêng từng dòng</h2>
+	<p class="small muted">Danh sách đầy đủ, kèm cách đổi lại: <code>docs/m6/mockup/ghi-chu.md</code>. Ô "OK" điền khi chủ shop trả lời trong chat.</p>
+	<div class="tbl-frame" style="margin-top:12px">
+	<table class="tbl btbl">
+		<thead><tr><th>#</th><th>Màn, task</th><th>Đề xuất</th><th>OK</th></tr></thead>
+		<tbody>
+		<tr><td class="lead"><b>(a)</b></td><td data-label="Màn">Tổng quan, Báo cáo đơn · Task 239, 240</td><td data-label="Đề xuất">Bấm một ô số: trên máy tính mở <b>ngăn bên phải</b> liệt kê đơn (tổng số ở đầu, trùng số trong ô), báo cáo vẫn thấy; trên điện thoại mở <b>trang riêng</b> có nút "← quay lại".</td><td data-label="OK">chưa</td></tr>
+		<tr><td class="lead"><b>(b)</b></td><td data-label="Màn">Năm màn báo cáo · Task 239–241</td><td data-label="Đề xuất">Nút <b>"Xuất Excel"</b> ở góc phải đầu trang, cạnh "Tải lại"; bấm là chạy nền, tệp ở màn Tệp xuất. Chỉ người có quyền xuất ở phạm vi toàn shop thấy nút.</td><td data-label="OK">chưa</td></tr>
+		<tr><td class="lead"><b>(c)</b></td><td data-label="Màn">Danh sách khách (M2) · Task 241</td><td data-label="Đề xuất">Thêm nút <b>"Xuất danh sách khách"</b> ở đầu trang (giữa "Nhập Excel" và "Thêm khách"), mở hộp chọn bộ lọc không có ô gõ chữ; tệp có SĐT, hết hạn tải sau 24 giờ. Chỉ Chủ, Quản lý (đề xuất theo H11).</td><td data-label="OK">chưa</td></tr>
+		<tr><td class="lead"><b>(d)</b></td><td data-label="Màn">Danh sách sản phẩm (M1), tab Tồn · Task 241</td><td data-label="Đề xuất">Thêm nút <b>"Xuất danh sách sản phẩm"</b> ở đầu trang (cạnh "Nhập Excel") và ở màn Tồn; tệp cột theo mẫu nhập, không giá vốn, cột cuối "Có thể bán".</td><td data-label="OK">chưa</td></tr>
+		</tbody>
+	</table>
+	</div>
+</section>
+
+</div>
+</body>
+</html>
