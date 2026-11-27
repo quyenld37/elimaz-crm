@@ -15,15 +15,16 @@ import (
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
-// Hai mục đích tệp xuất của M6 (0604, R5): dòng bucket private, chế độ standard; sổ Go có sau RegisterFilePurposes,
-// chỉ ghi từ máy chủ (không tải lên), chỉ nhận .xlsx, tối đa 100 MiB.
+// Hai mục đích tệp xuất của M6 (0604, R5; bucket đổi sang exports ở 0606, Task 515): dòng bucket exports, chế độ
+// standard; sổ Go có sau RegisterFilePurposes, đúng tiền tố khóa (reports/, customers/), chỉ ghi từ máy chủ (không tải
+// lên), chỉ nhận .xlsx, tối đa 100 MiB.
 func TestFilePurposes_ExportRows(t *testing.T) {
 	t.Parallel()
 	s := testkit.OpenStaff(t)
 	for _, key := range []string{reporting.PurposeReportExport, reporting.PurposeCustomerExport} {
-		if n := s.Count(t, `SELECT count(*) FROM platform.file_purposes WHERE key = $1 AND bucket = 'private'
+		if n := s.Count(t, `SELECT count(*) FROM platform.file_purposes WHERE key = $1 AND bucket = 'exports'
 			AND mode = 'standard'`, key); n != 1 {
-			t.Errorf("%s: %d dòng private/standard, muốn 1", key, n)
+			t.Errorf("%s: %d dòng exports/standard, muốn 1", key, n)
 		}
 	}
 	reporting.RegisterFilePurposes()
@@ -32,7 +33,11 @@ func TestFilePurposes_ExportRows(t *testing.T) {
 		if !ok {
 			t.Fatalf("%s chưa có trong sổ của tiến trình", want.Key)
 		}
-		if p.Bucket != files.BucketPrivate || p.Upload || p.Image || p.MaxBytes != 100<<20 ||
+		wantPrefix := map[string]string{
+			reporting.PurposeReportExport:   files.ExportReportsPrefix,
+			reporting.PurposeCustomerExport: files.ExportCustomersPrefix,
+		}[want.Key]
+		if p.Bucket != files.BucketExports || p.KeyPrefix != wantPrefix || p.Upload || p.Image || p.MaxBytes != 100<<20 ||
 			len(p.AllowedTypes) != 1 || p.AllowedTypes[0] != reporting.XLSXContentType {
 			t.Errorf("%s: %+v", want.Key, p)
 		}
@@ -42,8 +47,8 @@ func TestFilePurposes_ExportRows(t *testing.T) {
 	}
 }
 
-// files.Register với report_export → dòng ready ở bucket private; khóa lạ → ErrUnknownPurpose; chèn thẳng dòng tệp có
-// mục đích lạ → khóa ngoại 23503; tải lên từ trình duyệt với mục đích xuất → ErrUploadNotAllowed.
+// files.Register với mục đích xuất (khóa files.ExportKey theo tiền tố của mục đích) → dòng ready ở bucket exports;
+// khóa lạ → ErrUnknownPurpose; chèn thẳng dòng tệp có mục đích lạ → khóa ngoại 23503; tải lên từ trình duyệt với mục đích xuất → ErrUploadNotAllowed.
 func TestFilePurposes_RegisterAndUpload(t *testing.T) {
 	t.Parallel()
 	s := testkit.OpenStaff(t)
@@ -51,31 +56,32 @@ func TestFilePurposes_RegisterAndUpload(t *testing.T) {
 	reporting.RegisterFilePurposes()
 	tenant := s.Tenant(t, "A")
 	sum := sha256.Sum256([]byte("xlsx"))
-	register := func(purpose string) (uuid.UUID, error) {
+	register := func(purpose, prefix string) (uuid.UUID, error) {
 		id := uuid.Must(uuid.NewV7())
 		var got uuid.UUID
 		err := s.TryExec(ctx, tenant, func(tx pgx.Tx) error {
 			var err error
 			got, err = files.Register(ctx, tx, files.NewFile{
-				ID: id, Purpose: purpose, Key: "priv/" + tenant.String() + "/reports/" + id.String() + "/" +
-					hex.EncodeToString(sum[:]) + ".xlsx",
+				ID: id, Purpose: purpose, Key: files.ExportKey(prefix, tenant, id.String()+"/"+
+					hex.EncodeToString(sum[:])+".xlsx"),
 				SHA256: sum[:], Size: 4, ContentType: reporting.XLSXContentType, FileName: "bao-cao.xlsx",
 			})
 			return err //nolint:wrapcheck // test
 		})
 		return got, err //nolint:wrapcheck // test
 	}
-	for _, key := range []string{reporting.PurposeReportExport, reporting.PurposeCustomerExport} {
-		id, err := register(key)
+	for _, want := range reporting.FilePurposes() {
+		key := want.Key
+		id, err := register(key, want.KeyPrefix)
 		if err != nil {
 			t.Fatalf("Register %s: %v", key, err)
 		}
 		if n := s.CountIn(t, tenant, `SELECT count(*) FROM platform.files WHERE id = $1 AND status = 'ready'
-			AND bucket = 'private' AND purpose = $2`, id, key); n != 1 {
-			t.Fatalf("%s: dòng tệp ready/private: %d", key, n)
+			AND bucket = 'exports' AND purpose = $2`, id, key); n != 1 {
+			t.Fatalf("%s: dòng tệp ready/exports: %d", key, n)
 		}
 	}
-	if _, err := register("report_exportx"); !errors.Is(err, files.ErrUnknownPurpose) {
+	if _, err := register("report_exportx", files.ExportReportsPrefix); !errors.Is(err, files.ErrUnknownPurpose) {
 		t.Fatalf("mục đích chưa đăng ký: %v", err)
 	}
 	err := s.TryExec(ctx, tenant, func(tx pgx.Tx) error {

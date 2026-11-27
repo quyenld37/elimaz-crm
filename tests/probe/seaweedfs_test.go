@@ -344,7 +344,7 @@ func checkNoPurge(t *testing.T, app, admin *s3.Client, b string) {
 func TestAppCannotLoosenBuckets(t *testing.T) {
 	ctx := t.Context()
 	app := appClient(t)
-	for _, b := range append([]string{bucketTmp}, versionedBuckets()...) {
+	for _, b := range append([]string{bucketTmp, bucketExports}, versionedBuckets()...) {
 		t.Run(b, func(t *testing.T) {
 			_, err := app.PutBucketVersioning(ctx, &s3.PutBucketVersioningInput{
 				Bucket:                  aws.String(b),

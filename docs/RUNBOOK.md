@@ -160,6 +160,36 @@ crm_filesync;` (database thử của `internal/testkit` tự tạo role này, m�
 - Đổi hạn: chỉ đối tượng ghi sau lần đổi theo hạn mới (TTL gắn lúc ghi). Không bao giờ bật fast path cho bucket giữ
   phiên bản (SeaweedFS cũng không áp cho chúng).
 
+## Kho tệp xuất crm-exports (Task 515; kế hoạch M6 G5, Q12)
+
+- Bucket `<S3_BUCKET_PREFIX>exports` (mặc định `crm-exports`) giữ tệp Excel của báo cáo (khóa `reports/<tenant>/…`) và
+  danh sách khách có SĐT (khóa `customers/<tenant>/…`). **Không giữ phiên bản, không chép ra kho ngoài** (filesync chỉ
+  chép `public`, `originals`, `private`; `crm-filesync` không có quyền gì trên bucket này), **tự xóa theo tiền tố**:
+  `reports/` sau 7 ngày, `customers/` sau 1 ngày. Cơ chế như crm-tmp: hai luật S3 `Expiration` lọc theo tiền tố + lifecycle
+  TTL fast path, PutObject gắn `ttlSec` theo luật khớp khóa (604800 / 86400), filer và volume server tự xóa.
+- Ứng dụng: `crm-app` chỉ Read/Write/List; chính sách bucket từ chối **cả `DeleteObject`** (bucket không phiên bản: xóa
+  là mất hẳn, ADR-36), bật phiên bản, đổi luật hết hạn, chính sách, CORS, xóa bucket. Hạn tải phía ứng dụng
+  (`REPORT_FILE_TTL` ≤ 168h, `CUSTOMER_EXPORT_TTL` ≤ 24h; worker từ chối khởi động nếu vượt) không bao giờ dài hơn hạn
+  kho (`config.ReportExportObjectTTL`, `CustomerExportObjectTTL`; `TestExportObjectTTLMatchesBootstrap` đòi bootstrap.sh
+  khớp). Đổi hạn thì sửa cả hai nơi cùng lúc; chỉ tệp ghi sau lần đổi theo hạn mới.
+- Kiểm trên máy (trong container `seaweedfs`): `echo 's3.bucket.lifecycle.fastpath -name crm-exports' | weed shell` in
+  `fast path: enabled`; `fs.meta.cat /buckets/crm-exports/<khóa>` có `ttlSec` 604800 (reports) hay 86400 (customers).
+  Dev: `make probe-test` có `TestExports_*`.
+- **Máy thử / máy thật (bước của Task 244, cần chủ shop OK lúc vào máy chủ):**
+  1. Tệp danh tính SeaweedFS của máy chủ (`CRM_SEAWEEDFS_S3_CONFIG`, ngoài repo): thêm vào `actions` của `crm-app`
+     `"Read:<tiền tố>exports", "Write:<tiền tố>exports", "List:<tiền tố>exports"`; **không** thêm gì cho
+     `crm-filesync`. Khởi động lại `seaweedfs` để nạp tệp.
+  2. Chạy `bootstrap.sh main <endpoint> <tệp danh tính>` bằng image SeaweedFS ghim, cùng `S3_BUCKET_PREFIX`,
+     `WEED_MASTER` như mục "Dựng lại kho tệp" bước 2 (chạy lại nhiều lần không lỗi). Log phải có `tạo …exports: 200`
+     (hay 409 nếu đã có), `chính sách …exports`, `hạn theo tiền tố …exports: 200`, `hạn TTL fast path …exports: bật`.
+  3. Kiểm: lệnh fast path ở trên; `crm-admin` đọc lại luật (`GetBucketLifecycleConfiguration`: đúng hai luật
+     `reports/` 7, `customers/` 1) và giữ phiên bản rỗng; ghi thử một khóa `reports/probe/x` bằng `crm-app`, `fs.meta.cat`
+     thấy `ttlSec 604800`, rồi để luật tự xóa (crm-app không xóa được). Chạy migration `0606` trước khi bật tệp xuất
+     (hai mục đích `report_export`, `customer_export` trỏ `exports`).
+  4. Đường lui: tệp xuất chưa chạy thì không cần làm gì (bucket rỗng); đã có tệp thì để luật hết hạn dọn, không xóa tay.
+- Dựng lại kho tệp từ kho ngoài **không** khôi phục tệp xuất (không có bản sao, đúng ý: dữ liệu tạm có SĐT). Người dùng
+  xuất lại; dòng `platform.files` cũ hết hạn tải theo `expires_at`.
+
 ## Dựng lại kho tệp (Task M1-46, ADR-36; TP08, TP09, TP12)
 
 - **Kho tệp tắt đột ngột** (máy khởi động lại, container chết): khởi động lại SeaweedFS rồi chờ. Tệp đã báo xong
@@ -169,7 +199,7 @@ crm_filesync;` (database thử của `internal/testkit` tự tạo role này, m�
   (khoảng một giờ); dữ liệu đơn hàng không ảnh hưởng (database sao lưu đường riêng).
   1. Dừng SeaweedFS chính; giữ nguyên volume hỏng sang một bên nếu còn đọc được (đừng xóa trước khi có bản mới).
   2. Khởi động SeaweedFS với volume rỗng, chạy `bootstrap.sh main …` (bucket, giữ phiên bản, chính sách, hạn crm-tmp, CORS,
-     TTL fast path của crm-tmp) bằng image SeaweedFS, `WEED_MASTER` trỏ tới master (trong chính container `seaweedfs`:
+     TTL fast path của crm-tmp, bucket crm-exports cùng luật tự xóa) bằng image SeaweedFS, `WEED_MASTER` trỏ tới master (trong chính container `seaweedfs`:
      mặc định `localhost:9333`), `S3_BUCKET_PREFIX` như tệp biến. Xem mục "Hạn 24 giờ của crm-tmp".
   3. Chép ngược bằng danh tính **ghi được** kho chính (crm-admin), cùng hai mật khẩu crypt của lúc chép đi:
      `docker compose --profile filesync run --rm -e FILESYNC_SRC_ACCESS_KEY_ID=<khóa crm-admin> -e

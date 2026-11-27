@@ -169,8 +169,8 @@ type ReportConfig struct {
 	// worker: số lần chạy nền cùng lúc (REPORT_WORKER_SLOTS, 2, 1–8); hạn mỗi câu chạy nền (REPORT_BACKGROUND_TIMEOUT,
 	// 60s, phải dưới 75s: hạn giữ chỗ 90 s của hàng đợi trừ thời gian ghi tệp); thư mục tệp tạm (REPORT_TMP_DIR, đường
 	// dẫn tuyệt đối; chưa bắt buộc tới Task M6-14, tệp task 225); số dòng tối đa mỗi tệp (REPORT_MAX_ROWS, 200000, tới
-	// 1.048.575 của Excel); hạn giữ tệp báo cáo (REPORT_FILE_TTL, 168h, 1h–720h) và danh sách khách
-	// (CUSTOMER_EXPORT_TTL, 24h, 1h–168h).
+	// 1.048.575 của Excel); hạn giữ tệp báo cáo (REPORT_FILE_TTL, 168h, 1h–ReportExportObjectTTL) và danh sách khách
+	// (CUSTOMER_EXPORT_TTL, 24h, 1h–CustomerExportObjectTTL): không quá hạn kho tự xóa (Task 515).
 	WorkerSlots       int
 	BackgroundTimeout time.Duration
 	TmpDir            string
@@ -342,6 +342,15 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 // đặt quy tắc Expiration Days và bật TTL fast path theo đó, kho tự xóa. Nguồn Go duy nhất của hạn này; test
 // TestTmpObjectTTLMatchesBootstrap đòi bootstrap.sh khớp (Task 426).
 const TmpObjectTTL = 24 * time.Hour
+
+// ReportExportObjectTTL, CustomerExportObjectTTL là hạn kho tự xóa tệp xuất trong bucket <tiền tố>exports (Task 515;
+// kế hoạch M6 G5, Q12): luật hết hạn theo tiền tố reports/ và customers/ của docker/seaweedfs/bootstrap.sh (fast path
+// gắn ttlSec lúc ghi). Là trần của REPORT_FILE_TTL, CUSTOMER_EXPORT_TTL: ứng dụng không hứa tải được tệp kho đã xóa.
+// TestExportObjectTTLMatchesBootstrap đòi bootstrap.sh khớp.
+const (
+	ReportExportObjectTTL   = 7 * 24 * time.Hour
+	CustomerExportObjectTTL = 24 * time.Hour
+)
 
 // DefaultImageRetryMax là mặc định của IMAGE_RETRY_MAX_HOURS: nhỏ hơn TmpObjectTTL một giờ để lượt thử cuối còn ảnh
 // gốc ở crm-tmp (trần tính từ lúc tệp vào processing; đường PUT ký sẵn hạn 15 phút; Task 426).
@@ -610,8 +619,8 @@ func (r *reader) reportWorker(cfg *Config) {
 		r.problems = append(r.problems, "REPORT_TMP_DIR phải là đường dẫn tuyệt đối")
 	}
 	cfg.Report.MaxRows = r.integer("REPORT_MAX_ROWS", 200_000, 1, 1_048_575)
-	cfg.Report.FileTTL = r.duration("REPORT_FILE_TTL", 168*time.Hour, time.Hour, 720*time.Hour)
-	cfg.Report.CustomerExportTTL = r.duration("CUSTOMER_EXPORT_TTL", 24*time.Hour, time.Hour, 168*time.Hour)
+	cfg.Report.FileTTL = r.duration("REPORT_FILE_TTL", 168*time.Hour, time.Hour, ReportExportObjectTTL)
+	cfg.Report.CustomerExportTTL = r.duration("CUSTOMER_EXPORT_TTL", 24*time.Hour, time.Hour, CustomerExportObjectTTL)
 }
 
 // sampler đọc OTEL_TRACES_SAMPLER và OTEL_TRACES_SAMPLER_ARG theo chuẩn của OpenTelemetry (Điểm dừng A, quyết định 2).

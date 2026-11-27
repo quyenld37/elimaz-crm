@@ -12,7 +12,8 @@
         "Read:crm-tmp", "Write:crm-tmp", "List:crm-tmp",
         "Read:crm-public", "Write:crm-public", "List:crm-public",
         "Read:crm-originals", "Write:crm-originals", "List:crm-originals",
-        "Read:crm-private", "Write:crm-private", "List:crm-private"
+        "Read:crm-private", "Write:crm-private", "List:crm-private",
+        "Read:crm-exports", "Write:crm-exports", "List:crm-exports"
       ]
     },
     {

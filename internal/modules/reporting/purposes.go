@@ -14,12 +14,18 @@ const (
 	MaxExportBytes = 100 << 20
 )
 
-// FilePurposes trả hai mục đích tệp xuất: bucket private, chỉ máy chủ ghi (Upload = false, trình duyệt không tải lên
-// được), chỉ nhận .xlsx.
+// FilePurposes trả hai mục đích tệp xuất: bucket exports (Task 515, migration 0606; tự xóa theo tiền tố khóa: reports/
+// 7 ngày, customers/ 1 ngày), chỉ máy chủ ghi (Upload = false, trình duyệt không tải lên được), chỉ nhận .xlsx.
 func FilePurposes() []files.Purpose {
 	return []files.Purpose{
-		{Key: PurposeReportExport, Bucket: files.BucketPrivate, AllowedTypes: []string{XLSXContentType}, MaxBytes: MaxExportBytes},
-		{Key: PurposeCustomerExport, Bucket: files.BucketPrivate, AllowedTypes: []string{XLSXContentType}, MaxBytes: MaxExportBytes},
+		{
+			Key: PurposeReportExport, Bucket: files.BucketExports, AllowedTypes: []string{XLSXContentType},
+			MaxBytes: MaxExportBytes, KeyPrefix: files.ExportReportsPrefix,
+		},
+		{
+			Key: PurposeCustomerExport, Bucket: files.BucketExports, AllowedTypes: []string{XLSXContentType},
+			MaxBytes: MaxExportBytes, KeyPrefix: files.ExportCustomersPrefix,
+		},
 	}
 }
 

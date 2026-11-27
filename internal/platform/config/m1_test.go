@@ -265,3 +265,23 @@ func TestTmpObjectTTLMatchesBootstrap(t *testing.T) {
 		t.Fatalf("bootstrap.sh đặt hạn crm-tmp %s ngày, config.TmpObjectTTL là %v", m[1], config.TmpObjectTTL)
 	}
 }
+
+// Hạn kho tự xóa tệp xuất (Task 515) có một nguồn Go (config.ReportExportObjectTTL, CustomerExportObjectTTL; trần của
+// REPORT_FILE_TTL, CUSTOMER_EXPORT_TTL); hạn thật do luật hết hạn theo tiền tố của bucket exports trong bootstrap.sh.
+func TestExportObjectTTLMatchesBootstrap(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "..", "docker", "seaweedfs", "bootstrap.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for prefix, want := range map[string]time.Duration{"reports/": config.ReportExportObjectTTL, "customers/": config.CustomerExportObjectTTL} {
+		m := regexp.MustCompile(`exports\?lifecycle"[^\n]*\n[^\n]*<Prefix>` + regexp.QuoteMeta(prefix) +
+			`</Prefix></Filter><Status>Enabled</Status><Expiration><Days>(\d+)</Days>`).FindSubmatch(b)
+		if m == nil {
+			t.Fatalf("bootstrap.sh: không tìm thấy luật hết hạn %s của bucket exports", prefix)
+		}
+		days, err := strconv.Atoi(string(m[1]))
+		if err != nil || time.Duration(days)*24*time.Hour != want {
+			t.Fatalf("bootstrap.sh đặt hạn %s %s ngày, config là %v", prefix, m[1], want)
+		}
+	}
+}

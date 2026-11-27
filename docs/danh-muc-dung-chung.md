@@ -476,6 +476,7 @@ func CreateUpload(ctx context.Context, tx pgx.Tx, fs FileStore, in UploadInput, 
 func DownloadURL(ctx context.Context, tx pgx.Tx, fs FileStore, fileID uuid.UUID, ttl time.Duration, attachmentName string) (string, error)
 func EnqueueRegenerate(ctx context.Context, tx pgx.Tx, q queue.JobQueue, preset int) (int, error)
 func EnqueueVerify(ctx context.Context, tx pgx.Tx, q queue.JobQueue) (uuid.UUID, error)
+func ExportKey(prefix string, tenantID uuid.UUID, name string) string
 func MarkDeleted(ctx context.Context, tx pgx.Tx, fileID uuid.UUID, actor uuid.UUID) error
 func OriginalKey(sha256Hex string) string
 func PrivateVariantKey(tenantID, fileID uuid.UUID, preset, width int, format string) string
@@ -640,6 +641,8 @@ type Purpose struct {
 	Preset int
 
 	AnyType bool
+
+	KeyPrefix string
 
 	MinWidth int
 }

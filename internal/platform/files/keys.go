@@ -20,6 +20,29 @@ func ServerKey(tenantID, fileID uuid.UUID) string { return serverPrefix(tenantID
 // serverPrefix là tiền tố chung của mọi khóa riêng tư của một tenant: priv/<tenantId>/.
 func serverPrefix(tenantID uuid.UUID) string { return "priv/" + tenantID.String() + "/" }
 
+// Tiền tố khóa của BucketExports (Task 515). Luật hết hạn của bucket khớp đúng tiền tố đầu khóa: reports/ xóa sau 7
+// ngày, customers/ sau 1 ngày (docker/seaweedfs/bootstrap.sh). Mục đích ở BucketExports khai một trong hai bằng
+// Purpose.KeyPrefix; Register đòi khóa bắt đầu bằng đúng tiền tố đó.
+const (
+	ExportReportsPrefix   = "reports/"
+	ExportCustomersPrefix = "customers/"
+)
+
+// ExportKey là khóa tệp xuất trong BucketExports: <prefix><tenantId>/<name>. name do bên gọi đặt từ mã hệ thống (mã lần
+// chạy, mã băm nội dung), không bao giờ từ tên tệp của người dùng.
+func ExportKey(prefix string, tenantID uuid.UUID, name string) string {
+	return prefix + tenantID.String() + "/" + name
+}
+
+// serverKeyPrefix là tiền tố mà khóa tệp máy chủ ghi của mục đích p trong tenant phải có: <KeyPrefix><tenantId>/ ở
+// BucketExports (hạn xóa theo tiền tố), priv/<tenantId>/ ở bucket khác.
+func (p Purpose) serverKeyPrefix(tenantID uuid.UUID) string {
+	if p.Bucket == BucketExports {
+		return ExportKey(p.KeyPrefix, tenantID, "")
+	}
+	return serverPrefix(tenantID)
+}
+
 // OriginalKey là khóa ảnh gốc theo mã băm nội dung: orig/<sha256 hex>.
 func OriginalKey(sha256Hex string) string { return "orig/" + sha256Hex }
 
