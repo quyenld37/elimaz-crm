@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M6 — Nút xuất trên màn có sẵn</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../../mockups/m1/m1.css">
+<link rel="stylesheet" href="../../mockups/m2/m2.css">
+<link rel="stylesheet" href="../../mockups/m3/m3.css">
+<link rel="stylesheet" href="m6.css">
+</head>
+<body data-page="nut-xuat" data-title="Khách hàng">
+<div class="app"><main class="main">
+
+<p class="mk" style="margin-bottom:16px"><b>Mockup:</b> trang này chỉ vẽ phần đổi trên hai màn có sẵn: đầu trang danh sách khách (M2) thêm nút "Xuất danh sách khách" — hành vi (c); đầu trang danh sách sản phẩm (M1) thêm nút "Xuất danh sách sản phẩm" — hành vi (d), nút này cũng có ở tab Tồn của báo cáo tồn. Phần còn lại của hai màn giữ nguyên (xem ảnh "Hiện tại" ở index).</p>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="pq06"><p class="xs">TRẠNG THÁI A · PQ06 · hành vi (c)</p><h2>Danh sách khách: nút "Xuất danh sách khách" (chỉ người có quyền xuất khách, phạm vi toàn shop)</h2></section>
+<div class="page-h">
+	<div><h1>Khách hàng</h1><p class="sub">Mỗi dòng là một khách (các hồ sơ đã gộp tính là một)</p></div>
+	<div class="row"><button class="btn btn-line">Nhãn</button><button class="btn btn-line">Nhập Excel</button><button class="btn btn-line" data-ca="nut-xuat-khach">Xuất danh sách khách</button><button class="btn btn-dark">Thêm khách</button></div>
+</div>
+<div class="backdrop">
+	<div class="dlg" role="dialog" aria-label="Xuất danh sách khách" data-ca="hop-xuat-khach">
+		<div class="dlg-h"><h2>Xuất danh sách khách</h2><button class="ibtn" aria-label="Đóng">✕</button></div>
+		<div class="dlg-b">
+			<div class="box box-soft small" data-ca="han-24h ghi-nhat-ky"><b>Tệp có tên và SĐT khách.</b> Hết hạn tải sau 24 giờ; chỉ bạn và người có quyền quản lý tệp xuất tải được. Lần xuất, lúc xong và mỗi lần tải đều ghi vào Nhật ký thao tác.</div>
+			<div class="grid-f" data-ca="khong-o-chu">
+				<label class="field"><span>Nhãn (chọn nhiều)</span><span class="select-wrap"><select><option>Mọi nhãn</option><option>Khách VIP</option><option>Hay bom hàng</option></select></span></label>
+				<label class="field"><span>Loại khách</span><span class="select-wrap"><select><option>Mọi loại</option><option>Đã mua</option><option>Tiềm năng</option></select></span></label>
+				<label class="field"><span>Tạo từ ngày</span><input class="input num" value="01/01/2026" aria-label="Tạo từ ngày"></label>
+				<label class="field"><span>Tạo đến ngày</span><input class="input num" value="27/11/2026" aria-label="Tạo đến ngày"></label>
+				<label class="field"><span>Mua lần cuối từ ngày</span><input class="input num" placeholder="dd/mm/yyyy" aria-label="Mua lần cuối từ ngày"></label>
+				<label class="field"><span>Mua lần cuối đến ngày</span><input class="input num" placeholder="dd/mm/yyyy" aria-label="Mua lần cuối đến ngày"></label>
+				<label class="field"><span>Số đơn tối thiểu</span><input class="input num" inputmode="numeric" value="2" aria-label="Số đơn tối thiểu"></label>
+			</div>
+			<p class="hint">Bộ lọc chỉ gồm ô chọn, ngày và số, không có ô gõ chữ (để nhật ký không chứa dữ liệu khách).</p>
+			<p class="small" data-ca="cot-tep-khach"><b>Cột trong tệp:</b> mã khách, tên, SĐT chính (dạng 0…), số đơn, thành công, hoàn, tỷ lệ hoàn, tổng chi, ngày mua cuối, nhãn, ngày tạo. Không có địa chỉ. Mỗi khách đã gộp là một dòng.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark">Xuất</button></div>
+	</div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Đang gửi; người không có quyền xuất khách không thấy nút</h2></section>
+<div class="dlgs">
+	<div class="card stack-sm" data-ca="dang-gui"><div class="row"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark" disabled>Đang gửi…</button></div><p class="hint">Nút khóa tới khi máy nhận yêu cầu; bấm nhiều lần chỉ tạo một lần chạy.</p></div>
+	<div class="card stack-sm" data-ca="khong-quyen-khach khong-nut-xuat"><div class="row-between"><h2>Khách hàng</h2><div class="row"><button class="btn btn-line">Nhập Excel</button><button class="btn btn-dark">Thêm khách</button></div></div><p class="hint">Sale (quyền theo Page): không có nút xuất. Máy chủ vẫn từ chối (403) nếu gọi thẳng.</p></div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI C · hành vi (d)</p><h2>Danh sách sản phẩm: nút "Xuất danh sách sản phẩm"; cột theo mẫu nhập, không có giá vốn</h2></section>
+<div class="page-h">
+	<div><h1>Sản phẩm</h1><p class="sub">Người bán ELIMAZ</p></div>
+	<div class="row"><a class="btn btn-line" href="#">Nhập Excel</a><button class="btn btn-line" data-ca="nut-xuat-san-pham">Xuất danh sách sản phẩm</button><a class="btn btn-dark" href="#">Thêm mẫu</a></div>
+</div>
+<div class="backdrop">
+	<div class="dlg" role="dialog" aria-label="Xuất danh sách sản phẩm" data-ca="hop-xuat-san-pham">
+		<div class="dlg-h"><h2>Xuất danh sách sản phẩm</h2><button class="ibtn" aria-label="Đóng">✕</button></div>
+		<div class="dlg-b">
+			<div class="grid-f">
+				<label class="field"><span>Trạng thái mẫu</span><span class="select-wrap"><select><option>Mọi trạng thái</option><option>Nháp</option><option>Đang bán</option><option>Ngừng bán</option></select></span></label>
+				<label class="field"><span>Mã SKU bắt đầu bằng</span><input class="input" placeholder="VD: AO-" aria-label="Mã SKU bắt đầu bằng"></label>
+			</div>
+			<p class="small" data-ca="cot-mau-nhap"><b>Cột trong tệp</b> (tên và thứ tự như tệp mẫu Nhập Excel): mã mẫu, tên mẫu, SKU, mã vạch, màu, size, giá bán, trạng thái mẫu, trạng thái biến thể; cột cuối "Có thể bán" (cộng các kho bạn được xem).</p>
+			<p class="small" data-ca="khong-gia-von"><b>Không có giá vốn.</b> Tải được trong 7 ngày, xem ở Tệp xuất.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark">Xuất</button></div>
+	</div>
+</div>
+<div class="card stack-sm" style="margin-top:16px" data-ca="khong-quyen-san-pham khong-nut-xuat"><div class="row-between"><h2>Sản phẩm</h2><div class="row"><a class="btn btn-dark" href="#">Thêm mẫu</a></div></div><p class="hint">Người thiếu quyền xem báo cáo tồn hoặc quyền xuất (phạm vi toàn shop): không có nút xuất.</p></div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

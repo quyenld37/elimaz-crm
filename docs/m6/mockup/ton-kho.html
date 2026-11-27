@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M6 — Báo cáo: Tồn và xuất nhập tồn</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../../mockups/m1/m1.css">
+<link rel="stylesheet" href="../../mockups/m2/m2.css">
+<link rel="stylesheet" href="../../mockups/m3/m3.css">
+<link rel="stylesheet" href="m6.css">
+</head>
+<body data-page="ton-kho" data-title="Tồn và xuất nhập tồn">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Báo cáo / Tồn và xuất nhập tồn</p><h1>Tồn và xuất nhập tồn</h1><p class="sub">Tồn hôm nay hoặc tồn cuối một ngày đã qua; nhập, xuất trong một kỳ.</p></div>
+	<div class="row"><button class="btn btn-quiet">Tải lại</button><button class="btn btn-line" data-ca="xuat-san-pham">Xuất danh sách sản phẩm</button><button class="btn btn-line" data-ca="xuat-excel">Xuất Excel</button></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI A</p><h2>Tab Tồn, hôm nay, mọi kho: 1.200 mã hàng; tên 120 ký tự; hết hàng</h2></section>
+<div class="stack">
+	<div class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="true" data-ca="tab-ton">Tồn</button><button class="tab" role="tab" aria-selected="false" data-ca="tab-xnt">Xuất nhập tồn</button></div>
+	<div class="rep-f">
+		<div class="field"><span>Ngày</span><div class="row" role="group" aria-label="Ngày"><button class="toggle" aria-pressed="true" data-ca="hom-nay">Hôm nay</button><button class="toggle" aria-pressed="false">Chọn ngày</button></div></div>
+		<label class="field" data-ca="chon-kho"><span>Kho</span><span class="select-wrap"><select><option>Mọi kho</option><option>Kho Hà Nội</option><option>Kho phụ Long Biên</option></select></span></label>
+		<label class="field" data-ca="tim-sku"><span>Mã SKU bắt đầu bằng</span><input class="input" placeholder="VD: AO-A" aria-label="Mã SKU bắt đầu bằng"></label>
+	</div>
+	<div class="meta"><span>Tồn lúc <b>14:32:05 · 27/11/2026</b> (số hiện tại)</span><span>1.200 mã hàng · danh sách cuộn, chỉ dựng phần đang thấy</span></div>
+	<div class="rt-frame scroll-x" data-ca="1200-sku danh-sach-ao cot-ton">
+	<table class="rt">
+		<thead><tr><th>SKU</th><th class="l">Tên</th><th class="l">Màu / size</th><th class="l">Kho</th><th>Tồn sổ</th><th>Đang giữ</th><th>Đang giao</th><th>Hàng lỗi</th><th data-ca="co-the-ban">Có thể bán</th></tr></thead>
+		<tbody>
+		<tr><td>AO-A-DEN-M</td><td class="l"><span class="nm is-wide" data-ca="ten-120" title="Áo sơ mi lụa cổ đức tay bồng phối nơ cổ, dáng suông dài qua hông, chất lụa Hàn mềm mát không nhăn, mặc đi làm, đi chơi ạ">Áo sơ mi lụa cổ đức tay bồng phối nơ cổ, dáng suông dài qua hông, chất lụa Hàn mềm mát không nhăn, mặc đi làm, đi chơi ạ</span></td><td class="l">Đen / M</td><td class="l">Kho Hà Nội</td><td>24</td><td>3</td><td>2</td><td>1</td><td class="bold">18</td></tr>
+		<tr><td>AO-A-DEN-S</td><td class="l"><span class="nm is-wide">Áo sơ mi lụa cổ đức tay bồng phối nơ cổ, dáng suông dài qua hông, chất lụa Hàn mềm mát không nhăn, mặc đi làm, đi chơi ạ</span></td><td class="l">Đen / S</td><td class="l">Kho Hà Nội</td><td>10</td><td>0</td><td>1</td><td>0</td><td class="bold">9</td></tr>
+		<tr><td>QUAN-B-BE-S</td><td class="l"><span class="nm is-wide">Quần ống suông cạp cao</span></td><td class="l">Be / S</td><td class="l">Kho phụ Long Biên</td><td>6</td><td>0</td><td>0</td><td>0</td><td class="bold">6</td></tr>
+		<tr data-ca="het-hang"><td>VAY-C-XANH-L</td><td class="l"><span class="nm is-wide">Váy midi xếp ly</span></td><td class="l">Xanh rêu / L</td><td class="l">Kho Hà Nội</td><td>2</td><td>1</td><td>1</td><td>0</td><td class="bold err-text">0</td></tr>
+		<tr><td colspan="9" class="l muted">… 1.196 mã nữa (cuộn để xem)</td></tr>
+		</tbody>
+	</table>
+	</div>
+	<p class="xs muted">Có thể bán = Tồn sổ − Đang giữ − Đang giao − Hàng lỗi (cùng công thức màn Tồn kho của Kho).</p>
+</div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="bc03"><p class="xs">TRẠNG THÁI B · BC03</p><h2>Một ngày đã qua: tồn cuối ngày từ bản chụp 24:00; chọn ngày trước bản chụp đầu</h2></section>
+<div class="stack">
+	<div class="rep-f">
+		<div class="field"><span>Ngày</span><div class="row" role="group" aria-label="Ngày"><button class="toggle" aria-pressed="false">Hôm nay</button><button class="toggle" aria-pressed="true">Chọn ngày</button></div></div>
+		<label class="field" data-ca="ngay-da-qua"><span>Ngày đã qua</span><input class="input num" value="20/11/2026" aria-label="Ngày đã qua"></label>
+	</div>
+	<div class="meta" data-ca="ban-chup-24h"><span>Tồn cuối ngày <b>20/11/2026</b> · bản chụp lúc 24:00 giờ Việt Nam (không tính lại từ đầu)</span></div>
+	<div class="rt-frame scroll-x"><table class="rt">
+		<thead><tr><th>SKU</th><th class="l">Màu / size</th><th class="l">Kho</th><th>Tồn sổ</th><th>Đang giữ</th><th>Đang giao</th><th>Hàng lỗi</th><th>Có thể bán</th></tr></thead>
+		<tbody>
+		<tr><td>AO-A-DEN-M</td><td class="l">Đen / M</td><td class="l">Kho Hà Nội</td><td>31</td><td>2</td><td>4</td><td>1</td><td class="bold">24</td></tr>
+		<tr><td>QUAN-B-BE-S</td><td class="l">Be / S</td><td class="l">Kho phụ Long Biên</td><td>9</td><td>0</td><td>1</td><td>0</td><td class="bold">8</td></tr>
+		</tbody>
+	</table></div>
+	<div class="box box-info stack-sm" data-ca="chua-co-ban-chup"><b>Chưa có bản chụp trước ngày 15/11/2026.</b><p class="small">Bạn chọn 10/11/2026. Hệ thống bắt đầu chụp tồn từ 15/11/2026; chọn từ ngày đó trở đi.</p></div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Tab Xuất nhập tồn theo kỳ: đầu kỳ, nhập, nhập trả, xuất bán, xuất khác, kiểm kho, cuối kỳ</h2></section>
+<div class="stack">
+	<div class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="false">Tồn</button><button class="tab" role="tab" aria-selected="true">Xuất nhập tồn</button></div>
+	<div class="period" role="group" aria-label="Chọn kỳ"><button class="toggle" aria-pressed="false">Hôm nay</button><button class="toggle" aria-pressed="false">Hôm qua</button><button class="toggle" aria-pressed="true">7 ngày</button><button class="toggle" aria-pressed="false">Tháng này</button><button class="toggle" aria-pressed="false">Tùy chọn</button></div>
+	<div class="meta"><span>21/11 – 27/11/2026 · đầu kỳ = tồn sổ lúc 00:00 ngày 21/11, cuối kỳ = lúc 24:00 ngày 27/11 (giờ Việt Nam)</span></div>
+	<div class="rt-frame scroll-x" data-ca="xnt-cot"><table class="rt">
+		<thead><tr><th>SKU</th><th class="l">Kho</th><th data-ca="dau-ky">Đầu kỳ</th><th>Nhập</th><th>Nhập trả</th><th>Xuất bán</th><th>Xuất khác</th><th>Kiểm kho / điều chỉnh</th><th data-ca="cuoi-ky">Cuối kỳ</th></tr></thead>
+		<tbody>
+		<tr><td>AO-A-DEN-M</td><td class="l">Kho Hà Nội</td><td>30</td><td>20</td><td>2</td><td>27</td><td>0</td><td data-ca="dieu-chinh-am">−1</td><td class="bold">24</td></tr>
+		<tr><td>QUAN-B-BE-S</td><td class="l">Kho phụ Long Biên</td><td>9</td><td>0</td><td>0</td><td>3</td><td>0</td><td>0</td><td class="bold">6</td></tr>
+		<tr><td>VAY-C-XANH-L</td><td class="l">Kho Hà Nội</td><td>5</td><td>0</td><td>0</td><td>2</td><td>1</td><td>0</td><td class="bold">2</td></tr>
+		</tbody>
+	</table></div>
+	<p class="xs muted">Cuối kỳ = Đầu kỳ + Nhập + Nhập trả − Xuất bán − Xuất khác ± Kiểm kho. Xuất khác: phiếu xuất hủy, xuất trả nhà cung cấp, chuyển kho đi.</p>
+	<div class="empty" data-ca="xnt-0"><h2>Không có nhập, xuất trong kỳ</h2><p class="muted">Tồn đầu kỳ bằng cuối kỳ. Chọn kỳ khác.</p></div>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI D</p><h2>Người chỉ có quyền một kho (không có nút xuất); đang tải; lỗi; không có quyền (403)</h2></section>
+<div class="stack" data-ca="pham-vi-kho khong-nut-xuat">
+	<div class="page-h" style="margin:0"><div class="grow"><h2>Tồn và xuất nhập tồn</h2><p class="sub">Phạm Quốc Huy · Kho</p></div><div class="row"><button class="btn btn-quiet">Tải lại</button></div></div>
+	<div class="box box-info small"><b>Phạm vi: Kho Hà Nội.</b> Ô chọn kho chỉ có kho này. Xuất tệp cần quyền xuất ở phạm vi toàn shop.</div>
+</div>
+<div class="dlgs" style="margin-top:16px">
+	<div class="box box-info stack-sm" data-ca="dang-tai"><b>Đang tải số liệu…</b><p class="small">Bảng trống, không hiện số cũ.</p></div>
+	<div class="box box-err stack-sm" data-ca="loi-tai"><b>Không tải được báo cáo.</b><div class="row"><button class="btn btn-line">Thử lại</button></div></div>
+	<div class="box box-err stack-sm" data-ca="khong-quyen-403"><b>Bạn không có quyền xem báo cáo tồn kho.</b><p>Nhờ Chủ shop hoặc Quản lý giao quyền "Xem báo cáo tồn kho" cho kho bạn phụ trách.</p></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

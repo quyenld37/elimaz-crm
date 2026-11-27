@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M6 — Báo cáo: Hãng vận chuyển</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../../mockups/m1/m1.css">
+<link rel="stylesheet" href="../../mockups/m2/m2.css">
+<link rel="stylesheet" href="../../mockups/m3/m3.css">
+<link rel="stylesheet" href="m6.css">
+</head>
+<body data-page="van-chuyen" data-title="Hãng vận chuyển">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Báo cáo / Hãng vận chuyển</p><h1>Hãng vận chuyển</h1><p class="sub">Vận đơn theo hãng và tài khoản hãng, kể cả Tự giao. Tỷ lệ thành công tính trên vận đơn đã kết thúc.</p></div>
+	<div class="row"><button class="btn btn-quiet">Tải lại</button><button class="btn btn-line" data-ca="xuat-excel">Xuất Excel</button></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI A</p><h2>7 ngày: theo hãng, mở từng tài khoản; Tự giao; tỷ lệ "—" khi chưa vận đơn nào kết thúc</h2></section>
+<div class="stack">
+	<div class="period" role="group" aria-label="Chọn kỳ"><button class="toggle" aria-pressed="false">Hôm nay</button><button class="toggle" aria-pressed="false">Hôm qua</button><button class="toggle" aria-pressed="true">7 ngày</button><button class="toggle" aria-pressed="false">Tháng này</button><button class="toggle" aria-pressed="false">Tùy chọn</button></div>
+	<div class="meta"><span data-ca="loai-ngay">Theo <b>ngày tạo vận đơn</b> · 21/11 – 27/11/2026, giờ Việt Nam · trạng thái là trạng thái hiện tại của vận đơn</span><span>Cập nhật lúc <b>14:32:05</b></span></div>
+	<div class="rt-frame scroll-x" data-ca="cot-van-don">
+	<table class="rt">
+		<thead><tr><th>Hãng / tài khoản</th><th>Vận đơn tạo</th><th>Đã hủy</th><th>Đang đi</th><th>Đang hoàn</th><th>Giao thất bại chờ xử lý</th><th>Thành công</th><th>Hoàn</th><th>Tỷ lệ thành công</th><th>Tổng phí</th><th>Phí TB</th><th>Tổng COD</th></tr></thead>
+		<tbody>
+		<tr data-ca="theo-hang mo-bao-cao-don"><td><a class="cell-a bold" href="don.html">Giao Hàng Nhanh</a></td><td>50</td><td>2</td><td>9</td><td>0</td><td>1</td><td>37</td><td>3</td><td>92,50%</td><td><span class="money">1.248.000 ₫</span></td><td><span class="money">24.960 ₫</span></td><td><span class="money">15.610.000 ₫</span></td></tr>
+		<tr data-ca="theo-tai-khoan"><td class="ind"><span class="nm" data-ca="ten-tk-dai" title="GHN — Kho Hà Nội — tài khoản chính dùng cho đơn live tối và đơn website khu vực miền Bắc">GHN — Kho Hà Nội — tài khoản chính dùng cho đơn live tối và đơn website khu vực miền Bắc</span></td><td>39</td><td>1</td><td>7</td><td>0</td><td>1</td><td>29</td><td>2</td><td>93,55%</td><td><span class="money">960.000 ₫</span></td><td><span class="money">24.615 ₫</span></td><td><span class="money">12.020.000 ₫</span></td></tr>
+		<tr><td class="ind"><span class="nm">GHN — Kho phụ</span></td><td>11</td><td>1</td><td>2</td><td>0</td><td>0</td><td>8</td><td>1</td><td>88,89%</td><td><span class="money">288.000 ₫</span></td><td><span class="money">26.182 ₫</span></td><td><span class="money">3.590.000 ₫</span></td></tr>
+		<tr data-ca="ty-le-thanh-cong"><td><a class="cell-a bold" href="don.html">Viettel Post</a></td><td>30</td><td>1</td><td>5</td><td>1</td><td>0</td><td>16</td><td>8</td><td>66,67%</td><td><span class="money">806.000 ₫</span></td><td><span class="money">26.867 ₫</span></td><td><span class="money">9.020.000 ₫</span></td></tr>
+		<tr><td><a class="cell-a bold" href="don.html">Best Express</a></td><td>4</td><td>0</td><td>4</td><td>0</td><td>0</td><td>0</td><td>0</td><td><span data-ca="ty-le-trong">—</span></td><td><span class="money">88.000 ₫</span></td><td><span class="money">22.000 ₫</span></td><td><span class="money">1.160.000 ₫</span></td></tr>
+		<tr data-ca="tu-giao"><td><a class="cell-a bold" href="don.html">Tự giao</a></td><td>3</td><td>0</td><td>0</td><td>0</td><td>0</td><td>3</td><td>0</td><td>100,00%</td><td><span class="money">0 ₫</span></td><td><span class="money">0 ₫</span></td><td><span class="money">870.000 ₫</span></td></tr>
+		<tr class="is-total" data-ca="dong-tong"><td>Tổng</td><td>87</td><td>3</td><td>18</td><td>1</td><td>1</td><td>56</td><td>11</td><td>83,58%</td><td><span class="money" data-ca="tong-phi">2.142.000 ₫</span></td><td><span class="money" data-ca="phi-tb">24.621 ₫</span></td><td><span class="money" data-ca="tong-cod">26.660.000 ₫</span></td></tr>
+		</tbody>
+	</table>
+	</div>
+	<p class="xs muted" data-ca="giao-that-bai">"Vận đơn tạo" = vận đơn tạo trong kỳ, trừ vận đơn đã hủy (= đang đi + đang hoàn + giao thất bại + thành công + hoàn). "Giao thất bại chờ xử lý" = hãng báo giao không được, shop chưa chọn giao lại hay hoàn. Tỷ lệ thành công = thành công ÷ (thành công + hoàn); vận đơn đang đi không tính. Phí TB = tổng phí ÷ vận đơn chưa hủy. Bấm tên hãng mở Báo cáo đơn nhóm theo Hãng, lọc đúng hãng đó.</p>
+</div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Tháng này: COD 9 chữ số; không có vận đơn; đang tải; lỗi</h2></section>
+<div class="stack">
+	<div class="rt-frame scroll-x" data-ca="tien-9-so"><table class="rt">
+		<thead><tr><th>Hãng</th><th>Vận đơn tạo</th><th>Tỷ lệ thành công</th><th>Tổng phí</th><th>Tổng COD</th></tr></thead>
+		<tbody>
+		<tr><td><a class="cell-a bold" href="don.html">Giao Hàng Nhanh</a></td><td>286</td><td>93,10%</td><td><span class="money">7.010.000 ₫</span></td><td><span class="money">101.240.000 ₫</span></td></tr>
+		<tr class="is-total"><td>Tổng</td><td>398</td><td>92,64%</td><td><span class="money">9.950.000 ₫</span></td><td><span class="money">129.666.789 ₫</span></td></tr>
+		</tbody>
+	</table></div>
+	<div class="dlgs">
+		<div class="empty" data-ca="0-van-don"><h2>Chưa có vận đơn nào trong kỳ</h2><p class="muted">Vận đơn tính theo ngày tạo. Chọn kỳ khác.</p></div>
+		<div class="box box-info stack-sm" data-ca="dang-tai"><b>Đang tải số liệu…</b><p class="small">Bảng trống, không hiện số cũ.</p></div>
+		<div class="box box-err stack-sm" data-ca="loi-tai"><b>Không tải được báo cáo.</b><div class="row"><button class="btn btn-line">Thử lại</button></div></div>
+	</div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

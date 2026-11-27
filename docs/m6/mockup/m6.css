@@ -1,0 +1,90 @@
+/* Mockup M6 (Task M6-01, số toàn cục 224): sáu màn báo cáo. Nạp SAU ../../mockups/m1/m1.css (hệ thiết kế đã duyệt ở M1,
+   console dùng đúng token đó), ../../mockups/m2/m2.css và ../../mockups/m3/m3.css. Tệp này chỉ thêm thành phần chưa có,
+   chỉ bằng biến của m1.css: không màu, cỡ chữ, bo góc mới. Không có gì chỉ hiện khi rê chuột. */
+
+/* Bảng số liệu báo cáo (.rt): khác .tbl của M1 ở chỗ KHÔNG đổi thành thẻ dưới 760px. Bảng luôn nằm trong khung
+   .rt-frame.scroll-x: rộng hơn màn thì cuộn ngang trong khung, cột đầu (tên nhóm) dính trái; trang không cuộn ngang. */
+.rt-frame { border: 1px solid var(--rule); border-radius: var(--r-box); min-width: 0; max-width: 100%; }
+.rt { width: 100%; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
+.rt th { text-align: right; font-size: 13px; font-weight: 600; color: var(--label); padding: 8px 12px; border-bottom: 1px solid var(--rule); background: var(--surface); white-space: nowrap; }
+.rt td { text-align: right; padding: 6px 12px; border-bottom: 1px solid var(--rule); white-space: nowrap; vertical-align: middle; }
+.rt th:first-child, .rt td:first-child { text-align: left; position: sticky; left: 0; background: var(--paper); z-index: 1; box-shadow: inset -1px 0 0 var(--rule); }
+.rt th:first-child { background: var(--surface); }
+.rt td.l, .rt th.l { text-align: left; }
+.rt tr.is-total td { font-weight: 700; background: var(--surface); border-bottom: 0; }
+.rt tr:last-child td { border-bottom: 0; }
+.rt td .nm { display: block; max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rt td .nm.is-wide { max-width: 420px; }
+.rt td .nm.is-narrow { max-width: 200px; }
+.rt td.wrap { white-space: normal; min-width: 240px; }
+@media (max-width: 759px) {
+	.rt td .nm { max-width: 150px; }
+	.rt td .nm.is-wide { max-width: 180px; }
+	.rt td.wrap { min-width: 200px; }
+}
+
+/* Ô số bấm được: mở danh sách chi tiết (ngăn bên phải trên máy tính, trang riêng trên điện thoại). Gạch chân chấm để
+   thấy bấm được mà không cần rê chuột. */
+.cell-n { min-height: var(--tap); min-width: var(--tap); padding: 0 4px; border: 0; background: none; font: inherit; font-weight: 600; color: var(--ink); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.cell-n[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-radius: var(--r); text-decoration: none; }
+.cell-n.money { white-space: nowrap; }
+
+/* Ô số tổng quan bấm được (dùng .kpi của M1): cả ô là một liên kết. */
+.kpi { display: grid; gap: 2px; align-content: start; }
+a.kpi { text-decoration: none; color: var(--ink); }
+a.kpi:hover { background: var(--surface); }
+.kpi .k { font-size: 13px; color: var(--label); font-weight: 600; }
+.kpi .v.money { font-size: 26px; }
+.kpi .s { font-size: 12px; color: var(--muted); }
+.kpis.is-6 { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+@media (max-width: 759px) {
+	.kpis, .kpis.is-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
+	.kpi { padding: 8px 12px; }
+	.kpi .v, .kpi .v.money { font-size: 18px; }
+}
+
+/* Khối "Chờ xử lý": số hiện tại, không theo kỳ (viền đậm để khác ô theo kỳ). */
+.now { border: 1px solid var(--ink); border-radius: var(--r-box); padding: var(--space-md); display: grid; gap: var(--space-sm); min-width: 0; }
+.now .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 759px) { .now .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } .now { padding: var(--space-sm) 12px; } }
+
+/* Chọn kỳ: các nút .toggle của M1 cùng hai ô ngày khi chọn Tùy chọn. */
+.period { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; }
+.period .dates { display: flex; gap: var(--space-sm); align-items: center; flex-wrap: wrap; }
+.period .dates .input { width: 140px; }
+@media (max-width: 759px) { .period .toggle { flex: 1 1 auto; } .period .dates { width: 100%; } .period .dates .input { flex: 1 1 0; width: auto; min-width: 0; } }
+
+/* Dòng "Cập nhật lúc" và loại ngày đang lọc (C3). */
+.meta { display: flex; gap: var(--space-sm) var(--space-md); flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--muted); }
+.meta b { color: var(--ink); font-weight: 600; }
+
+/* Thanh ngang theo ngày (Q15: không thư viện biểu đồ; .bar của M1). */
+.bar.is-day { min-width: 120px; width: 100%; }
+@media (max-width: 759px) { .bar.is-day { min-width: 72px; } }
+
+/* Bảng + ngăn chi tiết bên phải (máy tính); dưới 1000px ngăn là trang riêng có nút quay lại. */
+.dd { display: grid; grid-template-columns: minmax(0, 1fr) 520px; gap: var(--space-md); align-items: start; }
+.dd-panel { border: 1px solid var(--rule); border-radius: var(--r-box); box-shadow: var(--shadow); padding: var(--space-md); display: grid; gap: var(--space-sm); min-width: 0; background: var(--paper); }
+.dd-panel .dd-h { display: flex; gap: var(--space-sm); align-items: flex-start; }
+.dd-panel .dd-h .grow { display: grid; gap: 2px; }
+.dd-back { display: none; }
+@media (max-width: 1199px) { .dd { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 999px) {
+	.dd-panel { box-shadow: none; border: 0; padding: 0; }
+	.dd-back { display: inline-flex; }
+	.dd-close { display: none; }
+}
+
+/* Danh sách lần chạy nền / tệp xuất: trạng thái bằng chữ kèm chấm. */
+.run-st { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; white-space: nowrap; }
+
+/* Bộ lọc nhiều lựa chọn: nút mở hộp chọn, hộp chọn có ô đánh dấu. */
+.ms { border: 1px solid var(--rule); border-radius: var(--r-box); padding: var(--space-sm) var(--space-md); display: grid; gap: 0; max-width: 360px; background: var(--paper); box-shadow: var(--shadow); }
+.ms .check { min-height: var(--tap); }
+.chips { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; }
+
+/* Chọn cơ sở ngày, nhóm theo, kho…: ô chọn có nhãn phía trên (chữ lựa chọn không phải gánh tên ô). */
+.rep-f { display: flex; gap: var(--space-sm) var(--space-md); flex-wrap: wrap; align-items: end; }
+.rep-f .field { flex: 0 1 240px; }
+@media (max-width: 759px) { .rep-f .field { flex: 1 1 100%; } }
+.rt td.ind { padding-left: 28px; color: var(--label); }

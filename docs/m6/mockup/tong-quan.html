@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M6 — Báo cáo: Tổng quan</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../../mockups/m1/m1.css">
+<link rel="stylesheet" href="../../mockups/m2/m2.css">
+<link rel="stylesheet" href="../../mockups/m3/m3.css">
+<link rel="stylesheet" href="m6.css">
+</head>
+<body data-page="tong-quan" data-title="Tổng quan">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Báo cáo / Tổng quan</p><h1>Tổng quan</h1><p class="sub">Số đơn và doanh số của shop theo kỳ, cùng số đơn đang chờ xử lý lúc này. Bấm một ô số để xem danh sách đơn tạo nên số đó.</p></div>
+	<div class="row"><button class="btn btn-quiet" data-ca="tai-lai">Tải lại</button><button class="btn btn-line" data-ca="xuat-excel">Xuất Excel</button></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="bc01"><p class="xs">TRẠNG THÁI A · BC01</p><h2>Hôm nay (kịch bản chín đơn): bảy ô số theo kỳ, khối Chờ xử lý, bảng theo kênh</h2></section>
+
+<div class="stack">
+	<div class="period" data-ca="chon-ky" role="group" aria-label="Chọn kỳ">
+		<button class="toggle" aria-pressed="true" data-ca="hom-nay">Hôm nay</button>
+		<button class="toggle" aria-pressed="false" data-ca="hom-qua">Hôm qua</button>
+		<button class="toggle" aria-pressed="false" data-ca="7-ngay">7 ngày</button>
+		<button class="toggle" aria-pressed="false" data-ca="thang-nay">Tháng này</button>
+		<button class="toggle" aria-pressed="false" data-ca="tuy-chon">Tùy chọn</button>
+	</div>
+	<div class="meta">
+		<span data-ca="loai-ngay">Đơn lên, doanh số, hủy theo <b>ngày lên đơn</b>; thành công, hoàn theo <b>ngày hoàn tất</b>; hàng khách trả theo <b>ngày nhận trả</b> · 27/11/2026, giờ Việt Nam</span>
+		<span data-ca="cap-nhat-luc">Cập nhật lúc <b>14:32:05</b> · tự tải lại mỗi 60 giây</span>
+	</div>
+
+	<div class="kpis is-6">
+		<a class="kpi" href="#chi-tiet" data-ca="o-don-len mo-chi-tiet"><span class="k">Đơn lên</span><span class="v">8</span><span class="s">gồm 1 đơn đã hủy</span></a>
+		<a class="kpi" href="#chi-tiet" data-ca="o-doanh-so"><span class="k">Doanh số</span><span class="v money">1.910.000 ₫</span><span class="s">7 đơn chưa hủy</span></a>
+		<a class="kpi" href="#chi-tiet" data-ca="o-gia-tri-tb"><span class="k">Giá trị TB</span><span class="v money">272.857 ₫</span><span class="s">doanh số ÷ 7 đơn</span></a>
+		<a class="kpi" href="#chi-tiet" data-ca="o-huy"><span class="k">Đơn hủy</span><span class="v">1</span><span class="s">theo ngày lên đơn</span></a>
+		<a class="kpi" href="#chi-tiet" data-ca="o-thanh-cong"><span class="k">Thành công</span><span class="v">2</span><span class="s"><span class="money">750.000 ₫</span> · theo ngày hoàn tất</span></a>
+		<a class="kpi" href="#chi-tiet" data-ca="o-hoan"><span class="k">Hoàn</span><span class="v">1</span><span class="s"><span class="money">250.000 ₫</span> · theo ngày hoàn tất</span></a>
+		<a class="kpi" href="#chi-tiet" data-ca="o-khach-tra"><span class="k">Hàng khách trả</span><span class="v">1 cái</span><span class="s"><span class="money">150.000 ₫</span> hoàn tiền · theo ngày nhận trả</span></a>
+	</div>
+
+	<div class="now" data-ca="cho-xu-ly">
+		<div class="row-between"><h3>Chờ xử lý</h3><span class="xs muted">Số hiện tại lúc 14:32:05, không theo kỳ đã chọn</span></div>
+		<div class="kpis">
+			<a class="kpi" href="#chi-tiet-1" data-ca="cho-xac-nhan"><span class="k">Chờ xác nhận</span><span class="v">1</span></a>
+			<a class="kpi" href="#chi-tiet-1" data-ca="cho-gui-hang"><span class="k">Chờ gửi hãng</span><span class="v">1</span></a>
+			<a class="kpi" href="#chi-tiet-1" data-ca="dang-yeu-cau-huy"><span class="k">Đang yêu cầu hủy</span><span class="v">1</span></a>
+		</div>
+	</div>
+
+	<div class="stack-sm" data-ca="theo-kenh">
+		<h3>Theo kênh</h3>
+		<div class="rt-frame scroll-x">
+		<table class="rt">
+			<thead><tr><th>Kênh</th><th>Đơn lên</th><th>Chưa hủy</th><th>Doanh số</th><th>Phí ship thu khách</th></tr></thead>
+			<tbody>
+			<tr><td>Facebook</td><td><button class="cell-n">6</button></td><td><button class="cell-n">5</button></td><td><button class="cell-n money">1.300.000 ₫</button></td><td><span class="money">120.000 ₫</span></td></tr>
+			<tr><td>Website</td><td><button class="cell-n">1</button></td><td><button class="cell-n">1</button></td><td><button class="cell-n money">360.000 ₫</button></td><td><span class="money">30.000 ₫</span></td></tr>
+			<tr><td>Nhập tay</td><td><button class="cell-n">1</button></td><td><button class="cell-n">1</button></td><td><button class="cell-n money">250.000 ₫</button></td><td><span class="money">0 ₫</span></td></tr>
+			<tr data-ca="khong-xac-dinh"><td>Không xác định</td><td>0</td><td>0</td><td><span class="money">0 ₫</span></td><td><span class="money">0 ₫</span></td></tr>
+			<tr class="is-total"><td>Tổng</td><td>8</td><td>7</td><td><span class="money">1.910.000 ₫</span></td><td><span class="money">150.000 ₫</span></td></tr>
+			</tbody>
+		</table>
+		</div>
+		<p class="xs muted">"Không xác định" là đơn thiếu kênh (dữ liệu cũ, lỗi nhập); không tự gán vào Facebook.</p>
+	</div>
+	<p class="small muted" data-ca="chu-thich-doanh-so">Doanh số = tiền hàng sau giảm giá, chưa gồm ship; chưa phải doanh thu kế toán.</p>
+</div>
+<p class="mk" style="margin-top:8px"><b>Mockup:</b> số của kịch bản chín đơn (Task 227, docs/m6/tieu-chi.md): 8 đơn lên (O7 còn nháp không tính), 1 hủy (O6), 1.910.000 ₫ trên 7 đơn, TB 272.857 ₫, thành công O1 O9, hoàn O2, khách trả 1 cái; theo kênh Facebook 6 (5 chưa hủy, 1.300.000 ₫), Website 1 (360.000 ₫), Nhập tay 1 (250.000 ₫). Phí ship cộng từng đơn (5 × 30.000 ₫ = 150.000 ₫; tiêu chí ghi 120.000 ₫, xem tệp task). Mỗi ô số bằng đúng số dòng của danh sách đơn cùng ngày, cùng trạng thái (BC01). Nút "Xuất Excel" đặt cạnh "Tải lại" ở góc phải đầu trang, như mọi màn báo cáo — hành vi (b), chờ chủ shop OK.</p>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>7 ngày: bảng theo ngày có thanh ngang (CSS, không thư viện biểu đồ); một ngày không có đơn</h2></section>
+
+<div class="stack">
+	<div class="period" role="group" aria-label="Chọn kỳ">
+		<button class="toggle" aria-pressed="false">Hôm nay</button><button class="toggle" aria-pressed="false">Hôm qua</button><button class="toggle" aria-pressed="true">7 ngày</button><button class="toggle" aria-pressed="false">Tháng này</button><button class="toggle" aria-pressed="false">Tùy chọn</button>
+	</div>
+	<div class="meta"><span>21/11/2026 – 27/11/2026 · theo ngày lên đơn, giờ Việt Nam</span><span>Cập nhật lúc <b>14:32:05</b></span></div>
+	<div class="kpis is-6">
+		<a class="kpi" href="#chi-tiet"><span class="k">Đơn lên</span><span class="v">96</span><span class="s">gồm 4 đơn đã hủy</span></a>
+		<a class="kpi" href="#chi-tiet"><span class="k">Doanh số</span><span class="v money">28.734.000 ₫</span><span class="s">92 đơn chưa hủy</span></a>
+		<a class="kpi" href="#chi-tiet"><span class="k">Giá trị TB</span><span class="v money">312.326 ₫</span><span class="s">doanh số ÷ 92 đơn</span></a>
+		<a class="kpi" href="#chi-tiet"><span class="k">Đơn hủy</span><span class="v">4</span></a>
+		<a class="kpi" href="#chi-tiet"><span class="k">Thành công</span><span class="v">71</span><span class="s"><span class="money">21.880.000 ₫</span></span></a>
+		<a class="kpi" href="#chi-tiet"><span class="k">Hoàn</span><span class="v">5</span><span class="s"><span class="money">1.540.000 ₫</span></span></a>
+		<a class="kpi" href="#chi-tiet"><span class="k">Hàng khách trả</span><span class="v">6 cái</span><span class="s"><span class="money">1.320.000 ₫</span></span></a>
+	</div>
+	<div class="stack-sm" data-ca="theo-ngay">
+		<h3>Theo ngày</h3>
+		<div class="rt-frame scroll-x">
+		<table class="rt">
+			<thead><tr><th>Ngày</th><th class="l">Doanh số</th><th>Chưa hủy</th><th>Doanh số</th><th>Thành công</th><th>Doanh số thành công</th></tr></thead>
+			<tbody>
+			<tr><td>27/11 (T6)</td><td class="l"><div class="bar is-day" data-ca="thanh-ngang"><i style="width:19%"></i></div></td><td><button class="cell-n">7</button></td><td><button class="cell-n money">1.910.000 ₫</button></td><td><button class="cell-n">2</button></td><td><button class="cell-n money">750.000 ₫</button></td></tr>
+			<tr><td>26/11 (T5)</td><td class="l"><div class="bar is-day"><i style="width:52%"></i></div></td><td><button class="cell-n">16</button></td><td><button class="cell-n money">5.120.000 ₫</button></td><td><button class="cell-n">14</button></td><td><button class="cell-n money">4.300.000 ₫</button></td></tr>
+			<tr><td>25/11 (T4)</td><td class="l"><div class="bar is-day"><i style="width:100%"></i></div></td><td><button class="cell-n">31</button></td><td><button class="cell-n money">9.844.000 ₫</button></td><td><button class="cell-n">18</button></td><td><button class="cell-n money">5.600.000 ₫</button></td></tr>
+			<tr><td>24/11 (T3)</td><td class="l"><div class="bar is-day"><i style="width:38%"></i></div></td><td><button class="cell-n">11</button></td><td><button class="cell-n money">3.760.000 ₫</button></td><td><button class="cell-n">12</button></td><td><button class="cell-n money">3.700.000 ₫</button></td></tr>
+			<tr><td>23/11 (CN)</td><td class="l"><div class="bar is-day"><i style="width:0%"></i></div></td><td>0</td><td><span class="money">0 ₫</span></td><td>0</td><td><span class="money">0 ₫</span></td></tr>
+			<tr><td>22/11 (T7)</td><td class="l"><div class="bar is-day"><i style="width:44%"></i></div></td><td><button class="cell-n">13</button></td><td><button class="cell-n money">4.330.000 ₫</button></td><td><button class="cell-n">13</button></td><td><button class="cell-n money">3.900.000 ₫</button></td></tr>
+			<tr><td>21/11 (T6)</td><td class="l"><div class="bar is-day"><i style="width:38%"></i></div></td><td><button class="cell-n">14</button></td><td><button class="cell-n money">3.770.000 ₫</button></td><td><button class="cell-n">12</button></td><td><button class="cell-n money">3.630.000 ₫</button></td></tr>
+			<tr class="is-total"><td>Tổng</td><td class="l"></td><td>92</td><td><span class="money">28.734.000 ₫</span></td><td>71</td><td><span class="money">21.880.000 ₫</span></td></tr>
+			</tbody>
+		</table>
+		</div>
+		<p class="xs muted">Đơn chưa hủy, doanh số theo ngày lên đơn; thành công theo ngày hoàn tất. Thanh dài nhất = ngày có doanh số lớn nhất của kỳ. Bảng chỉ hiện khi kỳ có từ hai ngày.</p>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Tháng này: số tiền 9 chữ số; Tùy chọn quá 366 ngày, ngày tương lai</h2></section>
+
+<div class="stack">
+	<div class="kpis is-6" data-ca="tien-9-so">
+		<a class="kpi" href="#chi-tiet"><span class="k">Đơn lên</span><span class="v">412</span><span class="s">01/11 – 27/11/2026</span></a>
+		<a class="kpi" href="#chi-tiet"><span class="k">Doanh số</span><span class="v money">123.456.789 ₫</span><span class="s">398 đơn chưa hủy</span></a>
+		<a class="kpi" href="#chi-tiet"><span class="k">Giá trị TB</span><span class="v money">310.194 ₫</span></a>
+		<a class="kpi" href="#chi-tiet"><span class="k">Đơn hủy</span><span class="v">14</span></a>
+		<a class="kpi" href="#chi-tiet"><span class="k">Thành công</span><span class="v">351</span><span class="s"><span class="money">104.882.000 ₫</span></span></a>
+		<a class="kpi" href="#chi-tiet"><span class="k">Hoàn</span><span class="v">19</span><span class="s"><span class="money">5.432.000 ₫</span></span></a>
+		<a class="kpi" href="#chi-tiet"><span class="k">Hàng khách trả</span><span class="v">23 cái</span><span class="s"><span class="money">6.210.000 ₫</span></span></a>
+	</div>
+	<p class="mk"><b>Mockup:</b> Tháng này có bảng theo ngày (27 dòng) như trạng thái B; bảng theo kênh như A.</p>
+	<div class="dlgs">
+		<div class="card stack-sm" data-ca="qua-366">
+			<div class="period" role="group" aria-label="Chọn kỳ"><button class="toggle" aria-pressed="false">7 ngày</button><button class="toggle" aria-pressed="true">Tùy chọn</button></div>
+			<div class="period"><div class="dates"><label class="field"><span class="sr">Từ ngày</span><input class="input num is-err" value="01/01/2026" aria-label="Từ ngày"></label><span class="muted">→</span><label class="field"><span class="sr">Đến ngày</span><input class="input num is-err" value="03/01/2027" aria-label="Đến ngày"></label></div><button class="btn btn-dark" disabled>Xem</button></div>
+			<p class="field-err">Khoảng tối đa 366 ngày; đang chọn 368 ngày. Thu hẹp khoảng ngày để xem.</p>
+		</div>
+		<div class="card stack-sm" data-ca="ngay-tuong-lai">
+			<div class="period"><div class="dates"><label class="field"><span class="sr">Từ ngày</span><input class="input num" value="20/11/2026" aria-label="Từ ngày"></label><span class="muted">→</span><label class="field"><span class="sr">Đến ngày</span><input class="input num is-err" value="30/11/2026" aria-label="Đến ngày"></label></div><button class="btn btn-dark" disabled>Xem</button></div>
+			<p class="field-err">Không chọn được ngày sau hôm nay (27/11/2026).</p>
+			<p class="hint">Lịch chọn ngày làm mờ các ngày sau hôm nay.</p>
+		</div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st" id="chi-tiet"><p class="xs">TRẠNG THÁI D · hành vi (a)</p><h2>Bấm ô "Đơn lên": danh sách chi tiết ở ngăn bên phải; trên điện thoại là trang riêng</h2></section>
+
+<div class="dd">
+	<div class="stack-sm">
+		<div class="kpis is-6">
+			<a class="kpi" href="#chi-tiet" style="border-color:var(--ink)"><span class="k">Đơn lên</span><span class="v">8</span><span class="s">đang xem</span></a>
+			<a class="kpi" href="#chi-tiet"><span class="k">Doanh số</span><span class="v money">1.910.000 ₫</span></a>
+			<a class="kpi" href="#chi-tiet"><span class="k">Đơn hủy</span><span class="v">1</span></a>
+		</div>
+		<p class="mk"><b>Mockup:</b> trên máy tính (từ 1000px) ngăn mở bên phải, phần báo cáo vẫn thấy; dưới 1200px ngăn xuống dưới bảng. Trên điện thoại (dưới 1000px) bấm ô số mở trang riêng có nút "← Tổng quan"; nút Quay lại của trình duyệt cũng về báo cáo. Hành vi (a), chờ chủ shop OK.</p>
+	</div>
+	<aside class="dd-panel" aria-label="Danh sách chi tiết" data-ca="ngan-chi-tiet trang-chi-tiet-dt">
+		<a class="btn btn-quiet dd-back" href="#">← Tổng quan</a>
+		<div class="dd-h">
+			<div class="grow"><h3 data-ca="tong-dau-bang">Đơn lên · 8 đơn</h3><p class="xs muted">27/11/2026 · theo ngày lên đơn · cùng số với ô đã bấm</p></div>
+			<button class="ibtn dd-close" aria-label="Đóng">✕</button>
+		</div>
+		<div class="rt-frame scroll-x">
+		<table class="rt">
+			<thead><tr><th>Mã đơn</th><th class="l">Lên lúc</th><th class="l">Trạng thái</th><th class="l">Kênh</th><th class="l">Phụ trách</th><th>Tiền hàng</th><th>Ship</th></tr></thead>
+			<tbody>
+			<tr><td><a class="cell-a" href="#">DH0004809</a></td><td class="l">13:58</td><td class="l">Thành công</td><td class="l">Facebook</td><td class="l"><span class="nm">Nguyễn Thị An</span></td><td><span class="money">450.000 ₫</span></td><td><span class="money">30.000 ₫</span></td></tr>
+			<tr><td><a class="cell-a" href="#">DH0004808</a></td><td class="l">12:40</td><td class="l">Đang yêu cầu hủy</td><td class="l">Facebook</td><td class="l"><span class="nm">Nguyễn Thị An</span></td><td><span class="money">150.000 ₫</span></td><td><span class="money">30.000 ₫</span></td></tr>
+			<tr><td><a class="cell-a" href="#">DH0004806</a></td><td class="l">11:05</td><td class="l">Đã hủy</td><td class="l">Facebook</td><td class="l"><span class="nm" title="Trần Nguyễn Hoàng Bảo Bình — trưởng ca live tối thứ Bảy và Chủ nhật, phụ trách Page ELIMAZ Công Sở và Page ELIMAZ Dạo Phố" data-ca="ten-nv-dai">Trần Nguyễn Hoàng Bảo Bình — trưởng ca live tối thứ Bảy và Chủ nhật, phụ trách Page ELIMAZ Công Sở và Page ELIMAZ Dạo Phố</span></td><td><span class="money">0 ₫</span></td><td><span class="money">0 ₫</span></td></tr>
+			<tr><td><a class="cell-a" href="#">DH0004805</a></td><td class="l">10:51</td><td class="l">Chờ gửi hãng</td><td class="l">Nhập tay</td><td class="l"><span class="nm" title="Trần Nguyễn Hoàng Bảo Bình — trưởng ca live tối thứ Bảy và Chủ nhật, phụ trách Page ELIMAZ Công Sở và Page ELIMAZ Dạo Phố">Trần Nguyễn Hoàng Bảo Bình — trưởng ca live tối thứ Bảy và Chủ nhật, phụ trách Page ELIMAZ Công Sở và Page ELIMAZ Dạo Phố</span></td><td><span class="money">250.000 ₫</span></td><td><span class="money">0 ₫</span></td></tr>
+			<tr><td><a class="cell-a" href="#">DH0004804</a></td><td class="l">10:12</td><td class="l">Chờ xác nhận</td><td class="l">Website</td><td class="l"><span class="nm muted">Chưa phân công</span></td><td><span class="money">360.000 ₫</span></td><td><span class="money">30.000 ₫</span></td></tr>
+			<tr><td><a class="cell-a" href="#">DH0004803</a></td><td class="l">09:30</td><td class="l">Đang chuyển</td><td class="l">Facebook</td><td class="l"><span class="nm" title="Trần Nguyễn Hoàng Bảo Bình — trưởng ca live tối thứ Bảy và Chủ nhật, phụ trách Page ELIMAZ Công Sở và Page ELIMAZ Dạo Phố">Trần Nguyễn Hoàng Bảo Bình — trưởng ca live tối thứ Bảy và Chủ nhật, phụ trách Page ELIMAZ Công Sở và Page ELIMAZ Dạo Phố</span></td><td><span class="money">150.000 ₫</span></td><td><span class="money">0 ₫</span></td></tr>
+			<tr><td><a class="cell-a" href="#">DH0004802</a></td><td class="l">08:47</td><td class="l">Đã hoàn</td><td class="l">Facebook</td><td class="l"><span class="nm">Nguyễn Thị An</span></td><td><span class="money">250.000 ₫</span></td><td><span class="money">30.000 ₫</span></td></tr>
+			<tr><td><a class="cell-a" href="#">DH0004801</a></td><td class="l">08:10</td><td class="l">Thành công</td><td class="l">Facebook</td><td class="l"><span class="nm">Nguyễn Thị An</span></td><td><span class="money">300.000 ₫</span></td><td><span class="money">30.000 ₫</span></td></tr>
+			</tbody>
+		</table>
+		</div>
+		<p class="xs muted">Chỉ hiện mã đơn và mã khách, không tên, SĐT, địa chỉ khách. Bấm mã đơn mở màn chi tiết đơn.</p>
+	</aside>
+</div>
+
+<section class="st" id="chi-tiet-1"><p class="xs">TRẠNG THÁI E</p><h2>Danh sách chi tiết 1 đơn (Chờ xác nhận); danh sách dài có Xem thêm (tối đa 200 dòng mỗi lần)</h2></section>
+<div class="dlgs">
+	<aside class="dd-panel" aria-label="Danh sách chi tiết" data-ca="1-don">
+		<a class="btn btn-quiet dd-back" href="#">← Tổng quan</a>
+		<div class="dd-h"><div class="grow"><h3>Chờ xác nhận · 1 đơn</h3><p class="xs muted">Số hiện tại lúc 14:32:05</p></div><button class="ibtn dd-close" aria-label="Đóng">✕</button></div>
+		<div class="rt-frame scroll-x"><table class="rt"><thead><tr><th>Mã đơn</th><th class="l">Mã khách</th><th class="l">Lên lúc</th><th>Tiền hàng</th></tr></thead><tbody><tr><td><a class="cell-a" href="#">DH0004804</a></td><td class="l">KH0012044</td><td class="l">10:12 · 27/11</td><td><span class="money">360.000 ₫</span></td></tr></tbody></table></div>
+	</aside>
+	<aside class="dd-panel" aria-label="Danh sách chi tiết" data-ca="xem-them-chi-tiet">
+		<a class="btn btn-quiet dd-back" href="#">← Tổng quan</a>
+		<div class="dd-h"><div class="grow"><h3>Đơn lên · 412 đơn</h3><p class="xs muted">01/11 – 27/11/2026 · theo ngày lên đơn</p></div><button class="ibtn dd-close" aria-label="Đóng">✕</button></div>
+		<div class="rt-frame scroll-x"><table class="rt"><thead><tr><th>Mã đơn</th><th class="l">Lên lúc</th><th>Tiền hàng</th></tr></thead><tbody>
+			<tr><td><a class="cell-a" href="#">DH0004809</a></td><td class="l">13:58 · 27/11</td><td><span class="money">450.000 ₫</span></td></tr>
+			<tr><td><a class="cell-a" href="#">DH0004808</a></td><td class="l">12:40 · 27/11</td><td><span class="money">150.000 ₫</span></td></tr>
+			<tr><td colspan="3" class="l muted">… 198 dòng</td></tr>
+		</tbody></table></div>
+		<div class="more"><span>Đang hiện 200 / 412 đơn</span><button class="btn btn-quiet">Xem thêm</button></div>
+	</aside>
+</div>
+
+<!-- ============ TRẠNG THÁI F ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI F</p><h2>Không có đơn; đang tải; lỗi tải; hệ thống bận (503)</h2></section>
+<div class="stack">
+	<div class="stack-sm" data-ca="0-don">
+		<div class="kpis is-6">
+			<div class="kpi"><span class="k">Đơn lên</span><span class="v">0</span></div>
+			<div class="kpi"><span class="k">Doanh số</span><span class="v money">0 ₫</span></div>
+			<div class="kpi"><span class="k">Giá trị TB</span><span class="v" data-ca="ty-le-trong">—</span></div>
+		</div>
+		<div class="empty"><h2>Chưa có đơn nào lên hôm nay</h2><p class="muted">Đơn nháp chưa chốt không tính. Chọn kỳ khác để xem số cũ.</p></div>
+	</div>
+	<div class="dlgs">
+		<div class="box box-info stack-sm" data-ca="dang-tai"><b>Đang tải số liệu…</b><p class="small">Ô số để trống, không hiện số của lần trước; nút Xuất Excel, chọn kỳ tạm khóa.</p><div class="row"><button class="btn btn-line" disabled>Xuất Excel</button></div></div>
+		<div class="box box-err stack-sm" data-ca="loi-tai"><b>Không tải được báo cáo.</b><p class="small">Kiểm tra mạng rồi thử lại. Mã lỗi: 7f3a9c (gửi mã này khi báo lỗi).</p><div class="row"><button class="btn btn-line">Thử lại</button></div></div>
+		<div class="box box-info stack-sm" data-ca="ban-503"><b>Hệ thống đang bận, thử lại sau ít giây.</b><p class="small">Màn tự thử lại sau 5 giây (theo Retry-After).</p></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI G ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI G · BC05</p><h2>Báo cáo nặng tự chuyển chạy nền; chạy xong; quá nặng</h2></section>
+<div class="stack">
+	<div class="toast" data-ca="chay-nen" role="status"><span class="grow">Báo cáo nặng, đang chạy nền. Sẽ báo khi xong.</span><a class="btn btn-line" href="tep-xuat.html">Tệp xuất</a></div>
+	<div class="toast" data-ca="chay-nen-xong" role="status"><span class="grow">Tổng quan 01/01/2026 – 27/11/2026 đã xong.</span><button class="btn btn-line">Xem</button></div>
+	<div class="box box-err stack-sm" data-ca="qua-nang"><b>Báo cáo quá nặng, thu hẹp khoảng thời gian.</b><p class="small">Lần chạy nền quá 60 giây đã dừng. Thử kỳ ngắn hơn (ví dụ một tháng).</p></div>
+	<p class="mk"><b>Mockup:</b> xem tại chỗ quá 30 giây hoặc máy đang bận thì màn tự tạo lần chạy nền (một lần, giữ khóa chống trùng), hiện thông báo trên; khi xong màn tự hiện số như xem tại chỗ, lần chạy cũng có ở Tệp xuất.</p>
+</div>
+
+<!-- ============ TRẠNG THÁI H ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI H · C5</p><h2>Người chỉ có quyền một Page: chỉ thấy đơn của Page đó, không có nút xuất; không có quyền (403)</h2></section>
+<div class="stack" data-ca="mot-page khong-nut-xuat">
+	<div class="page-h" style="margin:0">
+		<div class="grow"><h2>Tổng quan</h2><p class="sub">Trần Minh Thư · Sale</p></div>
+		<div class="row"><button class="btn btn-quiet">Tải lại</button></div>
+	</div>
+	<div class="box box-info small"><b>Phạm vi: Page ELIMAZ Công Sở.</b> Không gồm đơn của Page khác, đơn website, đơn nhập tay.</div>
+	<div class="kpis is-6">
+		<a class="kpi" href="#chi-tiet"><span class="k">Đơn lên</span><span class="v">4</span></a>
+		<a class="kpi" href="#chi-tiet"><span class="k">Doanh số</span><span class="v money">1.150.000 ₫</span></a>
+		<a class="kpi" href="#chi-tiet"><span class="k">Giá trị TB</span><span class="v money">287.500 ₫</span></a>
+	</div>
+	<div class="rt-frame scroll-x"><table class="rt"><thead><tr><th>Kênh</th><th>Đơn lên</th><th>Chưa hủy</th><th>Doanh số</th></tr></thead><tbody><tr><td>Facebook</td><td><button class="cell-n">4</button></td><td><button class="cell-n">4</button></td><td><button class="cell-n money">1.150.000 ₫</button></td></tr></tbody></table></div>
+</div>
+<div class="box box-err stack-sm" style="margin-top:16px" data-ca="khong-quyen-403"><b>Bạn không có quyền xem báo cáo bán hàng.</b><p>Nhờ Chủ shop hoặc Quản lý giao quyền "Xem báo cáo bán hàng" cho Page bạn phụ trách.</p></div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>
