@@ -154,3 +154,9 @@ Kết luận: ĐẠT (lượt 2, 27/11).
   `DateStyle`); sửa tên test ở 6.1; thêm `schema_test.go` vào Ảnh hưởng.
 - Lượt 2: ĐẠT, không phát hiện phải sửa. Mọi ký hiệu khớp mục Ảnh hưởng; mọi dòng bằng chứng có test kiểm đúng điều
   đó; không test nào bị xóa, tắt hay nới.
+
+## Sửa jscpd (lượt sau commit b5a134a8)
+
+- Lỗi: jscpd báo mã lặp mới giữa `handlers_catalog.go` (`optString`) và `reporting/snapshot.go` (`optional`). Sửa: bỏ hàm `optional`, thay bằng hai khối `if` gán con trỏ (không đổi hành vi).
+- Bằng chứng: ci-task (chạy trên Mac, `CRM_CI_RUNNER=mac`) XANH: jscpd 0 clone, lint 0 issue, test kiến trúc ok, `-race` cmd/crm + reporting ok, test thường httpapi, httpapi/web, conversation, files, realtime ok. (Lần đầu gen-check đỏ chỉ vì sửa chưa stage; stage rồi chạy lại.)
+- Reviewer: ĐẠT, không phát hiện phải sửa (hai khối `if` tương đương hàm cũ; `b` không bị ghi sau đó).

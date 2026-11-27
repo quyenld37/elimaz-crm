@@ -80,7 +80,14 @@ func (h *SnapshotHandler) Handle(ctx context.Context, j queue.Job, tx pgx.Tx) (j
 	if err != nil {
 		return nil, fmt.Errorf("đọc mốc chụp tồn: %w", err)
 	}
-	last, first := optional(b.LastDay != "", b.LastDay), optional(b.HasLedger, b.FirstLedgerAt)
+	var last *string
+	if b.LastDay != "" {
+		last = &b.LastDay
+	}
+	var first *time.Time
+	if b.HasLedger {
+		first = &b.FirstLedgerAt
+	}
 	now := h.Now()
 	days := DaysToSnapshot(last, first, now, h.Grace, h.MaxDays)
 	out := snapshotOutput{Days: []string{}}
@@ -109,14 +116,6 @@ func (h *SnapshotHandler) Handle(ctx context.Context, j queue.Job, tx pgx.Tx) (j
 		return nil, fmt.Errorf("mã hóa kết quả chụp tồn: %w", err)
 	}
 	return res, nil
-}
-
-// optional trả &v khi ok, nil khi không.
-func optional[T any](ok bool, v T) *T {
-	if !ok {
-		return nil
-	}
-	return &v
 }
 
 // DaysToSnapshot là các ngày (YYYY-MM-DD giờ VN) cần chụp, tăng dần, tối đa maxDays: từ max(last + 1, ngày VN của dòng sổ
