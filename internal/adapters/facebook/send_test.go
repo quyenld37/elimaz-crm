@@ -167,9 +167,15 @@ func TestSend_RejectBeforeCall(t *testing.T) {
 		return c
 	}
 	for name, cmd := range map[string]channel.OutboundCommand{
-		"14 nút":              with(func(c *channel.OutboundCommand) { c.QuickReplies = qrs(14, "Có") }),
-		"tiêu đề 21 ký tự":    with(func(c *channel.OutboundCommand) { c.QuickReplies = qrs(1, strings.Repeat("á", 21)) }),
-		"tiêu đề rỗng":        with(func(c *channel.OutboundCommand) { c.QuickReplies = qrs(1, "") }),
+		"14 nút":           with(func(c *channel.OutboundCommand) { c.QuickReplies = qrs(14, "Có") }),
+		"tiêu đề 21 ký tự": with(func(c *channel.OutboundCommand) { c.QuickReplies = qrs(1, strings.Repeat("á", 21)) }),
+		"tiêu đề rỗng":     with(func(c *channel.OutboundCommand) { c.QuickReplies = qrs(1, "") }),
+		"mã nút rỗng": with(func(c *channel.OutboundCommand) {
+			c.QuickReplies = []channel.QuickReply{{Title: "Có", Payload: ""}}
+		}),
+		"mã nút 1001 ký tự": with(func(c *channel.OutboundCommand) {
+			c.QuickReplies = []channel.QuickReply{{Title: "Có", Payload: strings.Repeat("a", 1001)}}
+		}),
 		"chữ và ảnh":          with(func(c *channel.OutboundCommand) { c.ImageURL = "https://files.example/a.jpg" }),
 		"không chữ không ảnh": with(func(c *channel.OutboundCommand) { c.Text = "" }),
 		"quá 2000 ký tự":      with(func(c *channel.OutboundCommand) { c.Text = strings.Repeat("ạ", 2001) }),
@@ -197,6 +203,27 @@ func TestSend_RejectBeforeCall(t *testing.T) {
 	max13 := with(func(c *channel.OutboundCommand) { c.QuickReplies = qrs(13, strings.Repeat("á", 20)) })
 	if out := e.send(t, max13); out.Status != channel.OutcomeSent {
 		t.Errorf("13 nút, tiêu đề 20 ký tự: %+v", out)
+	}
+	load1000 := with(func(c *channel.OutboundCommand) {
+		c.QuickReplies = []channel.QuickReply{{Title: "Có", Payload: strings.Repeat("ạ", 1000)}}
+	})
+	if out := e.send(t, load1000); out.Status != channel.OutcomeSent {
+		t.Errorf("mã nút đúng 1000 ký tự: %+v", out)
+	}
+}
+
+// Ẩn comment mà Meta trả lỗi (Task 182, mutation testing M4): lỗi token → rejected kèm lỗi lớp auth (không phải
+// "không rõ"), comment trên máy giả không đổi.
+func TestSend_HideError(t *testing.T) {
+	t.Parallel()
+	e := newOutEnv(t)
+	e.fg.FailNext(testCommentID, fakegraph.GraphErrorSpec{Code: 190, Type: "OAuthException", Message: "Error validating access token"})
+	out, err := e.ch.Send(t.Context(), e.acc, e.cred, channel.OutboundCommand{Purpose: channel.PurposeHide, CommentID: testCommentID, Hidden: new(true)})
+	if out.Status != channel.OutcomeRejected || err == nil || e.ch.ClassifyError(err) != channel.ErrorAuth {
+		t.Fatalf("ẩn gặp 190: %+v, %v", out, err)
+	}
+	if c, _ := e.fg.CommentByID(testCommentID); c.Hidden {
+		t.Error("comment trên máy giả bị ẩn dù Meta trả lỗi")
 	}
 }
 

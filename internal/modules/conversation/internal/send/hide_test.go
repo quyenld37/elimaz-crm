@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/modules/channel"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/access"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/send"
 	"elimaz.com.vn/crm/internal/testkit/fakegraph"
@@ -167,5 +168,36 @@ func TestCommentActions_ReadOnly(t *testing.T) {
 	if err := e.staff.Owner.Pool.QueryRow(t.Context(), `SELECT count(*) FROM platform.jobs WHERE kind = ANY($1)`,
 		[]string{send.KindReplyComment, send.KindPrivateReply, send.KindHideComment}).Scan(&jobs); err != nil || jobs != 0 {
 		t.Errorf("có %d lệnh (%v)", jobs, err)
+	}
+}
+
+// 02 mục 2 (Task 182, review độc lập M4): Meta từ chối lệnh ẩn của nhân viên → CRM không ghi ẩn. Lỗi token (190) →
+// Page degraded token_invalid ngay (không chờ lượt kiểm sức khỏe mỗi giờ), đúng 1 lệnh cảnh báo gấp channel-auth; lỗi
+// khác (100) → Page vẫn active, không cảnh báo.
+func TestHideComment_RejectionReportsOnlyAuth(t *testing.T) {
+	t.Parallel()
+	type want struct {
+		meta, state, why string
+		n                int
+	}
+	for code, w := range map[int]want{
+		190: {"Error validating access token", "degraded", channel.ReasonTokenInvalid, 1},
+		100: {"(#100) Invalid parameter", "active", "", 0},
+	} {
+		e := newEnv(t)
+		th := e.commentThread(postExt+"_rj", commenterID, time.Now().Add(-2*time.Hour))
+		e.fg.FailNext(th.commentExt, fakegraph.GraphErrorSpec{Code: code, Type: "OAuthException", Message: w.meta})
+		_, err := e.hide(th.comment, true)
+		e.drain()
+		if err != nil || e.row(th.comment).Hidden {
+			t.Errorf("%d: lỗi %v hoặc CRM ghi đã ẩn dù Meta từ chối", code, err)
+		}
+		if got := e.staff.CountIn(e.t, e.tenant, `SELECT count(*) FROM channel.channel_accounts WHERE id = $1
+			AND status = $2 AND coalesce(status_reason, '') = $3`, e.fbPage, w.state, w.why); got != 1 {
+			t.Errorf("%d: Page không ở %s %q", code, w.state, w.why)
+		}
+		if got := e.alerts(); got != w.n {
+			t.Errorf("%d: %d lệnh cảnh báo channel-auth, muốn %d", code, got, w.n)
+		}
 	}
 }

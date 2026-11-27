@@ -93,9 +93,9 @@ type hideCommand struct{ sendCommand }
 func (hideCommand) Kind() queue.Kind { return HideCommentKind() }
 
 // Execute ẩn/hiện comment của lệnh j: comment còn, có mã của kênh, hỏi lại SendPolicy(hide) (Page chỉ xem → read_only),
-// lượt gửi của Page, gọi kênh.
+// lượt gửi của Page, gọi kênh. Kênh từ chối vì token hỏng → reportAuth (02 mục 2: báo ngay, không chờ kiểm sức khỏe).
 func (c hideCommand) Execute(ctx context.Context, j queue.Job) (commands.Outcome, error) {
-	return c.run(ctx, j, func(ctx context.Context, tx pgx.Tx, p payload, now time.Time) (prepared, string, error) {
+	out, err := c.run(ctx, j, func(ctx context.Context, tx pgx.Tx, p payload, now time.Time) (prepared, string, error) {
 		cm, err := store.New(tx).GetCommentForAction(ctx, p.MessageID)
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
@@ -116,6 +116,27 @@ func (c hideCommand) Execute(ctx context.Context, j queue.Job) (commands.Outcome
 		}
 		pr.clickedAt = now
 		return pr, "", nil
+	})
+	if err == nil && out.Status == commands.StatusRejected && out.Reason == reasonAuth {
+		c.reportAuth(ctx, j)
+	}
+	return out, err
+}
+
+// reportAuth ghi token Page của comment trong lệnh j hỏng (channel.Writer.ReportTokenInvalid: degraded, cảnh báo gấp
+// channel-auth), trong transaction ngắn riêng: lệnh ẩn không có tin queued mang lý do nên OnTerminal không biết lý do.
+// Lỗi bỏ qua như note: lượt kiểm sức khỏe mỗi giờ vẫn phát hiện token hỏng.
+func (c hideCommand) reportAuth(ctx context.Context, j queue.Job) {
+	var p payload
+	if json.Unmarshal(j.Payload, &p) != nil || j.TenantID == nil {
+		return
+	}
+	_ = tenancy.WithTenant(ctx, c.d.DB, *j.TenantID, func(tx pgx.Tx) error {
+		cm, err := store.New(tx).GetCommentForAction(ctx, p.MessageID)
+		if err != nil {
+			return err //nolint:wrapcheck // bỏ qua ở trên
+		}
+		return channel.Writer{Realtime: c.d.Bus}.ReportTokenInvalid(ctx, tx, cm.ChannelAccountID)
 	})
 }
 

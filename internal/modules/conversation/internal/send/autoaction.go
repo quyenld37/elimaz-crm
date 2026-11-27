@@ -43,7 +43,7 @@ func AutoPrivateReplyKind() queue.Kind {
 type actionCommand interface {
 	Execute(ctx context.Context, j queue.Job) (commands.Outcome, error)
 	OnDone(ctx context.Context, j queue.Job, result json.RawMessage, tx pgx.Tx) error
-	OnTerminal(ctx context.Context, j queue.Job, status string, tx pgx.Tx) error
+	settle(ctx context.Context, j queue.Job, status string, tx pgx.Tx, auto bool) error
 }
 
 // autoActionCommand là lệnh tự động: thân của inner, Kind riêng, không Lookup; mỗi kết quả cuối gọi finish sau khi đổi tin.
@@ -70,10 +70,11 @@ func (c autoActionCommand) OnDone(ctx context.Context, j queue.Job, raw json.Raw
 	return c.finish(ctx, tx, j.ID, commands.StatusDone)
 }
 
-// OnTerminal đổi tin như lệnh của nhân viên (failed, expired, checking) rồi ghi kết quả cuối của lượt.
+// OnTerminal đổi tin theo luật tin tự động (dead → failed; expired, in_doubt → discarded lý do auto_dropped, 04 mục 5.3:
+// bỏ, không hỏi nhân viên, không gửi lại) rồi ghi kết quả cuối của lượt.
 func (c autoActionCommand) OnTerminal(ctx context.Context, j queue.Job, status string, tx pgx.Tx) error {
-	if err := c.inner.OnTerminal(ctx, j, status, tx); err != nil {
-		return err //nolint:wrapcheck // thân lệnh của Task 158 đã bọc
+	if err := c.inner.settle(ctx, j, status, tx, true); err != nil {
+		return err
 	}
 	return c.finish(ctx, tx, j.ID, status)
 }
