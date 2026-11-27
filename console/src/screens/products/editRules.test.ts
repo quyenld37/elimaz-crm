@@ -357,3 +357,59 @@ describe("bài viết trong bản nháp (Task 326)", () => {
     expect(createBody({ ...newDraft(), article: editBlocks(ART) }).article).toEqual(ART);
   });
 });
+
+describe("số đo Dài/Rộng/Cao (Task 516)", () => {
+  const base = draftFromProduct(product([variant(1, "Đen", "S")], { measureCm: { length: 88, width: 20 } }), CLS);
+
+  it("mở mẫu: ô số đo hiện số đã lưu, số chưa nhập để trống; mẫu không có measureCm → ba ô trống", () => {
+    expect(base.measure).toEqual({ length: "88", width: "20", height: "" });
+    expect(draftFromProduct(product([variant(1, "Đen", "S")]), CLS).measure).toEqual({
+      length: "",
+      width: "",
+      height: "",
+    });
+    expect(emptyDraft().measure).toEqual({ length: "", width: "", height: "" });
+  });
+
+  it("kiểm: số nguyên 1–1.000, ô trống được; 0, 1001, số lẻ, chữ → câu dưới đúng ô", () => {
+    expect(validate({ ...base, measure: { length: "1", width: "1000", height: " " } }, "edit").ok).toBe(true);
+    const v = validate({ ...base, measure: { length: "0", width: "1001", height: "2,5" } }, "edit");
+    expect(v.ok).toBe(false);
+    expect(v.fields.length).toBe("Số nguyên cm từ 1 đến 1.000");
+    expect(v.fields.width).toBe("Số nguyên cm từ 1 đến 1.000");
+    expect(v.fields.height).toBe("Số nguyên cm từ 1 đến 1.000");
+    expect(
+      validate({ ...base, measure: { length: "abc", width: "", height: "" } }, "edit").fields.length,
+    ).toBeDefined();
+  });
+
+  it("tạo mẫu: chỉ gửi số đã nhập; không nhập số nào → không gửi measureCm", () => {
+    let d = newDraft();
+    for (const r of d.rows) d = setRow(d, r.key, { price: "350.000" });
+    expect(createBody(d).measureCm).toBeUndefined();
+    expect(createBody({ ...d, measure: { length: " 88 ", width: "", height: "3" } }).measureCm).toEqual({
+      length: 88,
+      height: 3,
+    });
+  });
+
+  it("sửa: không đổi → không bước; đổi một ô → bước sửa mẫu gửi cả measureCm (số trống bỏ); xóa hết → null", () => {
+    expect(savePlan(base, { ...base, measure: { length: "088", width: "20", height: "" } })).toEqual([]);
+    expect(savePlan(base, { ...base, measure: { length: "", width: "20", height: "5" } })).toEqual([
+      { kind: "product", body: { measureCm: { width: 20, height: 5 } } },
+    ]);
+    expect(savePlan(base, { ...base, measure: { length: "", width: "", height: "" } })).toEqual([
+      { kind: "product", body: { measureCm: null } },
+    ]);
+  });
+
+  it("lưu xong: bản đã lưu nhận số đo của máy chủ → không còn thay đổi", () => {
+    const edit = { ...base, measure: { length: "90", width: "", height: "" } };
+    const saved = applyProduct(
+      { base, edit },
+      product([variant(1, "Đen", "S")], { version: 8, measureCm: { length: 90 } }),
+    );
+    expect(saved.base.measure).toEqual({ length: "90", width: "", height: "" });
+    expect(savePlan(saved.base, saved.edit)).toEqual([]);
+  });
+});

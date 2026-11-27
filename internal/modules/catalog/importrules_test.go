@@ -22,6 +22,8 @@ func TestImporterRulesMatchCatalog(t *testing.T) {
 		{"màu, size", importer.MaxOption, maxOption},
 		{"số biến thể", importer.MaxVariants, maxVariants},
 		{"giá tối đa", int64(importer.MaxMoney), MaxMoney},
+		{"số đo nhỏ nhất", importer.MinMeasureCm, MinMeasureCm},
+		{"số đo lớn nhất", importer.MaxMeasureCm, MaxMeasureCm},
 		{"draft", importer.StatusDraft, string(StatusDraft)},
 		{"active", importer.StatusActive, string(StatusActive)},
 		{"discontinued", importer.StatusDiscontinued, string(StatusDiscontinued)},

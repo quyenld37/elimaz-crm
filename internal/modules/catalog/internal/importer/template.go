@@ -30,6 +30,10 @@ const (
 	ColBarcode      = "Barcode"
 	ColPrice        = "Giá bán*"
 	ColCostPrice    = "Giá nhập"
+	// Số đo của mẫu (Task 516): cột tùy chọn, không có trong RequiredColumns (tệp mẫu cũ vẫn nhập được).
+	ColLengthCm = "Dài (cm)"
+	ColWidthCm  = "Rộng (cm)"
+	ColHeightCm = "Cao (cm)"
 )
 
 // Luật dữ liệu: bản sao của luật trong gói catalog (importer không nhập ngược catalog); test importrules_test.go
@@ -40,6 +44,8 @@ const (
 	MaxOption      = 50 // màu, size
 	MaxVariants    = 200
 	MaxMoney       = 9007199254740991
+	MinMeasureCm   = 1
+	MaxMeasureCm   = 1000
 
 	StatusDraft        = "draft"
 	StatusActive       = "active"
@@ -64,6 +70,9 @@ func productColumns() []string {
 	return []string{ColCode, ColName, ColCategory, ColDescription, ColStatus, ColTags}
 }
 
+// measureColumns: cột số đo của mẫu, nằm sau cột mẫu trong tệp mẫu.
+func measureColumns() []string { return []string{ColLengthCm, ColWidthCm, ColHeightCm} }
+
 func variantColumns() []string {
 	return []string{ColColor, ColColorHex, ColSize, ColSKU, ColBarcode, ColPrice, ColCostPrice}
 }
@@ -72,13 +81,14 @@ func variantColumns() []string {
 // buộc có: thuộc tính thêm sau khi tải mẫu không làm tệp cũ hỏng.
 func RequiredColumns() []string { return slices.Concat(productColumns(), variantColumns()) }
 
-// Columns là tiêu đề của mẫu: cột cố định, xen một cột thuộc tính cho mỗi thuộc tính trong refs (xếp theo tên).
+// Columns là tiêu đề của mẫu: cột cố định của mẫu, cột số đo, một cột thuộc tính cho mỗi thuộc tính trong refs (xếp
+// theo tên), cột của biến thể.
 func Columns(refs Refs) []string {
 	attrs := slices.Sorted(maps.Keys(refs.Attributes))
 	for i, a := range attrs {
 		attrs[i] = AttributePrefix + a
 	}
-	return slices.Concat(productColumns(), attrs, variantColumns())
+	return slices.Concat(productColumns(), measureColumns(), attrs, variantColumns())
 }
 
 // CategoryPath là khóa của Refs.Categories cho danh mục có đường dẫn names (từ gốc): "Váy > Váy dài".
@@ -105,6 +115,8 @@ func Template(refs Refs) ([]byte, error) {
 		{ColDescription, "Không", fmt.Sprintf("Mô tả ngắn, tối đa %d ký tự, được xuống dòng.", MaxDescription)},
 		{ColStatus, "Không", "Đang nhập (ẩn với khách), Đang bán hoặc Ngừng bán. Để trống: mẫu mới là Đang nhập."},
 		{ColTags, "Không", "Mã nhãn kệ hàng, cách nhau bởi dấu ; (ví dụ: moi-ve;sale)."},
+		{ColLengthCm, "Không", fmt.Sprintf("Số đo của mẫu: số nguyên cm từ %d đến %d. Để trống: mẫu mới không có số "+
+			"này, mẫu đã có giữ số cũ. Rộng (cm), Cao (cm) điền như vậy.", MinMeasureCm, MaxMeasureCm)},
 		{AttributePrefix + "<tên>", "Không", "Giá trị của thuộc tính, nhiều giá trị cách nhau bởi dấu ;."},
 		{ColColor, "Có", fmt.Sprintf("Tên màu, tối đa %d ký tự.", MaxOption)},
 		{ColColorHex, "Không", "Mã màu dạng #RRGGBB, ví dụ #FF0000."},
@@ -114,7 +126,7 @@ func Template(refs Refs) ([]byte, error) {
 		{ColBarcode, "Không", "Mã vạch 4–32 chữ, số. Để trống: CRM tự sinh mã EAN-13."},
 		{ColPrice, "Có", "Số nguyên đồng, ví dụ 350000 hoặc 350.000 (không có số lẻ)."},
 		{ColCostPrice, "Không", "Như giá bán."},
-		{"", "", "Các cột của mẫu (tên, danh mục, mô tả, trạng thái, nhãn, thuộc tính) phải giống nhau ở mọi dòng " +
+		{"", "", "Các cột của mẫu (tên, danh mục, mô tả, trạng thái, nhãn, số đo, thuộc tính) phải giống nhau ở mọi dòng " +
 			"cùng mã mẫu."},
 	}
 	var buf bytes.Buffer

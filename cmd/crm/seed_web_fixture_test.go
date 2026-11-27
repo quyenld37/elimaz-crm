@@ -124,6 +124,11 @@ func TestParseWebFixture_Rejects(t *testing.T) {
 		"tỉnh trùng mã":    func(m map[string]any) { at(m, "locations", 1)["code"] = at(m, "locations", 0)["code"] },
 		"tỉnh tên rỗng":    func(m map[string]any) { at(m, "locations", 0)["name"] = " " },
 		"xã trùng mã tỉnh": func(m map[string]any) { at(m, "locations", 0, "wards", 0)["code"] = at(m, "locations", 0)["code"] },
+		"số đo 0":          func(m map[string]any) { at(m, "products", 0)["measureCm"] = map[string]any{"length": 0} },
+		"số đo 1001":       func(m map[string]any) { at(m, "products", 0)["measureCm"] = map[string]any{"width": 1001} },
+		"số đo lẻ":         func(m map[string]any) { at(m, "products", 0)["measureCm"] = map[string]any{"height": 2.5} },
+		"số đo âm":         func(m map[string]any) { at(m, "products", 0)["measureCm"] = map[string]any{"length": -3} },
+		"số đo trường lạ":  func(m map[string]any) { at(m, "products", 0)["measureCm"] = map[string]any{"depth": 3} },
 		"hai giá trị cùng vị trí": func(m map[string]any) {
 			a := at(m, "products", 0)["attributes"].([]any)
 			at(m, "products", 0)["attributes"] = append(a, map[string]any{"name": "Xuất xứ", "value": "Hàn", "position": 1})
@@ -401,6 +406,66 @@ func TestSeedWebFixture_CreateRerunUpdate(t *testing.T) {
 	if again := e.seed(changed); again.Total() != 0 {
 		t.Fatalf("chạy lại tệp đã đổi phải 0 thay đổi: %+v", again)
 	}
+}
+
+// Task 516: số đo của tệp (measureCm của website) vào mẫu CRM: test-pants Dài 88 Rộng 20, test-nightwear 30/25/3, mẫu
+// không có measureCm thì không có số đo. Tệp đổi số đo → sửa đúng mẫu đó (1 mẫu sửa); bỏ measureCm → bỏ số đo; chạy
+// lại cùng tệp → 0 thay đổi.
+func TestSeedWebFixture_Measure(t *testing.T) {
+	t.Parallel()
+	e := newSeedEnv(t)
+	fx, err := parseWebFixture(readFixture(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.seed(readFixture(t))
+	pants := slices.IndexFunc(fx.Products, func(p fixtureProduct) bool { return p.Key == "test-pants" })
+	if pants < 0 {
+		t.Fatal("tệp mẫu thiếu test-pants")
+	}
+	check := func(step string, want map[string][3]int) {
+		t.Helper()
+		e.app(func(tx pgx.Tx) error {
+			seller, err := catalog.DefaultSeller(t.Context(), tx)
+			if err != nil {
+				return err //nolint:wrapcheck // test
+			}
+			for _, fp := range fx.Products {
+				p, err := catalog.GetProduct(t.Context(), tx, seller, fp.ID)
+				if err != nil {
+					return err //nolint:wrapcheck // test
+				}
+				got := [3]int{deref(p.Measure.Length), deref(p.Measure.Width), deref(p.Measure.Height)}
+				if got != want[fp.Key] {
+					t.Errorf("%s: %s số đo %v, mong %v", step, fp.Key, got, want[fp.Key])
+				}
+			}
+			return nil
+		})
+	}
+	check("lần đầu", map[string][3]int{"test-pants": {88, 20, 0}, "test-nightwear": {30, 25, 3}})
+	longer := mutate(t, func(m map[string]any) {
+		at(m, "products", pants)["measureCm"] = map[string]any{"length": 90, "height": 4}
+	})
+	if upd := e.seed(longer); upd.Updated["product"] != 1 || upd.Total() != 1 {
+		t.Fatalf("đổi số đo: mong 1 mẫu sửa, có %+v", upd)
+	}
+	check("đổi", map[string][3]int{"test-pants": {90, 0, 4}, "test-nightwear": {30, 25, 3}})
+	if again := e.seed(longer); again.Total() != 0 {
+		t.Fatalf("chạy lại: %+v", again)
+	}
+	none := mutate(t, func(m map[string]any) { delete(at(m, "products", pants), "measureCm") })
+	if upd := e.seed(none); upd.Updated["product"] != 1 {
+		t.Fatalf("bỏ số đo: %+v", upd)
+	}
+	check("bỏ", map[string][3]int{"test-nightwear": {30, 25, 3}})
+}
+
+func deref(v *int) int {
+	if v == nil {
+		return 0
+	}
+	return *v
 }
 
 // Địa giới thử trùng mã với đơn vị đã có khác tên → errAdminUnitConflict, không ghi gì.

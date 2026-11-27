@@ -114,6 +114,28 @@ type fixtureMeasure struct {
 	Height *float64 `json:"height,omitempty"`
 }
 
+// cm đổi số đo của tệp (số thực của JSON website) sang catalog.MeasureCm; ok false khi một số không phải số nguyên
+// trong [MinMeasureCm, MaxMeasureCm]. m nil (tệp không có measureCm) → không số đo.
+func (m *fixtureMeasure) cm() (catalog.MeasureCm, bool) {
+	if m == nil {
+		return catalog.MeasureCm{}, true
+	}
+	ok := true
+	conv := func(v *float64) *int {
+		if v == nil {
+			return nil
+		}
+		if *v != math.Trunc(*v) || *v < catalog.MinMeasureCm || *v > catalog.MaxMeasureCm {
+			ok = false
+			return nil
+		}
+		n := int(*v)
+		return &n
+	}
+	out := catalog.MeasureCm{Length: conv(m.Length), Width: conv(m.Width), Height: conv(m.Height)}
+	return out, ok
+}
+
 // fixtureImage: chưa seed (xem «Việc phát hiện thêm» của tệp task 218); đọc để tệp hợp lệ.
 type fixtureImage struct {
 	Position int    `json:"position"`
@@ -235,6 +257,9 @@ func (p fixtureProduct) validate(seller uuid.UUID, cats, ids map[uuid.UUID]bool,
 		return problemf("mẫu %q: tên rỗng hay trạng thái khác active", p.Key)
 	case len(p.CategoryIDs) != 1 || !cats[p.CategoryIDs[0]]:
 		return problemf("mẫu %q: cần đúng một danh mục có trong tệp", p.Key)
+	}
+	if _, ok := p.MeasureCm.cm(); !ok {
+		return problemf("mẫu %q: số đo phải là số nguyên cm %d–%d", p.Key, catalog.MinMeasureCm, catalog.MaxMeasureCm)
 	}
 	ids[p.ID], codes[code] = true, true
 	positions := map[int]bool{}

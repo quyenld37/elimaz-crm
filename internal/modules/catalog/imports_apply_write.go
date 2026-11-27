@@ -64,6 +64,7 @@ func (a *ImportApplier) createPlanned(ctx context.Context, tx pgx.Tx, seller uui
 ) error {
 	in := ProductInput{
 		SellerID: seller, Code: pp.Code, Name: pp.Name, Description: pp.Description, Status: ProductStatus(pp.Status),
+		Measure: MeasureCm{Length: pp.LengthCm, Width: pp.WidthCm, Height: pp.HeightCm},
 	}
 	for _, v := range pp.Variants {
 		in.Variants = append(in.Variants, VariantInput{
@@ -132,7 +133,8 @@ func (a *ImportApplier) updatePlanned(ctx context.Context, tx pgx.Tx, seller uui
 	return edited, nil
 }
 
-// updateProductFields sửa tên, mô tả, trạng thái và phân loại của mẫu có sẵn cur khi khác tệp.
+// updateProductFields sửa tên, mô tả, trạng thái, số đo (ô có số; ô trống giữ số cũ) và phân loại của mẫu có sẵn
+// cur khi khác tệp.
 func (a *ImportApplier) updateProductFields(ctx context.Context, tx pgx.Tx, seller uuid.UUID, pp *ImportPlannedProduct,
 	cur Product, actor identity.AuthUser,
 ) (bool, error) {
@@ -146,6 +148,9 @@ func (a *ImportApplier) updateProductFields(ctx context.Context, tx pgx.Tx, sell
 	}
 	if s := ProductStatus(pp.Status); s != "" && s != cur.Status {
 		patch.Status = &s
+	}
+	if m, changed := plannedMeasure(cur.Measure, pp); changed {
+		patch.Measure = &m
 	}
 	if patch != (ProductPatch{}) {
 		p, err := a.w.UpdateProduct(ctx, tx, seller, cur.ID, version, patch, actor)
@@ -175,6 +180,20 @@ func (a *ImportApplier) updateProductFields(ctx context.Context, tx pgx.Tx, sell
 		return false, &stepError{product: pp, row: first, column: importer.ColCategory, err: err}
 	}
 	return true, nil
+}
+
+// plannedMeasure: số đo cur với các ô có số của pp thay vào; changed khi khác cur.
+func plannedMeasure(cur MeasureCm, pp *ImportPlannedProduct) (MeasureCm, bool) {
+	out, changed := cur, false
+	for _, f := range []struct {
+		dst  **int
+		cell *int
+	}{{&out.Length, pp.LengthCm}, {&out.Width, pp.WidthCm}, {&out.Height, pp.HeightCm}} {
+		if f.cell != nil && (*f.dst == nil || **f.dst != *f.cell) {
+			*f.dst, changed = f.cell, true
+		}
+	}
+	return out, changed
 }
 
 func sameClassification(a, b Classification) bool {

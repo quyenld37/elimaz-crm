@@ -55,6 +55,7 @@ import {
   emptyDraft,
   orderIds,
   MAX_DESCRIPTION,
+  MEASURE_KEYS,
   savePlan,
   setCode,
   validate,
@@ -62,6 +63,7 @@ import {
   type Pair,
   type RowErrors,
   type SaveStep,
+  type MeasureKey,
   type Validation,
 } from "./editRules";
 import { ImageManager } from "./ImageManager";
@@ -612,9 +614,35 @@ function InfoCard({
           )}
         </Field>
       </div>
+      {/* Số đo của mẫu (Task 516): website hiện "Dài 88 cm · Rộng 20 cm", chỉ các số đã nhập. */}
+      <div className="grid-f p-info-more">
+        {MEASURE_KEYS.map((k) => (
+          <Field
+            key={k}
+            label={MEASURE_LABEL[k]}
+            error={errors[k]}
+            hint={k === "length" && errors[k] === undefined ? "Số nguyên, để trống nếu không có" : undefined}
+          >
+            {(id, invalid) => (
+              <input
+                id={id}
+                className={inputClass(invalid)}
+                inputMode="numeric"
+                value={draft.measure[k]}
+                aria-invalid={invalid || undefined}
+                onChange={(e) => {
+                  onChange({ ...draft, measure: { ...draft.measure, [k]: e.target.value } });
+                }}
+              />
+            )}
+          </Field>
+        ))}
+      </div>
     </div>
   );
 }
+
+const MEASURE_LABEL: Record<MeasureKey, string> = { length: "Dài (cm)", width: "Rộng (cm)", height: "Cao (cm)" };
 
 function ClassificationCard({
   draft,

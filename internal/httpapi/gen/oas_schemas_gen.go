@@ -11617,6 +11617,7 @@ type CreateProductRequest struct {
 	Description OptString        `json:"description"`
 	Article     ArticleInput     `json:"article"`
 	Status      OptProductStatus `json:"status"`
+	MeasureCm   OptMeasureCm     `json:"measureCm"`
 	Variants    []VariantInput   `json:"variants"`
 }
 
@@ -11643,6 +11644,11 @@ func (s *CreateProductRequest) GetArticle() ArticleInput {
 // GetStatus returns the value of Status.
 func (s *CreateProductRequest) GetStatus() OptProductStatus {
 	return s.Status
+}
+
+// GetMeasureCm returns the value of MeasureCm.
+func (s *CreateProductRequest) GetMeasureCm() OptMeasureCm {
+	return s.MeasureCm
 }
 
 // GetVariants returns the value of Variants.
@@ -11673,6 +11679,11 @@ func (s *CreateProductRequest) SetArticle(val ArticleInput) {
 // SetStatus sets the value of Status.
 func (s *CreateProductRequest) SetStatus(val OptProductStatus) {
 	s.Status = val
+}
+
+// SetMeasureCm sets the value of MeasureCm.
+func (s *CreateProductRequest) SetMeasureCm(val OptMeasureCm) {
+	s.MeasureCm = val
 }
 
 // SetVariants sets the value of Variants.
@@ -21211,6 +21222,49 @@ func (s *Me) SetWarnings(val []ScopeWarning) {
 
 func (*Me) getMeRes() {}
 
+// Số đo của mẫu (Task 516): Dài, Rộng, Cao theo cm, số nguyên 1–1000, mỗi số tùy
+// chọn (vắng mặt là chưa nhập). Cùng dạng với measureCm của website (chỉ các số
+// đã nhập).
+// Ref: #/components/schemas/MeasureCm
+type MeasureCm struct {
+	// Dài (cm).
+	Length OptInt32 `json:"length"`
+	// Rộng (cm).
+	Width OptInt32 `json:"width"`
+	// Cao (cm).
+	Height OptInt32 `json:"height"`
+}
+
+// GetLength returns the value of Length.
+func (s *MeasureCm) GetLength() OptInt32 {
+	return s.Length
+}
+
+// GetWidth returns the value of Width.
+func (s *MeasureCm) GetWidth() OptInt32 {
+	return s.Width
+}
+
+// GetHeight returns the value of Height.
+func (s *MeasureCm) GetHeight() OptInt32 {
+	return s.Height
+}
+
+// SetLength sets the value of Length.
+func (s *MeasureCm) SetLength(val OptInt32) {
+	s.Length = val
+}
+
+// SetWidth sets the value of Width.
+func (s *MeasureCm) SetWidth(val OptInt32) {
+	s.Width = val
+}
+
+// SetHeight sets the value of Height.
+func (s *MeasureCm) SetHeight(val OptInt32) {
+	s.Height = val
+}
+
 // Ref: #/components/schemas/MergeCandidate
 type MergeCandidate struct {
 	RootId        uuid.UUID     `json:"rootId"`
@@ -25190,6 +25244,52 @@ func (o OptLookHidden) Or(d LookHidden) LookHidden {
 	return d
 }
 
+// NewOptMeasureCm returns new OptMeasureCm with value set to v.
+func NewOptMeasureCm(v MeasureCm) OptMeasureCm {
+	return OptMeasureCm{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptMeasureCm is optional MeasureCm.
+type OptMeasureCm struct {
+	Value MeasureCm
+	Set   bool
+}
+
+// IsSet returns true if OptMeasureCm was set.
+func (o OptMeasureCm) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptMeasureCm) Reset() {
+	var v MeasureCm
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptMeasureCm) SetTo(v MeasureCm) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptMeasureCm) Get() (v MeasureCm, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptMeasureCm) Or(d MeasureCm) MeasureCm {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptMessageSendStatus returns new OptMessageSendStatus with value set to v.
 func NewOptMessageSendStatus(v MessageSendStatus) OptMessageSendStatus {
 	return OptMessageSendStatus{
@@ -25480,6 +25580,74 @@ func (o OptNilUUID) Get() (v uuid.UUID, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilUUID) Or(d uuid.UUID) uuid.UUID {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilUpdateProductRequestMeasureCm returns new OptNilUpdateProductRequestMeasureCm with value set to v.
+func NewOptNilUpdateProductRequestMeasureCm(v UpdateProductRequestMeasureCm) OptNilUpdateProductRequestMeasureCm {
+	return OptNilUpdateProductRequestMeasureCm{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilUpdateProductRequestMeasureCm is optional nullable UpdateProductRequestMeasureCm.
+type OptNilUpdateProductRequestMeasureCm struct {
+	Value UpdateProductRequestMeasureCm
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilUpdateProductRequestMeasureCm was set.
+func (o OptNilUpdateProductRequestMeasureCm) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilUpdateProductRequestMeasureCm) Reset() {
+	var v UpdateProductRequestMeasureCm
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilUpdateProductRequestMeasureCm) SetTo(v UpdateProductRequestMeasureCm) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilUpdateProductRequestMeasureCm) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilUpdateProductRequestMeasureCm) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v UpdateProductRequestMeasureCm
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilUpdateProductRequestMeasureCm) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilUpdateProductRequestMeasureCm) Get() (v UpdateProductRequestMeasureCm, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilUpdateProductRequestMeasureCm) Or(d UpdateProductRequestMeasureCm) UpdateProductRequestMeasureCm {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -33092,6 +33260,7 @@ type Product struct {
 	ArticleHtml string        `json:"articleHtml"`
 	Status      ProductStatus `json:"status"`
 	Version     int64         `json:"version"`
+	MeasureCm   OptMeasureCm  `json:"measureCm"`
 	// Theo thứ tự nhân viên đặt (reorderProductVariants), rồi mã; biến thể mới ở
 	// cuối (Task 513).
 	Variants []Variant `json:"variants"`
@@ -33137,6 +33306,11 @@ func (s *Product) GetStatus() ProductStatus {
 // GetVersion returns the value of Version.
 func (s *Product) GetVersion() int64 {
 	return s.Version
+}
+
+// GetMeasureCm returns the value of MeasureCm.
+func (s *Product) GetMeasureCm() OptMeasureCm {
+	return s.MeasureCm
 }
 
 // GetVariants returns the value of Variants.
@@ -33187,6 +33361,11 @@ func (s *Product) SetStatus(val ProductStatus) {
 // SetVersion sets the value of Version.
 func (s *Product) SetVersion(val int64) {
 	s.Version = val
+}
+
+// SetMeasureCm sets the value of MeasureCm.
+func (s *Product) SetMeasureCm(val OptMeasureCm) {
+	s.MeasureCm = val
 }
 
 // SetVariants sets the value of Variants.
@@ -45636,6 +45815,10 @@ type UpdateProductRequest struct {
 	Description OptString        `json:"description"`
 	Article     ArticleInput     `json:"article"`
 	Status      OptProductStatus `json:"status"`
+	// Số đo mới của mẫu (cm, mỗi số 1–1000, ngoài khoảng → 422 invalid_input): vắng
+	// mặt giữ nguyên; null bỏ cả ba số; một đối tượng đặt đúng các số trong
+	// đó (số vắng mặt là bỏ số đó) (Task 516).
+	MeasureCm OptNilUpdateProductRequestMeasureCm `json:"measureCm"`
 }
 
 // GetVersion returns the value of Version.
@@ -45663,6 +45846,11 @@ func (s *UpdateProductRequest) GetStatus() OptProductStatus {
 	return s.Status
 }
 
+// GetMeasureCm returns the value of MeasureCm.
+func (s *UpdateProductRequest) GetMeasureCm() OptNilUpdateProductRequestMeasureCm {
+	return s.MeasureCm
+}
+
 // SetVersion sets the value of Version.
 func (s *UpdateProductRequest) SetVersion(val int64) {
 	s.Version = val
@@ -45686,6 +45874,53 @@ func (s *UpdateProductRequest) SetArticle(val ArticleInput) {
 // SetStatus sets the value of Status.
 func (s *UpdateProductRequest) SetStatus(val OptProductStatus) {
 	s.Status = val
+}
+
+// SetMeasureCm sets the value of MeasureCm.
+func (s *UpdateProductRequest) SetMeasureCm(val OptNilUpdateProductRequestMeasureCm) {
+	s.MeasureCm = val
+}
+
+// Số đo mới của mẫu (cm, mỗi số 1–1000, ngoài khoảng → 422 invalid_input): vắng
+// mặt giữ nguyên; null bỏ cả ba số; một đối tượng đặt đúng các số trong
+// đó (số vắng mặt là bỏ số đó) (Task 516).
+type UpdateProductRequestMeasureCm struct {
+	// Dài (cm).
+	Length OptInt32 `json:"length"`
+	// Rộng (cm).
+	Width OptInt32 `json:"width"`
+	// Cao (cm).
+	Height OptInt32 `json:"height"`
+}
+
+// GetLength returns the value of Length.
+func (s *UpdateProductRequestMeasureCm) GetLength() OptInt32 {
+	return s.Length
+}
+
+// GetWidth returns the value of Width.
+func (s *UpdateProductRequestMeasureCm) GetWidth() OptInt32 {
+	return s.Width
+}
+
+// GetHeight returns the value of Height.
+func (s *UpdateProductRequestMeasureCm) GetHeight() OptInt32 {
+	return s.Height
+}
+
+// SetLength sets the value of Length.
+func (s *UpdateProductRequestMeasureCm) SetLength(val OptInt32) {
+	s.Length = val
+}
+
+// SetWidth sets the value of Width.
+func (s *UpdateProductRequestMeasureCm) SetWidth(val OptInt32) {
+	s.Width = val
+}
+
+// SetHeight sets the value of Height.
+func (s *UpdateProductRequestMeasureCm) SetHeight(val OptInt32) {
+	s.Height = val
 }
 
 // Ref: #/components/schemas/UpdateReplyTemplateRequest
@@ -51330,8 +51565,9 @@ type WebProduct struct {
 	UpdatedAt time.Time    `json:"updatedAt"`
 	// Ngày tạo mẫu (Task 489; sắp xếp "Mới nhất"). CRM luôn gửi; chỉ có thể vắng
 	// trong ≤ 60 s sau khi nâng cấp (bản đệm cũ).
-	CreatedAt OptDateTime `json:"createdAt"`
-	Version   int64       `json:"version"`
+	CreatedAt OptDateTime  `json:"createdAt"`
+	Version   int64        `json:"version"`
+	MeasureCm OptMeasureCm `json:"measureCm"`
 }
 
 // GetID returns the value of ID.
@@ -51409,6 +51645,11 @@ func (s *WebProduct) GetVersion() int64 {
 	return s.Version
 }
 
+// GetMeasureCm returns the value of MeasureCm.
+func (s *WebProduct) GetMeasureCm() OptMeasureCm {
+	return s.MeasureCm
+}
+
 // SetID sets the value of ID.
 func (s *WebProduct) SetID(val uuid.UUID) {
 	s.ID = val
@@ -51482,6 +51723,11 @@ func (s *WebProduct) SetCreatedAt(val OptDateTime) {
 // SetVersion sets the value of Version.
 func (s *WebProduct) SetVersion(val int64) {
 	s.Version = val
+}
+
+// SetMeasureCm sets the value of MeasureCm.
+func (s *WebProduct) SetMeasureCm(val OptMeasureCm) {
+	s.MeasureCm = val
 }
 
 // Ref: #/components/schemas/WebProductPage

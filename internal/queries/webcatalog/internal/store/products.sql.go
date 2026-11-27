@@ -111,7 +111,7 @@ func (q *Queries) ImagesOf(ctx context.Context, productIds []uuid.UUID) ([]Image
 
 const productPage = `-- name: ProductPage :many
 SELECT p.product_id, p.seller_id, p.code, p.name, p.description, p.article, p.status, p.category_id, p.updated_at,
-       p.version, p.created_at
+       p.version, p.created_at, p.length_cm, p.width_cm, p.height_cm
 FROM catalog.products_v AS p
 WHERE p.product_id > $1::uuid AND p.deleted_at IS NULL AND p.seller_id = ANY($2::uuid[])
 ORDER BY p.product_id
@@ -136,6 +136,9 @@ type ProductPageRow struct {
 	UpdatedAt   time.Time
 	Version     int64
 	CreatedAt   time.Time
+	LengthCm    pgtype.Int4
+	WidthCm     pgtype.Int4
+	HeightCm    pgtype.Int4
 }
 
 // Trang mẫu theo khóa product_id tăng dần (keyset), mẫu chưa xóa của các người bán sellers (đang hoạt động, ADR-29).
@@ -160,6 +163,9 @@ func (q *Queries) ProductPage(ctx context.Context, arg ProductPageParams) ([]Pro
 			&i.UpdatedAt,
 			&i.Version,
 			&i.CreatedAt,
+			&i.LengthCm,
+			&i.WidthCm,
+			&i.HeightCm,
 		); err != nil {
 			return nil, err
 		}
@@ -173,7 +179,7 @@ func (q *Queries) ProductPage(ctx context.Context, arg ProductPageParams) ([]Pro
 
 const productsByIDs = `-- name: ProductsByIDs :many
 SELECT p.product_id, p.seller_id, p.code, p.name, p.description, p.article, p.status, p.category_id, p.updated_at,
-       p.version, p.created_at
+       p.version, p.created_at, p.length_cm, p.width_cm, p.height_cm
 FROM catalog.products_v AS p
 WHERE p.product_id = ANY($1::uuid[]) AND p.deleted_at IS NULL AND p.seller_id = ANY($2::uuid[])
 ORDER BY p.product_id
@@ -196,6 +202,9 @@ type ProductsByIDsRow struct {
 	UpdatedAt   time.Time
 	Version     int64
 	CreatedAt   time.Time
+	LengthCm    pgtype.Int4
+	WidthCm     pgtype.Int4
+	HeightCm    pgtype.Int4
 }
 
 // Mẫu theo danh sách mã (cùng điều kiện với ProductPage): mã không có, đã xóa, của người bán ngừng thì không có dòng.
@@ -220,6 +229,9 @@ func (q *Queries) ProductsByIDs(ctx context.Context, arg ProductsByIDsParams) ([
 			&i.UpdatedAt,
 			&i.Version,
 			&i.CreatedAt,
+			&i.LengthCm,
+			&i.WidthCm,
+			&i.HeightCm,
 		); err != nil {
 			return nil, err
 		}

@@ -39,6 +39,7 @@ func catalogError(err error) (status int, code string, ok bool) {
 		{catalog.ErrNotForSale, http.StatusConflict, codeNotForSale},
 		{catalog.ErrInvalidPrice, http.StatusUnprocessableEntity, codeInvalidPrice},
 		{catalog.ErrInvalidWeight, http.StatusUnprocessableEntity, codeInvalidInput},
+		{catalog.ErrInvalidMeasure, http.StatusUnprocessableEntity, codeInvalidInput},
 		{catalog.ErrVariantOrderMismatch, http.StatusUnprocessableEntity, codeInvalidInput},
 		{catalog.ErrInvalidArticle, http.StatusUnprocessableEntity, codeInvalidArticle},
 		{catalog.ErrCategoryCycle, http.StatusUnprocessableEntity, codeCategoryCycle},

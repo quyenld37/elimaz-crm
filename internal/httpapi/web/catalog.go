@@ -237,7 +237,7 @@ func (c *Catalog) product(ctx context.Context, tx pgx.Tx, wp webcatalog.WebProdu
 		ArticleHtml: html, Status: gen.ProductStatus(wp.Status), CategoryIds: wp.CategoryIDs, Tags: wp.Tags,
 		Attributes: make([]gen.WebAttr, 0, len(wp.Attributes)), Images: make([]gen.WebImage, 0, len(wp.Images)),
 		Variants: make([]gen.WebVariant, 0, len(wp.Variants)), UpdatedAt: wp.UpdatedAt,
-		CreatedAt: gen.NewOptDateTime(wp.CreatedAt), Version: wp.Version,
+		CreatedAt: gen.NewOptDateTime(wp.CreatedAt), Version: wp.Version, MeasureCm: MeasureOut(wp.MeasureCm.Length, wp.MeasureCm.Width, wp.MeasureCm.Height),
 	}
 	for _, a := range wp.Attributes {
 		g.Attributes = append(g.Attributes, gen.WebAttr{Name: a.Name, Value: a.Value, Position: int32(a.Position)}) //nolint:gosec // G115: vị trí nhỏ
@@ -379,4 +379,19 @@ func dedupe(ids []uuid.UUID) []uuid.UUID {
 		}
 	}
 	return out
+}
+
+// MeasureOut đổi ba số đo của mẫu (cm, nil là chưa nhập) sang measureCm của API (Task 516): chỉ các số đã nhập (đúng
+// measureOf của website); không số nào → vắng mặt. Dùng cho WebProduct và Product của API nhân viên (internal/httpapi).
+func MeasureOut(length, width, height *int) gen.OptMeasureCm {
+	if length == nil && width == nil && height == nil {
+		return gen.OptMeasureCm{}
+	}
+	opt := func(v *int) gen.OptInt32 {
+		if v == nil {
+			return gen.OptInt32{}
+		}
+		return gen.NewOptInt32(int32(*v)) //nolint:gosec // G115: số đo 1–1000 (CHECK của cột)
+	}
+	return gen.NewOptMeasureCm(gen.MeasureCm{Length: opt(length), Width: opt(width), Height: opt(height)})
 }

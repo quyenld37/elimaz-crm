@@ -31,6 +31,7 @@ const (
 	CodeFormulaNotAllowed         = xlsx.CodeFormulaNotAllowed
 	CodeCellTooLong               = xlsx.CodeCellTooLong
 	CodeInvalidBarcode            = "invalid_barcode"
+	CodeInvalidMeasure            = "invalid_measure" // số đo không phải số nguyên 1–1000 (Task 516)
 )
 
 // maxQuoted: lời báo chỉ chép nội dung ô khi ô không dài quá số ký tự này.
@@ -87,16 +88,18 @@ func sortErrors(errs []RowError) {
 	})
 }
 
-// columnRank: cột của mẫu theo thứ tự trong mẫu; cột thuộc tính nằm giữa cột mẫu và cột biến thể; cột lạ cuối cùng.
+// columnRank: cột của mẫu theo thứ tự trong mẫu; cột số đo, rồi cột thuộc tính nằm giữa cột mẫu và cột biến thể; cột
+// lạ cuối cùng.
 func columnRank(col string) int {
-	if i := slices.Index(productColumns(), col); i >= 0 {
+	head := slices.Concat(productColumns(), measureColumns())
+	if i := slices.Index(head, col); i >= 0 {
 		return i
 	}
 	if strings.HasPrefix(col, AttributePrefix) {
-		return len(productColumns())
+		return len(head)
 	}
 	if i := slices.Index(variantColumns(), col); i >= 0 {
-		return len(productColumns()) + 1 + i
+		return len(head) + 1 + i
 	}
 	return 1 << 20
 }

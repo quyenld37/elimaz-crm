@@ -26346,6 +26346,12 @@ func (s *CreateProductRequest) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.MeasureCm.Set {
+			e.FieldStart("measureCm")
+			s.MeasureCm.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("variants")
 		e.ArrStart()
 		for _, elem := range s.Variants {
@@ -26355,13 +26361,14 @@ func (s *CreateProductRequest) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCreateProductRequest = [6]string{
+var jsonFieldsNameOfCreateProductRequest = [7]string{
 	0: "code",
 	1: "name",
 	2: "description",
 	3: "article",
 	4: "status",
-	5: "variants",
+	5: "measureCm",
+	6: "variants",
 }
 
 // Decode decodes CreateProductRequest from json.
@@ -26424,8 +26431,18 @@ func (s *CreateProductRequest) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
+		case "measureCm":
+			if err := func() error {
+				s.MeasureCm.Reset()
+				if err := s.MeasureCm.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"measureCm\"")
+			}
 		case "variants":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.Variants = make([]VariantInput, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -26452,7 +26469,7 @@ func (s *CreateProductRequest) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00100011,
+		0b01000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -47123,6 +47140,103 @@ func (s *Me) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *MeasureCm) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *MeasureCm) encodeFields(e *jx.Encoder) {
+	{
+		if s.Length.Set {
+			e.FieldStart("length")
+			s.Length.Encode(e)
+		}
+	}
+	{
+		if s.Width.Set {
+			e.FieldStart("width")
+			s.Width.Encode(e)
+		}
+	}
+	{
+		if s.Height.Set {
+			e.FieldStart("height")
+			s.Height.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfMeasureCm = [3]string{
+	0: "length",
+	1: "width",
+	2: "height",
+}
+
+// Decode decodes MeasureCm from json.
+func (s *MeasureCm) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode MeasureCm to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "length":
+			if err := func() error {
+				s.Length.Reset()
+				if err := s.Length.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"length\"")
+			}
+		case "width":
+			if err := func() error {
+				s.Width.Reset()
+				if err := s.Width.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"width\"")
+			}
+		case "height":
+			if err := func() error {
+				s.Height.Reset()
+				if err := s.Height.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"height\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode MeasureCm")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *MeasureCm) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *MeasureCm) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *MergeCandidate) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -50287,6 +50401,39 @@ func (s *OptLookHidden) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes MeasureCm as json.
+func (o OptMeasureCm) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes MeasureCm from json.
+func (o *OptMeasureCm) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptMeasureCm to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptMeasureCm) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptMeasureCm) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes MessageSendStatus as json.
 func (o OptMessageSendStatus) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -50502,6 +50649,55 @@ func (s OptNilUUID) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptNilUUID) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes UpdateProductRequestMeasureCm as json.
+func (o OptNilUpdateProductRequestMeasureCm) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes UpdateProductRequestMeasureCm from json.
+func (o *OptNilUpdateProductRequestMeasureCm) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNilUpdateProductRequestMeasureCm to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v UpdateProductRequestMeasureCm
+		o.Value = v
+		o.Set = true
+		o.Null = true
+		return nil
+	}
+	o.Set = true
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNilUpdateProductRequestMeasureCm) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNilUpdateProductRequestMeasureCm) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -62330,6 +62526,12 @@ func (s *Product) encodeFields(e *jx.Encoder) {
 		e.Int64(s.Version)
 	}
 	{
+		if s.MeasureCm.Set {
+			e.FieldStart("measureCm")
+			s.MeasureCm.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("variants")
 		e.ArrStart()
 		for _, elem := range s.Variants {
@@ -62347,17 +62549,18 @@ func (s *Product) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfProduct = [10]string{
-	0: "id",
-	1: "code",
-	2: "name",
-	3: "description",
-	4: "article",
-	5: "articleHtml",
-	6: "status",
-	7: "version",
-	8: "variants",
-	9: "images",
+var jsonFieldsNameOfProduct = [11]string{
+	0:  "id",
+	1:  "code",
+	2:  "name",
+	3:  "description",
+	4:  "article",
+	5:  "articleHtml",
+	6:  "status",
+	7:  "version",
+	8:  "measureCm",
+	9:  "variants",
+	10: "images",
 }
 
 // Decode decodes Product from json.
@@ -62469,8 +62672,18 @@ func (s *Product) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"version\"")
 			}
+		case "measureCm":
+			if err := func() error {
+				s.MeasureCm.Reset()
+				if err := s.MeasureCm.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"measureCm\"")
+			}
 		case "variants":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				s.Variants = make([]Variant, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -62488,7 +62701,7 @@ func (s *Product) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"variants\"")
 			}
 		case "images":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				s.Images = make([]ProductImage, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -62516,7 +62729,7 @@ func (s *Product) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -91662,14 +91875,21 @@ func (s *UpdateProductRequest) encodeFields(e *jx.Encoder) {
 			s.Status.Encode(e)
 		}
 	}
+	{
+		if s.MeasureCm.Set {
+			e.FieldStart("measureCm")
+			s.MeasureCm.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfUpdateProductRequest = [5]string{
+var jsonFieldsNameOfUpdateProductRequest = [6]string{
 	0: "version",
 	1: "name",
 	2: "description",
 	3: "article",
 	4: "status",
+	5: "measureCm",
 }
 
 // Decode decodes UpdateProductRequest from json.
@@ -91732,6 +91952,16 @@ func (s *UpdateProductRequest) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
+		case "measureCm":
+			if err := func() error {
+				s.MeasureCm.Reset()
+				if err := s.MeasureCm.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"measureCm\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -91784,6 +92014,103 @@ func (s *UpdateProductRequest) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *UpdateProductRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *UpdateProductRequestMeasureCm) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *UpdateProductRequestMeasureCm) encodeFields(e *jx.Encoder) {
+	{
+		if s.Length.Set {
+			e.FieldStart("length")
+			s.Length.Encode(e)
+		}
+	}
+	{
+		if s.Width.Set {
+			e.FieldStart("width")
+			s.Width.Encode(e)
+		}
+	}
+	{
+		if s.Height.Set {
+			e.FieldStart("height")
+			s.Height.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfUpdateProductRequestMeasureCm = [3]string{
+	0: "length",
+	1: "width",
+	2: "height",
+}
+
+// Decode decodes UpdateProductRequestMeasureCm from json.
+func (s *UpdateProductRequestMeasureCm) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode UpdateProductRequestMeasureCm to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "length":
+			if err := func() error {
+				s.Length.Reset()
+				if err := s.Length.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"length\"")
+			}
+		case "width":
+			if err := func() error {
+				s.Width.Reset()
+				if err := s.Width.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"width\"")
+			}
+		case "height":
+			if err := func() error {
+				s.Height.Reset()
+				if err := s.Height.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"height\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode UpdateProductRequestMeasureCm")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *UpdateProductRequestMeasureCm) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *UpdateProductRequestMeasureCm) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -106285,9 +106612,15 @@ func (s *WebProduct) encodeFields(e *jx.Encoder) {
 		e.FieldStart("version")
 		e.Int64(s.Version)
 	}
+	{
+		if s.MeasureCm.Set {
+			e.FieldStart("measureCm")
+			s.MeasureCm.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfWebProduct = [15]string{
+var jsonFieldsNameOfWebProduct = [16]string{
 	0:  "id",
 	1:  "sellerId",
 	2:  "code",
@@ -106303,6 +106636,7 @@ var jsonFieldsNameOfWebProduct = [15]string{
 	12: "updatedAt",
 	13: "createdAt",
 	14: "version",
+	15: "measureCm",
 }
 
 // Decode decodes WebProduct from json.
@@ -106523,6 +106857,16 @@ func (s *WebProduct) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"version\"")
+			}
+		case "measureCm":
+			if err := func() error {
+				s.MeasureCm.Reset()
+				if err := s.MeasureCm.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"measureCm\"")
 			}
 		default:
 			return d.Skip()

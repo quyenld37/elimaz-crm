@@ -36,6 +36,13 @@ type WebProduct struct {
 	UpdatedAt        time.Time
 	CreatedAt        time.Time // ngày tạo mẫu (UTC), cho "Mới nhất" của website
 	Version          int64
+	MeasureCm        MeasureCm
+}
+
+// MeasureCm là số đo của mẫu (Task 516; cùng nghĩa catalog.MeasureCm, gói này không nhập catalog): Dài, Rộng, Cao theo
+// cm (1–1000), nil là chưa nhập.
+type MeasureCm struct {
+	Length, Width, Height *int
 }
 
 // WebAttr là một giá trị thuộc tính của mẫu; Position là vị trí của thuộc tính.

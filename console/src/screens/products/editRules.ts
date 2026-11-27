@@ -4,6 +4,7 @@
 import type {
   AddVariantRequest,
   CreateProductRequest,
+  MeasureCm,
   Product,
   ProductClassification,
   ProductStatus,
@@ -23,6 +24,12 @@ export const MAX_NAME = 200;
 export const MAX_DESCRIPTION = 1000;
 export const MAX_OPTION = 50;
 export const MAX_VARIANTS = 200;
+/** Số đo của mẫu (Task 516): số nguyên cm, mỗi số 1–1.000 (catalog.MinMeasureCm, MaxMeasureCm). */
+export const MIN_MEASURE_CM = 1;
+export const MAX_MEASURE_CM = 1000;
+export const MEASURE_KEYS = ["length", "width", "height"] as const;
+export type MeasureKey = (typeof MEASURE_KEYS)[number];
+export const TEXT_BAD_MEASURE = "Số nguyên cm từ 1 đến 1.000";
 
 export interface VariantRow {
   /** Mã biến thể khi đã lưu; dòng mới: "new:<màu>|<size>". */
@@ -57,6 +64,8 @@ export interface Draft {
   rows: VariantRow[];
   /** Bài viết dạng khối (Task 326). */
   article: EditBlock[];
+  /** Chữ trong ba ô số đo Dài, Rộng, Cao (cm; "" là chưa nhập; Task 516). */
+  measure: Record<MeasureKey, string>;
   /**
    * Khóa các dòng nhân viên đã kéo, bấm ↑ ↓ (Task 513). Có giá trị: thứ tự do người đặt, dòng sinh thêm vào cuối;
    * không có: dòng mới xếp theo màu × size sau các dòng đã lưu.
@@ -150,8 +159,35 @@ export function emptyDraft(): Draft {
     sizes: [],
     rows: [],
     article: [],
+    measure: measureText(undefined),
   };
 }
+
+/** Ô số đo từ measureCm của máy chủ (số vắng mặt → ô trống). */
+function measureText(m: MeasureCm | undefined): Record<MeasureKey, string> {
+  const t = (v: number | undefined) => (v === undefined ? "" : String(v));
+  return { length: t(m?.length), width: t(m?.width), height: t(m?.height) };
+}
+
+/** Số của một ô số đo: undefined khi trống; null khi sai (không phải số nguyên 1–1.000). */
+function measureNumber(s: string): number | null | undefined {
+  const t = s.trim();
+  const n = /^[0-9]{1,4}$/.test(t) ? Number(t) : 0;
+  return t === "" ? undefined : n >= MIN_MEASURE_CM && n <= MAX_MEASURE_CM ? n : null;
+}
+
+/** measureCm gửi đi (gọi sau validate): chỉ các ô có số; không ô nào → undefined. */
+function measureBody(m: Record<MeasureKey, string>): MeasureCm | undefined {
+  const out: MeasureCm = {};
+  for (const k of MEASURE_KEYS) {
+    const n = measureNumber(m[k]);
+    if (typeof n === "number") out[k] = n;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+const sameMeasure = (a: Record<MeasureKey, string>, b: Record<MeasureKey, string>) =>
+  MEASURE_KEYS.every((k) => measureNumber(a[k]) === measureNumber(b[k]));
 
 /**
  * Bản nháp từ mẫu đã lưu và phân loại của nó. Version là số nhỏ hơn của hai lần đọc: đọc lệch nhau thì lần lưu báo
@@ -177,6 +213,7 @@ export function draftFromProduct(p: Product, c: ProductClassification): Draft {
     sizes,
     rows: p.variants.map(savedRow),
     article: editBlocks(p.article),
+    measure: measureText(p.measureCm),
   };
 }
 
@@ -282,7 +319,9 @@ export interface RowErrors {
 
 export interface Validation {
   ok: boolean;
-  fields: { code?: string; name?: string; description?: string; variants?: string; article?: string };
+  fields: { code?: string; name?: string; description?: string; variants?: string; article?: string } & Partial<
+    Record<MeasureKey, string>
+  >;
   rows: Record<string, RowErrors>;
   /** Khóa khối bài viết → câu lỗi. */
   article: Record<string, string>;
@@ -304,6 +343,7 @@ export function validate(d: Draft, mode: "create" | "edit"): Validation {
   else if (nameLen > MAX_NAME) fields.name = "Tên mẫu tối đa 200 ký tự";
   if (charCount(d.description) > MAX_DESCRIPTION) fields.description = "Mô tả ngắn tối đa 1.000 ký tự";
   if (d.rows.length > MAX_VARIANTS) fields.variants = "Một mẫu tối đa 200 biến thể";
+  for (const k of MEASURE_KEYS) if (measureNumber(d.measure[k]) === null) fields[k] = TEXT_BAD_MEASURE;
   const art = checkArticle(d.article);
   if (art.article !== undefined) fields.article = art.article;
 
@@ -362,6 +402,8 @@ export function createBody(d: Draft): CreateProductRequest {
   };
   if (d.description !== "") out.description = d.description;
   if (d.article.length > 0) out.article = articleBody(d.article);
+  const m = measureBody(d.measure);
+  if (m !== undefined) out.measureCm = m;
   return out;
 }
 
@@ -412,6 +454,7 @@ export function savePlan(base: Draft, edit: Draft): SaveStep[] {
   if (edit.description !== base.description) p.description = edit.description;
   if (edit.status !== base.status) p.status = edit.status;
   if (!sameArticle(base.article, edit.article)) p.article = articleBody(edit.article);
+  if (!sameMeasure(base.measure, edit.measure)) p.measureCm = measureBody(edit.measure) ?? null;
   if (Object.keys(p).length > 0) steps.push({ kind: "product", body: p });
   if (classificationChanged(base, edit)) steps.push({ kind: "classification", body: classificationBody(edit) });
   for (const r of edit.rows) if (r.id === undefined) steps.push({ kind: "add", key: r.key, body: variantInput(r) });
@@ -440,7 +483,7 @@ export interface Pair {
   edit: Draft;
 }
 
-/** Bước sửa mẫu xong: bản đã lưu nhận tên, mô tả, trạng thái, bài viết mới; cả hai nhận version mới. */
+/** Bước sửa mẫu xong: bản đã lưu nhận tên, mô tả, trạng thái, bài viết, số đo mới; cả hai nhận version mới. */
 export function applyProduct({ base, edit }: Pair, p: Product): Pair {
   return {
     base: {
@@ -449,6 +492,7 @@ export function applyProduct({ base, edit }: Pair, p: Product): Pair {
       description: p.description,
       status: p.status,
       article: editBlocks(p.article),
+      measure: measureText(p.measureCm),
       version: p.version,
     },
     edit: { ...edit, version: p.version },

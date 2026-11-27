@@ -84,10 +84,16 @@ func (w Writer) audit(ctx context.Context, tx pgx.Tx, actor identity.AuthUser, a
 }
 
 func productAudit(p Product) map[string]any {
-	return map[string]any{
+	m := map[string]any{
 		"code": p.Code, "name": p.Name, "status": string(p.Status), "version": p.Version,
 		"descriptionLength": len([]rune(p.Description)), "articleBlocks": len(p.Article), "variants": len(p.Variants),
 	}
+	for k, v := range map[string]*int{"lengthCm": p.Measure.Length, "widthCm": p.Measure.Width, "heightCm": p.Measure.Height} {
+		if v != nil {
+			m[k] = *v
+		}
+	}
+	return m
 }
 
 func variantAudit(v Variant) map[string]any {

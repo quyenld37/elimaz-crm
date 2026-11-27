@@ -238,6 +238,39 @@ func TestProducts_CreatedAt(t *testing.T) {
 	checkCreatedAt(t, "Products", e.allProducts(), all[5], old)
 }
 
+// Task 516: số đo đặt thẳng trên bảng (Dài 30, Cao 3) → MeasureCm của ProductsByID và Products đúng ba số (Rộng nil);
+// mẫu khác không có số đo.
+func TestProducts_Measure(t *testing.T) {
+	e := newEnv(t)
+	all := e.all()
+	e.exec("UPDATE catalog.products SET length_cm = 30, height_cm = 3 WHERE id = $1", all[3])
+	var byID []webcatalog.WebProduct
+	e.read(func(tx pgx.Tx) error {
+		var err error
+		byID, err = webcatalog.ProductsByID(t.Context(), tx, []uuid.UUID{all[3], all[4]}, view())
+		return err //nolint:wrapcheck // test
+	})
+	for from, ps := range map[string][]webcatalog.WebProduct{"ProductsByID": byID, "Products": e.allProducts()} {
+		seen := false
+		for _, p := range ps {
+			m := p.MeasureCm
+			if p.ID != all[3] {
+				if m != (webcatalog.MeasureCm{}) {
+					t.Errorf("%s: mẫu %s có số đo %+v", from, p.Code, m)
+				}
+				continue
+			}
+			seen = true
+			if m.Length == nil || *m.Length != 30 || m.Width != nil || m.Height == nil || *m.Height != 3 {
+				t.Errorf("%s: số đo %+v, mong Dài 30, Cao 3", from, m)
+			}
+		}
+		if !seen {
+			t.Errorf("%s: không thấy mẫu có số đo", from)
+		}
+	}
+}
+
 // checkCreatedAt: mẫu id có createdAt = want (UTC), sau updatedAt; mọi mẫu khác có createdAt khác 0, theo UTC.
 func checkCreatedAt(t *testing.T, from string, ps []webcatalog.WebProduct, id uuid.UUID, want time.Time) {
 	t.Helper()

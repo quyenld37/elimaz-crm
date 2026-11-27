@@ -122,6 +122,34 @@ const clickSave = () => {
   if (b === undefined) throw new Error("không có nút Lưu mẫu");
   fireEvent.click(b);
 };
+/** Mở trang thêm mẫu, nhập mã, tên, một biến thể Đen · S giá 350000. */
+const openNewOneVariant = async (code: string, name: string) => {
+  renderEdit(mockApi(), "/san-pham/moi");
+  await screen.findByRole("heading", { name: "Thêm mẫu" });
+  typeIn("Mã mẫu *", code);
+  typeIn("Tên mẫu *", name);
+  addVia("Thêm màu", "Đen");
+  addVia("Thêm size", "S");
+  fireEvent.change(screen.getByRole("textbox", { name: "Giá bán của Đen · S" }), { target: { value: "350000" } });
+};
+/** Lưu mẫu mới (createProduct trả 201), chờ đúng một createProduct và trả thân của nó. */
+const saveCreated = async () => {
+  vi.mocked(api.createProduct).mockImplementation(() => ok({ ...product, version: 1 }, 201));
+  clickSave();
+  await waitFor(() => {
+    expect(api.createProduct).toHaveBeenCalledTimes(1);
+  });
+  const body = vi.mocked(api.createProduct).mock.calls[0]?.[0].body;
+  if (body === undefined) throw new Error("createProduct không có thân");
+  return body;
+};
+/** Chờ đúng một updateProduct và trả thân của nó. */
+const sentUpdate = async () => {
+  await waitFor(() => {
+    expect(api.updateProduct).toHaveBeenCalledTimes(1);
+  });
+  return vi.mocked(api.updateProduct).mock.calls[0]?.[0].body;
+};
 /** Giá trị của ô nhập hay ô chọn. */
 const valueOf = (el: HTMLElement) =>
   el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement
@@ -569,23 +597,50 @@ describe("ProductEdit — bài viết (Task 326)", () => {
   });
 
   it("tạo mẫu kèm bài viết → createProduct gửi article; trang thêm mẫu tắt + Ảnh", async () => {
-    renderEdit(mockApi(), "/san-pham/moi");
-    await screen.findByRole("heading", { name: "Thêm mẫu" });
-    typeIn("Mã mẫu *", "DAM0123");
-    typeIn("Tên mẫu *", "Đầm");
-    addVia("Thêm màu", "Đen");
-    addVia("Thêm size", "S");
-    fireEvent.change(screen.getByRole("textbox", { name: "Giá bán của Đen · S" }), { target: { value: "350000" } });
+    await openNewOneVariant("DAM0123", "Đầm");
     expect(screen.getByRole("button", { name: "+ Ảnh" }).matches(":disabled")).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "+ Tiêu đề" }));
     typeIn("Khối 1 · Tiêu đề", "Form dáng");
-    vi.mocked(api.createProduct).mockImplementation(() => ok({ ...product, version: 1 }, 201));
+    expect((await saveCreated()).article).toEqual([{ type: "heading", text: "Form dáng", level: 2 }]);
+  });
+});
+
+describe("ProductEdit — số đo (Task 516)", () => {
+  it("hiện số đo đã lưu; đổi Cao, xóa Dài → updateProduct gửi measureCm đúng các số còn lại", async () => {
+    product = { ...product, measureCm: { length: 88, width: 20 } };
+    renderEdit(mockApi(), `/san-pham/${PID}`);
+    await screen.findByRole("heading", { name: NAME_80 });
+    expect(valueOf(screen.getByRole("textbox", { name: "Dài (cm)" }))).toBe("88");
+    expect(valueOf(screen.getByRole("textbox", { name: "Rộng (cm)" }))).toBe("20");
+    expect(valueOf(screen.getByRole("textbox", { name: "Cao (cm)" }))).toBe("");
+    typeIn("Dài (cm)", "");
+    typeIn("Cao (cm)", "3");
+    vi.mocked(api.updateProduct).mockImplementation(() =>
+      ok({ ...product, measureCm: { width: 20, height: 3 }, version: 6 }),
+    );
     clickSave();
-    await waitFor(() => {
-      expect(api.createProduct).toHaveBeenCalledTimes(1);
+    expect(await sentUpdate()).toEqual({
+      version: 5,
+      measureCm: { width: 20, height: 3 },
     });
-    expect(vi.mocked(api.createProduct).mock.calls[0]?.[0].body.article).toEqual([
-      { type: "heading", text: "Form dáng", level: 2 },
-    ]);
+  });
+
+  it("số đo sai (0, 1001, số lẻ) → không gửi, câu dưới đúng ô", async () => {
+    renderEdit(mockApi(), `/san-pham/${PID}`);
+    await screen.findByRole("heading", { name: NAME_80 });
+    typeIn("Dài (cm)", "0");
+    typeIn("Rộng (cm)", "1001");
+    typeIn("Cao (cm)", "2,5");
+    clickSave();
+    expect((await screen.findAllByText("Số nguyên cm từ 1 đến 1.000")).length).toBe(3);
+    expect(api.updateProduct).not.toHaveBeenCalled();
+    expect(screen.getByRole("textbox", { name: "Dài (cm)" }).getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("tạo mẫu: nhập Dài, Rộng → createProduct gửi measureCm chỉ hai số đó", async () => {
+    await openNewOneVariant("QUAN01", "Quần");
+    typeIn("Dài (cm)", "88");
+    typeIn("Rộng (cm)", "20");
+    expect((await saveCreated()).measureCm).toEqual({ length: 88, width: 20 });
   });
 });

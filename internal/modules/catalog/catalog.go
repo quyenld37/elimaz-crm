@@ -76,14 +76,29 @@ type ProductInput struct {
 	Code, Name, Description string
 	Article                 json.RawMessage
 	Status                  ProductStatus
+	Measure                 MeasureCm
 	Variants                []VariantInput
 }
 
-// ProductPatch là phần sửa của mẫu; trường nil giữ nguyên.
+// Giới hạn của mỗi số đo (cm; CHECK ở migrations/0535_catalog_product_measure.sql).
+const (
+	MinMeasureCm = 1
+	MaxMeasureCm = 1000
+)
+
+// MeasureCm là số đo của mẫu (Task 516): Dài, Rộng, Cao theo cm, số nguyên MinMeasureCm–MaxMeasureCm; nil là chưa
+// nhập. Website hiện khối «Số đo» chỉ với các số đã nhập.
+type MeasureCm struct {
+	Length, Width, Height *int
+}
+
+// ProductPatch là phần sửa của mẫu; trường nil giữ nguyên. Measure khác nil đặt đúng ba số trong đó (số nil là bỏ số
+// đó; MeasureCm{} bỏ cả ba).
 type ProductPatch struct {
 	Name, Description *string
 	Article           *json.RawMessage
 	Status            *ProductStatus
+	Measure           *MeasureCm
 }
 
 // VariantPatch là phần sửa của biến thể; trường nil giữ nguyên. ColorHex "" bỏ màu hex; ClearCostPrice bỏ giá nhập
@@ -103,6 +118,7 @@ type Product struct {
 	Code, Name, Description string
 	Article                 []ArticleBlock
 	Status                  ProductStatus
+	Measure                 MeasureCm
 	Version                 int64
 	Variants                []Variant
 }
