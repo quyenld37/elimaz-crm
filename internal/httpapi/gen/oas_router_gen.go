@@ -542,13 +542,13 @@ var (
 	rn460AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn485AllowedHeaders = map[string]string{
+	rn490AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
 	rn438AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
-	rn473AllowedHeaders = map[string]string{
+	rn478AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
 	rn441AllowedHeaders = map[string]string{
@@ -566,28 +566,31 @@ var (
 	rn458AllowedHeaders = map[string]string{
 		"GET": "If-None-Match",
 	}
-	rn470AllowedHeaders = map[string]string{
-		"GET": "If-None-Match",
-	}
-	rn472AllowedHeaders = map[string]string{
-		"GET": "If-None-Match",
-	}
 	rn475AllowedHeaders = map[string]string{
+		"GET": "If-None-Match",
+	}
+	rn477AllowedHeaders = map[string]string{
+		"GET": "If-None-Match",
+	}
+	rn480AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn482AllowedHeaders = map[string]string{
+	rn487AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
-	rn493AllowedHeaders = map[string]string{
+	rn498AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn494AllowedHeaders = map[string]string{
+	rn499AllowedHeaders = map[string]string{
+		"POST": "Content-Type,Idempotency-Key",
+	}
+	rn472AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
 	rn468AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key,X-Attempt",
 	}
-	rn477AllowedHeaders = map[string]string{
+	rn482AllowedHeaders = map[string]string{
 		"GET": "If-None-Match",
 	}
 	rn461AllowedHeaders = map[string]string{
@@ -602,13 +605,13 @@ var (
 	rn453AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
-	rn487AllowedHeaders = map[string]string{
+	rn492AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn484AllowedHeaders = map[string]string{
+	rn489AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn490AllowedHeaders = map[string]string{
+	rn495AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 )
@@ -10024,7 +10027,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn485AllowedHeaders,
+											allowedHeaders: rn490AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -10111,7 +10114,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn473AllowedHeaders,
+													allowedHeaders: rn478AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -10457,7 +10460,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "GET",
-													allowedHeaders: rn470AllowedHeaders,
+													allowedHeaders: rn475AllowedHeaders,
 													acceptPost:     "",
 													acceptPatch:    "",
 												})
@@ -10481,7 +10484,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "GET",
-													allowedHeaders: rn472AllowedHeaders,
+													allowedHeaders: rn477AllowedHeaders,
 													acceptPost:     "",
 													acceptPatch:    "",
 												})
@@ -10558,7 +10561,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn475AllowedHeaders,
+													allowedHeaders: rn480AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -10600,7 +10603,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn482AllowedHeaders,
+													allowedHeaders: rn487AllowedHeaders,
 													acceptPost:     "",
 													acceptPatch:    "",
 												})
@@ -10643,7 +10646,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn493AllowedHeaders,
+											allowedHeaders: rn498AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -10668,7 +10671,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn494AllowedHeaders,
+											allowedHeaders: rn499AllowedHeaders,
 											acceptPost:     "image/*",
 											acceptPatch:    "",
 										})
@@ -10677,51 +10680,42 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									return
 								}
 
-							case 'l': // Prefix: "lash-sales/"
+							case 'l': // Prefix: "lash-"
 
-								if l := len("lash-sales/"); len(elem) >= l && elem[0:l] == "lash-sales/" {
+								if l := len("lash-"); len(elem) >= l && elem[0:l] == "lash-" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
-								// Param: "saleId"
-								// Match until "/"
-								idx := strings.IndexByte(elem, '/')
-								if idx < 0 {
-									idx = len(elem)
-								}
-								args[0] = elem[:idx]
-								elem = elem[idx:]
-
 								if len(elem) == 0 {
 									break
 								}
 								switch elem[0] {
-								case '/': // Prefix: "/items/"
+								case 'o': // Prefix: "orders/"
 
-									if l := len("/items/"); len(elem) >= l && elem[0:l] == "/items/" {
+									if l := len("orders/"); len(elem) >= l && elem[0:l] == "orders/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
-									// Param: "itemId"
+									// Param: "externalRef"
 									// Match until "/"
 									idx := strings.IndexByte(elem, '/')
 									if idx < 0 {
 										idx = len(elem)
 									}
-									args[1] = elem[:idx]
+									args[0] = elem[:idx]
 									elem = elem[idx:]
 
 									if len(elem) == 0 {
 										break
 									}
 									switch elem[0] {
-									case '/': // Prefix: "/buy"
+									case '/': // Prefix: "/complete"
 
-										if l := len("/buy"); len(elem) >= l && elem[0:l] == "/buy" {
+										if l := len("/complete"); len(elem) >= l && elem[0:l] == "/complete" {
 											elem = elem[l:]
 										} else {
 											break
@@ -10731,20 +10725,124 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											// Leaf node.
 											switch r.Method {
 											case "POST":
-												s.handleWebFlashBuyRequest([2]string{
+												s.handleWebFlashCompleteRequest([1]string{
 													args[0],
-													args[1],
 												}, elemIsEscaped, w, r)
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn468AllowedHeaders,
+													allowedHeaders: rn472AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
 											}
 
 											return
+										}
+
+									}
+
+								case 's': // Prefix: "sales/"
+
+									if l := len("sales/"); len(elem) >= l && elem[0:l] == "sales/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'c': // Prefix: "current"
+										origElem := elem
+										if l := len("current"); len(elem) >= l && elem[0:l] == "current" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "GET":
+												s.handleWebFlashCurrentRequest([0]string{}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "GET",
+													allowedHeaders: nil,
+													acceptPost:     "",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+										elem = origElem
+									}
+									// Param: "saleId"
+									// Match until "/"
+									idx := strings.IndexByte(elem, '/')
+									if idx < 0 {
+										idx = len(elem)
+									}
+									args[0] = elem[:idx]
+									elem = elem[idx:]
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/items/"
+
+										if l := len("/items/"); len(elem) >= l && elem[0:l] == "/items/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										// Param: "itemId"
+										// Match until "/"
+										idx := strings.IndexByte(elem, '/')
+										if idx < 0 {
+											idx = len(elem)
+										}
+										args[1] = elem[:idx]
+										elem = elem[idx:]
+
+										if len(elem) == 0 {
+											break
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/buy"
+
+											if l := len("/buy"); len(elem) >= l && elem[0:l] == "/buy" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "POST":
+													s.handleWebFlashBuyRequest([2]string{
+														args[0],
+														args[1],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, notAllowedParams{
+														allowedMethods: "POST",
+														allowedHeaders: rn468AllowedHeaders,
+														acceptPost:     "application/json",
+														acceptPatch:    "",
+													})
+												}
+
+												return
+											}
+
 										}
 
 									}
@@ -10794,7 +10892,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET",
-										allowedHeaders: rn477AllowedHeaders,
+										allowedHeaders: rn482AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -11042,7 +11140,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 														default:
 															s.notAllowed(w, r, notAllowedParams{
 																allowedMethods: "POST",
-																allowedHeaders: rn487AllowedHeaders,
+																allowedHeaders: rn492AllowedHeaders,
 																acceptPost:     "application/json",
 																acceptPatch:    "",
 															})
@@ -11079,7 +11177,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn484AllowedHeaders,
+										allowedHeaders: rn489AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -11166,7 +11264,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn490AllowedHeaders,
+											allowedHeaders: rn495AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -21363,51 +21461,42 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									}
 								}
 
-							case 'l': // Prefix: "lash-sales/"
+							case 'l': // Prefix: "lash-"
 
-								if l := len("lash-sales/"); len(elem) >= l && elem[0:l] == "lash-sales/" {
+								if l := len("lash-"); len(elem) >= l && elem[0:l] == "lash-" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
-								// Param: "saleId"
-								// Match until "/"
-								idx := strings.IndexByte(elem, '/')
-								if idx < 0 {
-									idx = len(elem)
-								}
-								args[0] = elem[:idx]
-								elem = elem[idx:]
-
 								if len(elem) == 0 {
 									break
 								}
 								switch elem[0] {
-								case '/': // Prefix: "/items/"
+								case 'o': // Prefix: "orders/"
 
-									if l := len("/items/"); len(elem) >= l && elem[0:l] == "/items/" {
+									if l := len("orders/"); len(elem) >= l && elem[0:l] == "orders/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
-									// Param: "itemId"
+									// Param: "externalRef"
 									// Match until "/"
 									idx := strings.IndexByte(elem, '/')
 									if idx < 0 {
 										idx = len(elem)
 									}
-									args[1] = elem[:idx]
+									args[0] = elem[:idx]
 									elem = elem[idx:]
 
 									if len(elem) == 0 {
 										break
 									}
 									switch elem[0] {
-									case '/': // Prefix: "/buy"
+									case '/': // Prefix: "/complete"
 
-										if l := len("/buy"); len(elem) >= l && elem[0:l] == "/buy" {
+										if l := len("/complete"); len(elem) >= l && elem[0:l] == "/complete" {
 											elem = elem[l:]
 										} else {
 											break
@@ -21417,17 +21506,119 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											// Leaf node.
 											switch method {
 											case "POST":
-												r.name = WebFlashBuyOperation
-												r.summary = "Khách bấm mua một món flash sale (Task 203, M5-20); bốn lớp chắn trước khi chạm database"
-												r.operationID = "webFlashBuy"
+												r.name = WebFlashCompleteOperation
+												r.summary = "Khách hoàn tất đơn nháp flash sale trong hạn giữ suất (Task 204, M5-21)"
+												r.operationID = "webFlashComplete"
 												r.operationGroup = ""
-												r.pathPattern = "/api/v1/web/flash-sales/{saleId}/items/{itemId}/buy"
+												r.pathPattern = "/api/v1/web/flash-orders/{externalRef}/complete"
 												r.args = args
-												r.count = 2
+												r.count = 1
 												return r, true
 											default:
 												return
 											}
+										}
+
+									}
+
+								case 's': // Prefix: "sales/"
+
+									if l := len("sales/"); len(elem) >= l && elem[0:l] == "sales/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'c': // Prefix: "current"
+										origElem := elem
+										if l := len("current"); len(elem) >= l && elem[0:l] == "current" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "GET":
+												r.name = WebFlashCurrentOperation
+												r.summary = "Đợt flash sale đã lên lịch hay đang mở còn hạn, kèm số suất còn trống từng món (Task 204, M5-21)"
+												r.operationID = "webFlashCurrent"
+												r.operationGroup = ""
+												r.pathPattern = "/api/v1/web/flash-sales/current"
+												r.args = args
+												r.count = 0
+												return r, true
+											default:
+												return
+											}
+										}
+
+										elem = origElem
+									}
+									// Param: "saleId"
+									// Match until "/"
+									idx := strings.IndexByte(elem, '/')
+									if idx < 0 {
+										idx = len(elem)
+									}
+									args[0] = elem[:idx]
+									elem = elem[idx:]
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/items/"
+
+										if l := len("/items/"); len(elem) >= l && elem[0:l] == "/items/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										// Param: "itemId"
+										// Match until "/"
+										idx := strings.IndexByte(elem, '/')
+										if idx < 0 {
+											idx = len(elem)
+										}
+										args[1] = elem[:idx]
+										elem = elem[idx:]
+
+										if len(elem) == 0 {
+											break
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/buy"
+
+											if l := len("/buy"); len(elem) >= l && elem[0:l] == "/buy" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "POST":
+													r.name = WebFlashBuyOperation
+													r.summary = "Khách bấm mua một món flash sale (Task 203, M5-20); bốn lớp chắn trước khi chạm database"
+													r.operationID = "webFlashBuy"
+													r.operationGroup = ""
+													r.pathPattern = "/api/v1/web/flash-sales/{saleId}/items/{itemId}/buy"
+													r.args = args
+													r.count = 2
+													return r, true
+												default:
+													return
+												}
+											}
+
 										}
 
 									}

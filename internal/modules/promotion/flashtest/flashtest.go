@@ -16,9 +16,10 @@ import (
 	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 )
 
-// Sale là một đợt có một món: mã đợt, mã món.
+// Sale là một đợt đã lên lịch: mã đợt, mã món đầu, mã mọi món theo thứ tự thêm.
 type Sale struct {
 	ID, Item uuid.UUID
+	Items    []uuid.UUID
 }
 
 // Item là món của đợt: biến thể, giá flash, số suất, giới hạn mỗi khách, phút giữ.
@@ -36,6 +37,13 @@ type Item struct {
 // (biến thể phải có đủ tồn). Lỗi làm test dừng (chỉ gọi từ goroutine của test).
 func Schedule(t testing.TB, tx pgx.Tx, it Item) Sale {
 	t.Helper()
+	return ScheduleItems(t, tx, it)
+}
+
+// ScheduleItems như Schedule nhưng đợt có thêm các món more (chỉ đọc Variant, Price, Slots, Limit, HoldMinutes của
+// more; tên, giờ, người làm lấy từ it).
+func ScheduleItems(t testing.TB, tx pgx.Tx, it Item, more ...Item) Sale {
+	t.Helper()
 	ctx := t.Context()
 	name := it.Name
 	if name == "" {
@@ -48,13 +56,18 @@ func Schedule(t testing.TB, tx pgx.Tx, it Item) Sale {
 	if err != nil {
 		t.Fatalf("flashtest: tạo đợt: %v", err)
 	}
-	item, err := promotion.AddFlashItem(ctx, tx, sale.ID, promotion.FlashItemInput{
-		VariantID: it.Variant, SalePrice: it.Price, Quantity: it.Slots, PerCustomerLimit: it.Limit,
-		HoldMinutes: it.HoldMinutes,
-	})
-	if err != nil {
-		t.Fatalf("flashtest: thêm món: %v", err)
+	out := Sale{ID: sale.ID}
+	for _, m := range append([]Item{it}, more...) {
+		item, err := promotion.AddFlashItem(ctx, tx, sale.ID, promotion.FlashItemInput{
+			VariantID: m.Variant, SalePrice: m.Price, Quantity: m.Slots, PerCustomerLimit: m.Limit,
+			HoldMinutes: m.HoldMinutes,
+		})
+		if err != nil {
+			t.Fatalf("flashtest: thêm món: %v", err)
+		}
+		out.Items = append(out.Items, item.ID)
 	}
+	out.Item = out.Items[0]
 	cur, err := promotion.GetFlashSale(ctx, tx, sale.ID)
 	if err != nil {
 		t.Fatalf("flashtest: đọc đợt: %v", err)
@@ -63,5 +76,5 @@ func Schedule(t testing.TB, tx pgx.Tx, it Item) Sale {
 	if _, err := w.ScheduleFlashSale(ctx, tx, sale.ID, cur.Version, actor, it.StartsAt.Add(-time.Hour)); err != nil {
 		t.Fatalf("flashtest: lên lịch: %v", err)
 	}
-	return Sale{ID: sale.ID, Item: item.ID}
+	return out
 }

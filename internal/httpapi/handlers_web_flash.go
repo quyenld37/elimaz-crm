@@ -19,6 +19,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/promotion"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/logging"
+	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
 // flashRetry là nhãn flash_result của lượt mua phải thử lại (không lưu).
@@ -29,7 +30,8 @@ const flashRetry = "retry"
 // (sai → 400 phone_required) → tìm hay tạo khách (web.Flash.Customer, transaction riêng TxAPI) → WriteTxWith với
 // db.TxFlashBuy: món của đợt, order.BuyFlash, lưu kết quả cuối (bought, sold_out, over_limit, not_open → 200) cùng
 // transaction. Không lưu, trả lại khóa: suất đang bị lượt khác khóa (ErrFlashRetry → 503 retry_later, cổng thêm
-// Retry-After), món không có hay không thuộc đợt (404), đầu vào hay biến thể không hợp lệ (422); lỗi tạm của database →
+// Retry-After), món không có hay không thuộc đợt (404), đầu vào không hợp lệ (400 invalid_input), biến thể không bán (422), mã ngoài
+// đã dùng cho đơn khác (422 idempotency_key_reused; trả lại khóa ngay, QĐ-204-5); lỗi tạm của database →
 // 503 (WriteTxWith). Sau commit: sold_out → dựng cờ hết suất (Deps.FlashGate, ngoài transaction, lỗi bỏ qua).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
@@ -96,7 +98,8 @@ func (h *handler) WebFlashBuy(ctx context.Context, req *gen.WebFlashBuyRequest, 
 // flashRefusal: lỗi của lượt mua trả lời ngay nhưng không lưu theo khóa (gửi lại cùng khóa chạy từ đầu).
 func flashRefusal(err error) bool {
 	return errors.Is(err, order.ErrFlashRetry) || errors.Is(err, promotion.ErrNotFound) ||
-		errors.Is(err, order.ErrInvalidInput) || errors.Is(err, order.ErrNotForSale)
+		errors.Is(err, order.ErrInvalidInput) || errors.Is(err, order.ErrNotForSale) ||
+		errors.Is(err, order.ErrDuplicateOrder)
 }
 
 // flashMetrics ghi flash_buy_ms (nhãn kết quả) và flash_result của lượt đã qua cổng.
@@ -106,4 +109,91 @@ func (h *handler) flashMetrics(result string, started time.Time) {
 	}
 	h.d.Metrics.Observe("flash_buy_ms", float64(time.Since(started).Milliseconds()), result)
 	h.d.Metrics.Inc("flash_result", result, 1)
+}
+
+// WebFlashCurrent (GET /api/v1/web/flash-sales/current, web.catalog.read; Task 204 / M5-21) → 200 đợt đã lên lịch hay
+// đang mở còn hạn kèm số còn từng món (web.Catalog.FlashCurrent).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) WebFlashCurrent(ctx context.Context) (gen.WebFlashCurrentRes, error) {
+	u, ok := authUser(ctx)
+	if !ok {
+		return nil, errNoAuthUser
+	}
+	return h.d.webCatalog.FlashCurrent(ctx, u.TenantID) //nolint:wrapcheck // lỗi của web, đổi mã ở errors*.go
+}
+
+// WebFlashComplete (POST /api/v1/web/flash-orders/{externalRef}/complete, web.flash.buy, Idempotency-Key; Task 204 /
+// M5-21): chuẩn hóa SĐT (sai → 400 phone_required) → đối chiếu lựa chọn giao hàng (shipChoice, ngoài transaction) →
+// WriteTx: order.Writer.CompleteFlashDraft và audit order.create của khóa dịch vụ khi đơn nháp vừa thành new (QĐ-204-3;
+// lần gọi lại không ghi lần hai). Lưu theo khóa: 200; 422 hold_expired (đơn đã bị hủy trong cùng transaction — kết quả
+// cuối, QĐ-204-4). Không lưu: 404 (mã không có, không phải đơn flash, SĐT khác), lỗi đầu vào, địa chỉ, giao hàng; 503.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) WebFlashComplete(ctx context.Context, req *gen.WebFlashCompleteRequest, p gen.WebFlashCompleteParams,
+) (gen.WebFlashCompleteRes, error) {
+	u, ok := authUser(ctx)
+	if !ok {
+		return nil, errNoAuthUser
+	}
+	phone, err := customer.NormalizePhone(string(req.Phone))
+	if err != nil {
+		return nil, errPhoneRequired
+	}
+	a := req.ShipAddress
+	in := order.CompleteFlashInput{
+		ExternalRef: p.ExternalRef, Phone: phone, ShippingFee: req.ShippingFee, Note: req.Note.Or(""),
+		ShipAddress: order.ShipAddress{
+			Name: a.Name, Phone: logging.Phone(a.Phone), Line: logging.Address(a.Line),
+			ProvinceCode: a.ProvinceCode.Or(""), WardCode: a.WardCode.Or(""),
+		},
+	}
+	if in.Shipping, err = h.shipChoice(ctx, req.ShippingChoice, &in.ShipAddress); err != nil {
+		return nil, err
+	}
+	w := order.Writer{Events: h.d.Events, Queue: queue.NewQueue(), Realtime: h.d.Realtime}
+	var out *gen.WebFlashCompleted
+	var refused error
+	err = WriteTx(ctx, h.d, u.TenantID, func(tx pgx.Tx) (int, any, bool, error) {
+		out, refused = nil, nil // fn có thể chạy lại (ADR-46): gán lại mỗi lần
+		res, err := w.CompleteFlashDraft(ctx, tx, in, webActor(u), h.now())
+		if errors.Is(err, order.ErrHoldExpired) {
+			refused = err
+			return http.StatusUnprocessableEntity, errorBody{Error: codeHoldExpired, RequestID: RequestID(ctx)}, true, nil
+		}
+		if err == nil && !res.Replayed {
+			err = auditWebOrder(ctx, tx, u, res.OrderID)
+		}
+		switch {
+		case isFlashCompleteRefusal(err):
+			refused = err
+			return 0, nil, false, nil
+		case err != nil:
+			return 0, nil, false, fmt.Errorf("hoàn tất đơn flash sale: %w", err)
+		}
+		out = &gen.WebFlashCompleted{Code: res.Code, Status: gen.OrderStatus(res.Status), GrandTotal: gen.Money(res.GrandTotal)}
+		return http.StatusOK, out, true, nil
+	})
+	switch {
+	case err != nil:
+		return nil, err
+	case refused != nil:
+		// Đã lưu (hold_expired): middleware chống trùng ghi đúng thân đã lưu; chưa lưu: writeHandlerError đổi mã.
+		return nil, fmt.Errorf("hoàn tất đơn flash sale: %w", refused)
+	}
+	return out, nil
+}
+
+// isFlashCompleteRefusal: lỗi của hoàn tất trả lời nhưng không lưu theo khóa (sửa thân rồi gửi lại được).
+func isFlashCompleteRefusal(err error) bool {
+	for _, e := range []error{
+		order.ErrNotFound, order.ErrInvalidInput, order.ErrInvalidTransition, order.ErrAddressIncomplete,
+		order.ErrShipCarrierUnavailable, order.ErrShipFeeMismatch, order.ErrShipUnverified, customer.ErrInvalidPhone,
+		customer.ErrUnknownAdminUnit, customer.ErrWardNotInProvince, customer.ErrInvalidInput,
+	} {
+		if errors.Is(err, e) {
+			return true
+		}
+	}
+	return false
 }

@@ -49,7 +49,8 @@ type Catalog struct {
 	rc   cache.ReadCache
 	view catalog.ImageView
 	log  *slog.Logger
-	now  func() time.Time // nil → time.Now (WithClock)
+	now  func() time.Time    // nil → time.Now (WithClock)
+	gate cache.AdmissionGate // số còn của món flash sale (WithFlashGate); nil → luôn đếm ở PostgreSQL
 }
 
 // NewCatalog dựng Catalog đọc d qua rc; view là FILES_PUBLIC_BASE_URL và IMAGE_PRESET_VERSION (cùng cho ảnh sản phẩm

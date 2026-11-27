@@ -1353,6 +1353,14 @@ type WebFlashBuyRes interface {
 	webFlashBuyRes()
 }
 
+type WebFlashCompleteRes interface {
+	webFlashCompleteRes()
+}
+
+type WebFlashCurrentRes interface {
+	webFlashCurrentRes()
+}
+
 type WebGetOrderRes interface {
 	webGetOrderRes()
 }
