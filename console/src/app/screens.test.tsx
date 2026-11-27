@@ -77,7 +77,7 @@ describe("quy ước trên mọi src/screens/*/route.tsx", () => {
     expect(conventionProblems(ROUTE_FILES, PERMISSIONS)).toEqual([]);
   });
 
-  it("NAV_GROUPS: Hộp chat đứng đầu (M4 HV01, Task 174, 177); Website giữa Khuyến mãi và Sản phẩm (M5, Task 208)", () => {
+  it("NAV_GROUPS: Hộp chat đứng đầu (M4 HV01, Task 174, 177); Website giữa Khuyến mãi và Sản phẩm (M5, Task 208); Báo cáo giữa Kho và Hệ thống (M6, Task 239)", () => {
     expect(NAV_GROUPS).toEqual([
       "Hộp chat",
       "Đơn hàng",
@@ -88,6 +88,7 @@ describe("quy ước trên mọi src/screens/*/route.tsx", () => {
       "Website",
       "Sản phẩm",
       "Kho",
+      "Báo cáo",
       "Hệ thống",
       "Quản trị",
     ]);

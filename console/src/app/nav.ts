@@ -21,6 +21,8 @@ export const NAV_GROUPS = [
   "Website",
   "Sản phẩm",
   "Kho",
+  // M6 (HV01 của docs/m6/mockup, Task 239): nhóm "Báo cáo" giữa "Kho" và "Hệ thống" (chủ shop chốt thay 27/11).
+  "Báo cáo",
   "Hệ thống",
   "Quản trị",
 ] as const;
