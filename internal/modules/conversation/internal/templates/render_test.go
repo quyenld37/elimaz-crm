@@ -69,7 +69,7 @@ func TestRender_PageAndStaff(t *testing.T) {
 
 // {ma_don}: khách chưa có đơn → VariableMissingError{ma_don}; không chỉ định → đơn chưa hủy mới nhất của nhóm khách
 // (đơn đã hủy mới hơn bị bỏ qua); chỉ định đơn của khách → mã đơn đó; đơn của khách khác hay không có →
-// ErrOrderNotOfCustomer. {ma_van_don} chưa có (Task 162) → VariableMissingError{ma_van_don}.
+// ErrOrderNotOfCustomer. {ma_van_don} khi chưa có đơn → VariableMissingError{ma_van_don} (ca đủ ở render_tracking_test.go, Task 162).
 func TestRender_OrderCode(t *testing.T) {
 	t.Parallel()
 	e := newTplEnv(t)
