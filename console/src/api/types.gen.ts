@@ -1027,6 +1027,71 @@ export type WebFlashBuyRequest = {
     clientIp: string;
 };
 
+export type WebFlashCurrent = {
+    /**
+     * Giờ của CRM lúc trả lời (website đếm ngược theo giờ này)
+     */
+    serverTime: string;
+    sales: Array<WebFlashSaleState>;
+};
+
+export type WebFlashSaleState = {
+    id: string;
+    name: string;
+    startsAt: string;
+    endsAt: string;
+    /**
+     * Trạng thái hiệu lực theo serverTime (QĐ-204-1)
+     */
+    status: 'scheduled' | 'open';
+    items: Array<WebFlashItemState>;
+};
+
+export type WebFlashItemState = {
+    id: string;
+    variantId: string;
+    productId: string;
+    salePrice: Money;
+    regularPrice: Money;
+    /**
+     * Tổng số suất của món
+     */
+    quantity: number;
+    perCustomerLimit: number;
+    /**
+     * Số phút giữ suất cho đơn nháp sau khi bấm mua
+     */
+    holdMinutes: number;
+    /**
+     * Số suất còn trống (gợi ý, có thể cũ tới vài giây)
+     */
+    remaining: number;
+    soldOut: boolean;
+};
+
+export type WebFlashCompleteRequest = {
+    phone: PhoneInput;
+    shipAddress: ShipAddress;
+    /**
+     * Phí giao website đã tính (đồng)
+     */
+    shippingFee: number;
+    shippingChoice?: WebShippingChoice;
+    /**
+     * Ghi chú của khách
+     */
+    note?: string;
+};
+
+export type WebFlashCompleted = {
+    /**
+     * Mã đơn
+     */
+    code: string;
+    status: OrderStatus;
+    grandTotal: Money;
+};
+
 export type WebFlashBuyResult = {
     result: 'bought' | 'sold_out' | 'over_limit' | 'not_open';
     /**
@@ -14851,6 +14916,71 @@ export type WebUploadRequestFileResponses = {
 };
 
 export type WebUploadRequestFileResponse = WebUploadRequestFileResponses[keyof WebUploadRequestFileResponses];
+
+export type WebFlashCurrentData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/flash-sales/current';
+};
+
+export type WebFlashCurrentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebFlashCurrentError = WebFlashCurrentErrors[keyof WebFlashCurrentErrors];
+
+export type WebFlashCurrentResponses = {
+    /**
+     * Các đợt theo giờ mở tăng dần, món theo mã tăng dần
+     */
+    200: WebFlashCurrent;
+};
+
+export type WebFlashCurrentResponse = WebFlashCurrentResponses[keyof WebFlashCurrentResponses];
+
+export type WebFlashCompleteData = {
+    body: WebFlashCompleteRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * Mã đơn của website (externalRef lúc tạo đơn web)
+         */
+        externalRef: string;
+    };
+    query?: never;
+    url: '/api/v1/web/flash-orders/{externalRef}/complete';
+};
+
+export type WebFlashCompleteErrors = {
+    /**
+     * Tạm bận, thử lại sau
+     */
+    503: Error;
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebFlashCompleteError = WebFlashCompleteErrors[keyof WebFlashCompleteErrors];
+
+export type WebFlashCompleteResponses = {
+    /**
+     * Đơn đã hoàn tất
+     */
+    200: WebFlashCompleted;
+};
+
+export type WebFlashCompleteResponse = WebFlashCompleteResponses[keyof WebFlashCompleteResponses];
 
 export type WebFlashBuyData = {
     body: WebFlashBuyRequest;

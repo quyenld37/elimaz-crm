@@ -6191,6 +6191,60 @@ paths:
           $ref: "#/components/responses/RetryLater"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web/flash-sales/current:
+    get:
+      operationId: webFlashCurrent
+      summary: Đợt flash sale đã lên lịch hay đang mở còn hạn, kèm số suất còn trống từng món (Task 204, M5-21)
+      description: |
+        serverTime là giờ của CRM để website đếm ngược tới startsAt. status là trạng thái hiệu lực: scheduled trước giờ
+        mở, open từ giờ mở tới endsAt (đợt đã quá endsAt không trả). Phần tĩnh (đợt, món, giá) đệm 2 s và làm mới theo
+        báo hiệu flash_sale, flash_item. remaining là số suất còn trống (không tính suất đang giữ cho đơn nháp hay đã
+        bán), lấy từ trạng thái của cổng flash sale (vòng dựng lại mỗi 2 s từ PostgreSQL); cổng không biết thì đếm ở
+        PostgreSQL. soldOut = remaining 0. Chỉ để hiện: lượt mua luôn chốt ở CRM.
+      x-auth: service_key
+      x-permission: web.catalog.read
+      responses:
+        "200":
+          description: Các đợt theo giờ mở tăng dần, món theo mã tăng dần
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebFlashCurrent"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/flash-orders/{externalRef}/complete:
+    post:
+      operationId: webFlashComplete
+      summary: Khách hoàn tất đơn nháp flash sale trong hạn giữ suất (Task 204, M5-21)
+      description: |
+        Đơn nháp của lượt mua (externalRef của lượt mua) thành đơn new (COD, không mã giảm): ghi địa chỉ, phí ship, lựa
+        chọn giao hàng (cùng dạng đơn web, đối chiếu như webCreateOrder), ghi chú; suất đang giữ thành đã bán. phone phải
+        là SĐT của khách đã mua (SĐT khác, mã không có, không phải đơn flash → 404 not_found, không lộ đơn có tồn tại).
+        Quá hạn giữ → đơn bị hủy (suất trả lại đợt) và 422 hold_expired. Đơn đã hoàn tất → trả lại kết quả (200). Lưu
+        theo khóa: 200, 422 hold_expired. Không lưu: 404, 400 (phone_required, invalid_input), 422 địa chỉ, giao hàng,
+        503.
+      x-auth: service_key
+      x-permission: web.flash.buy
+      parameters:
+        - $ref: "#/components/parameters/ExternalRef"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebFlashCompleteRequest"
+      responses:
+        "200":
+          description: Đơn đã hoàn tất
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebFlashCompleted"
+        "503":
+          $ref: "#/components/responses/RetryLater"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/web/flash-sales/{saleId}/items/{itemId}/buy:
     post:
       operationId: webFlashBuy
@@ -10769,6 +10823,107 @@ components:
           type: string
           format: ip
           description: IP của khách (giới hạn theo IP; IPv6 theo /64)
+    WebFlashCurrent:
+      type: object
+      required: [serverTime, sales]
+      properties:
+        serverTime:
+          type: string
+          format: date-time
+          description: Giờ của CRM lúc trả lời (website đếm ngược theo giờ này)
+        sales:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebFlashSaleState"
+    WebFlashSaleState:
+      type: object
+      required: [id, name, startsAt, endsAt, status, items]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [scheduled, open]
+          description: Trạng thái hiệu lực theo serverTime (QĐ-204-1)
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebFlashItemState"
+    WebFlashItemState:
+      type: object
+      required: [id, variantId, productId, salePrice, regularPrice, quantity, perCustomerLimit, holdMinutes, remaining, soldOut]
+      properties:
+        id:
+          type: string
+          format: uuid
+        variantId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        salePrice:
+          $ref: "#/components/schemas/Money"
+        regularPrice:
+          $ref: "#/components/schemas/Money"
+        quantity:
+          type: integer
+          format: int32
+          description: Tổng số suất của món
+        perCustomerLimit:
+          type: integer
+          format: int32
+        holdMinutes:
+          type: integer
+          format: int32
+          description: Số phút giữ suất cho đơn nháp sau khi bấm mua
+        remaining:
+          type: integer
+          format: int32
+          description: Số suất còn trống (gợi ý, có thể cũ tới vài giây)
+        soldOut:
+          type: boolean
+    WebFlashCompleteRequest:
+      type: object
+      additionalProperties: false
+      required: [phone, shipAddress, shippingFee]
+      properties:
+        phone:
+          $ref: "#/components/schemas/PhoneInput"
+        shipAddress:
+          $ref: "#/components/schemas/ShipAddress"
+        shippingFee:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+          description: Phí giao website đã tính (đồng)
+        shippingChoice:
+          $ref: "#/components/schemas/WebShippingChoice"
+        note:
+          type: string
+          maxLength: 2000
+          description: Ghi chú của khách
+    WebFlashCompleted:
+      type: object
+      required: [code, status, grandTotal]
+      properties:
+        code:
+          type: string
+          description: Mã đơn
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        grandTotal:
+          $ref: "#/components/schemas/Money"
     WebFlashBuyResult:
       type: object
       required: [result]

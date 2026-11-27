@@ -120,7 +120,7 @@ func prepare(d Deps) Deps {
 	if d.webCatalog == nil {
 		d.webCatalog = web.NewCatalog(d.DB, d.ReadCache, catalog.ImageView{
 			BaseURL: d.Config.FilesPublicBaseURL, Preset: d.Config.ImagePresetVersion,
-		}, d.Logger).WithClock(d.Now)
+		}, d.Logger).WithClock(d.Now).WithFlashGate(d.FlashGate)
 	}
 	if d.webOrders == nil {
 		d.webOrders = web.NewOrders(d.DB, order.Writer{Events: d.Events, Queue: queue.NewQueue(), Realtime: d.Realtime}, d.Now)

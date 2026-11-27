@@ -54,6 +54,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/selftest"
 	"elimaz.com.vn/crm/internal/platform/telemetry"
 	"elimaz.com.vn/crm/internal/platform/webhooks"
+	"elimaz.com.vn/crm/internal/wiring/flashstate"
 )
 
 // Thời hạn tắt êm: tổng dưới 25 s (kế hoạch M0, Task 3).
@@ -515,6 +516,10 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 			return err
 		}
 		defer web.stop() // sau khi máy chủ HTTP tắt: ghi nốt last_used_at, đóng Valkey
+		// Vòng dựng lại cờ hết suất và số còn của món flash sale trên cổng (Task 204): dừng trước khi đóng Valkey.
+		flash := flashstate.New(d, web.flashGate, hub, flashstate.DefaultEvery)
+		flash.Start(ctx)
+		defer flash.Stop()
 		wc, err := newWebCache(ctx, cfg, d, hub, reg, logger, 0)
 		if err != nil {
 			return err

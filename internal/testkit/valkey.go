@@ -1,9 +1,11 @@
 package testkit
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"net"
+	"net/url"
 	oexec "os/exec"
 	"path/filepath"
 	"runtime"
@@ -88,6 +90,39 @@ func (v *Valkey) Stop(t testing.TB) {
 	t.Helper()
 	if out, err := oexec.CommandContext(t.Context(), "docker", "stop", "-t", "1", v.id).CombinedOutput(); err != nil { //nolint:gosec // mã container do docker trả
 		t.Fatalf("testkit: docker stop valkey: %v: %s", err, out)
+	}
+}
+
+// FlushAll gửi FLUSHALL bằng người dùng crm_admin (giao thức RESP thô: testkit không nhập valkey-go, luật kiến trúc
+// d) — giả lập Valkey mất hết dữ liệu (HT27). Lỗi làm test dừng.
+func (v *Valkey) FlushAll(t testing.TB) {
+	t.Helper()
+	u, err := url.Parse(v.URL("crm_admin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pass, _ := u.User.Password()
+	var d net.Dialer
+	conn, err := d.DialContext(t.Context(), "tcp", v.addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+	rd := bufio.NewReader(conn)
+	for _, cmd := range [][]string{{"AUTH", u.User.Username(), pass}, {"FLUSHALL"}} {
+		var sb strings.Builder
+		fmt.Fprintf(&sb, "*%d\r\n", len(cmd))
+		for _, a := range cmd {
+			fmt.Fprintf(&sb, "$%d\r\n%s\r\n", len(a), a)
+		}
+		if _, err := conn.Write([]byte(sb.String())); err != nil {
+			t.Fatal(err)
+		}
+		line, err := rd.ReadString('\n')
+		if err != nil || !strings.HasPrefix(line, "+OK") {
+			t.Fatalf("testkit: valkey %s: %q %v", cmd[0], line, err)
+		}
 	}
 }
 

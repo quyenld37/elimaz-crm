@@ -2382,6 +2382,31 @@ type Handler interface {
 	//
 	// POST /api/v1/web/flash-sales/{saleId}/items/{itemId}/buy
 	WebFlashBuy(ctx context.Context, req *WebFlashBuyRequest, params WebFlashBuyParams) (WebFlashBuyRes, error)
+	// WebFlashComplete implements webFlashComplete operation.
+	//
+	// Đơn nháp của lượt mua (externalRef của lượt mua) thành đơn new (COD, không mã
+	// giảm): ghi địa chỉ, phí ship, lựa chọn giao hàng (cùng dạng đơn web, đối
+	// chiếu như webCreateOrder), ghi chú; suất đang giữ thành đã bán. phone phải là SĐT
+	// của khách đã mua (SĐT khác, mã không có, không phải đơn flash → 404 not_found,
+	// không lộ đơn có tồn tại). Quá hạn giữ → đơn bị hủy (suất trả lại
+	// đợt) và 422 hold_expired. Đơn đã hoàn tất → trả lại kết quả (200). Lưu theo
+	// khóa: 200, 422 hold_expired. Không lưu: 404, 400 (phone_required, invalid_input), 422 địa
+	// chỉ, giao hàng, 503.
+	//
+	// POST /api/v1/web/flash-orders/{externalRef}/complete
+	WebFlashComplete(ctx context.Context, req *WebFlashCompleteRequest, params WebFlashCompleteParams) (WebFlashCompleteRes, error)
+	// WebFlashCurrent implements webFlashCurrent operation.
+	//
+	// ServerTime là giờ của CRM để website đếm ngược tới startsAt. status là trạng
+	// thái hiệu lực: scheduled trước giờ mở, open từ giờ mở tới endsAt (đợt đã
+	// quá endsAt không trả). Phần tĩnh (đợt, món, giá) đệm 2 s và làm mới theo báo
+	// hiệu flash_sale, flash_item. remaining là số suất còn trống (không tính suất đang
+	// giữ cho đơn nháp hay đã bán), lấy từ trạng thái của cổng flash sale (vòng dựng
+	// lại mỗi 2 s từ PostgreSQL); cổng không biết thì đếm ở PostgreSQL. soldOut =
+	// remaining 0. Chỉ để hiện: lượt mua luôn chốt ở CRM.
+	//
+	// GET /api/v1/web/flash-sales/current
+	WebFlashCurrent(ctx context.Context) (WebFlashCurrentRes, error)
 	// WebGetOrder implements webGetOrder operation.
 	//
 	// Chỉ đơn kênh web; đơn nhập tay, đơn của shop khác → 404 not_found. displayStatus là

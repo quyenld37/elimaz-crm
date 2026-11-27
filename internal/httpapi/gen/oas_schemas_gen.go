@@ -15025,6 +15025,8 @@ func (*ErrorStatusCode) webCreateOrderRes()              {}
 func (*ErrorStatusCode) webCreateRequestRes()            {}
 func (*ErrorStatusCode) webDeliveryEstimatesRes()        {}
 func (*ErrorStatusCode) webFlashBuyRes()                 {}
+func (*ErrorStatusCode) webFlashCompleteRes()            {}
+func (*ErrorStatusCode) webFlashCurrentRes()             {}
 func (*ErrorStatusCode) webGetOrderRes()                 {}
 func (*ErrorStatusCode) webHomeBannersRes()              {}
 func (*ErrorStatusCode) webHomeLooksRes()                {}
@@ -37030,6 +37032,7 @@ func (*RetryLaterHeaders) webCreateBirthdayBatchRes() {}
 func (*RetryLaterHeaders) webCreateOrderRes()         {}
 func (*RetryLaterHeaders) webCreateRequestRes()       {}
 func (*RetryLaterHeaders) webFlashBuyRes()            {}
+func (*RetryLaterHeaders) webFlashCompleteRes()       {}
 func (*RetryLaterHeaders) webImportBirthdaysRes()     {}
 func (*RetryLaterHeaders) webImportCouponsRes()       {}
 func (*RetryLaterHeaders) webMarkCouponGivenRes()     {}
@@ -50211,6 +50214,366 @@ func (s *WebFlashBuyResultResult) UnmarshalText(data []byte) error {
 		return nil
 	case WebFlashBuyResultResultNotOpen:
 		*s = WebFlashBuyResultResultNotOpen
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/WebFlashCompleteRequest
+type WebFlashCompleteRequest struct {
+	Phone       PhoneInput  `json:"phone"`
+	ShipAddress ShipAddress `json:"shipAddress"`
+	// Phí giao website đã tính (đồng).
+	ShippingFee    int64                `json:"shippingFee"`
+	ShippingChoice OptWebShippingChoice `json:"shippingChoice"`
+	// Ghi chú của khách.
+	Note OptString `json:"note"`
+}
+
+// GetPhone returns the value of Phone.
+func (s *WebFlashCompleteRequest) GetPhone() PhoneInput {
+	return s.Phone
+}
+
+// GetShipAddress returns the value of ShipAddress.
+func (s *WebFlashCompleteRequest) GetShipAddress() ShipAddress {
+	return s.ShipAddress
+}
+
+// GetShippingFee returns the value of ShippingFee.
+func (s *WebFlashCompleteRequest) GetShippingFee() int64 {
+	return s.ShippingFee
+}
+
+// GetShippingChoice returns the value of ShippingChoice.
+func (s *WebFlashCompleteRequest) GetShippingChoice() OptWebShippingChoice {
+	return s.ShippingChoice
+}
+
+// GetNote returns the value of Note.
+func (s *WebFlashCompleteRequest) GetNote() OptString {
+	return s.Note
+}
+
+// SetPhone sets the value of Phone.
+func (s *WebFlashCompleteRequest) SetPhone(val PhoneInput) {
+	s.Phone = val
+}
+
+// SetShipAddress sets the value of ShipAddress.
+func (s *WebFlashCompleteRequest) SetShipAddress(val ShipAddress) {
+	s.ShipAddress = val
+}
+
+// SetShippingFee sets the value of ShippingFee.
+func (s *WebFlashCompleteRequest) SetShippingFee(val int64) {
+	s.ShippingFee = val
+}
+
+// SetShippingChoice sets the value of ShippingChoice.
+func (s *WebFlashCompleteRequest) SetShippingChoice(val OptWebShippingChoice) {
+	s.ShippingChoice = val
+}
+
+// SetNote sets the value of Note.
+func (s *WebFlashCompleteRequest) SetNote(val OptString) {
+	s.Note = val
+}
+
+// Ref: #/components/schemas/WebFlashCompleted
+type WebFlashCompleted struct {
+	// Mã đơn.
+	Code       string      `json:"code"`
+	Status     OrderStatus `json:"status"`
+	GrandTotal Money       `json:"grandTotal"`
+}
+
+// GetCode returns the value of Code.
+func (s *WebFlashCompleted) GetCode() string {
+	return s.Code
+}
+
+// GetStatus returns the value of Status.
+func (s *WebFlashCompleted) GetStatus() OrderStatus {
+	return s.Status
+}
+
+// GetGrandTotal returns the value of GrandTotal.
+func (s *WebFlashCompleted) GetGrandTotal() Money {
+	return s.GrandTotal
+}
+
+// SetCode sets the value of Code.
+func (s *WebFlashCompleted) SetCode(val string) {
+	s.Code = val
+}
+
+// SetStatus sets the value of Status.
+func (s *WebFlashCompleted) SetStatus(val OrderStatus) {
+	s.Status = val
+}
+
+// SetGrandTotal sets the value of GrandTotal.
+func (s *WebFlashCompleted) SetGrandTotal(val Money) {
+	s.GrandTotal = val
+}
+
+func (*WebFlashCompleted) webFlashCompleteRes() {}
+
+// Ref: #/components/schemas/WebFlashCurrent
+type WebFlashCurrent struct {
+	// Giờ của CRM lúc trả lời (website đếm ngược theo giờ này).
+	ServerTime time.Time           `json:"serverTime"`
+	Sales      []WebFlashSaleState `json:"sales"`
+}
+
+// GetServerTime returns the value of ServerTime.
+func (s *WebFlashCurrent) GetServerTime() time.Time {
+	return s.ServerTime
+}
+
+// GetSales returns the value of Sales.
+func (s *WebFlashCurrent) GetSales() []WebFlashSaleState {
+	return s.Sales
+}
+
+// SetServerTime sets the value of ServerTime.
+func (s *WebFlashCurrent) SetServerTime(val time.Time) {
+	s.ServerTime = val
+}
+
+// SetSales sets the value of Sales.
+func (s *WebFlashCurrent) SetSales(val []WebFlashSaleState) {
+	s.Sales = val
+}
+
+func (*WebFlashCurrent) webFlashCurrentRes() {}
+
+// Ref: #/components/schemas/WebFlashItemState
+type WebFlashItemState struct {
+	ID           uuid.UUID `json:"id"`
+	VariantId    uuid.UUID `json:"variantId"`
+	ProductId    uuid.UUID `json:"productId"`
+	SalePrice    Money     `json:"salePrice"`
+	RegularPrice Money     `json:"regularPrice"`
+	// Tổng số suất của món.
+	Quantity         int32 `json:"quantity"`
+	PerCustomerLimit int32 `json:"perCustomerLimit"`
+	// Số phút giữ suất cho đơn nháp sau khi bấm mua.
+	HoldMinutes int32 `json:"holdMinutes"`
+	// Số suất còn trống (gợi ý, có thể cũ tới vài giây).
+	Remaining int32 `json:"remaining"`
+	SoldOut   bool  `json:"soldOut"`
+}
+
+// GetID returns the value of ID.
+func (s *WebFlashItemState) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *WebFlashItemState) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetProductId returns the value of ProductId.
+func (s *WebFlashItemState) GetProductId() uuid.UUID {
+	return s.ProductId
+}
+
+// GetSalePrice returns the value of SalePrice.
+func (s *WebFlashItemState) GetSalePrice() Money {
+	return s.SalePrice
+}
+
+// GetRegularPrice returns the value of RegularPrice.
+func (s *WebFlashItemState) GetRegularPrice() Money {
+	return s.RegularPrice
+}
+
+// GetQuantity returns the value of Quantity.
+func (s *WebFlashItemState) GetQuantity() int32 {
+	return s.Quantity
+}
+
+// GetPerCustomerLimit returns the value of PerCustomerLimit.
+func (s *WebFlashItemState) GetPerCustomerLimit() int32 {
+	return s.PerCustomerLimit
+}
+
+// GetHoldMinutes returns the value of HoldMinutes.
+func (s *WebFlashItemState) GetHoldMinutes() int32 {
+	return s.HoldMinutes
+}
+
+// GetRemaining returns the value of Remaining.
+func (s *WebFlashItemState) GetRemaining() int32 {
+	return s.Remaining
+}
+
+// GetSoldOut returns the value of SoldOut.
+func (s *WebFlashItemState) GetSoldOut() bool {
+	return s.SoldOut
+}
+
+// SetID sets the value of ID.
+func (s *WebFlashItemState) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *WebFlashItemState) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetProductId sets the value of ProductId.
+func (s *WebFlashItemState) SetProductId(val uuid.UUID) {
+	s.ProductId = val
+}
+
+// SetSalePrice sets the value of SalePrice.
+func (s *WebFlashItemState) SetSalePrice(val Money) {
+	s.SalePrice = val
+}
+
+// SetRegularPrice sets the value of RegularPrice.
+func (s *WebFlashItemState) SetRegularPrice(val Money) {
+	s.RegularPrice = val
+}
+
+// SetQuantity sets the value of Quantity.
+func (s *WebFlashItemState) SetQuantity(val int32) {
+	s.Quantity = val
+}
+
+// SetPerCustomerLimit sets the value of PerCustomerLimit.
+func (s *WebFlashItemState) SetPerCustomerLimit(val int32) {
+	s.PerCustomerLimit = val
+}
+
+// SetHoldMinutes sets the value of HoldMinutes.
+func (s *WebFlashItemState) SetHoldMinutes(val int32) {
+	s.HoldMinutes = val
+}
+
+// SetRemaining sets the value of Remaining.
+func (s *WebFlashItemState) SetRemaining(val int32) {
+	s.Remaining = val
+}
+
+// SetSoldOut sets the value of SoldOut.
+func (s *WebFlashItemState) SetSoldOut(val bool) {
+	s.SoldOut = val
+}
+
+// Ref: #/components/schemas/WebFlashSaleState
+type WebFlashSaleState struct {
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	StartsAt time.Time `json:"startsAt"`
+	EndsAt   time.Time `json:"endsAt"`
+	// Trạng thái hiệu lực theo serverTime (QĐ-204-1).
+	Status WebFlashSaleStateStatus `json:"status"`
+	Items  []WebFlashItemState     `json:"items"`
+}
+
+// GetID returns the value of ID.
+func (s *WebFlashSaleState) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *WebFlashSaleState) GetName() string {
+	return s.Name
+}
+
+// GetStartsAt returns the value of StartsAt.
+func (s *WebFlashSaleState) GetStartsAt() time.Time {
+	return s.StartsAt
+}
+
+// GetEndsAt returns the value of EndsAt.
+func (s *WebFlashSaleState) GetEndsAt() time.Time {
+	return s.EndsAt
+}
+
+// GetStatus returns the value of Status.
+func (s *WebFlashSaleState) GetStatus() WebFlashSaleStateStatus {
+	return s.Status
+}
+
+// GetItems returns the value of Items.
+func (s *WebFlashSaleState) GetItems() []WebFlashItemState {
+	return s.Items
+}
+
+// SetID sets the value of ID.
+func (s *WebFlashSaleState) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *WebFlashSaleState) SetName(val string) {
+	s.Name = val
+}
+
+// SetStartsAt sets the value of StartsAt.
+func (s *WebFlashSaleState) SetStartsAt(val time.Time) {
+	s.StartsAt = val
+}
+
+// SetEndsAt sets the value of EndsAt.
+func (s *WebFlashSaleState) SetEndsAt(val time.Time) {
+	s.EndsAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *WebFlashSaleState) SetStatus(val WebFlashSaleStateStatus) {
+	s.Status = val
+}
+
+// SetItems sets the value of Items.
+func (s *WebFlashSaleState) SetItems(val []WebFlashItemState) {
+	s.Items = val
+}
+
+// Trạng thái hiệu lực theo serverTime (QĐ-204-1).
+type WebFlashSaleStateStatus string
+
+const (
+	WebFlashSaleStateStatusScheduled WebFlashSaleStateStatus = "scheduled"
+	WebFlashSaleStateStatusOpen      WebFlashSaleStateStatus = "open"
+)
+
+// AllValues returns all WebFlashSaleStateStatus values.
+func (WebFlashSaleStateStatus) AllValues() []WebFlashSaleStateStatus {
+	return []WebFlashSaleStateStatus{
+		WebFlashSaleStateStatusScheduled,
+		WebFlashSaleStateStatusOpen,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s WebFlashSaleStateStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case WebFlashSaleStateStatusScheduled:
+		return []byte(s), nil
+	case WebFlashSaleStateStatusOpen:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *WebFlashSaleStateStatus) UnmarshalText(data []byte) error {
+	switch WebFlashSaleStateStatus(data) {
+	case WebFlashSaleStateStatusScheduled:
+		*s = WebFlashSaleStateStatusScheduled
+		return nil
+	case WebFlashSaleStateStatusOpen:
+		*s = WebFlashSaleStateStatusOpen
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

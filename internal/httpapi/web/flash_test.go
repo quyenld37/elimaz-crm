@@ -1,15 +1,12 @@
 package web_test
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -39,6 +36,7 @@ type flashOpts struct {
 	phoneMax     int // lượt bấm mua mỗi SĐT / 10 s (cả khi Valkey ngừng)
 	gate         cache.GateOptions
 	traced       bool // pool của Deps có dấu vết otelpgx (ca span)
+	extra        int  // số món thêm của đợt (mỗi món một biến thể mới, cùng số suất, giới hạn)
 }
 
 // flashEnv: orderEnv có khóa web.flash.buy, Valkey gate, cổng thật, đợt đã lên lịch một món; Deps.DB là pool đếm câu
@@ -53,7 +51,9 @@ type flashEnv struct {
 	queries atomic.Int64
 	sale    uuid.UUID
 	item    uuid.UUID
+	items   []uuid.UUID // mọi món của đợt (item là món đầu)
 	start   time.Time
+	shift   atomic.Int64 // tua đồng hồ nghiệp vụ (ns) so với giờ mở + 1 phút
 	seq     atomic.Int64
 }
 
@@ -93,7 +93,7 @@ func newFlashEnv(t *testing.T, o flashOpts) *flashEnv {
 	}
 	t.Cleanup(pool.Close)
 	f.start = time.Now().UTC().Truncate(time.Second).Add(2 * time.Hour)
-	f.schedule(o.slots, o.limit)
+	f.schedule(o.slots, o.limit, o.extra)
 	rl := cache.NewRateLimiter(conn, nil, f.reg)
 	adm := httpapi.NewFlashAdmission(httpapi.FlashAdmissionOptions{
 		Gate: f.gate, Limiter: rl, Customer: ls.FlashCustomer, IP: ls.FlashIP,
@@ -101,7 +101,7 @@ func newFlashEnv(t *testing.T, o flashOpts) *flashEnv {
 	})
 	f.serve(func(d *httpapi.Deps) {
 		d.DB = &db.DB{Pool: pool}
-		d.Now = func() time.Time { return f.start.Add(time.Minute) }
+		d.Now = f.now
 		d.Admission = map[string]func(http.Handler) http.Handler{"flash": adm}
 		d.FlashGate = f.gate
 		// Giới hạn của khóa dịch vụ không phải đối tượng của ca này (mặc định trong tiến trình quá thấp cho 200 khách).
@@ -111,18 +111,27 @@ func newFlashEnv(t *testing.T, o flashOpts) *flashEnv {
 	return f
 }
 
+// now là đồng hồ nghiệp vụ của máy chủ thử: giờ mở + 1 phút + shift.
+func (f *flashEnv) now() time.Time {
+	return f.start.Add(time.Minute + time.Duration(f.shift.Load()))
+}
+
 // schedule tạo biến thể (giá 350.000, tồn slots+5), đợt [start, start+2h) một món slots suất giá 199.000, giới hạn
-// limit mỗi khách, giữ 15 phút, rồi lên lịch đợt một giờ trước giờ mở.
-func (f *flashEnv) schedule(slots, limit int) {
+// limit mỗi khách, giữ 15 phút (cộng extra món như vậy trên biến thể khác), rồi lên lịch đợt một giờ trước giờ mở.
+func (f *flashEnv) schedule(slots, limit, extra int) {
 	f.t.Helper()
-	v := f.product(fmt.Sprintf("FS%d", time.Now().UnixNano()%1_000_000), "[]").Variants[0].ID
-	f.stock(v, int32(slots+5)) //nolint:gosec // test: số nhỏ
-	f.app(func(tx pgx.Tx) error {
-		sl := flashtest.Schedule(f.t, tx, flashtest.Item{
+	items := make([]flashtest.Item, 1+extra)
+	for i := range items {
+		v := f.product(fmt.Sprintf("FS%d%d", time.Now().UnixNano()%1_000_000, i), "[]").Variants[0].ID
+		f.stock(v, int32(slots+5)) //nolint:gosec // test: số nhỏ
+		items[i] = flashtest.Item{
 			Variant: v, Price: 199000, Slots: slots, Limit: limit, HoldMinutes: 15, StartsAt: f.start,
 			TenantID: f.tenant, UserID: f.owner.UserID,
-		})
-		f.sale, f.item = sl.ID, sl.Item
+		}
+	}
+	f.app(func(tx pgx.Tx) error {
+		sl := flashtest.ScheduleItems(f.t, tx, items[0], items[1:]...)
+		f.sale, f.item, f.items = sl.ID, sl.Item, sl.Items
 		return nil
 	})
 }
@@ -473,7 +482,7 @@ func TestWebFlashBuy_FlushAll(t *testing.T) {
 	if got["bought"] != 5 || got["sold_out"] != 15 {
 		t.Fatalf("trước FLUSHALL: %v", got)
 	}
-	flushAll(t, f.vk)
+	f.vk.FlushAll(t)
 	if _, known := f.gate.SoldOut(t.Context(), f.tenant, f.item); known {
 		t.Fatal("cờ còn sau FLUSHALL")
 	}
@@ -532,37 +541,4 @@ func counterOf(reg *metrics.Registry, name string) int64 {
 		}
 	}
 	return n
-}
-
-// flushAll gửi FLUSHALL tới Valkey của test bằng người dùng crm_admin (giao thức RESP thô; gói test không nhập
-// valkey-go, luật kiến trúc d).
-func flushAll(t *testing.T, vk *testkit.Valkey) {
-	t.Helper()
-	u, err := url.Parse(vk.URL("crm_admin"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	pass, _ := u.User.Password()
-	var d net.Dialer
-	conn, err := d.DialContext(t.Context(), "tcp", vk.Addr())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = conn.Close() }()
-	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
-	rd := bufio.NewReader(conn)
-	for _, cmd := range [][]string{{"AUTH", u.User.Username(), pass}, {"FLUSHALL"}} {
-		var sb strings.Builder
-		fmt.Fprintf(&sb, "*%d\r\n", len(cmd))
-		for _, a := range cmd {
-			fmt.Fprintf(&sb, "$%d\r\n%s\r\n", len(a), a)
-		}
-		if _, err := conn.Write([]byte(sb.String())); err != nil {
-			t.Fatal(err)
-		}
-		line, err := rd.ReadString('\n')
-		if err != nil || !strings.HasPrefix(line, "+OK") {
-			t.Fatalf("%s: %q %v", cmd[0], line, err)
-		}
-	}
 }

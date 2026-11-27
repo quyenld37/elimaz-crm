@@ -31814,6 +31814,187 @@ func (s *Server) handleWebFlashBuyRequest(args [2]string, argsEscaped bool, w ht
 	}
 }
 
+// handleWebFlashCompleteRequest handles webFlashComplete operation.
+//
+// Đơn nháp của lượt mua (externalRef của lượt mua) thành đơn new (COD, không mã
+// giảm): ghi địa chỉ, phí ship, lựa chọn giao hàng (cùng dạng đơn web, đối
+// chiếu như webCreateOrder), ghi chú; suất đang giữ thành đã bán. phone phải là SĐT
+// của khách đã mua (SĐT khác, mã không có, không phải đơn flash → 404 not_found,
+// không lộ đơn có tồn tại). Quá hạn giữ → đơn bị hủy (suất trả lại
+// đợt) và 422 hold_expired. Đơn đã hoàn tất → trả lại kết quả (200). Lưu theo
+// khóa: 200, 422 hold_expired. Không lưu: 404, 400 (phone_required, invalid_input), 422 địa
+// chỉ, giao hàng, 503.
+//
+// POST /api/v1/web/flash-orders/{externalRef}/complete
+func (s *Server) handleWebFlashCompleteRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebFlashCompleteOperation,
+			ID:   "webFlashComplete",
+		}
+	)
+	params, err := decodeWebFlashCompleteParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeWebFlashCompleteRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response WebFlashCompleteRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebFlashCompleteOperation,
+			OperationSummary: "Khách hoàn tất đơn nháp flash sale trong hạn giữ suất (Task 204, M5-21)",
+			OperationID:      "webFlashComplete",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "externalRef",
+					In:   "path",
+				}: params.ExternalRef,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *WebFlashCompleteRequest
+			Params   = WebFlashCompleteParams
+			Response = WebFlashCompleteRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebFlashCompleteParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebFlashComplete(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebFlashComplete(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebFlashCompleteResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebFlashCurrentRequest handles webFlashCurrent operation.
+//
+// ServerTime là giờ của CRM để website đếm ngược tới startsAt. status là trạng
+// thái hiệu lực: scheduled trước giờ mở, open từ giờ mở tới endsAt (đợt đã
+// quá endsAt không trả). Phần tĩnh (đợt, món, giá) đệm 2 s và làm mới theo báo
+// hiệu flash_sale, flash_item. remaining là số suất còn trống (không tính suất đang
+// giữ cho đơn nháp hay đã bán), lấy từ trạng thái của cổng flash sale (vòng dựng
+// lại mỗi 2 s từ PostgreSQL); cổng không biết thì đếm ở PostgreSQL. soldOut =
+// remaining 0. Chỉ để hiện: lượt mua luôn chốt ở CRM.
+//
+// GET /api/v1/web/flash-sales/current
+func (s *Server) handleWebFlashCurrentRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response WebFlashCurrentRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebFlashCurrentOperation,
+			OperationSummary: "Đợt flash sale đã lên lịch hay đang mở còn hạn, kèm số suất còn trống từng món (Task 204, M5-21)",
+			OperationID:      "webFlashCurrent",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = WebFlashCurrentRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebFlashCurrent(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebFlashCurrent(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebFlashCurrentResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebGetOrderRequest handles webGetOrder operation.
 //
 // Chỉ đơn kênh web; đơn nhập tay, đơn của shop khác → 404 not_found. displayStatus là
