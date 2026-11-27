@@ -74,3 +74,48 @@ func TestReportTokenInvalid(t *testing.T) {
 		t.Fatalf("cảnh báo: %+v %v %+v", out, err, n)
 	}
 }
+
+// Một cảnh báo cho mỗi lần mất quyền, với mọi lý do mất quyền (Task 182, mutation testing M4): Page đã degraded vì
+// missing_permissions hay auth_failed → ReportTokenInvalid không đổi lý do, không thêm cảnh báo; Page degraded vì lý do
+// khác (subscribe_failed) → chuyển sang token_invalid kèm đúng 1 cảnh báo gấp.
+func TestReportTokenInvalid_AnyAuthReasonOneAlert(t *testing.T) {
+	t.Parallel()
+	s := testkit.OpenStaff(t)
+	tenant := s.Tenant(t, "A")
+	alerts := func() int {
+		var n int
+		if err := s.Owner.Pool.QueryRow(t.Context(), `SELECT count(*) FROM platform.jobs WHERE kind = $1 AND tenant_id = $2`,
+			channel.AuthAlertKind, tenant).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	degradeThenReport := func(ext, reason string) uuid.UUID {
+		id := s.ChannelAccount(t, tenant, "facebook", ext, "Page "+ext)
+		s.Exec(t, tenant, func(tx pgx.Tx) error {
+			if _, err := channel.MarkStatus(t.Context(), tx, id, channel.StatusDegraded, reason); err != nil {
+				return err //nolint:wrapcheck // test
+			}
+			return channel.Writer{}.ReportTokenInvalid(t.Context(), tx, id)
+		})
+		return id
+	}
+	for _, reason := range []string{"missing_permissions", "auth_failed"} {
+		id := degradeThenReport("page-"+reason, reason)
+		if n := s.CountIn(t, tenant, `SELECT count(*) FROM channel.channel_accounts WHERE id = $1 AND status = 'degraded'
+			AND status_reason = $2`, id, reason); n != 1 {
+			t.Errorf("%s: lý do bị đổi", reason)
+		}
+	}
+	if n := alerts(); n != 0 {
+		t.Fatalf("đã mất quyền sẵn: %d cảnh báo, muốn 0", n)
+	}
+	id := degradeThenReport("page-sub", "subscribe_failed")
+	if n := s.CountIn(t, tenant, `SELECT count(*) FROM channel.channel_accounts WHERE id = $1 AND status = 'degraded'
+		AND status_reason = 'token_invalid'`, id); n != 1 {
+		t.Error("degraded vì đăng ký lỗi: chưa chuyển sang token_invalid")
+	}
+	if n := alerts(); n != 1 {
+		t.Fatalf("degraded vì đăng ký lỗi: %d cảnh báo, muốn 1", n)
+	}
+}

@@ -295,3 +295,87 @@ Ghi chú cho các dòng mới (đo đêm 19–20/11):
   đúng thứ tự ADR-46 ở `lockInState`; bước đổi số dư chỉ cập nhật dòng đã giữ khóa, mỗi `stock.changed` mang `Seq` riêng.
 - `order/order.go:147` (`Events == nil || Queue == nil` → `&&`): `inventory.Writer` tự kiểm lại nên vẫn lỗi và lùi
   transaction (`TestCreateManual_WriterNotWired` giữ hành vi này).
+
+## Lần chạy M4 — 28/11/2026 (Task 182, M4-42)
+
+Vùng cao M4 theo dòng "Vùng rủi ro cao của M4" của kế hoạch M4: `internal/modules/channel`,
+`internal/adapters/facebook/{signature,policy,send,download}.go`, `internal/modules/conversation/internal/{inbound,send,
+automation,live,access}`. Chưa có trong `HIGH_RISK_DIRS` (xem `docs/tasks/task-182.md`, QĐ-182-2), nên chạy bằng đúng
+lệnh `make mutation` sẽ chạy cho mục đó: `gremlins unleash --config .gremlins.yaml -E '/' [-E '^<tệp ngoài nhóm>\.go$' …]
+./<gói>` (thư mục con, kể cả mã sinh `internal/store`, bị loại).
+
+**Nơi chạy:** máy Mac không chạy test nặng (chủ shop 27/11), nên mỗi nhóm tệp là một test Go tạm (`tests/mutationrun/<nhóm>`,
+gọi lệnh trên, luôn đỏ để log hiện, hạn 27 phút) đẩy lên GitHub Actions bằng `scripts/ci/remote-test.sh <tree> HEAD <tệp
+gói>` (`CRM_CI_STATIC=false`, máy `ubuntu-24.04`, `--workers 4 --timeout-coefficient 10`, `GOFLAGS=-count=1`); kết quả đọc
+bằng `gh run view <run> --log-failed`. Bộ chạy không commit. Ngưỡng tính theo gói (tổng các nhóm).
+
+Hai điều chỉnh khi đọc số: (1) gremlins chỉ chạy test **của chính gói** bị đột biến — đột biến do test gói khác bắt
+(`automation` kiểm cờ lịch sử của `inbound`…) vẫn ghi LIVED; (2) đột biến nối chuỗi không biên dịch được vẫn ghi KILLED
+(như lần M1) — chưa loại, nên số "bị giết" có thể cao hơn thật vài đơn vị.
+
+| Gói | Lượt 1 (bị giết / sống) | Hiệu quả | Lượt 2 sau test thêm | Hiệu quả |
+|---|---|---|---|---|
+| `channel` | 253 / 41 | 86,05% | (không chạy lại; `TestReportTokenInvalid_AnyAuthReasonOneAlert` giết thêm `health.go:395`, `401`, kiểm bằng overlay) | ≥ 86,05% |
+| `adapters/facebook` (4 tệp) | 75 / 7 | 91,46% | 80 / 2 | 97,56% |
+| `conversation/internal/access` | 2 / 1 | 66,67% | 5 / 0 | 100% |
+| `conversation/internal/inbound` | 205 / 76 | 72,95% | 266 / 16 | 94,33% |
+| `conversation/internal/send` | 279 / 73 | 79,26% | 334 / 29 | 92,01% |
+| `conversation/internal/automation` | 194 / 51 | 79,18% | 232 / 20 | 92,06% |
+| `conversation/internal/live` | 205 / 55 (một nhóm dừng ở 27 phút) | 78,85% | 284 / 26 (nhóm `sessions/reconcile/detect` dừng ở 27 phút: 88 / 8 phần đã chạy) | 91,61% |
+
+Lượt 2 chạy trên cây có test thêm của Task 182 (`mutation_m4_test.go` mỗi gói, `terminal_test.go`, `access_test.go`,
+ca thêm ở `send_test.go`, `download_test.go`); sau lượt 2 còn thêm `TestAutoHide_RejectionReportsOnlyAuth`,
+`TestHideComment_RejectionReportsOnlyAuth` (giết `automation/command.go:87:43` và đột biến tương ứng ở `send/hide.go`,
+kiểm bằng overlay) và sửa test chập chờn `TestMutationM4_ForcedSSENeverFallsBackToPoll` (lượt 2 của nhóm
+`manager/lease` hỏng vì nó, chạy lại: 29 / 8).
+
+Mỗi test mới đều được kiểm bằng `go test -overlay` (bản chép có đột biến → đỏ; mã thật → xanh). Lưu ý cho lần sau:
+đường dẫn worktree có dấu (`Thời trang`) thì phải đặt `PWD` đúng thư mục, không thì Go bỏ qua overlay và mọi đột biến
+trông như còn sống.
+
+### Test thêm (M4)
+
+| Gói | Test | Bắt gì (tóm tắt) |
+|---|---|---|
+| `facebook` | `TestSend_HideError`, ca mã nút rỗng / 1001 / đúng 1000 ký tự (`TestSend_RejectBeforeCall`), đúng 3 lần chuyển hướng (`TestDownload_Rejects`), trần 0 = 25 MiB (`TestDownload_SizeLimit`) | ẩn lỗi token không thành "không rõ"; biên của nút trả lời nhanh, chuyển hướng, trần tải |
+| `access` | `TestSignal`, ca "quyền khác trước quyền đọc" (`TestVisiblePages`) | báo hiệu mang đúng phạm vi Page; `continue` → `break` |
+| `channel` | `TestReportTokenInvalid_AnyAuthReasonOneAlert` | một cảnh báo cho mỗi lần mất quyền, với mọi lý do mất quyền |
+| `inbound` | 15 test `TestMutM4_*` | việc sau khi ghi tệp đính kèm (hook, báo hiệu, tải tệp của comment/echo), mốc đã xem chỉ báo hiệu khi đổi, sửa tin lần hai, cờ lịch sử/tự động theo đường vào, comment live, chặn payload hỏng của việc tải tệp/hồ sơ/bài |
+| `send` | 17 test `TestMutM4_*` | lỗi 551 không hạ Page; mốc chặn khi Meta xin giãn; gửi lại ảnh, bỏ tin; nhắn riêng khi comment cha đã xóa; tin tự động xếp lệnh; Lookup không tenant/không token |
+| `automation` | 8 test `TestMutationM4_*` + `TestAutoReply_InDoubtDropped`, `TestAutoHide_RejectionReportsOnlyAuth` | biên SĐT, giới hạn cấu hình (số câu, độ dài, số bài, giờ), biên giờ của nhắc theo dõi, quy tắc lưu ghi người sửa |
+| `live` | 13 test `TestMutationM4_*` | biên chốt (20 dòng, số lượng), thêm vào nháp của khách khác, đối chiếu cuối phiên (đếm, tràn int32), dò phiên (bỏ Page ngắt, tiếp sau lỗi), luồng SSE im/ép sse |
+
+### Đột biến còn sống và vì sao chấp nhận (M4, sau lượt 2)
+
+- **Tương đương** (cùng kết quả với mọi đầu vào có thể):
+  `facebook/download.go:93` (`>` → `>=` khi đã bằng trần); `inbound/attachments.go:311`, `posts.go:229`,
+  `automation/followup.go:74` (cắt chuỗi đúng bằng độ dài); `inbound/comments.go:140`, `echo.go:74`, `messages.go:73`
+  (xếp tải tệp với danh sách rỗng không làm gì); `inbound/messages.go:108`, `profile.go:177`, `187`, `201` (lỗi luôn đi
+  kèm `ok = false`, tệp 0 byte đã bị loại vì không phải ảnh, `SetNameFromChannel` tự từ chối tên rỗng);
+  `send/merge.go:177`, `comment_reply.go:131`, `message.go:137`, `private_reply.go:177`, `248`, `resend.go:231`,
+  `292` (trạng thái rỗng khác `queued`; adapter trả Sent luôn kèm mã; khóa luồng không bắt đầu bằng `:`; cột
+  `attachments` mặc định `'[]'`); `automation/phone.go:43`, `45`, `62` (giới hạn chỉ gọi với 1 hoặc −1; bỏ qua `+` thì
+  `84…` vẫn khớp); `automation/autohide.go:23`, `39`, `autoreply.go:124`, `greeting.go:67`, `71` (quy tắc tắt / tin của
+  Page / tin lịch sử đã bị cổng chung `Run` chặn — `TestRun_NoRowGates`); `live/source_fb.go:219`, `239`, `254`
+  (chỉ khác khi hai mốc bằng nhau tới nano giây hoặc ctx hủy đúng lúc đó); `live/reconcile.go:138` (adapter thật luôn trả
+  mã comment).
+- **Chỉ đổi chỉ số, log:** `facebook/download.go:69` (thời gian giữ kết nối rảnh); `inbound/comments.go:166`,
+  `handler.go:187`; `live/manager.go:69`, `199`, `source_fb.go:76`.
+- **Payload hỏng không xảy ra** (việc, lệnh luôn do chính mã ghi, đủ mã và tenant): `send/merge.go:23`, `64`, `81`,
+  `command.go:91:54`, `comment_reply.go:108:54`, `indoubt.go:45:54`, `hide.go:147`, `186`, `private_reply.go:284`;
+  `automation/autoreply.go:128`, `228`, `greeting.go:75`, `command.go:108`, `211`.
+- **Khoảng trống thật, chấp nhận ở M4** (ghi để lần sau viết test khi có cách tiêm lỗi):
+  `send/private_reply.go:121`, `124` (chỉ đổi thứ tự khóa ADR-46 — cần test hai transaction xen nhau),
+  `private_reply.go:103`, `autoaction.go:165` (lỗi trùng unique 23505 — khóa hội thoại đã xếp hàng các lần nhắn riêng,
+  không dựng được bằng API), `autoaction.go:191` (lỗi database của `channel.Account` sau khi đọc comment),
+  `private_reply.go:298` (máy Meta giả luôn trả `recipient_id`); `inbound/comments.go:64`, `110`, `echo.go:41`, `75`
+  (sự kiện "add" chen giữa lúc khóa và lúc chèn; khóa lại hội thoại sau khi echo đã khớp — chỉ đổi `updated_at`);
+  `automation/command.go:87:61`, `155` (lỗi lớp auth luôn đi với Rejected; lý do rỗng của lệnh ẩn không xảy ra);
+  `send/hide.go:120`, `131`, `205` (cổng của lệnh ẩn: Page chỉ xem đổi giữa lúc ghi và lúc chạy — đã có
+  `TestMutM4_HideExecuteReadOnlyAndSlowDown` cho nhánh chính); `live/source_fb.go:243` (30 lần hỏi định kỳ lỗi liền mới
+  dừng nguồn — test cần ≥ 6 s giờ thật), `source_fb.go:175`, `238` (lỗi database khi ghi lô lúc ctx còn sống),
+  `live/manager.go:219` (hạn cục bộ trước hạn database — chỉ đo được bằng khe giờ thật 0,8 s, trái luật Task 400; test
+  đã viết rồi bỏ), `live/sessions.go:126`, `178`–`195`, `267`, `detect.go:172`, `remind.go:140`, `180` (nhóm chạy lượt 2
+  phần sau 27 phút; chưa phân loại từng cái — đo lại khi `HIGH_RISK_DIRS` có M4).
+- Danh sách lượt 1 (222 đột biến sống) và lý do từng cái theo từng agent viết test: tóm tắt trong bảng "Test thêm" ở trên;
+  bản đầy đủ không giữ trong repo (log run của GitHub Actions giữ 90 ngày, số run ghi ở `docs/tasks/task-182.md`).

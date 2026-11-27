@@ -169,7 +169,8 @@ func settleParams(m store.GetOutgoingMessageRow, status string, auto bool, now t
 	return set, true
 }
 
-// settle là thân của OnTerminal; auto (lệnh command.fb.auto_send): expired, in_doubt → discarded với lý do
+// settle là thân của OnTerminal; auto (lệnh command.fb.auto_send, command.fb.auto_reply_comment,
+// command.fb.auto_private_reply): expired, in_doubt → discarded với lý do
 // reasonAutoDropped (04 mục 5.3: tin tự động không rõ hay quá hạn thì bỏ, không hỏi nhân viên, không gửi lại).
 func (c sendCommand) settle(ctx context.Context, j queue.Job, status string, tx pgx.Tx, auto bool) error {
 	m, ok, err := target(ctx, tx, j)

@@ -1,14 +1,17 @@
 package access_test
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/access"
 	"elimaz.com.vn/crm/internal/modules/identity"
+	"elimaz.com.vn/crm/internal/platform/realtime"
 )
 
 func user(grants ...identity.Grant) identity.AuthUser {
@@ -80,11 +83,52 @@ func TestVisiblePages(t *testing.T) {
 		{"kho và mã hỏng", user(grant(read, identity.ScopeWarehouse, a.String()), grant(read, identity.ScopePage, "x"),
 			grant(read, identity.ScopePage, a.String())), false, []uuid.UUID{a}},
 		{"quyền khác", user(grant("conversation.reply", identity.ScopePage, a.String())), false, nil},
+		{"quyền khác trước quyền đọc", user(grant("conversation.reply", identity.ScopeAll, ""),
+			grant(read, identity.ScopePage, a.String())), false, []uuid.UUID{a}},
 		{"không grant", user(), false, nil},
 	} {
 		all, ids := access.VisiblePages(c.u)
 		if all != c.all || !slices.Equal(ids, c.ids) {
 			t.Errorf("%s: all %v ids %v; mong %v %v", c.name, all, ids, c.all, c.ids)
 		}
+	}
+}
+
+// recordBus là realtime.Bus giả: ghi báo hiệu nhận được, trả err.
+type recordBus struct {
+	realtime.Bus
+	got []realtime.Signal
+	err error
+}
+
+func (b *recordBus) Publish(_ context.Context, _ pgx.Tx, s realtime.Signal) error {
+	b.got = append(b.got, s)
+	return b.err
+}
+
+// Signal (Task 182, mutation testing M4): bus nil → không làm gì; báo hiệu mang tenant, topic, quyền conversation.read
+// trên đúng Page, thực thể (không nội dung); bus lỗi → lỗi bọc giữ sentinel.
+func TestSignal(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	tenant, page, id := uuid.New(), uuid.New(), uuid.New()
+	if err := access.Signal(ctx, nil, nil, tenant, "conversation.changed", page, "conversation", id); err != nil {
+		t.Fatalf("bus nil: %v", err)
+	}
+	b := &recordBus{}
+	if err := access.Signal(ctx, nil, b, tenant, "conversation.changed", page, "conversation", id); err != nil {
+		t.Fatal(err)
+	}
+	want := realtime.Signal{
+		TenantID: tenant, Topic: "conversation.changed", Requires: "conversation.read", Scope: access.PageScope(page),
+		Entity: realtime.Entity{Type: "conversation", ID: id.String()},
+	}
+	if len(b.got) != 1 || b.got[0].TenantID != want.TenantID || b.got[0].Topic != want.Topic ||
+		b.got[0].Requires != want.Requires || *b.got[0].Scope != *want.Scope || b.got[0].Entity != want.Entity {
+		t.Fatalf("báo hiệu %+v, muốn %+v", b.got, want)
+	}
+	boom := errors.New("bus hỏng")
+	if err := access.Signal(ctx, nil, &recordBus{err: boom}, tenant, "t", page, "k", id); !errors.Is(err, boom) {
+		t.Fatalf("bus lỗi: %v", err)
 	}
 }

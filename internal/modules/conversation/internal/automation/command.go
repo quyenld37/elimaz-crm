@@ -81,10 +81,22 @@ func (c hideCommand) Execute(ctx context.Context, j queue.Job) (commands.Outcome
 	}
 	hidden := true
 	// Lỗi của kênh không lên last_error (có thể mang nội dung); kết quả đã đủ để phân loại.
-	out, _ := prep.adapter.Send(ctx, prep.acc, prep.cred, channel.OutboundCommand{
+	out, sendErr := prep.adapter.Send(ctx, prep.acc, prep.cred, channel.OutboundCommand{
 		Purpose: channel.PurposeHide, CommentID: prep.comment, Hidden: &hidden, Mode: channel.SendCommentReply,
 	})
+	if out.Status == channel.OutcomeRejected && sendErr != nil && prep.adapter.ClassifyError(sendErr) == channel.ErrorAuth {
+		c.reportAuth(ctx, *j.TenantID, prep.acc.ID)
+	}
 	return hideOutcome(out), nil
+}
+
+// reportAuth ghi token của Page accountID hỏng (channel.Writer.ReportTokenInvalid: degraded, cảnh báo gấp channel-auth;
+// 02 mục 2: báo ngay, không chờ kiểm sức khỏe), trong transaction ngắn riêng. Lỗi bỏ qua: lượt kiểm sức khỏe mỗi giờ
+// vẫn phát hiện token hỏng.
+func (c hideCommand) reportAuth(ctx context.Context, tenant, accountID uuid.UUID) {
+	_ = tenancy.WithTenant(ctx, c.d.DB, tenant, func(tx pgx.Tx) error {
+		return channel.Writer{Realtime: c.d.Bus}.ReportTokenInvalid(ctx, tx, accountID)
+	})
 }
 
 // ready chuẩn bị lần gọi kênh của lệnh j; stop khác nil: kết quả trả ngay, không gọi kênh.

@@ -92,6 +92,10 @@ func TestDownload_Rejects(t *testing.T) {
 			t.Errorf("%s: %v, mong %v", tc.name, err, tc.want)
 		}
 	}
+	// Đúng 3 lần chuyển (loop1 → loop2 → loop3 → x.jpg) vẫn được (Task 182, mutation testing M4).
+	if _, _, err := e.c.Download(t.Context(), e.at(cdnHost, "/loop1"), facebook.MaxDownload); err != nil {
+		t.Errorf("đúng 3 lần chuyển: %v", err)
+	}
 	e.fg.AddRedirect("/to-ok", e.at("ok.fbsbx.com", "/x.jpg"))
 	if _, _, err := e.c.Download(t.Context(), e.at(cdnHost, "/to-ok"), facebook.MaxDownload); err != nil {
 		t.Errorf("chuyển hướng tới máy Meta khác: %v", err)
@@ -115,6 +119,12 @@ func TestDownload_SizeLimit(t *testing.T) {
 	rc, info, err := e.c.Download(t.Context(), e.at(cdnHost, "/s.jpg"), 100)
 	if err != nil || info.Size != 100 {
 		t.Fatalf("100 byte với trần 100: %v %+v", err, info)
+	}
+	_ = rc.Close()
+	// Trần 0 (bên gọi không đặt) là 25 MiB, không phải 0 byte (Task 182, mutation testing M4).
+	rc, info, err = e.c.Download(t.Context(), e.at(cdnHost, "/s.jpg"), 0)
+	if err != nil || info.Size != 100 {
+		t.Fatalf("100 byte với trần 0: %v %+v", err, info)
 	}
 	_ = rc.Close()
 	// Trần lớn hơn 25 MiB vẫn bị giới hạn ở 25 MiB.

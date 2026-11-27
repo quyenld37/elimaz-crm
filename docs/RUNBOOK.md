@@ -511,6 +511,101 @@ một lần. Văn bản chỉ có tên luật, số, mã việc, dấu vân tay;
 Kiểm từ ngoài (`scripts/external-probe`, hai nơi, một nơi không thuộc Cloudflare) báo riêng khi `/health/ready` hay
 `/health/deep` không trả lời: máy chủ, tunnel, hoặc cả ba vai trò đều chết — cảnh báo bên trong khi đó không gửi được.
 
+## Hộp chat Facebook và màn Live (M4; Task M4-42)
+
+Kênh Facebook chỉ bật khi vai trò có `META_APP_SECRET` (và `FIELD_ENC_KEYS` cho token Page). Mọi việc dưới đây làm
+trên màn hình (`/settings/channels`, `/inbox`, `/live`) bằng tài khoản có quyền `channel.manage` trừ khi ghi khác. **Chờ server thử
+của hệ mới:** các bước có Meta thật (kết nối Page thật, live thật) chưa chạy trên staging (Task 181); lệnh dưới đây đã
+kiểm với máy chủ Meta giả `tools/fakegraph` và test của gói.
+
+### Cảnh báo của M4
+
+Văn bản chỉ có tên Page (công khai), kênh, mã tài khoản hay mã phiên; không token, không nội dung tin.
+
+| Key | Mức | Nghĩa | Việc phải làm |
+|---|---|---|---|
+| `channel-auth:<tài khoản>` | urgent | Token Page hết hiệu lực hoặc mất quyền (Meta trả lỗi 190/10/200, kiểm sức khỏe thấy mất quyền). Tin vẫn nhận, chưa gửi được; Page ở `degraded` | Quản trị Page **kết nối lại Page** (mục dưới). Nếu do đổi mật khẩu Facebook hay gỡ app: kết nối lại bằng người còn quyền quản trị Page. |
+| `channel-fields:<tài khoản>` | normal | Page thiếu trường webhook đã đăng ký; CRM đã tự đăng ký lại | Không cần làm gì nếu không lặp lại. Lặp lại: kiểm trang app Meta (11 trường webhook) và quyền của token (kết nối lại). |
+| `channel-subscribe:<tài khoản>` | urgent | Lệnh đăng ký nhận tin cho Page thất bại hẳn (sau khi kết nối) | Page không nhận tin mới. Bấm "Kiểm tra kết nối" (`POST /api/v1/channels/{id}/health-check`); vẫn lỗi → kết nối lại Page; vẫn lỗi → xem `last_error` của lệnh `command.fb.subscribe_page` (`GET /api/v1/platform/jobs?status=dead`). |
+| `webhook-silence:<tài khoản>` | urgent | Trong giờ bán, Page không nhận sự kiện nào từ Meta hơn 30 phút; CRM đã tự đăng ký lại và hỏi bù tin, comment | Xem trang trạng thái của Meta (sự cố toàn cầu?); xem `/health/ready` của `ingest`, tunnel Cloudflare cho `hooks`; thử nhắn Page bằng một tài khoản thật. Tin bị lỡ được hỏi bù tự động (`TestBackfill_Dedupe`). |
+| `meta-policy:<tài khoản>` | urgent | Meta báo vi phạm chính sách nhắn tin (`messaging_policy_enforcement`) | Dừng gửi tự động (tắt tự trả lời, chào, nhắc theo dõi ở `/settings/pages/<Page>`); đọc thư của Meta trong Business Suite; xử lý trong 7 ngày (không xử lý có thể bị chặn gửi). Báo chủ shop. |
+| `live-source:<phiên>` | normal | Luồng comment trực tiếp (SSE) của Meta hỏng; CRM đã chuyển sang hỏi định kỳ mỗi 2 s, tự thử lại luồng | Không cần làm gì trong phiên; comment vẫn về (chậm hơn vài giây). Sau phiên: nếu lặp lại nhiều phiên, đặt `source_mode = poll` cho Page. |
+| `live-missing:<phiên>` | normal | Đối chiếu cuối phiên: CRM có ít comment hơn số Meta đếm; phần thiếu đã được điền | Mở phiên trên `/live`, soát các comment vừa điền xem có ai đặt hàng chưa được chốt. Thiếu nhiều lần liền: báo kỹ thuật (luồng và hỏi định kỳ cùng lỡ). |
+| `graph-version` | normal | Phiên bản Graph API đang dùng (`META_GRAPH_VERSION`) còn dưới 180 ngày là hết hạn | Kỹ thuật: nâng `META_GRAPH_VERSION`, `META_GRAPH_VERSION_EXPIRES`, chạy lại test hợp đồng (`channeltest.RunContract`) với máy chủ Meta giả, deploy trước hạn. |
+| `send-mode:<tài khoản>` | normal | Page vừa chuyển từ chỉ xem sang **gửi thật** | Xác nhận đúng là chủ shop chủ động bật (audit `channel.send_mode`). Không phải → tắt ngay (mục dưới) và đổi mật khẩu tài khoản đã bật. |
+| `data-use-checkup:<hạn>` | normal | Hạn "Data Use Checkup" hằng năm của app Meta (`META_DATA_USE_CHECKUP_DUE`) còn ≤ 30 ngày; nhắc lại 7 ngày một lần | Chủ shop vào trang app Meta → App Review → Data Use Checkup, xác nhận các quyền; xong thì đặt hạn năm sau vào `META_DATA_USE_CHECKUP_DUE`. Quá hạn: app bị hạn chế quyền. |
+
+Lệnh gửi ra ngoài của M4 (`command.fb.send_message`, `command.fb.reply_comment`, `command.fb.private_reply`, `command.fb.hide_comment` và các lệnh `command.fb.auto_*`) dùng chung cảnh
+báo `in-doubt:<kind>` và `dead:<kind>` của M0 ở bảng trên.
+
+### Kết nối lại Page
+
+1. `/settings/channels` → Page cần kết nối lại → "Kết nối lại" (hoặc "Kết nối Page" nếu đã ngắt): đăng nhập Facebook bằng người có
+   quyền quản trị Page, chọn đúng Page, cấp đủ quyền được hỏi.
+2. CRM thay token (mã hóa bằng khóa đầu của `FIELD_ENC_KEYS`), đăng ký lại 11 trường webhook, chuyển Page về `active`.
+   Lịch sử hội thoại giữ nguyên; chế độ gửi giữ nguyên như trước khi hỏng.
+3. Kiểm: "Kiểm tra kết nối" xanh; nhắn thử Page từ một tài khoản thật, tin hiện trên `/inbox` trong vài giây.
+4. Page "đã kết nối ở shop khác": Page đó đang gắn với tenant khác, ngắt ở tenant kia trước.
+
+### Bật, tắt chế độ chỉ xem
+
+- Page mới kết nối luôn ở **chỉ xem** (`read_only`): nhận tin, comment; không gửi gì ra ngoài, kể cả tự động.
+- Bật gửi thật: `/settings/channels` → Page → "Chế độ gửi" → "Gửi thật" (`PUT /api/v1/channels/{id}/send-mode`, cần `Idempotency-Key`,
+  kèm `version`). Cảnh báo `send-mode` được gửi. Chỉ bật khi app đã có quyền (App Review / Standard Access, Task 181).
+- Tắt (về chỉ xem) khi: Meta cảnh báo chính sách, nghi gửi nhầm hàng loạt, đổi người quản trị. Có hiệu lực ngay với lệnh
+  chưa gửi (lệnh đang chờ bị từ chối `read_only`, không gửi trễ).
+
+### Tin "không rõ đã gửi" và "chưa gửi được"
+
+- Lệnh gửi có hạn 3 phút: quá hạn mà chưa gửi → tin "chưa gửi được" (không bao giờ gửi trễ). Nhân viên bấm "Gửi lại"
+  (`POST /api/v1/messages/{id}/resend`) hoặc "Bỏ" (`…/discard`).
+- Mạng treo sau khi Meta có thể đã nhận → tin **"không rõ đã gửi"** (`in_doubt`): CRM chờ echo của Meta 60 s; echo về thì
+  tự gộp thành "đã gửi". Sau 60 s màn hình hỏi nhân viên. **Không gửi lại mù:** mở hội thoại trên Business Suite (hoặc
+  Messenger của Page) xem tin đã tới khách chưa; đã tới → "Bỏ" (giữ một bản, echo về sau vẫn gộp); chưa tới → "Gửi lại".
+- Trả lời comment, nhắn riêng comment "không rõ": CRM tự tra Meta (`lookup`) trước khi hỏi; nhắn riêng chỉ được một lần
+  mỗi comment, nên "Bỏ" mở khóa lại cho lần nhắn sau.
+- Tin **tự động** (tin chào, tự trả lời comment, tự nhắn riêng, nhắc theo dõi) không rõ đã gửi hay quá hạn 5 phút: CRM
+  tự bỏ (trạng thái "đã bỏ", lý do `auto_dropped`, lượt quy tắc `dropped`), không hỏi nhân viên, không gửi lại (04 mục
+  5.3). Muốn chắc khách đã nhận: xem hội thoại trên Business Suite, nhắn tay nếu cần.
+
+### Theo dõi live bằng tay khi không tự nhận
+
+CRM tự nhận phiên live qua webhook (`live_videos`) và hỏi định kỳ danh sách video của Page. Phiên không hiện trên `/live`
+sau 1 phút từ lúc phát:
+
+1. `/live` → "Theo dõi bằng tay" → dán mã video hoặc đường dẫn video live của Page (`POST /api/v1/channels/{id}/live-sessions`).
+2. Comment từ lúc đó về qua luồng của Meta hoặc hỏi định kỳ; comment trước đó được đọc bù.
+3. Hết live: phiên tự kết thúc khi Meta báo; không thì "Kết thúc" (`POST /api/v1/live-sessions/{id}/end`) — CRM chạy đối
+  chiếu cuối phiên một lần (cảnh báo `live-missing` nếu thiếu).
+4. Worker giữ luồng bị khởi động lại giữa phiên: worker khác nhận lại trong 15 s, đọc bù phần lỡ; không cần làm gì.
+
+### Đổi khóa `FIELD_ENC_KEYS` với token Page
+
+Theo mục "Đổi khóa mã hóa trường" ở dưới; **một khóa dùng chung** cho M3 (khóa API hãng), M4 (token Page), M7. Riêng
+token Page:
+
+1. Thêm khóa mới lên đầu danh sách, giữ khóa cũ; đặt cho `api`, `worker` (và `ingest` nếu có biến), khởi động lại.
+2. Ghi lại token Page bằng khóa mới: chưa có việc tự ghi lại (ghi ở `docs/tasks/task-182.md`), nên **kết nối lại từng
+   Page** (mục trên); token mới luôn mã hóa bằng khóa đầu. Kiểm còn token khóa cũ (chạy bằng `crm_app`, trong ngữ cảnh
+   tenant):
+   ```sql
+   BEGIN; SELECT set_config('app.tenant_id', '<mã tenant>', true);
+   SELECT id, name FROM channel.channel_accounts WHERE credential_kid = '<key_id cũ>'; COMMIT;
+   ```
+3. Hết dòng (ở mọi tenant, và khóa API hãng của M3 cũng đã ghi lại) mới bỏ khóa cũ. Bỏ sớm: Page báo `channel-auth`,
+   kết nối lại là hết.
+
+### Yêu cầu xóa dữ liệu của Meta
+
+- Người dùng Facebook gỡ app hoặc yêu cầu xóa → Meta gọi `POST /hooks/facebook/data-deletion` (ký `signed_request`
+  bằng App Secret). `ingest` kiểm chữ ký, ghi yêu cầu (theo băm `user_id`), trả mã xác nhận và đường dẫn trang trạng thái
+  `GET /hooks/facebook/data-deletion/status/<mã>`.
+- Worker (lịch `platform.data_deletion`) xóa dữ liệu đăng nhập Facebook của người đó (phiên OAuth, danh tính người dùng
+  app) ở **mọi** tenant, rồi trạng thái thành "đã xong". Tin nhắn khách gửi Page **không** thuộc yêu cầu này (là dữ liệu
+  của Page, không phải của người dùng app); khách đòi xóa hội thoại thì xử lý như yêu cầu xóa dữ liệu khách của M2.
+- Kiểm: yêu cầu kẹt chưa xong quá 1 ngày → xem lệnh `dead` của lịch `platform.data_deletion`; sửa nguyên nhân rồi
+  `retry`. Không xóa tay dòng yêu cầu (là bằng chứng đã xử lý cho Meta).
+
 ## Tra log và dấu vết
 
 - Log là JSON (`log/slog`) ra stdout của container; máy chủ giữ bằng volume log của nền tảng (chốt ở staging).
