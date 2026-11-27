@@ -190,6 +190,59 @@ func TestValidatePrice(t *testing.T) {
 	}
 }
 
+// Ô số đo (Task 516): số nguyên 1–1000 (số 0 đầu bỏ), ô trống là nil; 0, 1001, số lẻ, số âm, chữ → invalid_measure ở
+// đúng ô, câu báo không chép ô dài.
+func TestValidateMeasure(t *testing.T) {
+	for _, c := range []struct {
+		in   string
+		want int
+		ok   bool
+	}{
+		{"", 0, true},
+		{"1", 1, true},
+		{"88", 88, true},
+		{"1000", 1000, true},
+		{"088", 88, true},
+		{"0", 0, false},
+		{"1001", 0, false},
+		{"2.5", 0, false},
+		{"2,5", 0, false},
+		{"-3", 0, false},
+		{"abc", 0, false},
+		{"10000", 0, false},
+		{"1e2", 0, false},
+		{strings.Repeat("9", 60), 0, false},
+	} {
+		plan, errs := importer.Validate([]xlsx.Row{row(2, map[string]string{
+			importer.ColLengthCm: c.in, importer.ColWidthCm: c.in, importer.ColHeightCm: c.in,
+		})}, importer.Refs{})
+		if !c.ok {
+			want := []string{"2:Dài (cm):invalid_measure", "2:Rộng (cm):invalid_measure", "2:Cao (cm):invalid_measure"}
+			if !slices.Equal(codes(errs), want) || slices.ContainsFunc(errs, func(e importer.RowError) bool {
+				return utf8.RuneCountInString(e.Message) > 120
+			}) {
+				t.Errorf("%q: %+v, mong %v (lời báo ngắn)", c.in, errs, want)
+			}
+			continue
+		}
+		if len(errs) > 0 {
+			t.Errorf("%q: %v", c.in, codes(errs))
+			continue
+		}
+		checkPlannedMeasure(t, c.in, plan.Products[0], c.want)
+	}
+}
+
+// checkPlannedMeasure: ba số đo của p đều là want (ô in trống → đều nil).
+func checkPlannedMeasure(t *testing.T, in string, p importer.PlannedProduct, want int) {
+	t.Helper()
+	for _, got := range []*int{p.LengthCm, p.WidthCm, p.HeightCm} {
+		if in == "" && got != nil || in != "" && (got == nil || *got != want) {
+			t.Errorf("%q: %v, mong %d", in, got, want)
+		}
+	}
+}
+
 func TestValidateFieldRules(t *testing.T) {
 	long := strings.Repeat("ộ", 201)
 	for name, c := range map[string]struct {
@@ -375,7 +428,7 @@ func TestTemplateRoundTrip(t *testing.T) {
 	}
 	cols := importer.Columns(refs)
 	want := []string{
-		"Mã mẫu*", "Tên mẫu*", "Danh mục", "Mô tả", "Trạng thái", "Nhãn",
+		"Mã mẫu*", "Tên mẫu*", "Danh mục", "Mô tả", "Trạng thái", "Nhãn", "Dài (cm)", "Rộng (cm)", "Cao (cm)",
 		"Thuộc tính: Chất liệu", "Thuộc tính: Kiểu dáng",
 		"Màu*", "Mã màu", "Size*", "SKU*", "Barcode", "Giá bán*", "Giá nhập",
 	}
@@ -385,6 +438,12 @@ func TestTemplateRoundTrip(t *testing.T) {
 	for _, h := range importer.RequiredColumns() {
 		if !slices.Contains(cols, h) {
 			t.Errorf("cột bắt buộc %q không có trong mẫu", h)
+		}
+	}
+	// Cột số đo (Task 516) tùy chọn: tệp mẫu cũ không có chúng vẫn qua kiểm tiêu đề.
+	for _, h := range []string{importer.ColLengthCm, importer.ColWidthCm, importer.ColHeightCm} {
+		if slices.Contains(importer.RequiredColumns(), h) {
+			t.Errorf("cột số đo %q không được bắt buộc", h)
 		}
 	}
 }

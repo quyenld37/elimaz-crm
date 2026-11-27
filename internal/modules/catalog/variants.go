@@ -94,7 +94,7 @@ func (w Writer) UpdateVariant(ctx context.Context, tx pgx.Tx, sellerID, id uuid.
 	after.Version, err = q.UpdateVariant(ctx, store.UpdateVariantParams{
 		SellerID: sellerID, ID: id, Version: version, Sku: after.SKU, Barcode: after.Barcode, Color: after.Color,
 		ColorHex: optText(after.ColorHex), Size: after.Size, Price: after.Price, CostPrice: after.CostPrice,
-		Status: after.Status, WeightGrams: weightParam(after.WeightGrams),
+		Status: after.Status, WeightGrams: optInt4(after.WeightGrams),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Variant{}, ErrVersionConflict // không xảy ra khi đã giữ khóa dòng
@@ -283,7 +283,7 @@ func variantFromRow(r store.ListProductVariantsRow) Variant {
 	v := Variant{
 		ID: r.ID, SellerID: r.SellerID, ProductID: r.ProductID, SKU: r.Sku, Barcode: r.Barcode, Color: r.Color,
 		ColorHex: r.ColorHex.String, Size: r.Size, Price: r.Price, CostPrice: r.CostPrice, Status: r.Status,
-		Version: r.Version, WeightGrams: weightOf(r.WeightGrams),
+		Version: r.Version, WeightGrams: optIntOf(r.WeightGrams),
 	}
 	return v
 }
@@ -294,7 +294,8 @@ const (
 	MaxWeightGrams = 50000
 )
 
-func weightOf(w pgtype.Int4) *int {
+// optIntOf đổi cột int có thể NULL (cân nặng, số đo) sang *int; NULL → nil.
+func optIntOf(w pgtype.Int4) *int {
 	if !w.Valid {
 		return nil
 	}
@@ -302,11 +303,12 @@ func weightOf(w pgtype.Int4) *int {
 	return &n
 }
 
-func weightParam(w *int) pgtype.Int4 {
+// optInt4 đổi số đã kiểm khoảng (cân nặng ≤ MaxWeightGrams, số đo ≤ MaxMeasureCm) sang tham số sqlc; nil → NULL.
+func optInt4(w *int) pgtype.Int4 {
 	if w == nil {
 		return pgtype.Int4{}
 	}
-	return pgtype.Int4{Int32: int32(*w), Valid: true} //nolint:gosec // G115: đã kiểm trong [MinWeightGrams, MaxWeightGrams]
+	return pgtype.Int4{Int32: int32(*w), Valid: true} //nolint:gosec // G115: đã kiểm trong khoảng của bên gọi
 }
 
 // normalizeVariant kiểm và chuẩn hóa v: SKU viết hoa, màu hex viết hoa, cắt khoảng trắng màu, size, barcode.

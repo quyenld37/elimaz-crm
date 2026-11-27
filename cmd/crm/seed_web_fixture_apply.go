@@ -239,6 +239,9 @@ func (a *fixtureApply) product(ctx context.Context, fp fixtureProduct) error {
 	if want := catalog.StatusActive; p.Status != want {
 		patch.Status = &want
 	}
+	if want, _ := fp.MeasureCm.cm(); !sameMeasure(p.Measure, want) { // đã kiểm ở validate
+		patch.Measure = &want
+	}
 	if patch != (catalog.ProductPatch{}) {
 		if _, err := a.cat.UpdateProduct(ctx, a.tx, a.seller, p.ID, p.Version, patch, a.actor); err != nil {
 			return err //nolint:wrapcheck // catalog đã bọc
@@ -260,6 +263,7 @@ func (a *fixtureApply) createProduct(ctx context.Context, fp fixtureProduct) err
 		ID: fp.ID, CreatedAt: fixtureCreatedAt(fp.Position), SellerID: a.seller, Code: fp.Code, Name: fp.Name,
 		Status: catalog.StatusActive,
 	}
+	in.Measure, _ = fp.MeasureCm.cm() // đã kiểm ở validate
 	for _, v := range fp.Variants {
 		in.Variants = append(in.Variants, variantInput(v))
 	}
@@ -270,6 +274,12 @@ func (a *fixtureApply) createProduct(ctx context.Context, fp fixtureProduct) err
 	a.rep.Created["variant"] += len(fp.Variants)
 	_, err := a.classify(ctx, fp)
 	return err
+}
+
+// sameMeasure: hai bộ số đo bằng nhau (nil chỉ bằng nil).
+func sameMeasure(a, b catalog.MeasureCm) bool {
+	eq := func(x, y *int) bool { return (x == nil) == (y == nil) && (x == nil || *x == *y) }
+	return eq(a.Length, b.Length) && eq(a.Width, b.Width) && eq(a.Height, b.Height)
 }
 
 func variantInput(v fixtureVariant) catalog.VariantInput {

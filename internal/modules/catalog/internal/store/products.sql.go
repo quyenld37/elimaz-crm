@@ -34,7 +34,7 @@ func (q *Queries) BumpProductVersion(ctx context.Context, arg BumpProductVersion
 }
 
 const getProduct = `-- name: GetProduct :one
-SELECT id, seller_id, code, name, description, article, status, version
+SELECT id, seller_id, code, name, description, article, status, version, length_cm, width_cm, height_cm
 FROM catalog.products
 WHERE seller_id = $1 AND id = $2 AND deleted_at IS NULL
 `
@@ -53,6 +53,9 @@ type GetProductRow struct {
 	Article     []byte
 	Status      string
 	Version     int64
+	LengthCm    pgtype.Int4
+	WidthCm     pgtype.Int4
+	HeightCm    pgtype.Int4
 }
 
 func (q *Queries) GetProduct(ctx context.Context, arg GetProductParams) (GetProductRow, error) {
@@ -67,6 +70,9 @@ func (q *Queries) GetProduct(ctx context.Context, arg GetProductParams) (GetProd
 		&i.Article,
 		&i.Status,
 		&i.Version,
+		&i.LengthCm,
+		&i.WidthCm,
+		&i.HeightCm,
 	)
 	return i, err
 }
@@ -123,7 +129,8 @@ type InsertProductRow struct {
 // Mẫu sản phẩm (kế hoạch M1, Task M1-27). Chạy trong tenancy.WithTenant. Mọi câu đọc, khóa, sửa có seller_id (ADR-29;
 // tests/arch/sellerfilter_test.go, Task M1-37).
 // id rỗng (uuid.Nil) → uuidv7() như mặc định của cột (id đặt trước: lệnh seed-web-fixture, Task 218); created_at NULL
-// → now() như mặc định của cột (đặt trước: seed-web-fixture, Task 511).
+// → now() như mặc định của cột (đặt trước: seed-web-fixture, Task 511). Không nhắc cột số đo (Task 516: SetProductMeasure),
+// để test dựng dữ liệu trên schema trước 0535 (catalogtest.Product) vẫn chạy.
 func (q *Queries) InsertProduct(ctx context.Context, arg InsertProductParams) (InsertProductRow, error) {
 	row := q.db.QueryRow(ctx, insertProduct,
 		arg.ID,
@@ -143,7 +150,7 @@ func (q *Queries) InsertProduct(ctx context.Context, arg InsertProductParams) (I
 }
 
 const lockProduct = `-- name: LockProduct :one
-SELECT id, seller_id, code, name, description, article, status, version
+SELECT id, seller_id, code, name, description, article, status, version, length_cm, width_cm, height_cm
 FROM catalog.products
 WHERE seller_id = $1 AND id = $2 AND deleted_at IS NULL
 FOR UPDATE
@@ -163,6 +170,9 @@ type LockProductRow struct {
 	Article     []byte
 	Status      string
 	Version     int64
+	LengthCm    pgtype.Int4
+	WidthCm     pgtype.Int4
+	HeightCm    pgtype.Int4
 }
 
 func (q *Queries) LockProduct(ctx context.Context, arg LockProductParams) (LockProductRow, error) {
@@ -177,6 +187,9 @@ func (q *Queries) LockProduct(ctx context.Context, arg LockProductParams) (LockP
 		&i.Article,
 		&i.Status,
 		&i.Version,
+		&i.LengthCm,
+		&i.WidthCm,
+		&i.HeightCm,
 	)
 	return i, err
 }
@@ -208,11 +221,39 @@ func (q *Queries) SetProductCategory(ctx context.Context, arg SetProductCategory
 	return version, err
 }
 
+const setProductMeasure = `-- name: SetProductMeasure :exec
+UPDATE catalog.products
+SET length_cm = $1::int, width_cm = $2::int, height_cm = $3::int
+WHERE seller_id = $4 AND id = $5
+`
+
+type SetProductMeasureParams struct {
+	LengthCm pgtype.Int4
+	WidthCm  pgtype.Int4
+	HeightCm pgtype.Int4
+	SellerID uuid.UUID
+	ID       uuid.UUID
+}
+
+// Số đo của mẫu vừa tạo trong cùng transaction (Task 516; NULL là chưa nhập). Không tăng version: là một phần của lần
+// tạo; sửa số đo sau đó đi qua UpdateProduct.
+func (q *Queries) SetProductMeasure(ctx context.Context, arg SetProductMeasureParams) error {
+	_, err := q.db.Exec(ctx, setProductMeasure,
+		arg.LengthCm,
+		arg.WidthCm,
+		arg.HeightCm,
+		arg.SellerID,
+		arg.ID,
+	)
+	return err
+}
+
 const updateProduct = `-- name: UpdateProduct :one
 UPDATE catalog.products
 SET name = $1, name_search = $2, description = $3, article = $4, status = $5,
+    length_cm = $6::int, width_cm = $7::int, height_cm = $8::int,
     version = version + 1, updated_at = now()
-WHERE seller_id = $6 AND id = $7 AND version = $8
+WHERE seller_id = $9 AND id = $10 AND version = $11
 RETURNING version
 `
 
@@ -222,6 +263,9 @@ type UpdateProductParams struct {
 	Description string
 	Article     []byte
 	Status      string
+	LengthCm    pgtype.Int4
+	WidthCm     pgtype.Int4
+	HeightCm    pgtype.Int4
 	SellerID    uuid.UUID
 	ID          uuid.UUID
 	Version     int64
@@ -234,6 +278,9 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (i
 		arg.Description,
 		arg.Article,
 		arg.Status,
+		arg.LengthCm,
+		arg.WidthCm,
+		arg.HeightCm,
 		arg.SellerID,
 		arg.ID,
 		arg.Version,

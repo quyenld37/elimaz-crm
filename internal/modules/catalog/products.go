@@ -64,6 +64,14 @@ func (w Writer) CreateProduct(ctx context.Context, tx pgx.Tx, in ProductInput, a
 		return Product{}, fmt.Errorf("ghi mẫu: %w", mapWriteError(err))
 	}
 	p.ID, p.Version = row.ID, row.Version
+	if p.Measure != (MeasureCm{}) {
+		if err := q.SetProductMeasure(ctx, store.SetProductMeasureParams{
+			SellerID: p.SellerID, ID: p.ID, LengthCm: optInt4(p.Measure.Length), WidthCm: optInt4(p.Measure.Width),
+			HeightCm: optInt4(p.Measure.Height),
+		}); err != nil {
+			return Product{}, fmt.Errorf("ghi số đo của mẫu: %w", err)
+		}
+	}
 	p.Variants = make([]Variant, 0, len(vs))
 	for _, v := range vs {
 		created, err := w.insertVariant(ctx, tx, actor.TenantID, p.SellerID, p.ID, v)
@@ -81,9 +89,10 @@ func (w Writer) CreateProduct(ctx context.Context, tx pgx.Tx, in ProductInput, a
 	return p, nil
 }
 
-// UpdateProduct sửa tên, mô tả, bài viết, trạng thái của mẫu id của người bán sellerID khi version còn khớp; version tăng 1. Khóa dòng mẫu
+// UpdateProduct sửa tên, mô tả, bài viết, trạng thái, số đo của mẫu id của người bán sellerID khi version còn khớp; version tăng 1. Khóa dòng mẫu
 // trước khi so version (hai người cùng version: đúng một người thành công). Lỗi: ErrNotFound, ErrVersionConflict,
-// ErrInvalidInput, ErrInvalidArticle (gồm khối image mới trỏ tệp không phải ảnh sản phẩm ready của tenant).
+// ErrInvalidInput, ErrInvalidMeasure, ErrInvalidArticle (gồm khối image mới trỏ tệp không phải ảnh sản phẩm ready của
+// tenant).
 func (w Writer) UpdateProduct(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID, version int64, patch ProductPatch,
 	actor identity.AuthUser,
 ) (Product, error) {
@@ -96,7 +105,7 @@ func (w Writer) UpdateProduct(ctx context.Context, tx pgx.Tx, sellerID, id uuid.
 	}
 	in := ProductInput{
 		SellerID: before.SellerID, Code: before.Code, Name: before.Name, Description: before.Description,
-		Status: before.Status,
+		Status: before.Status, Measure: before.Measure,
 	}
 	in.Article, err = json.Marshal(before.Article)
 	if err != nil {
@@ -114,6 +123,9 @@ func (w Writer) UpdateProduct(ctx context.Context, tx pgx.Tx, sellerID, id uuid.
 	if patch.Status != nil {
 		in.Status = *patch.Status
 	}
+	if patch.Measure != nil {
+		in.Measure = *patch.Measure
+	}
 	after, stored, err := newProduct(in)
 	if err != nil {
 		return Product{}, err
@@ -128,6 +140,7 @@ func (w Writer) UpdateProduct(ctx context.Context, tx pgx.Tx, sellerID, id uuid.
 	after.Version, err = q.UpdateProduct(ctx, store.UpdateProductParams{
 		SellerID: sellerID, ID: id, Version: version, Name: after.Name, NameSearch: textnorm.Fold(after.Name), Description: after.Description,
 		Article: stored, Status: string(after.Status),
+		LengthCm: optInt4(after.Measure.Length), WidthCm: optInt4(after.Measure.Width), HeightCm: optInt4(after.Measure.Height),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Product{}, ErrVersionConflict // không xảy ra khi đã giữ khóa dòng; giữ để an toàn
@@ -200,6 +213,7 @@ func productFromRow(row store.LockProductRow) (Product, error) {
 	return Product{
 		ID: row.ID, SellerID: row.SellerID, Code: row.Code, Name: row.Name, Description: row.Description,
 		Article: blocks, Status: ProductStatus(row.Status), Version: row.Version,
+		Measure: MeasureCm{Length: optIntOf(row.LengthCm), Width: optIntOf(row.WidthCm), Height: optIntOf(row.HeightCm)},
 	}, nil
 }
 
@@ -218,6 +232,8 @@ func newProduct(in ProductInput) (Product, []byte, error) {
 	case !ok, !validLine(name, maxName), !validDescription(in.Description),
 		status != StatusDraft && status != StatusActive && status != StatusDiscontinued:
 		return Product{}, nil, ErrInvalidInput
+	case !in.Measure.valid():
+		return Product{}, nil, ErrInvalidMeasure
 	}
 	blocks, err := article.Validate(in.Article)
 	if err != nil {
@@ -229,8 +245,30 @@ func newProduct(in ProductInput) (Product, []byte, error) {
 	}
 	return Product{
 		SellerID: in.SellerID, Code: code, Name: name, Description: in.Description, Article: blocks,
-		Status: status,
+		Status: status, Measure: in.Measure.clone(),
 	}, stored, nil
+}
+
+// valid: mọi số đo đã nhập nằm trong [MinMeasureCm, MaxMeasureCm].
+func (m MeasureCm) valid() bool {
+	for _, v := range []*int{m.Length, m.Width, m.Height} {
+		if v != nil && (*v < MinMeasureCm || *v > MaxMeasureCm) {
+			return false
+		}
+	}
+	return true
+}
+
+// clone chép ba số (Product không dùng chung con trỏ với dữ liệu vào của bên gọi).
+func (m MeasureCm) clone() MeasureCm {
+	cp := func(v *int) *int {
+		if v == nil {
+			return nil
+		}
+		x := *v
+		return &x
+	}
+	return MeasureCm{Length: cp(m.Length), Width: cp(m.Width), Height: cp(m.Height)}
 }
 
 // normalizeCode viết hoa, bỏ khoảng trắng đầu cuối và kiểm mẫu của mã mẫu, SKU.

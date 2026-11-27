@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
+	"elimaz.com.vn/crm/internal/httpapi/web"
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/db"
@@ -25,6 +26,10 @@ func (h *handler) CreateProduct(ctx context.Context, req *gen.CreateProductReque
 	in := catalog.ProductInput{
 		Code: string(req.Code), Name: req.Name, Description: req.Description.Value, Article: rawArticle(req.Article),
 		Status: catalog.ProductStatus(req.Status.Value),
+	}
+	if req.MeasureCm.Set {
+		m := req.MeasureCm.Value
+		in.Measure = measureIn(m.Length, m.Width, m.Height)
 	}
 	for _, v := range req.Variants {
 		in.Variants = append(in.Variants, catalog.VariantInput{
@@ -86,6 +91,14 @@ func (h *handler) UpdateProduct(ctx context.Context, req *gen.UpdateProductReque
 	if req.Status.Set {
 		s := catalog.ProductStatus(req.Status.Value)
 		patch.Status = &s
+	}
+	if req.MeasureCm.Set {
+		var m catalog.MeasureCm // null: bỏ cả ba số
+		if !req.MeasureCm.Null {
+			v := req.MeasureCm.Value
+			m = measureIn(v.Length, v.Width, v.Height)
+		}
+		patch.Measure = &m
 	}
 	out, err := h.catalogWriteAsDefaultSeller(ctx, http.StatusOK, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) (any, error) {
 		p, err := w.UpdateProduct(ctx, tx, seller, params.ID, req.Version, patch, u)
@@ -241,7 +254,20 @@ func productOut(p catalog.Product, imgs []catalog.Image) (*gen.Product, error) {
 	return &gen.Product{
 		ID: p.ID, Code: p.Code, Name: p.Name, Description: p.Description, Article: blocks, ArticleHtml: html,
 		Status: gen.ProductStatus(p.Status), Version: p.Version, Variants: variants, Images: productImagesOut(imgs),
+		MeasureCm: web.MeasureOut(p.Measure.Length, p.Measure.Width, p.Measure.Height),
 	}, nil
+}
+
+// measureIn đổi số đo của yêu cầu sang catalog (số vắng mặt → nil; catalog kiểm khoảng).
+func measureIn(length, width, height gen.OptInt32) catalog.MeasureCm {
+	opt := func(v gen.OptInt32) *int {
+		if !v.Set {
+			return nil
+		}
+		n := int(v.Value)
+		return &n
+	}
+	return catalog.MeasureCm{Length: opt(length), Width: opt(width), Height: opt(height)}
 }
 
 func articleBlockOut(b catalog.ArticleBlock) gen.ArticleBlock {

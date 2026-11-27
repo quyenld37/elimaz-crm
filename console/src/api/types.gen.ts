@@ -727,7 +727,26 @@ export type CreateProductRequest = {
     description?: string;
     article?: ArticleInput;
     status?: ProductStatus;
+    measureCm?: MeasureCm;
     variants: Array<VariantInput>;
+};
+
+/**
+ * Số đo của mẫu (Task 516): Dài, Rộng, Cao theo cm, số nguyên 1–1000, mỗi số tùy chọn (vắng mặt là chưa nhập). Cùng dạng với measureCm của website (chỉ các số đã nhập)
+ */
+export type MeasureCm = {
+    /**
+     * Dài (cm)
+     */
+    length?: number;
+    /**
+     * Rộng (cm)
+     */
+    width?: number;
+    /**
+     * Cao (cm)
+     */
+    height?: number;
 };
 
 export type UpdateProductRequest = {
@@ -736,6 +755,23 @@ export type UpdateProductRequest = {
     description?: string;
     article?: ArticleInput;
     status?: ProductStatus;
+    /**
+     * Số đo mới của mẫu (cm, mỗi số 1–1000, ngoài khoảng → 422 invalid_input): vắng mặt giữ nguyên; null bỏ cả ba số; một đối tượng đặt đúng các số trong đó (số vắng mặt là bỏ số đó) (Task 516)
+     */
+    measureCm?: {
+        /**
+         * Dài (cm)
+         */
+        length?: number;
+        /**
+         * Rộng (cm)
+         */
+        width?: number;
+        /**
+         * Cao (cm)
+         */
+        height?: number;
+    } | null;
 };
 
 export type AddVariantRequest = {
@@ -825,6 +861,7 @@ export type WebProduct = {
      */
     createdAt?: string;
     version: number;
+    measureCm?: MeasureCm;
 };
 
 export type WebAttr = {
@@ -2047,6 +2084,7 @@ export type Product = {
     readonly articleHtml: string;
     status: ProductStatus;
     version: number;
+    measureCm?: MeasureCm;
     /**
      * Theo thứ tự nhân viên đặt (reorderProductVariants), rồi mã; biến thể mới ở cuối (Task 513)
      */
@@ -6323,6 +6361,7 @@ export type ProductWritable = {
     article: Array<ArticleBlock>;
     status: ProductStatus;
     version: number;
+    measureCm?: MeasureCm;
     /**
      * Theo thứ tự nhân viên đặt (reorderProductVariants), rồi mã; biến thể mới ở cuối (Task 513)
      */

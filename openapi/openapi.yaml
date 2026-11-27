@@ -10202,11 +10202,31 @@ components:
           $ref: "#/components/schemas/ArticleInput"
         status:
           $ref: "#/components/schemas/ProductStatus"
+        measureCm:
+          $ref: "#/components/schemas/MeasureCm"
         variants:
           type: array
           maxItems: 200
           items:
             $ref: "#/components/schemas/VariantInput"
+    MeasureCm:
+      type: object
+      description: >-
+        Số đo của mẫu (Task 516): Dài, Rộng, Cao theo cm, số nguyên 1–1000, mỗi số tùy chọn (vắng mặt là chưa nhập).
+        Cùng dạng với measureCm của website (chỉ các số đã nhập)
+      properties:
+        length:
+          type: integer
+          format: int32
+          description: Dài (cm)
+        width:
+          type: integer
+          format: int32
+          description: Rộng (cm)
+        height:
+          type: integer
+          format: int32
+          description: Cao (cm)
     UpdateProductRequest:
       type: object
       required: [version]
@@ -10225,6 +10245,25 @@ components:
           $ref: "#/components/schemas/ArticleInput"
         status:
           $ref: "#/components/schemas/ProductStatus"
+        measureCm:
+          type: object
+          nullable: true
+          description: >-
+            Số đo mới của mẫu (cm, mỗi số 1–1000, ngoài khoảng → 422 invalid_input): vắng mặt giữ nguyên; null bỏ cả ba
+            số; một đối tượng đặt đúng các số trong đó (số vắng mặt là bỏ số đó) (Task 516)
+          properties:
+            length:
+              type: integer
+              format: int32
+              description: Dài (cm)
+            width:
+              type: integer
+              format: int32
+              description: Rộng (cm)
+            height:
+              type: integer
+              format: int32
+              description: Cao (cm)
     AddVariantRequest:
       type: object
       required: [productVersion, sku, color, size, price]
@@ -10382,6 +10421,8 @@ components:
         version:
           type: integer
           format: int64
+        measureCm:
+          $ref: "#/components/schemas/MeasureCm"
     WebAttr:
       type: object
       required: [name, value, position]
@@ -12439,6 +12480,8 @@ components:
         version:
           type: integer
           format: int64
+        measureCm:
+          $ref: "#/components/schemas/MeasureCm"
         variants:
           type: array
           description: Theo thứ tự nhân viên đặt (reorderProductVariants), rồi mã; biến thể mới ở cuối (Task 513)
