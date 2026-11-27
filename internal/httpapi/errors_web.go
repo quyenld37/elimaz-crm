@@ -37,7 +37,12 @@ const (
 	codeShippingFeeMismatch        = "shipping_fee_mismatch"
 	// Hoàn tất đơn nháp flash sale sau hạn giữ (Task 202): đơn đã hủy draft_expired trong cùng transaction.
 	codeHoldExpired = "hold_expired"
+	// Lượt mua flash sale thiếu hay sai SĐT (Task 203, FS18).
+	codePhoneRequired = "phone_required"
 )
+
+// errPhoneRequired: lượt mua flash sale không có SĐT hợp lệ (cổng đã chặn trước; handler kiểm lại) → 400 phone_required.
+var errPhoneRequired = errors.New("httpapi: lượt mua flash sale thiếu hay sai SĐT")
 
 // webError đổi lỗi nghiệp vụ của vùng đơn website (không có thân chi tiết) sang mã HTTP (Task 456): shop đang tạm dừng
 // nhận đơn web → 503 web_orders_paused (không Retry-After: thời gian mở lại không biết trước); tạm dừng không lý do →
@@ -54,6 +59,7 @@ func webError(err error) (status int, code string, ok bool) {
 		{order.ErrShipUnverified, http.StatusServiceUnavailable, codeRetryLater},
 		// Lượt mua flash sale (Task 201): đơn vị suất đang bị lượt khác khóa → thử lại, không lưu.
 		{order.ErrFlashRetry, http.StatusServiceUnavailable, codeRetryLater},
+		{errPhoneRequired, http.StatusBadRequest, codePhoneRequired},
 		{order.ErrReasonRequired, http.StatusUnprocessableEntity, codeInvalidInput},
 		{order.ErrWindowClosed, http.StatusUnprocessableEntity, codeWindowClosed},
 		{order.ErrQtyExceeded, http.StatusUnprocessableEntity, codeQtyExceeded},

@@ -31693,6 +31693,127 @@ func (s *Server) handleWebDeliveryEstimatesRequest(args [0]string, argsEscaped b
 	}
 }
 
+// handleWebFlashBuyRequest handles webFlashBuy operation.
+//
+// Thứ tự: khóa dịch vụ → giới hạn của khóa → cổng nhận vào flash (giới
+// hạn theo SĐT 10 lượt/10 s và theo IP 30/10 s → 429 too_fast kèm Retry-After; X-Attempt ≤
+// 1 và cờ hết suất bật → 200 {result: sold_out} không lưu, không chạm database; bộ
+// điều tiết theo món và theo shop từ chối → 503 retry_later kèm Retry-After) → khóa
+// chống trùng → transaction mua (order.BuyFlash). Từ X-Attempt 2 (website gửi lại cùng
+// Idempotency-Key khi mất câu trả lời) bỏ qua cờ hết suất để trả lại kết quả
+// đã lưu (QĐ21). Lưu theo khóa: 200 bought (code, externalRef, expiresAt), sold_out, over_limit,
+// not_open. Không lưu: 400 phone_required (thiếu hay sai SĐT), 400 bad_request (thân sai,
+// clientIp sai, X-Attempt ngoài 1–10), 429, 503 (cổng, suất đang bị lượt khác khóa,
+// database tạm bận), 404 (món không có hay không thuộc đợt). Khách mới tạo tên
+// "Khách website", SĐT là danh tính, nguồn web.
+//
+// POST /api/v1/web/flash-sales/{saleId}/items/{itemId}/buy
+func (s *Server) handleWebFlashBuyRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebFlashBuyOperation,
+			ID:   "webFlashBuy",
+		}
+	)
+	params, err := decodeWebFlashBuyParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeWebFlashBuyRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response WebFlashBuyRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebFlashBuyOperation,
+			OperationSummary: "Khách bấm mua một món flash sale (Task 203, M5-20); bốn lớp chắn trước khi chạm database",
+			OperationID:      "webFlashBuy",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+				{
+					Name: "saleId",
+					In:   "path",
+				}: params.SaleId,
+				{
+					Name: "itemId",
+					In:   "path",
+				}: params.ItemId,
+				{
+					Name: "X-Attempt",
+					In:   "header",
+				}: params.XAttempt,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *WebFlashBuyRequest
+			Params   = WebFlashBuyParams
+			Response = WebFlashBuyRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebFlashBuyParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebFlashBuy(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebFlashBuy(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebFlashBuyResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebGetOrderRequest handles webGetOrder operation.
 //
 // Chỉ đơn kênh web; đơn nhập tay, đơn của shop khác → 404 not_found. displayStatus là

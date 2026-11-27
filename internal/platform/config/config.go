@@ -141,6 +141,10 @@ type Config struct {
 	// RateLimitsJSON (api; RATE_LIMITS_JSON, tùy chọn, Task 189) đè số của giới hạn tần suất website; cmd/crm đọc bằng
 	// cache.ParseLimits (sai → không khởi động). Rỗng: cache.DefaultLimits.
 	RateLimitsJSON string
+	// Cổng nhận vào của lượt mua flash sale (api; Task 203, QĐ23): FLASH_ADMIT_PER_SECOND vé/giây mỗi món (100, trong
+	// 1–100000), FLASH_ADMIT_GLOBAL_PER_SECOND vé/giây cả shop (300, 1–100000), FLASH_MAX_INFLIGHT lượt đang xử lý mỗi
+	// tiến trình (64, 1–4096). cmd/crm đưa vào cache.GateOptions; khi Valkey ngừng cổng dùng 50% hai số mỗi giây.
+	FlashAdmitPerSecond, FlashAdmitGlobalPerSecond, FlashMaxInflight int
 
 	// Meta là cấu hình kênh Facebook (M4, Task 143): ingest, api, worker; rỗng với migrate.
 	Meta MetaConfig
@@ -484,6 +488,9 @@ func (r *reader) valkey(cfg *Config) {
 	cfg.ValkeyCacheURL = r.valkeyURL("VALKEY_CACHE_URL")
 	cfg.ValkeyGateURL = r.valkeyURL("VALKEY_GATE_URL")
 	cfg.RateLimitsJSON = r.optional("RATE_LIMITS_JSON")
+	cfg.FlashAdmitPerSecond = r.integer("FLASH_ADMIT_PER_SECOND", 100, 1, 100_000)              //nolint:mnd // QĐ23
+	cfg.FlashAdmitGlobalPerSecond = r.integer("FLASH_ADMIT_GLOBAL_PER_SECOND", 300, 1, 100_000) //nolint:mnd // QĐ23
+	cfg.FlashMaxInflight = r.integer("FLASH_MAX_INFLIGHT", 64, 1, 4096)                         //nolint:mnd // QĐ23
 	if r.optional("VALKEY_CACHE_URL") != "" || r.optional("VALKEY_GATE_URL") != "" {
 		cfg.CacheKeySecret = logging.Secret(r.secret("CACHE_KEY_SECRET"))
 	}

@@ -260,6 +260,8 @@ type Config struct {
 
 	RateLimitsJSON string
 
+	FlashAdmitPerSecond, FlashAdmitGlobalPerSecond, FlashMaxInflight int
+
 	Meta MetaConfig
 
 	ConversationRetentionMonths int

@@ -6191,6 +6191,63 @@ paths:
           $ref: "#/components/responses/RetryLater"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web/flash-sales/{saleId}/items/{itemId}/buy:
+    post:
+      operationId: webFlashBuy
+      summary: Khách bấm mua một món flash sale (Task 203, M5-20); bốn lớp chắn trước khi chạm database
+      description: |
+        Thứ tự: khóa dịch vụ → giới hạn của khóa → cổng nhận vào flash (giới hạn theo SĐT 10 lượt/10 s và theo IP 30/10 s
+        → 429 too_fast kèm Retry-After; X-Attempt ≤ 1 và cờ hết suất bật → 200 {result: sold_out} không lưu, không
+        chạm database; bộ điều tiết theo món và theo shop từ chối → 503 retry_later kèm Retry-After) → khóa chống trùng →
+        transaction mua (order.BuyFlash). Từ X-Attempt 2 (website gửi lại cùng Idempotency-Key khi mất câu trả lời) bỏ
+        qua cờ hết suất để trả lại kết quả đã lưu (QĐ21). Lưu theo khóa: 200 bought (code, externalRef, expiresAt),
+        sold_out, over_limit, not_open. Không lưu: 400 phone_required (thiếu hay sai SĐT), 400 bad_request (thân sai,
+        clientIp sai, X-Attempt ngoài 1–10), 429, 503 (cổng, suất đang bị lượt khác khóa, database tạm bận), 404 (món
+        không có hay không thuộc đợt). Khách mới tạo tên "Khách website", SĐT là danh tính, nguồn web.
+      x-auth: service_key
+      x-permission: web.flash.buy
+      x-admission: flash
+      x-body-limit: 2048
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: saleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: X-Attempt
+          in: header
+          required: false
+          description: Lần gửi của cùng Idempotency-Key (1–10, mặc định 1)
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 10
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebFlashBuyRequest"
+      responses:
+        "200":
+          description: Kết quả cuối của lượt mua (bought, sold_out, over_limit, not_open)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebFlashBuyResult"
+        "503":
+          $ref: "#/components/responses/RetryLater"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/web/orders/changes:
     get:
       operationId: webOrderChanges
@@ -8897,6 +8954,8 @@ components:
         - cannot_cancel
         # Hoàn tất đơn nháp flash sale sau hạn giữ (M5, Task 202)
         - hold_expired
+        # Lượt mua flash sale thiếu hay sai SĐT (M5, Task 203, FS18)
+        - phone_required
         # Hãng/dịch vụ khách chọn trên website (M5, Task 490)
         - shipping_carrier_unavailable
         - shipping_fee_mismatch
@@ -10681,6 +10740,45 @@ components:
         changed:
           type: boolean
           description: Có dòng bán được mà quotedUnitPrice khác giá CRM
+    WebFlashBuyRequest:
+      type: object
+      additionalProperties: false
+      required: [externalRef, phone, qty, clientIp]
+      properties:
+        externalRef:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Mã đơn của website (khóa nghiệp vụ, một đơn cho mỗi mã)
+        phone:
+          type: string
+          maxLength: 32
+          description: SĐT khách (chuẩn hóa về +84…; thiếu hay sai → 400 phone_required)
+        qty:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10
+        clientIp:
+          type: string
+          format: ip
+          description: IP của khách (giới hạn theo IP; IPv6 theo /64)
+    WebFlashBuyResult:
+      type: object
+      required: [result]
+      properties:
+        result:
+          type: string
+          enum: [bought, sold_out, over_limit, not_open]
+        code:
+          type: string
+          description: Mã đơn nháp (chỉ khi bought)
+        externalRef:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+          description: Hạn giữ suất của đơn nháp (chỉ khi bought)
     WebOrderRequest:
       type: object
       additionalProperties: false

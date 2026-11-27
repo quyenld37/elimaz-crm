@@ -1007,6 +1007,35 @@ export type WebQuote = {
     changed: boolean;
 };
 
+export type WebFlashBuyRequest = {
+    /**
+     * Mã đơn của website (khóa nghiệp vụ, một đơn cho mỗi mã)
+     */
+    externalRef: string;
+    /**
+     * SĐT khách (chuẩn hóa về +84…; thiếu hay sai → 400 phone_required)
+     */
+    phone: string;
+    qty: number;
+    /**
+     * IP của khách (giới hạn theo IP; IPv6 theo /64)
+     */
+    clientIp: string;
+};
+
+export type WebFlashBuyResult = {
+    result: 'bought' | 'sold_out' | 'over_limit' | 'not_open';
+    /**
+     * Mã đơn nháp (chỉ khi bought)
+     */
+    code?: string;
+    externalRef?: string;
+    /**
+     * Hạn giữ suất của đơn nháp (chỉ khi bought)
+     */
+    expiresAt?: string;
+};
+
 export type WebOrderRequest = {
     /**
      * Mã đơn của website (khóa nghiệp vụ, một đơn cho mỗi mã)
@@ -14793,6 +14822,48 @@ export type WebUploadRequestFileResponses = {
 };
 
 export type WebUploadRequestFileResponse = WebUploadRequestFileResponses[keyof WebUploadRequestFileResponses];
+
+export type WebFlashBuyData = {
+    body: WebFlashBuyRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Lần gửi của cùng Idempotency-Key (1–10, mặc định 1)
+         */
+        'X-Attempt'?: number;
+    };
+    path: {
+        saleId: string;
+        itemId: string;
+    };
+    query?: never;
+    url: '/api/v1/web/flash-sales/{saleId}/items/{itemId}/buy';
+};
+
+export type WebFlashBuyErrors = {
+    /**
+     * Tạm bận, thử lại sau
+     */
+    503: Error;
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebFlashBuyError = WebFlashBuyErrors[keyof WebFlashBuyErrors];
+
+export type WebFlashBuyResponses = {
+    /**
+     * Kết quả cuối của lượt mua (bought, sold_out, over_limit, not_open)
+     */
+    200: WebFlashBuyResult;
+};
+
+export type WebFlashBuyResponse = WebFlashBuyResponses[keyof WebFlashBuyResponses];
 
 export type WebOrderChangesData = {
     body?: never;

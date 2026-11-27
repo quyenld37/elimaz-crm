@@ -14913,6 +14913,7 @@ func (*ErrorStatusCode) webCreateBirthdayBatchRes()      {}
 func (*ErrorStatusCode) webCreateOrderRes()              {}
 func (*ErrorStatusCode) webCreateRequestRes()            {}
 func (*ErrorStatusCode) webDeliveryEstimatesRes()        {}
+func (*ErrorStatusCode) webFlashBuyRes()                 {}
 func (*ErrorStatusCode) webGetOrderRes()                 {}
 func (*ErrorStatusCode) webHomeBannersRes()              {}
 func (*ErrorStatusCode) webHomeLooksRes()                {}
@@ -36917,6 +36918,7 @@ func (*RetryLaterHeaders) webCancelRequestRes()       {}
 func (*RetryLaterHeaders) webCreateBirthdayBatchRes() {}
 func (*RetryLaterHeaders) webCreateOrderRes()         {}
 func (*RetryLaterHeaders) webCreateRequestRes()       {}
+func (*RetryLaterHeaders) webFlashBuyRes()            {}
 func (*RetryLaterHeaders) webImportBirthdaysRes()     {}
 func (*RetryLaterHeaders) webImportCouponsRes()       {}
 func (*RetryLaterHeaders) webMarkCouponGivenRes()     {}
@@ -49945,6 +49947,164 @@ func (s *WebFeedbackResult) SetID(val uuid.UUID) {
 }
 
 func (*WebFeedbackResult) webSubmitFeedbackRes() {}
+
+// Ref: #/components/schemas/WebFlashBuyRequest
+type WebFlashBuyRequest struct {
+	// Mã đơn của website (khóa nghiệp vụ, một đơn cho mỗi mã).
+	ExternalRef string `json:"externalRef"`
+	// SĐT khách (chuẩn hóa về +84…; thiếu hay sai → 400 phone_required).
+	Phone string `json:"phone"`
+	Qty   int32  `json:"qty"`
+	// IP của khách (giới hạn theo IP; IPv6 theo /64).
+	ClientIp netip.Addr `json:"clientIp"`
+}
+
+// GetExternalRef returns the value of ExternalRef.
+func (s *WebFlashBuyRequest) GetExternalRef() string {
+	return s.ExternalRef
+}
+
+// GetPhone returns the value of Phone.
+func (s *WebFlashBuyRequest) GetPhone() string {
+	return s.Phone
+}
+
+// GetQty returns the value of Qty.
+func (s *WebFlashBuyRequest) GetQty() int32 {
+	return s.Qty
+}
+
+// GetClientIp returns the value of ClientIp.
+func (s *WebFlashBuyRequest) GetClientIp() netip.Addr {
+	return s.ClientIp
+}
+
+// SetExternalRef sets the value of ExternalRef.
+func (s *WebFlashBuyRequest) SetExternalRef(val string) {
+	s.ExternalRef = val
+}
+
+// SetPhone sets the value of Phone.
+func (s *WebFlashBuyRequest) SetPhone(val string) {
+	s.Phone = val
+}
+
+// SetQty sets the value of Qty.
+func (s *WebFlashBuyRequest) SetQty(val int32) {
+	s.Qty = val
+}
+
+// SetClientIp sets the value of ClientIp.
+func (s *WebFlashBuyRequest) SetClientIp(val netip.Addr) {
+	s.ClientIp = val
+}
+
+// Ref: #/components/schemas/WebFlashBuyResult
+type WebFlashBuyResult struct {
+	Result WebFlashBuyResultResult `json:"result"`
+	// Mã đơn nháp (chỉ khi bought).
+	Code        OptString `json:"code"`
+	ExternalRef OptString `json:"externalRef"`
+	// Hạn giữ suất của đơn nháp (chỉ khi bought).
+	ExpiresAt OptDateTime `json:"expiresAt"`
+}
+
+// GetResult returns the value of Result.
+func (s *WebFlashBuyResult) GetResult() WebFlashBuyResultResult {
+	return s.Result
+}
+
+// GetCode returns the value of Code.
+func (s *WebFlashBuyResult) GetCode() OptString {
+	return s.Code
+}
+
+// GetExternalRef returns the value of ExternalRef.
+func (s *WebFlashBuyResult) GetExternalRef() OptString {
+	return s.ExternalRef
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *WebFlashBuyResult) GetExpiresAt() OptDateTime {
+	return s.ExpiresAt
+}
+
+// SetResult sets the value of Result.
+func (s *WebFlashBuyResult) SetResult(val WebFlashBuyResultResult) {
+	s.Result = val
+}
+
+// SetCode sets the value of Code.
+func (s *WebFlashBuyResult) SetCode(val OptString) {
+	s.Code = val
+}
+
+// SetExternalRef sets the value of ExternalRef.
+func (s *WebFlashBuyResult) SetExternalRef(val OptString) {
+	s.ExternalRef = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *WebFlashBuyResult) SetExpiresAt(val OptDateTime) {
+	s.ExpiresAt = val
+}
+
+func (*WebFlashBuyResult) webFlashBuyRes() {}
+
+type WebFlashBuyResultResult string
+
+const (
+	WebFlashBuyResultResultBought    WebFlashBuyResultResult = "bought"
+	WebFlashBuyResultResultSoldOut   WebFlashBuyResultResult = "sold_out"
+	WebFlashBuyResultResultOverLimit WebFlashBuyResultResult = "over_limit"
+	WebFlashBuyResultResultNotOpen   WebFlashBuyResultResult = "not_open"
+)
+
+// AllValues returns all WebFlashBuyResultResult values.
+func (WebFlashBuyResultResult) AllValues() []WebFlashBuyResultResult {
+	return []WebFlashBuyResultResult{
+		WebFlashBuyResultResultBought,
+		WebFlashBuyResultResultSoldOut,
+		WebFlashBuyResultResultOverLimit,
+		WebFlashBuyResultResultNotOpen,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s WebFlashBuyResultResult) MarshalText() ([]byte, error) {
+	switch s {
+	case WebFlashBuyResultResultBought:
+		return []byte(s), nil
+	case WebFlashBuyResultResultSoldOut:
+		return []byte(s), nil
+	case WebFlashBuyResultResultOverLimit:
+		return []byte(s), nil
+	case WebFlashBuyResultResultNotOpen:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *WebFlashBuyResultResult) UnmarshalText(data []byte) error {
+	switch WebFlashBuyResultResult(data) {
+	case WebFlashBuyResultResultBought:
+		*s = WebFlashBuyResultResultBought
+		return nil
+	case WebFlashBuyResultResultSoldOut:
+		*s = WebFlashBuyResultResultSoldOut
+		return nil
+	case WebFlashBuyResultResultOverLimit:
+		*s = WebFlashBuyResultResultOverLimit
+		return nil
+	case WebFlashBuyResultResultNotOpen:
+		*s = WebFlashBuyResultResultNotOpen
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 // Ref: #/components/schemas/WebHomeBanner
 type WebHomeBanner struct {

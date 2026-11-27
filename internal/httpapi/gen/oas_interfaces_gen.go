@@ -1349,6 +1349,10 @@ type WebDeliveryEstimatesRes interface {
 	webDeliveryEstimatesRes()
 }
 
+type WebFlashBuyRes interface {
+	webFlashBuyRes()
+}
+
 type WebGetOrderRes interface {
 	webGetOrderRes()
 }

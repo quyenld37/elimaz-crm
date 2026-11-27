@@ -369,6 +369,7 @@ var Routes = []Route{
 	{Method: "POST", Pattern: "POST /api/v1/web/coupons/{code}/given", OperationID: "webMarkCouponGiven", Permission: "web.coupons.issue", Write: true, IdempotencyMode: "required", Auth: "service_key"},
 	{Method: "POST", Pattern: "POST /api/v1/web/feedback", OperationID: "webSubmitFeedback", Permission: "web.feedback.write", Write: true, IdempotencyMode: "required", Auth: "service_key"},
 	{Method: "POST", Pattern: "POST /api/v1/web/files", OperationID: "webUploadRequestFile", Permission: "web.requests.write", Write: true, IdempotencyMode: "required", Auth: "service_key", BodyLimit: 6291456},
+	{Method: "POST", Pattern: "POST /api/v1/web/flash-sales/{saleId}/items/{itemId}/buy", OperationID: "webFlashBuy", Permission: "web.flash.buy", Write: true, IdempotencyMode: "required", Auth: "service_key", Admission: "flash", BodyLimit: 2048},
 	{Method: "GET", Pattern: "GET /api/v1/web/intake", OperationID: "webIntakeStatus", Permission: "web.catalog.read", Auth: "service_key"},
 	{Method: "GET", Pattern: "GET /api/v1/web/locations", OperationID: "webLocations", Permission: "web.catalog.read", Auth: "service_key"},
 	{Method: "POST", Pattern: "POST /api/v1/web/orders", OperationID: "webCreateOrder", Permission: "web.orders.create", Write: true, IdempotencyMode: "required", Auth: "service_key"},

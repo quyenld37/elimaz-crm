@@ -213,6 +213,14 @@ func releaseClaim(ctx context.Context, d Deps, c idempotency.Claim) {
 // Lỗi khác của fn → lùi, dòng khóa giữ running tới hết 60 s. Yêu cầu không có khóa (route exempt), gọi lần hai, hay
 // tenantID khác tenant của người gọi → ErrNoClaim.
 func WriteTx(ctx context.Context, d Deps, tenantID uuid.UUID, fn func(tx pgx.Tx) (status int, body any, final bool, err error)) error {
+	return WriteTxWith(ctx, d, tenantID, writeTxOptions(d), fn)
+}
+
+// WriteTxWith là WriteTx với tùy chọn transaction o thay cho db.TxAPI (lượt mua flash sale: db.TxFlashBuy, Task 203);
+// mọi luật khác (khóa, lưu, trả lại khóa, lỗi) như WriteTx. d.WriteLockTimeout không áp.
+func WriteTxWith(ctx context.Context, d Deps, tenantID uuid.UUID, o db.TxOptions,
+	fn func(tx pgx.Tx) (status int, body any, final bool, err error),
+) error {
 	st, ok := claimFrom(ctx)
 	switch {
 	case !ok:
@@ -246,7 +254,7 @@ func WriteTx(ctx context.Context, d Deps, tenantID uuid.UUID, fn func(tx pgx.Tx)
 			result = &idempotency.Stored{Status: status, Body: raw}
 		}
 		return nil
-	}, writeTxOptions(d))
+	}, o)
 	switch {
 	case err == nil:
 		st.result = result
