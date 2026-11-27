@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M6 — Báo cáo: Bán chạy</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../../mockups/m1/m1.css">
+<link rel="stylesheet" href="../../mockups/m2/m2.css">
+<link rel="stylesheet" href="../../mockups/m3/m3.css">
+<link rel="stylesheet" href="m6.css">
+</head>
+<body data-page="ban-chay" data-title="Bán chạy">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Báo cáo / Bán chạy</p><h1>Bán chạy</h1><p class="sub">Sản phẩm bán nhiều nhất trong kỳ, theo mã hàng (SKU) hoặc theo mẫu. Hàng khách trả ở cột riêng, không trừ ngược vào kỳ bán.</p></div>
+	<div class="row"><button class="btn btn-quiet">Tải lại</button><button class="btn btn-line" data-ca="xuat-excel">Xuất Excel</button></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI A</p><h2>Tháng này, theo SKU, đơn lên chưa hủy: 50 dòng đầu của 1.200 SKU; tên 120 ký tự</h2></section>
+<div class="stack">
+	<div class="period" role="group" aria-label="Chọn kỳ"><button class="toggle" aria-pressed="false">Hôm nay</button><button class="toggle" aria-pressed="false">Hôm qua</button><button class="toggle" aria-pressed="false">7 ngày</button><button class="toggle" aria-pressed="true">Tháng này</button><button class="toggle" aria-pressed="false">Tùy chọn</button></div>
+	<div class="rep-f">
+		<div class="field"><span>Xem theo</span><div class="row" role="group" aria-label="Xem theo"><button class="toggle" aria-pressed="true" data-ca="theo-sku">SKU</button><button class="toggle" aria-pressed="false" data-ca="theo-mau">Mẫu</button></div></div>
+		<label class="field" data-ca="co-so-chua-huy"><span>Tính trên</span><span class="select-wrap"><select><option>Đơn lên chưa hủy</option><option>Đơn thành công</option></select></span></label>
+	</div>
+	<div class="meta"><span data-ca="loai-ngay">Theo <b>ngày lên đơn</b> · 01/11 – 27/11/2026; hàng khách trả theo <b>ngày nhận trả</b></span><span>Cập nhật lúc <b>14:32:05</b></span></div>
+	<div class="rt-frame scroll-x" data-ca="1200-sku">
+	<table class="rt">
+		<thead><tr><th>#</th><th class="l">SKU</th><th class="l">Tên</th><th class="l">Màu / size</th><th data-ca="so-luong">Số lượng</th><th data-ca="so-don">Số đơn</th><th data-ca="doanh-so">Doanh số</th><th data-ca="khach-tra">Hàng khách trả</th></tr></thead>
+		<tbody>
+		<tr><td>1</td><td class="l">AO-A-DEN-M</td><td class="l"><span class="nm is-wide" data-ca="ten-120" title="Áo sơ mi lụa cổ đức tay bồng phối nơ cổ, dáng suông dài qua hông, chất lụa Hàn mềm mát không nhăn, mặc đi làm, đi chơi ạ">Áo sơ mi lụa cổ đức tay bồng phối nơ cổ, dáng suông dài qua hông, chất lụa Hàn mềm mát không nhăn, mặc đi làm, đi chơi ạ</span></td><td class="l">Đen / M</td><td>148</td><td>139</td><td><span class="money">44.252.000 ₫</span></td><td>6</td></tr>
+		<tr><td>2</td><td class="l">AO-A-TRANG-M</td><td class="l"><span class="nm is-wide" title="Áo sơ mi lụa cổ đức tay bồng phối nơ cổ, dáng suông dài qua hông, chất lụa Hàn mềm mát không nhăn, mặc đi làm, đi chơi ạ">Áo sơ mi lụa cổ đức tay bồng phối nơ cổ, dáng suông dài qua hông, chất lụa Hàn mềm mát không nhăn, mặc đi làm, đi chơi ạ</span></td><td class="l">Trắng / M</td><td>121</td><td>117</td><td><span class="money">36.179.000 ₫</span></td><td>3</td></tr>
+		<tr><td>3</td><td class="l">QUAN-B-BE-S</td><td class="l"><span class="nm is-wide">Quần ống suông cạp cao</span></td><td class="l">Be / S</td><td>87</td><td>85</td><td><span class="money">23.403.000 ₫</span></td><td>0</td></tr>
+		<tr><td>4</td><td class="l">VAY-C-XANH-L</td><td class="l"><span class="nm is-wide">Váy midi xếp ly</span></td><td class="l">Xanh rêu / L</td><td>64</td><td>64</td><td><span class="money">22.336.000 ₫</span></td><td>2</td></tr>
+		<tr><td colspan="8" class="l muted">… dòng 5 – 50</td></tr>
+		</tbody>
+	</table>
+	</div>
+	<div class="more" data-ca="50-dong xem-them-500"><span>Đang hiện 50 dòng đầu / 1.200 SKU có bán trong kỳ</span><button class="btn btn-quiet">Xem thêm (tới 500 dòng)</button></div>
+	<p class="small muted" data-ca="chu-thich-doanh-so">Doanh số = tiền hàng sau giảm giá, chưa gồm ship; chưa phải doanh thu kế toán.</p>
+</div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Theo mẫu, đơn lên chưa hủy (kịch bản chín đơn); đã xem tới 500 dòng</h2></section>
+<div class="stack">
+	<div class="rep-f">
+		<div class="field"><span>Xem theo</span><div class="row" role="group" aria-label="Xem theo"><button class="toggle" aria-pressed="false">SKU</button><button class="toggle" aria-pressed="true">Mẫu</button></div></div>
+		<label class="field"><span>Tính trên</span><span class="select-wrap"><select><option>Đơn lên chưa hủy</option><option data-ca="co-so-thanh-cong">Đơn thành công</option></select></span></label>
+	</div>
+	<div class="meta"><span>Theo <b>ngày lên đơn</b> · 27/11/2026 (kịch bản chín đơn: 7 đơn chưa hủy). Chọn "Đơn thành công" thì tính theo <b>ngày hoàn tất</b>.</span></div>
+	<div class="rt-frame scroll-x" data-ca="thu-tu-mau"><table class="rt">
+		<thead><tr><th>#</th><th class="l">Mẫu</th><th>Số lượng</th><th>Số đơn</th><th>Doanh số</th><th>Hàng khách trả</th></tr></thead>
+		<tbody>
+		<tr><td>1</td><td class="l"><span class="nm is-wide">Áo A</span></td><td>7</td><td>4</td><td><span class="money">1.050.000 ₫</span></td><td>1</td></tr>
+		<tr><td>2</td><td class="l"><span class="nm is-wide">Quần B</span></td><td>2</td><td>2</td><td><span class="money">500.000 ₫</span></td><td>0</td></tr>
+		<tr><td>3</td><td class="l"><span class="nm is-wide">Váy C</span></td><td>2</td><td>1</td><td><span class="money">360.000 ₫</span></td><td>0</td></tr>
+		</tbody>
+	</table></div>
+	<div class="more" data-ca="toi-da-500"><span>Đang hiện 500 dòng (tối đa trên màn hình). Tệp Excel có đủ mọi dòng.</span><button class="btn btn-line">Xuất Excel</button></div>
+	<p class="xs muted">Xếp theo số lượng giảm dần; bằng nhau thì theo doanh số (Quần B trước Váy C). Mức mẫu không có cột SKU, màu, size.</p>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Không có dòng; đang tải; lỗi</h2></section>
+<div class="dlgs">
+	<div class="empty" data-ca="0-dong"><h2>Chưa bán sản phẩm nào trong kỳ</h2><p class="muted">Chọn kỳ khác hoặc đổi sang "Đơn lên chưa hủy".</p></div>
+	<div class="box box-info stack-sm" data-ca="dang-tai"><b>Đang tải số liệu…</b></div>
+	<div class="box box-err stack-sm" data-ca="loi-tai"><b>Không tải được báo cáo.</b><div class="row"><button class="btn btn-line">Thử lại</button></div></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

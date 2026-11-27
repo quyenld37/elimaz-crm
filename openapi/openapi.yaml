@@ -3187,6 +3187,151 @@ paths:
                 $ref: "#/components/schemas/CouponRedemptionPage"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/flash-sales:
+    get:
+      operationId: listFlashSales
+      summary: 'Đợt flash sale, mới nhất trước; lọc trạng thái (Task 199)'
+      x-permission: promotion.flash.read
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/FlashSaleStatus"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listFlashSales
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashSalePage"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createFlashSale
+      summary: 'Tạo đợt nháp; kết thúc không sau bắt đầu hay dài quá 7 ngày → 422 invalid_flash_window (Task 199)'
+      x-permission: promotion.flash.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FlashSaleInput"
+      responses:
+        "201":
+          description: createFlashSale
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashSale"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/flash-sales/{flashSaleId}:
+    get:
+      operationId: getFlashSale
+      summary: 'Một đợt kèm món (giá thường hiện tại của biến thể) (Task 199)'
+      x-permission: promotion.flash.read
+      parameters:
+        - $ref: "#/components/parameters/FlashSaleID"
+      responses:
+        "200":
+          description: getFlashSale
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashSale"
+        default:
+          $ref: "#/components/responses/Error"
+    patch:
+      operationId: updateFlashSale
+      summary: 'Sửa tên, giờ của đợt nháp khi version khớp (409 version_conflict); không còn nháp → 422 not_editable (Task 199)'
+      x-permission: promotion.flash.manage
+      parameters:
+        - $ref: "#/components/parameters/FlashSaleID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFlashSaleRequest"
+      responses:
+        "200":
+          description: updateFlashSale
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashSale"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/flash-sales/{flashSaleId}/items:
+    post:
+      operationId: addFlashItem
+      summary: 'Thêm món vào đợt nháp: biến thể bán được (422 variant_not_for_sale), giá flash thấp hơn giá thường (422 not_a_discount), một biến thể một lần (422 already_exists) (Task 199)'
+      x-permission: promotion.flash.manage
+      parameters:
+        - $ref: "#/components/parameters/FlashSaleID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FlashItemInput"
+      responses:
+        "201":
+          description: addFlashItem
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashItem"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/flash-sales/{flashSaleId}/items/{flashItemId}:
+    patch:
+      operationId: updateFlashItem
+      summary: 'Sửa giá, số suất, giới hạn mỗi khách, phút giữ của món khi version của món khớp; đợt không còn nháp → 422 not_editable (Task 199)'
+      x-permission: promotion.flash.manage
+      parameters:
+        - $ref: "#/components/parameters/FlashSaleID"
+        - $ref: "#/components/parameters/FlashItemID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFlashItemRequest"
+      responses:
+        "200":
+          description: updateFlashItem
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashItem"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: removeFlashItem
+      summary: 'Bỏ món khỏi đợt nháp; trả đợt sau khi bỏ (Task 199)'
+      x-permission: promotion.flash.manage
+      parameters:
+        - $ref: "#/components/parameters/FlashSaleID"
+        - $ref: "#/components/parameters/FlashItemID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: removeFlashItem
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashSale"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/web-campaigns:
     get:
       operationId: listWebCampaigns
@@ -7685,6 +7830,20 @@ components:
       schema:
         type: string
         format: uuid
+    FlashSaleID:
+      name: flashSaleId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    FlashItemID:
+      name: flashItemId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     CampaignID:
       name: campaignId
       in: path
@@ -8081,6 +8240,10 @@ components:
         - another_run_in_progress
         - invalid_gift_settings
         - last_web_carrier
+        # Đợt flash sale (M5, Task 199); trùng biến thể dùng already_exists, biến thể ngừng bán variant_not_for_sale
+        - not_editable
+        - not_a_discount
+        - invalid_flash_window
         # Banner trang chủ (M5, Task 453); ảnh bị từ chối dùng file_rejected
         - too_many_banners
         - invalid_banner
@@ -15792,6 +15955,186 @@ components:
     WebCampaignState:
       type: string
       enum: [draft, enabled, paused]
+    FlashSaleStatus:
+      type: string
+      enum: [draft, scheduled, open, closed]
+      description: Trạng thái đợt; chỉ draft sửa được (lên lịch, mở, đóng ở task sau)
+    FlashSaleInput:
+      type: object
+      additionalProperties: false
+      required: [name, startsAt, endsAt]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+          description: Sau startsAt, cách startsAt tối đa 7 ngày
+    UpdateFlashSaleRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      description: Chỉ gửi trường đổi; trường bỏ trống giữ giá trị hiện tại
+      properties:
+        version:
+          type: integer
+          format: int32
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+    FlashSaleSummary:
+      type: object
+      required: [id, name, startsAt, endsAt, status, version, itemCount, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/FlashSaleStatus"
+        closedReason:
+          type: string
+        version:
+          type: integer
+          format: int32
+        itemCount:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    FlashSale:
+      type: object
+      required: [sale, items]
+      properties:
+        sale:
+          $ref: "#/components/schemas/FlashSaleSummary"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FlashItem"
+    FlashSalePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FlashSaleSummary"
+        nextCursor:
+          type: string
+    FlashItemInput:
+      type: object
+      additionalProperties: false
+      required: [variantId, salePrice, quantity]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        salePrice:
+          $ref: "#/components/schemas/Money"
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 20000
+        perCustomerLimit:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10
+          default: 1
+        holdMinutes:
+          type: integer
+          format: int32
+          minimum: 5
+          maximum: 30
+          default: 10
+          description: Số phút đơn nháp của khách giữ suất trước khi nhả
+    UpdateFlashItemRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      description: Chỉ gửi trường đổi; không đổi được biến thể (bỏ món rồi thêm lại)
+      properties:
+        version:
+          type: integer
+          format: int32
+          minimum: 1
+        salePrice:
+          $ref: "#/components/schemas/Money"
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 20000
+        perCustomerLimit:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10
+        holdMinutes:
+          type: integer
+          format: int32
+          minimum: 5
+          maximum: 30
+    FlashItem:
+      type: object
+      required: [id, variantId, sellerId, sku, name, listPrice, salePrice, quantity, perCustomerLimit, holdMinutes, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        variantId:
+          type: string
+          format: uuid
+        sellerId:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        name:
+          type: string
+          description: Tên bán của biến thể "<mẫu> - <màu> / <cỡ>"
+        listPrice:
+          $ref: "#/components/schemas/Money"
+        salePrice:
+          $ref: "#/components/schemas/Money"
+        quantity:
+          type: integer
+          format: int32
+        perCustomerLimit:
+          type: integer
+          format: int32
+        holdMinutes:
+          type: integer
+          format: int32
+        version:
+          type: integer
+          format: int32
     WebCampaignStatus:
       type: string
       enum: [draft, paused, scheduled, active, ended]

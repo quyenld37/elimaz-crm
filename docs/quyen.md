@@ -21,7 +21,7 @@ trị nhân viên, vai trò, nền tảng là loại `toàn shop`.
 - Quyền quản trị (loại `toàn shop`) hiện có: `identity.users.manage`, `identity.roles.manage`, `platform.jobs.manage`,
   `platform.health.read`, `platform.files.manage`, `audit.read`; chính sách toàn shop của M2: `order.settings.manage`,
   `promotion.manage`; của M3: `fulfillment.carrier_accounts.manage`, `fulfillment.settings.manage`; của M5:
-  `identity.service_keys.manage`, `order.web_intake.manage`, `content.read`, `content.manage`.
+  `identity.service_keys.manage`, `order.web_intake.manage`, `content.read`, `content.manage`, `promotion.flash.manage`.
 - **Quyền `web.*` chỉ khóa dịch vụ giữ** (Task 189, ADR-18): khóa của website (`ek_…`, header `Authorization`) chỉ mang
   các quyền `web.*` được cấp lúc tạo (mã: `identity.ServiceKeyPermissions`, không thuộc `identity.Permissions`); không
   vai trò nhân viên nào nhận được chúng (vai trò tự định nghĩa → `unknown_permission`), và khóa không nhận quyền nào
@@ -129,6 +129,8 @@ Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn đ
 | `order.requests.read` | none | M5 | owner, manager, sale | Xem yêu cầu về đơn của khách (hủy, đổi, trả, câu hỏi), ảnh kèm (link có hạn); nhận báo hiệu yêu cầu mới |
 | `order.requests.manage` | none | M5 | owner, manager, sale | Trả lời khách, ghi chú nội bộ, đổi trạng thái yêu cầu về đơn |
 | `promotion.birthday.manage` | toàn shop | M5 | owner, manager | Cài đặt quà sinh nhật, Tạo mã ngay, đánh dấu Đã nhắn, xuất danh sách khách sinh nhật (xem dùng `promotion.read`) |
+| `promotion.flash.read` | none | M5 | owner, manager | Xem đợt flash sale và món của đợt (Task 199) |
+| `promotion.flash.manage` | toàn shop | M5 | owner, manager | Tạo, sửa đợt flash sale nháp; thêm, sửa, bỏ món (giá flash, số suất, giới hạn mỗi khách, phút giữ) (Task 199) |
 | `content.read` | toàn shop | M5 | owner, manager | Xem banner trang chủ website, trạng thái hiện/ẩn, xem trước (Task 453) |
 | `content.manage` | toàn shop | M5 | owner, manager | Sửa, sắp xếp, bật/tắt banner trang chủ website; tải ảnh banner dùng thêm `files.upload` (Task 453) |
 | `customer.feedback.read` | toàn shop | M5 | owner, manager | Xem góp ý của khách (cả nội dung, liên lạc) và khối góp ý trong hồ sơ khách (Task 455) |

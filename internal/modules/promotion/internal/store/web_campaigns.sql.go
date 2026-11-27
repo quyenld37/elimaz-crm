@@ -140,6 +140,95 @@ func (q *Queries) ExistingProducts(ctx context.Context, arg ExistingProductsPara
 	return items, nil
 }
 
+const insertImportedWebCampaign = `-- name: InsertImportedWebCampaign :one
+INSERT INTO promotion.web_campaigns (id, tenant_id, seller_id, name, percent, scope, allow_coupon, clearance, starts_at,
+                                     ends_at, state, created_by, created_at, updated_at)
+VALUES ($1, NULLIF(current_setting('app.tenant_id', true), '')::uuid, $2, $3, $4, $5,
+        $6, $7, $8, $9, $10, $11, $12, $12)
+ON CONFLICT DO NOTHING
+RETURNING id, seller_id, name, percent, scope, allow_coupon, clearance, starts_at, ends_at, state, link_key, revision,
+          preview_revision, preview_models, preview_variants, created_by, created_at, updated_by, updated_at
+`
+
+type InsertImportedWebCampaignParams struct {
+	ID          uuid.UUID
+	SellerID    uuid.UUID
+	Name        string
+	Percent     int32
+	Scope       string
+	AllowCoupon bool
+	Clearance   bool
+	StartsAt    time.Time
+	EndsAt      time.Time
+	State       string
+	CreatedBy   uuid.UUID
+	CreatedAt   time.Time
+}
+
+type InsertImportedWebCampaignRow struct {
+	ID              uuid.UUID
+	SellerID        uuid.UUID
+	Name            string
+	Percent         int32
+	Scope           string
+	AllowCoupon     bool
+	Clearance       bool
+	StartsAt        time.Time
+	EndsAt          time.Time
+	State           string
+	LinkKey         string
+	Revision        int32
+	PreviewRevision *int32
+	PreviewModels   *int32
+	PreviewVariants *int32
+	CreatedBy       uuid.UUID
+	CreatedAt       time.Time
+	UpdatedBy       *uuid.UUID
+	UpdatedAt       time.Time
+}
+
+// Nhập chiến dịch từ website (Task 467): giữ id, trạng thái (draft/paused), ngày tạo; revision 1. Trùng id hay link_key
+// → 0 dòng (không hỏng tx), bên gọi phân biệt bằng WebCampaignIDExists.
+func (q *Queries) InsertImportedWebCampaign(ctx context.Context, arg InsertImportedWebCampaignParams) (InsertImportedWebCampaignRow, error) {
+	row := q.db.QueryRow(ctx, insertImportedWebCampaign,
+		arg.ID,
+		arg.SellerID,
+		arg.Name,
+		arg.Percent,
+		arg.Scope,
+		arg.AllowCoupon,
+		arg.Clearance,
+		arg.StartsAt,
+		arg.EndsAt,
+		arg.State,
+		arg.CreatedBy,
+		arg.CreatedAt,
+	)
+	var i InsertImportedWebCampaignRow
+	err := row.Scan(
+		&i.ID,
+		&i.SellerID,
+		&i.Name,
+		&i.Percent,
+		&i.Scope,
+		&i.AllowCoupon,
+		&i.Clearance,
+		&i.StartsAt,
+		&i.EndsAt,
+		&i.State,
+		&i.LinkKey,
+		&i.Revision,
+		&i.PreviewRevision,
+		&i.PreviewModels,
+		&i.PreviewVariants,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedBy,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const insertWebCampaign = `-- name: InsertWebCampaign :one
 
 INSERT INTO promotion.web_campaigns (id, tenant_id, seller_id, name, percent, scope, allow_coupon, clearance, starts_at,
@@ -988,6 +1077,18 @@ func (q *Queries) WebCampaignByLinkKey(ctx context.Context, linkKey string) (Web
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const webCampaignIDExists = `-- name: WebCampaignIDExists :one
+SELECT EXISTS (SELECT 1 FROM promotion.web_campaigns WHERE id = $1) AS found
+`
+
+// Chiến dịch id có ở tenant này không (mọi người bán, kể cả đã xóa).
+func (q *Queries) WebCampaignIDExists(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, webCampaignIDExists, id)
+	var found bool
+	err := row.Scan(&found)
+	return found, err
 }
 
 const webCampaignTargets = `-- name: WebCampaignTargets :many

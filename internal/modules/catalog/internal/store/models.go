@@ -1464,6 +1464,24 @@ type IdentityUsersV struct {
 	Status      string
 }
 
+type InventoryFlashSaleUnit struct {
+	ID              uuid.UUID
+	TenantID        uuid.UUID
+	FlashSaleItemID uuid.UUID
+	Status          string
+	OrderItemID     *uuid.UUID
+	UpdatedAt       time.Time
+}
+
+type InventoryFlashUnitsSummaryV struct {
+	TenantID        uuid.UUID
+	FlashSaleItemID uuid.UUID
+	Available       int64
+	Held            int64
+	Sold            int64
+	Released        int64
+}
+
 type InventoryReconcileRun struct {
 	ID         uuid.UUID
 	TenantID   uuid.UUID
@@ -2320,6 +2338,68 @@ type PromotionCouponsV struct {
 	Status           string
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
+}
+
+type PromotionFlashSale struct {
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	Name         string
+	StartsAt     time.Time
+	EndsAt       time.Time
+	Status       string
+	ClosedReason pgtype.Text
+	CreatedBy    uuid.UUID
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	Version      int32
+}
+
+type PromotionFlashSaleClaim struct {
+	TenantID        uuid.UUID
+	FlashSaleItemID uuid.UUID
+	CustomerID      uuid.UUID
+	Quantity        int32
+	UpdatedAt       time.Time
+}
+
+type PromotionFlashSaleItem struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	FlashSaleID      uuid.UUID
+	SellerID         uuid.UUID
+	VariantID        uuid.UUID
+	WarehouseID      uuid.UUID
+	SalePrice        int64
+	Quantity         int32
+	PerCustomerLimit int32
+	HoldMinutes      int32
+	Version          int32
+}
+
+type PromotionFlashSaleItemsV struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	FlashSaleID      uuid.UUID
+	SellerID         uuid.UUID
+	VariantID        uuid.UUID
+	WarehouseID      uuid.UUID
+	SalePrice        int64
+	Quantity         int32
+	PerCustomerLimit int32
+	HoldMinutes      int32
+	Version          int32
+}
+
+type PromotionFlashSalesV struct {
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	Name         string
+	StartsAt     time.Time
+	EndsAt       time.Time
+	Status       string
+	ClosedReason pgtype.Text
+	Version      int32
+	UpdatedAt    time.Time
 }
 
 type PromotionWebCampaign struct {

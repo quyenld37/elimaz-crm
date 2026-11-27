@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M6 — Báo cáo đơn</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../../mockups/m1/m1.css">
+<link rel="stylesheet" href="../../mockups/m2/m2.css">
+<link rel="stylesheet" href="../../mockups/m3/m3.css">
+<link rel="stylesheet" href="m6.css">
+</head>
+<body data-page="don" data-title="Báo cáo đơn">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Báo cáo / Báo cáo đơn</p><h1>Báo cáo đơn</h1><p class="sub">Đơn theo trạng thái, nguồn, nhân viên, kênh, Page, hãng hoặc ngày. Tổng của bảng bằng tổng các ô, bằng số dòng của danh sách chi tiết khi bấm vào ô.</p></div>
+	<div class="row"><button class="btn btn-quiet">Tải lại</button><button class="btn btn-line" data-ca="xuat-excel">Xuất Excel</button></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="bc02"><p class="xs">TRẠNG THÁI A · BC02</p><h2>Hôm nay, theo ngày lên đơn, nhóm theo Nhân viên phụ trách; đủ cột, dòng tổng</h2></section>
+
+<div class="stack">
+	<div class="period" role="group" aria-label="Chọn kỳ"><button class="toggle" aria-pressed="true">Hôm nay</button><button class="toggle" aria-pressed="false">Hôm qua</button><button class="toggle" aria-pressed="false">7 ngày</button><button class="toggle" aria-pressed="false">Tháng này</button><button class="toggle" aria-pressed="false">Tùy chọn</button></div>
+	<div class="rep-f">
+		<label class="field" data-ca="co-so-ngay ngay-len-don"><span>Tính theo</span><span class="select-wrap"><select><option>Ngày lên đơn</option><option>Ngày hoàn tất</option></select></span></label>
+		<label class="field" data-ca="nhom-theo 8-chieu"><span>Nhóm theo</span><span class="select-wrap"><select><option>Nhân viên phụ trách</option><option>Trạng thái</option><option>Nguồn</option><option>Người tạo</option><option>Kênh</option><option>Page</option><option>Hãng</option><option>Ngày</option></select></span></label>
+	</div>
+	<div class="chips" data-ca="bo-loc loc-nhieu">
+		<span class="small label">Lọc:</span>
+		<button class="btn btn-quiet">Kênh: tất cả</button>
+		<button class="btn btn-quiet">Nguồn: tất cả</button>
+		<button class="btn btn-quiet">Nhân viên phụ trách: tất cả</button>
+		<button class="btn btn-quiet">Người tạo: tất cả</button>
+		<button class="btn btn-quiet">Page: tất cả</button>
+		<button class="btn btn-quiet">Hãng: tất cả</button>
+	</div>
+	<div class="meta"><span data-ca="loai-ngay">Theo <b>ngày lên đơn</b> · 27/11/2026, giờ Việt Nam</span><span>Cập nhật lúc <b>14:32:05</b></span></div>
+
+	<div class="rt-frame scroll-x" data-ca="cot-day-du">
+	<table class="rt">
+		<thead><tr><th>Nhân viên phụ trách</th><th>Đơn lên</th><th>Doanh số</th><th>Phí ship thu khách</th><th>Giá trị TB</th><th>Hủy</th><th>Thành công</th><th>Hoàn</th><th>Tỷ lệ thành công</th></tr></thead>
+		<tbody>
+		<tr><td><span class="nm">Nguyễn Thị An</span></td><td><button class="cell-n" aria-pressed="true" data-ca="o-bam">4</button></td><td><button class="cell-n money">1.150.000 ₫</button></td><td><span class="money">120.000 ₫</span></td><td><span class="money">287.500 ₫</span></td><td>0</td><td><button class="cell-n">2</button></td><td><button class="cell-n">1</button></td><td>66,67%</td></tr>
+		<tr><td><span class="nm" data-ca="ten-nv-dai" title="Trần Nguyễn Hoàng Bảo Bình — trưởng ca live tối thứ Bảy và Chủ nhật, phụ trách Page ELIMAZ Công Sở và Page ELIMAZ Dạo Phố">Trần Nguyễn Hoàng Bảo Bình — trưởng ca live tối thứ Bảy và Chủ nhật, phụ trách Page ELIMAZ Công Sở và Page ELIMAZ Dạo Phố</span></td><td><button class="cell-n">3</button></td><td><button class="cell-n money">400.000 ₫</button></td><td><span class="money">0 ₫</span></td><td><span class="money">200.000 ₫</span></td><td><button class="cell-n">1</button></td><td>0</td><td>0</td><td>—</td></tr>
+		<tr data-ca="chua-phan-cong"><td><span class="nm muted">Chưa phân công</span></td><td><button class="cell-n">1</button></td><td><button class="cell-n money">360.000 ₫</button></td><td><span class="money">30.000 ₫</span></td><td><span class="money">360.000 ₫</span></td><td>0</td><td>0</td><td>0</td><td><span data-ca="ty-le-trong">—</span></td></tr>
+		<tr class="is-total" data-ca="dong-tong"><td>Tổng</td><td>8</td><td><span class="money">1.910.000 ₫</span></td><td><span class="money">150.000 ₫</span></td><td><span class="money">272.857 ₫</span></td><td>1</td><td>2</td><td>1</td><td>66,67%</td></tr>
+		</tbody>
+	</table>
+	</div>
+	<p class="xs muted">Tỷ lệ thành công = thành công ÷ (thành công + hoàn); chưa có đơn kết thúc thì hiện "—". Giá trị TB = doanh số ÷ đơn lên chưa hủy, làm tròn tới đồng. Trên điện thoại bảng cuộn ngang trong khung, cột nhóm đứng yên.</p>
+	<p class="small muted" data-ca="chu-thich-doanh-so">Doanh số = tiền hàng sau giảm giá, chưa gồm ship; chưa phải doanh thu kế toán.</p>
+</div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI B · hành vi (a)</p><h2>Bấm ô "4" của An: ngăn bên phải "4 đơn", đúng bằng số trong ô; điện thoại là trang riêng</h2></section>
+<div class="dd">
+	<div class="stack-sm">
+		<div class="rt-frame scroll-x"><table class="rt"><thead><tr><th>Nhân viên phụ trách</th><th>Đơn lên</th><th>Doanh số</th></tr></thead><tbody>
+			<tr><td><span class="nm">Nguyễn Thị An</span></td><td><button class="cell-n" aria-pressed="true">4</button></td><td><button class="cell-n money">1.150.000 ₫</button></td></tr>
+			<tr><td><span class="nm" title="Trần Nguyễn Hoàng Bảo Bình — trưởng ca live tối thứ Bảy và Chủ nhật, phụ trách Page ELIMAZ Công Sở và Page ELIMAZ Dạo Phố">Trần Nguyễn Hoàng Bảo Bình — trưởng ca live tối thứ Bảy và Chủ nhật, phụ trách Page ELIMAZ Công Sở và Page ELIMAZ Dạo Phố</span></td><td><button class="cell-n">3</button></td><td><button class="cell-n money">400.000 ₫</button></td></tr>
+			<tr><td><span class="nm muted">Chưa phân công</span></td><td><button class="cell-n">1</button></td><td><button class="cell-n money">360.000 ₫</button></td></tr>
+		</tbody></table></div>
+		<p class="mk"><b>Mockup:</b> số của kịch bản chín đơn (Task 227, 230): An O1 O2 O8 O9, Bình O3 O5 O6, chưa phân công O4. Ô đang xem tô đậm. Danh sách chi tiết dùng đúng bộ lọc của bảng cộng điều kiện của ô (cùng một hàm dựng điều kiện), nên số đầu ngăn luôn bằng số trong ô (BC02).</p>
+	</div>
+	<aside class="dd-panel" aria-label="Danh sách chi tiết" data-ca="ngan-chi-tiet trang-chi-tiet-dt">
+		<a class="btn btn-quiet dd-back" href="#">← Báo cáo đơn</a>
+		<div class="dd-h"><div class="grow"><h3 data-ca="tong-bang-o">Nguyễn Thị An · Đơn lên · 4 đơn</h3><p class="xs muted">27/11/2026 · theo ngày lên đơn · không lọc thêm</p></div><button class="ibtn dd-close" aria-label="Đóng">✕</button></div>
+		<div class="rt-frame scroll-x"><table class="rt">
+			<thead><tr><th>Mã đơn</th><th class="l">Mã khách</th><th class="l">Lên lúc</th><th class="l">Trạng thái</th><th class="l">Nguồn</th><th class="l">Hãng</th><th>Tiền hàng</th><th>Ship</th></tr></thead>
+			<tbody>
+			<tr><td><a class="cell-a" href="#">DH0004809</a></td><td class="l">KH0012040</td><td class="l">13:58</td><td class="l">Thành công</td><td class="l">Live trưa P1</td><td class="l">Viettel Post</td><td><span class="money">450.000 ₫</span></td><td><span class="money">30.000 ₫</span></td></tr>
+			<tr><td><a class="cell-a" href="#">DH0004808</a></td><td class="l">KH0011987</td><td class="l">12:40</td><td class="l">Đang yêu cầu hủy</td><td class="l">Live trưa P1</td><td class="l">SPX</td><td><span class="money">150.000 ₫</span></td><td><span class="money">30.000 ₫</span></td></tr>
+			<tr><td><a class="cell-a" href="#">DH0004802</a></td><td class="l">KH0010352</td><td class="l">08:47</td><td class="l">Đã hoàn</td><td class="l">Live trưa P1</td><td class="l">Viettel Post</td><td><span class="money">250.000 ₫</span></td><td><span class="money">30.000 ₫</span></td></tr>
+			<tr><td><a class="cell-a" href="#">DH0004801</a></td><td class="l">KH0009001</td><td class="l">08:10</td><td class="l">Thành công</td><td class="l">Live trưa P1</td><td class="l">Viettel Post</td><td><span class="money">300.000 ₫</span></td><td><span class="money">30.000 ₫</span></td></tr>
+			</tbody>
+		</table></div>
+		<p class="xs muted">Không có tên, SĐT, địa chỉ khách. Bấm mã đơn mở chi tiết đơn.</p>
+	</aside>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Theo ngày hoàn tất: cột Đơn lên, Hủy ẩn; nhóm theo Kênh có "Không xác định"</h2></section>
+<div class="stack">
+	<div class="rep-f">
+		<label class="field" data-ca="ngay-hoan-tat"><span>Tính theo</span><span class="select-wrap"><select><option>Ngày hoàn tất</option><option>Ngày lên đơn</option></select></span></label>
+		<label class="field"><span>Nhóm theo</span><span class="select-wrap"><select><option>Kênh</option></select></span></label>
+	</div>
+	<div class="meta"><span>Theo <b>ngày hoàn tất</b> (giao thành công hoặc hoàn về kho) · 21/11 – 27/11/2026</span></div>
+	<div class="rt-frame scroll-x" data-ca="an-cot-don-len">
+	<table class="rt">
+		<thead><tr><th>Kênh</th><th>Số đơn</th><th>Doanh số (đơn giao xong)</th><th>Thành công</th><th>Hoàn</th><th>Tỷ lệ thành công</th></tr></thead>
+		<tbody>
+		<tr><td>Facebook</td><td><button class="cell-n">62</button></td><td><button class="cell-n money">17.920.000 ₫</button></td><td><button class="cell-n">58</button></td><td><button class="cell-n">4</button></td><td>93,55%</td></tr>
+		<tr><td>Website</td><td><button class="cell-n">12</button></td><td><button class="cell-n money">3.430.000 ₫</button></td><td><button class="cell-n">11</button></td><td><button class="cell-n">1</button></td><td>91,67%</td></tr>
+		<tr><td>Nhập tay</td><td><button class="cell-n">2</button></td><td><button class="cell-n money">530.000 ₫</button></td><td><button class="cell-n">2</button></td><td>0</td><td>100,00%</td></tr>
+		<tr data-ca="khong-xac-dinh"><td>Không xác định</td><td>0</td><td><span class="money">0 ₫</span></td><td>0</td><td>0</td><td>—</td></tr>
+		<tr class="is-total"><td>Tổng</td><td>76</td><td><span class="money">21.880.000 ₫</span></td><td>71</td><td>5</td><td>93,42%</td></tr>
+		</tbody>
+	</table>
+	</div>
+	<p class="xs muted">Theo ngày hoàn tất: tập là đơn giao xong hoặc hoàn trong kỳ; số đơn = thành công + hoàn; doanh số chỉ của đơn giao xong; cột Đơn lên, Hủy ẩn (cột phí ship, giá trị TB vẫn có như A, ảnh vẽ gọn). Đơn thiếu kênh vào "Không xác định", không tự gán vào Facebook.</p>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI D</p><h2>Bộ lọc nhiều lựa chọn đang mở (Page); nhóm theo Ngày, tháng này, tiền 9 chữ số</h2></section>
+<div class="dlgs">
+	<div class="stack-sm">
+		<div class="chips"><button class="btn btn-dark" aria-expanded="true">Page: 1 đã chọn</button><button class="btn btn-quiet">Hãng: GHN, Viettel Post</button><button class="btn btn-text">Bỏ lọc</button></div>
+		<div class="ms" data-ca="loc-page" role="group" aria-label="Lọc theo Page">
+			<label class="check"><input type="checkbox" checked> Page ELIMAZ Công Sở</label>
+			<label class="check"><input type="checkbox"> Page ELIMAZ Dạo Phố — đồ đi chơi, đồ đi biển, váy maxi</label>
+			<label class="check"><input type="checkbox"> Không gắn Page (website, nhập tay)</label>
+			<div class="row" style="justify-content:flex-end;padding:8px 0"><button class="btn btn-quiet">Bỏ chọn</button><button class="btn btn-dark">Áp dụng</button></div>
+		</div>
+		<p class="xs muted">Danh sách Page, nguồn, nhân viên, hãng lấy trong phạm vi người xem. Bộ lọc không có ô gõ chữ.</p>
+	</div>
+	<div class="stack-sm" data-ca="theo-ngay tien-9-so">
+		<div class="rt-frame scroll-x"><table class="rt">
+			<thead><tr><th>Ngày</th><th>Đơn lên</th><th>Doanh số</th><th>Phí ship thu khách</th><th>Tỷ lệ thành công</th></tr></thead>
+			<tbody>
+			<tr><td>27/11</td><td><button class="cell-n">8</button></td><td><button class="cell-n money">1.910.000 ₫</button></td><td><span class="money">150.000 ₫</span></td><td>66,67%</td></tr>
+			<tr><td>26/11</td><td><button class="cell-n">17</button></td><td><button class="cell-n money">5.120.000 ₫</button></td><td><span class="money">255.000 ₫</span></td><td>94,12%</td></tr>
+			<tr><td colspan="5" class="l muted">… 01/11 – 25/11</td></tr>
+			<tr class="is-total"><td>Tổng</td><td>412</td><td><span class="money">123.456.789 ₫</span></td><td><span class="money">6.180.000 ₫</span></td><td>94,86%</td></tr>
+			</tbody>
+		</table></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI E ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI E</p><h2>Một đơn; không có đơn; đang tải; lỗi; chạy nền</h2></section>
+<div class="dlgs">
+	<div class="stack-sm" data-ca="1-don">
+		<div class="rt-frame scroll-x"><table class="rt"><thead><tr><th>Trạng thái</th><th>Đơn lên</th><th>Doanh số</th><th>Tỷ lệ thành công</th></tr></thead><tbody>
+			<tr><td>Chờ xác nhận</td><td><button class="cell-n">1</button></td><td><button class="cell-n money">360.000 ₫</button></td><td>—</td></tr>
+			<tr class="is-total"><td>Tổng</td><td>1</td><td><span class="money">360.000 ₫</span></td><td>—</td></tr>
+		</tbody></table></div>
+	</div>
+	<div class="empty" data-ca="0-don"><h2>Không có đơn khớp bộ lọc</h2><p class="muted">Đổi kỳ, cơ sở ngày hoặc bỏ bớt bộ lọc.</p><button class="btn btn-quiet">Bỏ lọc</button></div>
+	<div class="box box-info stack-sm" data-ca="dang-tai"><b>Đang tải số liệu…</b><p class="small">Bảng trống, không hiện số cũ; đổi nhóm, bộ lọc vẫn được (lần tải cũ bị bỏ).</p></div>
+	<div class="box box-err stack-sm" data-ca="loi-tai"><b>Không tải được báo cáo.</b><div class="row"><button class="btn btn-line">Thử lại</button></div></div>
+	<div class="toast" data-ca="chay-nen" role="status"><span class="grow">Báo cáo nặng, đang chạy nền. Sẽ báo khi xong.</span><a class="btn btn-line" href="tep-xuat.html">Tệp xuất</a></div>
+</div>
+
+<!-- ============ TRẠNG THÁI F ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI F · C5</p><h2>Người chỉ có quyền một Page; không có quyền (403)</h2></section>
+<div class="stack" data-ca="mot-page khong-nut-xuat">
+	<div class="page-h" style="margin:0"><div class="grow"><h2>Báo cáo đơn</h2><p class="sub">Trần Minh Thư · Sale</p></div><div class="row"><button class="btn btn-quiet">Tải lại</button></div></div>
+	<div class="box box-info small"><b>Phạm vi: Page ELIMAZ Công Sở.</b> Bộ lọc Page chỉ có Page này; không gồm đơn website, đơn nhập tay.</div>
+	<div class="rt-frame scroll-x"><table class="rt"><thead><tr><th>Nhân viên phụ trách</th><th>Đơn lên</th><th>Doanh số</th></tr></thead><tbody>
+		<tr><td><span class="nm">Nguyễn Thị An</span></td><td><button class="cell-n">4</button></td><td><button class="cell-n money">1.150.000 ₫</button></td></tr>
+		<tr class="is-total"><td>Tổng</td><td>4</td><td><span class="money">1.150.000 ₫</span></td></tr>
+	</tbody></table></div>
+</div>
+<div class="box box-err stack-sm" style="margin-top:16px" data-ca="khong-quyen-403"><b>Bạn không có quyền xem báo cáo bán hàng.</b><p>Nhờ Chủ shop hoặc Quản lý giao quyền "Xem báo cáo bán hàng".</p></div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

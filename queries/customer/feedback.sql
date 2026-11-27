@@ -48,3 +48,14 @@ LIMIT @lim::int;
 SELECT state, count(*)::int AS n
 FROM customer.feedback
 GROUP BY state;
+
+-- name: ImportFeedback :one
+-- Nhập góp ý cũ của website (Task 467): giữ id, giờ tạo/sửa, trạng thái, ghi chú. id đã có (tenant này hay tenant khác:
+-- id là khóa chính toàn bảng) → 0 dòng, bên gọi phân biệt bằng FeedbackExists.
+INSERT INTO customer.feedback (id, tenant_id, topic, mood, body, name, contact, order_ref, page, device, customer_id,
+                               state, note, created_at, updated_at)
+VALUES (@id, NULLIF(current_setting('app.tenant_id', true), '')::uuid, @topic, sqlc.narg(mood)::int, @body,
+        sqlc.narg(name)::text, sqlc.narg(contact)::text, sqlc.narg(order_ref)::text, sqlc.narg(page)::text,
+        sqlc.narg(device)::text, sqlc.narg(customer_id)::uuid, @state, sqlc.narg(note)::text, @created_at, @updated_at)
+ON CONFLICT (id) DO NOTHING
+RETURNING tenant_id, id;

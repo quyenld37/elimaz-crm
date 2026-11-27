@@ -14468,6 +14468,7 @@ func (*ErrorStatusCode) addCustomerAddressRes()          {}
 func (*ErrorStatusCode) addCustomerIdentityRes()         {}
 func (*ErrorStatusCode) addCustomerNoteRes()             {}
 func (*ErrorStatusCode) addCustomerTagRes()              {}
+func (*ErrorStatusCode) addFlashItemRes()                {}
 func (*ErrorStatusCode) addOrderNoteRes()                {}
 func (*ErrorStatusCode) addVariantRes()                  {}
 func (*ErrorStatusCode) applyCatalogImportRes()          {}
@@ -14510,6 +14511,7 @@ func (*ErrorStatusCode) createCouponBatchRes()           {}
 func (*ErrorStatusCode) createCouponRes()                {}
 func (*ErrorStatusCode) createCustomerRes()              {}
 func (*ErrorStatusCode) createCustomerTagRes()           {}
+func (*ErrorStatusCode) createFlashSaleRes()             {}
 func (*ErrorStatusCode) createLabelBatchRes()            {}
 func (*ErrorStatusCode) createOrderRes()                 {}
 func (*ErrorStatusCode) createProductRes()               {}
@@ -14554,6 +14556,7 @@ func (*ErrorStatusCode) getCustomerRes()                 {}
 func (*ErrorStatusCode) getCustomerTagRuleRes()          {}
 func (*ErrorStatusCode) getCustomerTimelineRes()         {}
 func (*ErrorStatusCode) getFileRes()                     {}
+func (*ErrorStatusCode) getFlashSaleRes()                {}
 func (*ErrorStatusCode) getFulfillmentSettingsRes()      {}
 func (*ErrorStatusCode) getLabelBatchRes()               {}
 func (*ErrorStatusCode) getLiveCommentContextRes()       {}
@@ -14613,6 +14616,7 @@ func (*ErrorStatusCode) listCustomerMergeCandidatesRes() {}
 func (*ErrorStatusCode) listCustomerTagsRes()            {}
 func (*ErrorStatusCode) listCustomersRes()               {}
 func (*ErrorStatusCode) listFeedbackRes()                {}
+func (*ErrorStatusCode) listFlashSalesRes()              {}
 func (*ErrorStatusCode) listFollowUpsRes()               {}
 func (*ErrorStatusCode) listJobsRes()                    {}
 func (*ErrorStatusCode) listLiveCommentsRes()            {}
@@ -14674,6 +14678,7 @@ func (*ErrorStatusCode) remindPendingDraftsRes()         {}
 func (*ErrorStatusCode) removeConversationTagRes()       {}
 func (*ErrorStatusCode) removeCustomerIdentityRes()      {}
 func (*ErrorStatusCode) removeCustomerTagRes()           {}
+func (*ErrorStatusCode) removeFlashItemRes()             {}
 func (*ErrorStatusCode) renderReplyTemplateRes()         {}
 func (*ErrorStatusCode) reorderProductImagesRes()        {}
 func (*ErrorStatusCode) reorderProductVariantsRes()      {}
@@ -14737,6 +14742,8 @@ func (*ErrorStatusCode) updateCustomerAddressRes()       {}
 func (*ErrorStatusCode) updateCustomerRes()              {}
 func (*ErrorStatusCode) updateCustomerTagRes()           {}
 func (*ErrorStatusCode) updateFeedbackRes()              {}
+func (*ErrorStatusCode) updateFlashItemRes()             {}
+func (*ErrorStatusCode) updateFlashSaleRes()             {}
 func (*ErrorStatusCode) updateFulfillmentSettingsRes()   {}
 func (*ErrorStatusCode) updateOrderRes()                 {}
 func (*ErrorStatusCode) updateOrderSettingsRes()         {}
@@ -15624,6 +15631,463 @@ func (s *FileVariantFormat) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Ref: #/components/schemas/FlashItem
+type FlashItem struct {
+	ID        uuid.UUID `json:"id"`
+	VariantId uuid.UUID `json:"variantId"`
+	SellerId  uuid.UUID `json:"sellerId"`
+	Sku       string    `json:"sku"`
+	// Tên bán của biến thể "<mẫu> - <màu> / <cỡ>".
+	Name             string `json:"name"`
+	ListPrice        Money  `json:"listPrice"`
+	SalePrice        Money  `json:"salePrice"`
+	Quantity         int32  `json:"quantity"`
+	PerCustomerLimit int32  `json:"perCustomerLimit"`
+	HoldMinutes      int32  `json:"holdMinutes"`
+	Version          int32  `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *FlashItem) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *FlashItem) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetSellerId returns the value of SellerId.
+func (s *FlashItem) GetSellerId() uuid.UUID {
+	return s.SellerId
+}
+
+// GetSku returns the value of Sku.
+func (s *FlashItem) GetSku() string {
+	return s.Sku
+}
+
+// GetName returns the value of Name.
+func (s *FlashItem) GetName() string {
+	return s.Name
+}
+
+// GetListPrice returns the value of ListPrice.
+func (s *FlashItem) GetListPrice() Money {
+	return s.ListPrice
+}
+
+// GetSalePrice returns the value of SalePrice.
+func (s *FlashItem) GetSalePrice() Money {
+	return s.SalePrice
+}
+
+// GetQuantity returns the value of Quantity.
+func (s *FlashItem) GetQuantity() int32 {
+	return s.Quantity
+}
+
+// GetPerCustomerLimit returns the value of PerCustomerLimit.
+func (s *FlashItem) GetPerCustomerLimit() int32 {
+	return s.PerCustomerLimit
+}
+
+// GetHoldMinutes returns the value of HoldMinutes.
+func (s *FlashItem) GetHoldMinutes() int32 {
+	return s.HoldMinutes
+}
+
+// GetVersion returns the value of Version.
+func (s *FlashItem) GetVersion() int32 {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *FlashItem) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *FlashItem) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetSellerId sets the value of SellerId.
+func (s *FlashItem) SetSellerId(val uuid.UUID) {
+	s.SellerId = val
+}
+
+// SetSku sets the value of Sku.
+func (s *FlashItem) SetSku(val string) {
+	s.Sku = val
+}
+
+// SetName sets the value of Name.
+func (s *FlashItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetListPrice sets the value of ListPrice.
+func (s *FlashItem) SetListPrice(val Money) {
+	s.ListPrice = val
+}
+
+// SetSalePrice sets the value of SalePrice.
+func (s *FlashItem) SetSalePrice(val Money) {
+	s.SalePrice = val
+}
+
+// SetQuantity sets the value of Quantity.
+func (s *FlashItem) SetQuantity(val int32) {
+	s.Quantity = val
+}
+
+// SetPerCustomerLimit sets the value of PerCustomerLimit.
+func (s *FlashItem) SetPerCustomerLimit(val int32) {
+	s.PerCustomerLimit = val
+}
+
+// SetHoldMinutes sets the value of HoldMinutes.
+func (s *FlashItem) SetHoldMinutes(val int32) {
+	s.HoldMinutes = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FlashItem) SetVersion(val int32) {
+	s.Version = val
+}
+
+func (*FlashItem) addFlashItemRes()    {}
+func (*FlashItem) updateFlashItemRes() {}
+
+// Ref: #/components/schemas/FlashItemInput
+type FlashItemInput struct {
+	VariantId        uuid.UUID `json:"variantId"`
+	SalePrice        Money     `json:"salePrice"`
+	Quantity         int32     `json:"quantity"`
+	PerCustomerLimit OptInt32  `json:"perCustomerLimit"`
+	// Số phút đơn nháp của khách giữ suất trước khi nhả.
+	HoldMinutes OptInt32 `json:"holdMinutes"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *FlashItemInput) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetSalePrice returns the value of SalePrice.
+func (s *FlashItemInput) GetSalePrice() Money {
+	return s.SalePrice
+}
+
+// GetQuantity returns the value of Quantity.
+func (s *FlashItemInput) GetQuantity() int32 {
+	return s.Quantity
+}
+
+// GetPerCustomerLimit returns the value of PerCustomerLimit.
+func (s *FlashItemInput) GetPerCustomerLimit() OptInt32 {
+	return s.PerCustomerLimit
+}
+
+// GetHoldMinutes returns the value of HoldMinutes.
+func (s *FlashItemInput) GetHoldMinutes() OptInt32 {
+	return s.HoldMinutes
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *FlashItemInput) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetSalePrice sets the value of SalePrice.
+func (s *FlashItemInput) SetSalePrice(val Money) {
+	s.SalePrice = val
+}
+
+// SetQuantity sets the value of Quantity.
+func (s *FlashItemInput) SetQuantity(val int32) {
+	s.Quantity = val
+}
+
+// SetPerCustomerLimit sets the value of PerCustomerLimit.
+func (s *FlashItemInput) SetPerCustomerLimit(val OptInt32) {
+	s.PerCustomerLimit = val
+}
+
+// SetHoldMinutes sets the value of HoldMinutes.
+func (s *FlashItemInput) SetHoldMinutes(val OptInt32) {
+	s.HoldMinutes = val
+}
+
+// Ref: #/components/schemas/FlashSale
+type FlashSale struct {
+	Sale  FlashSaleSummary `json:"sale"`
+	Items []FlashItem      `json:"items"`
+}
+
+// GetSale returns the value of Sale.
+func (s *FlashSale) GetSale() FlashSaleSummary {
+	return s.Sale
+}
+
+// GetItems returns the value of Items.
+func (s *FlashSale) GetItems() []FlashItem {
+	return s.Items
+}
+
+// SetSale sets the value of Sale.
+func (s *FlashSale) SetSale(val FlashSaleSummary) {
+	s.Sale = val
+}
+
+// SetItems sets the value of Items.
+func (s *FlashSale) SetItems(val []FlashItem) {
+	s.Items = val
+}
+
+func (*FlashSale) createFlashSaleRes() {}
+func (*FlashSale) getFlashSaleRes()    {}
+func (*FlashSale) removeFlashItemRes() {}
+func (*FlashSale) updateFlashSaleRes() {}
+
+// Ref: #/components/schemas/FlashSaleInput
+type FlashSaleInput struct {
+	Name     string    `json:"name"`
+	StartsAt time.Time `json:"startsAt"`
+	// Sau startsAt, cách startsAt tối đa 7 ngày.
+	EndsAt time.Time `json:"endsAt"`
+}
+
+// GetName returns the value of Name.
+func (s *FlashSaleInput) GetName() string {
+	return s.Name
+}
+
+// GetStartsAt returns the value of StartsAt.
+func (s *FlashSaleInput) GetStartsAt() time.Time {
+	return s.StartsAt
+}
+
+// GetEndsAt returns the value of EndsAt.
+func (s *FlashSaleInput) GetEndsAt() time.Time {
+	return s.EndsAt
+}
+
+// SetName sets the value of Name.
+func (s *FlashSaleInput) SetName(val string) {
+	s.Name = val
+}
+
+// SetStartsAt sets the value of StartsAt.
+func (s *FlashSaleInput) SetStartsAt(val time.Time) {
+	s.StartsAt = val
+}
+
+// SetEndsAt sets the value of EndsAt.
+func (s *FlashSaleInput) SetEndsAt(val time.Time) {
+	s.EndsAt = val
+}
+
+// Ref: #/components/schemas/FlashSalePage
+type FlashSalePage struct {
+	Items      []FlashSaleSummary `json:"items"`
+	NextCursor OptString          `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *FlashSalePage) GetItems() []FlashSaleSummary {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *FlashSalePage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *FlashSalePage) SetItems(val []FlashSaleSummary) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *FlashSalePage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*FlashSalePage) listFlashSalesRes() {}
+
+// Trạng thái đợt; chỉ draft sửa được (lên lịch, mở, đóng ở task sau).
+// Ref: #/components/schemas/FlashSaleStatus
+type FlashSaleStatus string
+
+const (
+	FlashSaleStatusDraft     FlashSaleStatus = "draft"
+	FlashSaleStatusScheduled FlashSaleStatus = "scheduled"
+	FlashSaleStatusOpen      FlashSaleStatus = "open"
+	FlashSaleStatusClosed    FlashSaleStatus = "closed"
+)
+
+// AllValues returns all FlashSaleStatus values.
+func (FlashSaleStatus) AllValues() []FlashSaleStatus {
+	return []FlashSaleStatus{
+		FlashSaleStatusDraft,
+		FlashSaleStatusScheduled,
+		FlashSaleStatusOpen,
+		FlashSaleStatusClosed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FlashSaleStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FlashSaleStatusDraft:
+		return []byte(s), nil
+	case FlashSaleStatusScheduled:
+		return []byte(s), nil
+	case FlashSaleStatusOpen:
+		return []byte(s), nil
+	case FlashSaleStatusClosed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FlashSaleStatus) UnmarshalText(data []byte) error {
+	switch FlashSaleStatus(data) {
+	case FlashSaleStatusDraft:
+		*s = FlashSaleStatusDraft
+		return nil
+	case FlashSaleStatusScheduled:
+		*s = FlashSaleStatusScheduled
+		return nil
+	case FlashSaleStatusOpen:
+		*s = FlashSaleStatusOpen
+		return nil
+	case FlashSaleStatusClosed:
+		*s = FlashSaleStatusClosed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/FlashSaleSummary
+type FlashSaleSummary struct {
+	ID           uuid.UUID       `json:"id"`
+	Name         string          `json:"name"`
+	StartsAt     time.Time       `json:"startsAt"`
+	EndsAt       time.Time       `json:"endsAt"`
+	Status       FlashSaleStatus `json:"status"`
+	ClosedReason OptString       `json:"closedReason"`
+	Version      int32           `json:"version"`
+	ItemCount    int32           `json:"itemCount"`
+	CreatedAt    time.Time       `json:"createdAt"`
+	UpdatedAt    time.Time       `json:"updatedAt"`
+}
+
+// GetID returns the value of ID.
+func (s *FlashSaleSummary) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *FlashSaleSummary) GetName() string {
+	return s.Name
+}
+
+// GetStartsAt returns the value of StartsAt.
+func (s *FlashSaleSummary) GetStartsAt() time.Time {
+	return s.StartsAt
+}
+
+// GetEndsAt returns the value of EndsAt.
+func (s *FlashSaleSummary) GetEndsAt() time.Time {
+	return s.EndsAt
+}
+
+// GetStatus returns the value of Status.
+func (s *FlashSaleSummary) GetStatus() FlashSaleStatus {
+	return s.Status
+}
+
+// GetClosedReason returns the value of ClosedReason.
+func (s *FlashSaleSummary) GetClosedReason() OptString {
+	return s.ClosedReason
+}
+
+// GetVersion returns the value of Version.
+func (s *FlashSaleSummary) GetVersion() int32 {
+	return s.Version
+}
+
+// GetItemCount returns the value of ItemCount.
+func (s *FlashSaleSummary) GetItemCount() int32 {
+	return s.ItemCount
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *FlashSaleSummary) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *FlashSaleSummary) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetID sets the value of ID.
+func (s *FlashSaleSummary) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *FlashSaleSummary) SetName(val string) {
+	s.Name = val
+}
+
+// SetStartsAt sets the value of StartsAt.
+func (s *FlashSaleSummary) SetStartsAt(val time.Time) {
+	s.StartsAt = val
+}
+
+// SetEndsAt sets the value of EndsAt.
+func (s *FlashSaleSummary) SetEndsAt(val time.Time) {
+	s.EndsAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FlashSaleSummary) SetStatus(val FlashSaleStatus) {
+	s.Status = val
+}
+
+// SetClosedReason sets the value of ClosedReason.
+func (s *FlashSaleSummary) SetClosedReason(val OptString) {
+	s.ClosedReason = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FlashSaleSummary) SetVersion(val int32) {
+	s.Version = val
+}
+
+// SetItemCount sets the value of ItemCount.
+func (s *FlashSaleSummary) SetItemCount(val int32) {
+	s.ItemCount = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *FlashSaleSummary) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *FlashSaleSummary) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
 }
 
 // Ref: #/components/schemas/FollowUpConfig
@@ -22504,6 +22968,52 @@ func (o OptFeedbackTopic) Get() (v FeedbackTopic, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFeedbackTopic) Or(d FeedbackTopic) FeedbackTopic {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFlashSaleStatus returns new OptFlashSaleStatus with value set to v.
+func NewOptFlashSaleStatus(v FlashSaleStatus) OptFlashSaleStatus {
+	return OptFlashSaleStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFlashSaleStatus is optional FlashSaleStatus.
+type OptFlashSaleStatus struct {
+	Value FlashSaleStatus
+	Set   bool
+}
+
+// IsSet returns true if OptFlashSaleStatus was set.
+func (o OptFlashSaleStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFlashSaleStatus) Reset() {
+	var v FlashSaleStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFlashSaleStatus) SetTo(v FlashSaleStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFlashSaleStatus) Get() (v FlashSaleStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFlashSaleStatus) Or(d FlashSaleStatus) FlashSaleStatus {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -40376,6 +40886,115 @@ func (s *UpdateFeedbackRequest) SetState(val OptFeedbackState) {
 // SetNote sets the value of Note.
 func (s *UpdateFeedbackRequest) SetNote(val OptString) {
 	s.Note = val
+}
+
+// Chỉ gửi trường đổi; không đổi được biến thể (bỏ món rồi thêm lại).
+// Ref: #/components/schemas/UpdateFlashItemRequest
+type UpdateFlashItemRequest struct {
+	Version          int32    `json:"version"`
+	SalePrice        OptMoney `json:"salePrice"`
+	Quantity         OptInt32 `json:"quantity"`
+	PerCustomerLimit OptInt32 `json:"perCustomerLimit"`
+	HoldMinutes      OptInt32 `json:"holdMinutes"`
+}
+
+// GetVersion returns the value of Version.
+func (s *UpdateFlashItemRequest) GetVersion() int32 {
+	return s.Version
+}
+
+// GetSalePrice returns the value of SalePrice.
+func (s *UpdateFlashItemRequest) GetSalePrice() OptMoney {
+	return s.SalePrice
+}
+
+// GetQuantity returns the value of Quantity.
+func (s *UpdateFlashItemRequest) GetQuantity() OptInt32 {
+	return s.Quantity
+}
+
+// GetPerCustomerLimit returns the value of PerCustomerLimit.
+func (s *UpdateFlashItemRequest) GetPerCustomerLimit() OptInt32 {
+	return s.PerCustomerLimit
+}
+
+// GetHoldMinutes returns the value of HoldMinutes.
+func (s *UpdateFlashItemRequest) GetHoldMinutes() OptInt32 {
+	return s.HoldMinutes
+}
+
+// SetVersion sets the value of Version.
+func (s *UpdateFlashItemRequest) SetVersion(val int32) {
+	s.Version = val
+}
+
+// SetSalePrice sets the value of SalePrice.
+func (s *UpdateFlashItemRequest) SetSalePrice(val OptMoney) {
+	s.SalePrice = val
+}
+
+// SetQuantity sets the value of Quantity.
+func (s *UpdateFlashItemRequest) SetQuantity(val OptInt32) {
+	s.Quantity = val
+}
+
+// SetPerCustomerLimit sets the value of PerCustomerLimit.
+func (s *UpdateFlashItemRequest) SetPerCustomerLimit(val OptInt32) {
+	s.PerCustomerLimit = val
+}
+
+// SetHoldMinutes sets the value of HoldMinutes.
+func (s *UpdateFlashItemRequest) SetHoldMinutes(val OptInt32) {
+	s.HoldMinutes = val
+}
+
+// Chỉ gửi trường đổi; trường bỏ trống giữ giá trị hiện tại.
+// Ref: #/components/schemas/UpdateFlashSaleRequest
+type UpdateFlashSaleRequest struct {
+	Version  int32       `json:"version"`
+	Name     OptString   `json:"name"`
+	StartsAt OptDateTime `json:"startsAt"`
+	EndsAt   OptDateTime `json:"endsAt"`
+}
+
+// GetVersion returns the value of Version.
+func (s *UpdateFlashSaleRequest) GetVersion() int32 {
+	return s.Version
+}
+
+// GetName returns the value of Name.
+func (s *UpdateFlashSaleRequest) GetName() OptString {
+	return s.Name
+}
+
+// GetStartsAt returns the value of StartsAt.
+func (s *UpdateFlashSaleRequest) GetStartsAt() OptDateTime {
+	return s.StartsAt
+}
+
+// GetEndsAt returns the value of EndsAt.
+func (s *UpdateFlashSaleRequest) GetEndsAt() OptDateTime {
+	return s.EndsAt
+}
+
+// SetVersion sets the value of Version.
+func (s *UpdateFlashSaleRequest) SetVersion(val int32) {
+	s.Version = val
+}
+
+// SetName sets the value of Name.
+func (s *UpdateFlashSaleRequest) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetStartsAt sets the value of StartsAt.
+func (s *UpdateFlashSaleRequest) SetStartsAt(val OptDateTime) {
+	s.StartsAt = val
+}
+
+// SetEndsAt sets the value of EndsAt.
+func (s *UpdateFlashSaleRequest) SetEndsAt(val OptDateTime) {
+	s.EndsAt = val
 }
 
 // Ghi cả bộ; mọi số > 0, highRateBp 1–10.000 (kiểm ở máy chủ, sai → 422).
