@@ -3,9 +3,9 @@
 -- không khóa dòng có sẵn (ADR-46: sau flash_sale_claims nhóm 10 và flash_sale_units nhóm 11).
 
 -- name: FlashOrderByExternalRef :one
--- Đơn web của mã ngoài external_ref (unique orders_external_ref_key) kèm hạn nháp và món flash của dòng đầu (uuid 0:
--- không phải đơn flash).
-SELECT o.id, o.code, o.draft_expires_at,
+-- Đơn web của mã ngoài external_ref (unique orders_external_ref_key) kèm khách, hạn nháp và món flash của dòng đầu
+-- (uuid 0: không phải đơn flash).
+SELECT o.id, o.code, o.customer_id, o.draft_expires_at,
        coalesce((SELECT i.flash_sale_item_id FROM ord.order_items AS i
                  WHERE i.seller_id = o.seller_id AND i.order_id = o.id ORDER BY i.position LIMIT 1),
                 '00000000-0000-0000-0000-000000000000'::uuid)::uuid AS flash_sale_item_id

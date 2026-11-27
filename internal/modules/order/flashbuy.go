@@ -66,8 +66,8 @@ type FlashBuyResult struct {
 //
 //  1. Kiểm đầu vào (ErrInvalidInput). promotion.GetFlashItemForBuy (không có → promotion.ErrNotFound); đợt không ở
 //     scheduled/open hay Now ngoài [StartsAt, EndsAt) → not_open (QĐ8); Qty > giới hạn mỗi khách → over_limit.
-//  2. Đã có đơn web của ExternalRef: đơn flash của món này → bought với đơn đó (không ghi gì); đơn khác →
-//     ErrDuplicateOrder. Đọc không khóa nguồn web, biến thể (ảnh chụp mã, tên; không bán được → ErrNotForSale).
+//  2. Đã có đơn web của ExternalRef: đơn flash của món này và của CustomerID → bought với đơn đó (không ghi gì); đơn
+//     khác (kể cả đơn của khách khác, Task 520) → ErrDuplicateOrder. Đọc không khóa nguồn web, biến thể (ảnh chụp mã, tên; không bán được → ErrNotForSale).
 //  3. promotion.Claim; vượt giới hạn → đọc lại đơn theo ExternalRef (lượt cùng mã vừa commit), không có → over_limit.
 //  4. inventory.TakeFlashUnits; thiếu → promotion.Unclaim rồi: không còn đơn vị trống nào khác → sold_out; còn (đang bị
 //     tx khác khóa) → ErrFlashRetry.
@@ -98,7 +98,7 @@ func (w Writer) BuyFlash(ctx context.Context, tx pgx.Tx, in FlashBuyInput, a Act
 	if in.Qty > it.PerCustomerLimit {
 		return FlashBuyResult{Result: FlashOverLimit, ExternalRef: in.ExternalRef}, nil
 	}
-	if res, found, err := flashOrderByRef(ctx, tx, it, in.ExternalRef); found || err != nil {
+	if res, found, err := flashOrderByRef(ctx, tx, it, in.CustomerID, in.ExternalRef); found || err != nil {
 		return res, err
 	}
 	src, err := SourceByKey(ctx, tx, SourceKeyWeb)
@@ -134,7 +134,7 @@ func (w Writer) buyFlashLocked(ctx context.Context, tx pgx.Tx, b flashBuy) (Flas
 		return FlashBuyResult{}, fmt.Errorf("giới hạn mỗi khách: %w", err)
 	}
 	if !claimed {
-		if res, found, err := flashOrderByRef(ctx, tx, it, in.ExternalRef); found || err != nil {
+		if res, found, err := flashOrderByRef(ctx, tx, it, in.CustomerID, in.ExternalRef); found || err != nil {
 			return res, err
 		}
 		return FlashBuyResult{Result: FlashOverLimit, ExternalRef: in.ExternalRef}, nil
@@ -188,16 +188,18 @@ func sameRefOrder(ctx context.Context, tx pgx.Tx, b flashBuy) (FlashBuyResult, e
 	if err := promotion.Unclaim(ctx, tx, b.it.ItemID, b.in.CustomerID, b.in.Qty); err != nil {
 		return FlashBuyResult{}, fmt.Errorf("trả giới hạn mỗi khách: %w", err)
 	}
-	res, found, err := flashOrderByRef(ctx, tx, b.it, b.in.ExternalRef)
+	res, found, err := flashOrderByRef(ctx, tx, b.it, b.in.CustomerID, b.in.ExternalRef)
 	if err != nil || found {
 		return res, err
 	}
 	return FlashBuyResult{}, ErrFlashRetry
 }
 
-// flashOrderByRef: đơn web đã có của mã ngoài ref → (bought với đơn đó, true) khi là đơn flash của món it; đơn khác →
-// ErrDuplicateOrder.
-func flashOrderByRef(ctx context.Context, tx pgx.Tx, it promotion.FlashItemForBuy, ref string) (FlashBuyResult, bool, error) {
+// flashOrderByRef: đơn web đã có của mã ngoài ref → (bought với đơn đó, true) khi là đơn flash của món it và của
+// khách customerID; đơn khác (món khác, không phải đơn flash, hay của khách khác — website gửi lại mã đơn với SĐT khác,
+// Task 520) → ErrDuplicateOrder, không trả gì của đơn đó.
+func flashOrderByRef(ctx context.Context, tx pgx.Tx, it promotion.FlashItemForBuy, customerID uuid.UUID, ref string,
+) (FlashBuyResult, bool, error) {
 	r, err := store.New(tx).FlashOrderByExternalRef(ctx, store.FlashOrderByExternalRefParams{
 		SellerID: it.SellerID, ExternalRef: pgtype.Text{String: ref, Valid: true},
 	})
@@ -207,7 +209,7 @@ func flashOrderByRef(ctx context.Context, tx pgx.Tx, it promotion.FlashItemForBu
 	if err != nil {
 		return FlashBuyResult{}, false, fmt.Errorf("đọc đơn flash theo mã ngoài: %w", err)
 	}
-	if r.FlashSaleItemID != it.ItemID {
+	if r.FlashSaleItemID != it.ItemID || r.CustomerID != customerID {
 		return FlashBuyResult{}, false, fmt.Errorf("%w: mã ngoài đã dùng cho đơn khác", ErrDuplicateOrder)
 	}
 	res := FlashBuyResult{Result: FlashBought, OrderID: r.ID, Code: r.Code, ExternalRef: ref}

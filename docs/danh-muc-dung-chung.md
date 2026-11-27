@@ -53,6 +53,8 @@ type AdmissionGate interface {
 
 	SetState(ctx context.Context, tenant, item uuid.UUID, remaining int, soldOut bool) error
 
+	ClearState(ctx context.Context, tenant, item uuid.UUID) error
+
 	Remaining(ctx context.Context, tenant uuid.UUID, items []uuid.UUID) map[uuid.UUID]int
 }
 func NewAdmissionGate(c *Conn, o GateOptions, m *metrics.Registry) AdmissionGate
