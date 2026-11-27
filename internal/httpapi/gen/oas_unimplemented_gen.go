@@ -97,6 +97,16 @@ func (UnimplementedHandler) AddFlashItem(ctx context.Context, req *FlashItemInpu
 	return r, ht.ErrNotImplemented
 }
 
+// AddFlashSlots implements addFlashSlots operation.
+//
+// Thêm suất cho món của đợt đã lên lịch hay đang mở (tổng ≤ 20.000); thiếu
+// hàng → 409 insufficient_stock kèm shortages (Task 200).
+//
+// POST /api/v1/flash-sales/{flashSaleId}/items/{flashItemId}/add-slots
+func (UnimplementedHandler) AddFlashSlots(ctx context.Context, req *FlashAddSlotsRequest, params AddFlashSlotsParams) (r AddFlashSlotsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // AddOrderNote implements addOrderNote operation.
 //
 // Thêm ghi chú nội bộ của đơn (không gửi hãng) (Task M2-24).
@@ -313,6 +323,16 @@ func (UnimplementedHandler) ClaimConversation(ctx context.Context, params ClaimC
 //
 // POST /api/v1/live-comments/{id}/claim
 func (UnimplementedHandler) ClaimLiveComment(ctx context.Context, req *ClaimLiveCommentRequest, params ClaimLiveCommentParams) (r ClaimLiveCommentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CloseFlashSale implements closeFlashSale operation.
+//
+// Đóng đợt đã lên lịch hay đang mở: suất còn trống trả về tồn; đợt nháp
+// hay đã đóng → 409 flash_not_active (Task 200).
+//
+// POST /api/v1/flash-sales/{flashSaleId}/close
+func (UnimplementedHandler) CloseFlashSale(ctx context.Context, params CloseFlashSaleParams) (r CloseFlashSaleRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -805,6 +825,16 @@ func (UnimplementedHandler) ExchangeFacebookOAuth(ctx context.Context, req *Exch
 //
 // POST /api/v1/birthday-customers/export
 func (UnimplementedHandler) ExportBirthdayCustomers(ctx context.Context, req *BirthdayExportRequest, params ExportBirthdayCustomersParams) (r ExportBirthdayCustomersRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FlashSaleLive implements flashSaleLive operation.
+//
+// Số liệu đang chạy của từng món: suất, đơn vị trống, đang giữ, đã bán, đã
+// trả, số khách (Task 200).
+//
+// GET /api/v1/flash-sales/{flashSaleId}/live
+func (UnimplementedHandler) FlashSaleLive(ctx context.Context, params FlashSaleLiveParams) (r FlashSaleLiveRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2632,6 +2662,18 @@ func (UnimplementedHandler) SaveWebCampaign(ctx context.Context, req *SaveWebCam
 //
 // PUT /api/v1/web-carrier-settings
 func (UnimplementedHandler) SaveWebCarrierSettings(ctx context.Context, req *SaveWebCarrierSettingsRequest, params SaveWebCarrierSettingsParams) (r SaveWebCarrierSettingsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ScheduleFlashSale implements scheduleFlashSale operation.
+//
+// Lên lịch đợt nháp khi version khớp: giữ suất mọi món (chứng từ giữ cho
+// đợt); thiếu hàng → 409 insufficient_stock kèm shortages, chồng giờ → 422
+// flash_overlap, không món → 422 flash_sale_empty, đã quá giờ kết thúc → 422 flash_ended
+// (Task 200).
+//
+// POST /api/v1/flash-sales/{flashSaleId}/schedule
+func (UnimplementedHandler) ScheduleFlashSale(ctx context.Context, req *FlashScheduleRequest, params ScheduleFlashSaleParams) (r ScheduleFlashSaleRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

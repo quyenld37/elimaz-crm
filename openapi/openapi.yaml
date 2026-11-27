@@ -3332,6 +3332,86 @@ paths:
                 $ref: "#/components/schemas/FlashSale"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/flash-sales/{flashSaleId}/schedule:
+    post:
+      operationId: scheduleFlashSale
+      summary: 'Lên lịch đợt nháp khi version khớp: giữ suất mọi món (chứng từ giữ cho đợt); thiếu hàng → 409 insufficient_stock kèm shortages, chồng giờ → 422 flash_overlap, không món → 422 flash_sale_empty, đã quá giờ kết thúc → 422 flash_ended (Task 200)'
+      x-permission: promotion.flash.manage
+      parameters:
+        - $ref: "#/components/parameters/FlashSaleID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FlashScheduleRequest"
+      responses:
+        "200":
+          description: scheduleFlashSale
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashSale"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/flash-sales/{flashSaleId}/close:
+    post:
+      operationId: closeFlashSale
+      summary: 'Đóng đợt đã lên lịch hay đang mở: suất còn trống trả về tồn; đợt nháp hay đã đóng → 409 flash_not_active (Task 200)'
+      x-permission: promotion.flash.manage
+      parameters:
+        - $ref: "#/components/parameters/FlashSaleID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: closeFlashSale
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashSale"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/flash-sales/{flashSaleId}/live:
+    get:
+      operationId: flashSaleLive
+      summary: 'Số liệu đang chạy của từng món: suất, đơn vị trống, đang giữ, đã bán, đã trả, số khách (Task 200)'
+      x-permission: promotion.flash.read
+      parameters:
+        - $ref: "#/components/parameters/FlashSaleID"
+      responses:
+        "200":
+          description: flashSaleLive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashLive"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/flash-sales/{flashSaleId}/items/{flashItemId}/add-slots:
+    post:
+      operationId: addFlashSlots
+      summary: 'Thêm suất cho món của đợt đã lên lịch hay đang mở (tổng ≤ 20.000); thiếu hàng → 409 insufficient_stock kèm shortages (Task 200)'
+      x-permission: promotion.flash.manage
+      parameters:
+        - $ref: "#/components/parameters/FlashSaleID"
+        - $ref: "#/components/parameters/FlashItemID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FlashAddSlotsRequest"
+      responses:
+        "200":
+          description: addFlashSlots
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashItem"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/web-campaigns:
     get:
       operationId: listWebCampaigns
@@ -8828,6 +8908,11 @@ components:
         - not_editable
         - not_a_discount
         - invalid_flash_window
+        # Vòng đời đợt flash sale (M5, Task 200); thiếu hàng dùng insufficient_stock (kèm shortages)
+        - flash_overlap
+        - flash_sale_empty
+        - flash_not_active
+        - flash_ended
         # Banner trang chủ (M5, Task 453); ảnh bị từ chối dùng file_rejected
         - too_many_banners
         - invalid_banner
@@ -8942,6 +9027,11 @@ components:
         assignee:
           # Chỉ có ở already_assigned — người đang phụ trách hội thoại (M4, Task 160)
           $ref: "#/components/schemas/Actor"
+        shortages:
+          type: array
+          description: Chỉ có ở insufficient_stock của lên lịch, thêm suất đợt flash sale — mọi món thiếu hàng (Task 200)
+          items:
+            $ref: "#/components/schemas/FlashShortage"
     HealthStatus:
       type: object
       required: [status]
@@ -16730,6 +16820,78 @@ components:
         version:
           type: integer
           format: int32
+    FlashScheduleRequest:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int32
+          minimum: 1
+    FlashAddSlotsRequest:
+      type: object
+      required: [add]
+      properties:
+        add:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 20000
+    FlashLive:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FlashLiveItem"
+    FlashLiveItem:
+      type: object
+      required: [itemId, quantity, available, held, sold, released, buyers]
+      properties:
+        itemId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          format: int32
+          description: Số suất của món
+        available:
+          type: integer
+          format: int32
+          description: Đơn vị còn trống
+        held:
+          type: integer
+          format: int32
+          description: Đơn vị đang giữ cho đơn nháp
+        sold:
+          type: integer
+          format: int32
+        released:
+          type: integer
+          format: int32
+          description: Đơn vị đã trả về tồn khi đóng đợt
+        buyers:
+          type: integer
+          format: int32
+          description: Số khách đã lấy suất của món
+    FlashShortage:
+      type: object
+      required: [variantId, sku, need, sellable]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        need:
+          type: integer
+          format: int32
+          description: Số suất cần giữ
+        sellable:
+          type: integer
+          format: int32
+          description: Số có thể bán hiện tại của biến thể
     WebCampaignStatus:
       type: string
       enum: [draft, paused, scheduled, active, ended]

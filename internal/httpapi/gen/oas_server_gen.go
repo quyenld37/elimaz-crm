@@ -65,6 +65,13 @@ type Handler interface {
 	//
 	// POST /api/v1/flash-sales/{flashSaleId}/items
 	AddFlashItem(ctx context.Context, req *FlashItemInput, params AddFlashItemParams) (AddFlashItemRes, error)
+	// AddFlashSlots implements addFlashSlots operation.
+	//
+	// Thêm suất cho món của đợt đã lên lịch hay đang mở (tổng ≤ 20.000); thiếu
+	// hàng → 409 insufficient_stock kèm shortages (Task 200).
+	//
+	// POST /api/v1/flash-sales/{flashSaleId}/items/{flashItemId}/add-slots
+	AddFlashSlots(ctx context.Context, req *FlashAddSlotsRequest, params AddFlashSlotsParams) (AddFlashSlotsRes, error)
 	// AddOrderNote implements addOrderNote operation.
 	//
 	// Thêm ghi chú nội bộ của đơn (không gửi hãng) (Task M2-24).
@@ -218,6 +225,13 @@ type Handler interface {
 	//
 	// POST /api/v1/live-comments/{id}/claim
 	ClaimLiveComment(ctx context.Context, req *ClaimLiveCommentRequest, params ClaimLiveCommentParams) (ClaimLiveCommentRes, error)
+	// CloseFlashSale implements closeFlashSale operation.
+	//
+	// Đóng đợt đã lên lịch hay đang mở: suất còn trống trả về tồn; đợt nháp
+	// hay đã đóng → 409 flash_not_active (Task 200).
+	//
+	// POST /api/v1/flash-sales/{flashSaleId}/close
+	CloseFlashSale(ctx context.Context, params CloseFlashSaleParams) (CloseFlashSaleRes, error)
 	// CloseReturn implements closeReturn operation.
 	//
 	// Đóng phiếu trả đã nhập kho (Task M2-22).
@@ -560,6 +574,13 @@ type Handler interface {
 	//
 	// POST /api/v1/birthday-customers/export
 	ExportBirthdayCustomers(ctx context.Context, req *BirthdayExportRequest, params ExportBirthdayCustomersParams) (ExportBirthdayCustomersRes, error)
+	// FlashSaleLive implements flashSaleLive operation.
+	//
+	// Số liệu đang chạy của từng món: suất, đơn vị trống, đang giữ, đã bán, đã
+	// trả, số khách (Task 200).
+	//
+	// GET /api/v1/flash-sales/{flashSaleId}/live
+	FlashSaleLive(ctx context.Context, params FlashSaleLiveParams) (FlashSaleLiveRes, error)
 	// GetAttachmentUrl implements getAttachmentUrl operation.
 	//
 	// Đường dẫn có hạn 5 phút tới tệp đính kèm của một tin trong hội thoại (Task
@@ -1829,6 +1850,15 @@ type Handler interface {
 	//
 	// PUT /api/v1/web-carrier-settings
 	SaveWebCarrierSettings(ctx context.Context, req *SaveWebCarrierSettingsRequest, params SaveWebCarrierSettingsParams) (SaveWebCarrierSettingsRes, error)
+	// ScheduleFlashSale implements scheduleFlashSale operation.
+	//
+	// Lên lịch đợt nháp khi version khớp: giữ suất mọi món (chứng từ giữ cho
+	// đợt); thiếu hàng → 409 insufficient_stock kèm shortages, chồng giờ → 422
+	// flash_overlap, không món → 422 flash_sale_empty, đã quá giờ kết thúc → 422 flash_ended
+	// (Task 200).
+	//
+	// POST /api/v1/flash-sales/{flashSaleId}/schedule
+	ScheduleFlashSale(ctx context.Context, req *FlashScheduleRequest, params ScheduleFlashSaleParams) (ScheduleFlashSaleRes, error)
 	// SearchVariants implements searchVariants operation.
 	//
 	// Tìm biến thể của người bán theo barcode (đúng), SKU, mã mẫu (tiền tố), tên

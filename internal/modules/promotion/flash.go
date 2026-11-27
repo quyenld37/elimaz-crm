@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -352,6 +353,11 @@ func flashVariant(ctx context.Context, tx pgx.Tx, q *store.Queries, variantID uu
 
 // lockDraftSale khóa dòng đợt id; không có → ErrNotFound, không nháp → ErrNotEditable.
 func lockDraftSale(ctx context.Context, q *store.Queries, id uuid.UUID) (FlashSale, error) {
+	return lockSale(ctx, q, id, ErrNotEditable, FlashDraft)
+}
+
+// lockSale khóa dòng đợt id; không có → ErrNotFound, trạng thái ngoài statuses → errState.
+func lockSale(ctx context.Context, q *store.Queries, id uuid.UUID, errState error, statuses ...string) (FlashSale, error) {
 	row, err := q.FlashSaleByIDForUpdate(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return FlashSale{}, ErrNotFound
@@ -360,8 +366,8 @@ func lockDraftSale(ctx context.Context, q *store.Queries, id uuid.UUID) (FlashSa
 		return FlashSale{}, fmt.Errorf("khóa đợt flash sale: %w", err)
 	}
 	s := flashSaleFrom(store.FlashSaleByIDRow(row))
-	if s.Status != FlashDraft {
-		return FlashSale{}, ErrNotEditable
+	if !slices.Contains(statuses, s.Status) {
+		return FlashSale{}, errState
 	}
 	return s, nil
 }

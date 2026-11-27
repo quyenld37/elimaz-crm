@@ -66,6 +66,10 @@ export type Error = {
      */
     name?: string;
     assignee?: Actor;
+    /**
+     * Chỉ có ở insufficient_stock của lên lịch, thêm suất đợt flash sale — mọi món thiếu hàng (Task 200)
+     */
+    shortages?: Array<FlashShortage>;
 };
 
 export type HealthStatus = {
@@ -4402,6 +4406,56 @@ export type FlashItem = {
     perCustomerLimit: number;
     holdMinutes: number;
     version: number;
+};
+
+export type FlashScheduleRequest = {
+    version: number;
+};
+
+export type FlashAddSlotsRequest = {
+    add: number;
+};
+
+export type FlashLive = {
+    items: Array<FlashLiveItem>;
+};
+
+export type FlashLiveItem = {
+    itemId: string;
+    /**
+     * Số suất của món
+     */
+    quantity: number;
+    /**
+     * Đơn vị còn trống
+     */
+    available: number;
+    /**
+     * Đơn vị đang giữ cho đơn nháp
+     */
+    held: number;
+    sold: number;
+    /**
+     * Đơn vị đã trả về tồn khi đóng đợt
+     */
+    released: number;
+    /**
+     * Số khách đã lấy suất của món
+     */
+    buyers: number;
+};
+
+export type FlashShortage = {
+    variantId: string;
+    sku: string;
+    /**
+     * Số suất cần giữ
+     */
+    need: number;
+    /**
+     * Số có thể bán hiện tại của biến thể
+     */
+    sellable: number;
 };
 
 /**
@@ -11003,6 +11057,133 @@ export type UpdateFlashItemResponses = {
 };
 
 export type UpdateFlashItemResponse = UpdateFlashItemResponses[keyof UpdateFlashItemResponses];
+
+export type ScheduleFlashSaleData = {
+    body: FlashScheduleRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        flashSaleId: string;
+    };
+    query?: never;
+    url: '/api/v1/flash-sales/{flashSaleId}/schedule';
+};
+
+export type ScheduleFlashSaleErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ScheduleFlashSaleError = ScheduleFlashSaleErrors[keyof ScheduleFlashSaleErrors];
+
+export type ScheduleFlashSaleResponses = {
+    /**
+     * scheduleFlashSale
+     */
+    200: FlashSale;
+};
+
+export type ScheduleFlashSaleResponse = ScheduleFlashSaleResponses[keyof ScheduleFlashSaleResponses];
+
+export type CloseFlashSaleData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        flashSaleId: string;
+    };
+    query?: never;
+    url: '/api/v1/flash-sales/{flashSaleId}/close';
+};
+
+export type CloseFlashSaleErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CloseFlashSaleError = CloseFlashSaleErrors[keyof CloseFlashSaleErrors];
+
+export type CloseFlashSaleResponses = {
+    /**
+     * closeFlashSale
+     */
+    200: FlashSale;
+};
+
+export type CloseFlashSaleResponse = CloseFlashSaleResponses[keyof CloseFlashSaleResponses];
+
+export type FlashSaleLiveData = {
+    body?: never;
+    path: {
+        flashSaleId: string;
+    };
+    query?: never;
+    url: '/api/v1/flash-sales/{flashSaleId}/live';
+};
+
+export type FlashSaleLiveErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type FlashSaleLiveError = FlashSaleLiveErrors[keyof FlashSaleLiveErrors];
+
+export type FlashSaleLiveResponses = {
+    /**
+     * flashSaleLive
+     */
+    200: FlashLive;
+};
+
+export type FlashSaleLiveResponse = FlashSaleLiveResponses[keyof FlashSaleLiveResponses];
+
+export type AddFlashSlotsData = {
+    body: FlashAddSlotsRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        flashSaleId: string;
+        flashItemId: string;
+    };
+    query?: never;
+    url: '/api/v1/flash-sales/{flashSaleId}/items/{flashItemId}/add-slots';
+};
+
+export type AddFlashSlotsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type AddFlashSlotsError = AddFlashSlotsErrors[keyof AddFlashSlotsErrors];
+
+export type AddFlashSlotsResponses = {
+    /**
+     * addFlashSlots
+     */
+    200: FlashItem;
+};
+
+export type AddFlashSlotsResponse = AddFlashSlotsResponses[keyof AddFlashSlotsResponses];
 
 export type ListWebCampaignsData = {
     body?: never;
