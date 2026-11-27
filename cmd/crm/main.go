@@ -241,7 +241,7 @@ func newInbound(reg *metrics.Registry, bus selftest.Publisher, m3 m3Parts, m4 m4
 // gửi gì thật, chỉ khi CRM_ENV khác production) và lệnh của M3 (m3.Commands, gồm hai lệnh vận chuyển của M1
 // fulfillment.create_shipment, fulfillment.refresh_status với hãng giả khi carrier.FakeOn; Task M1-31, M3-04).
 func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtime.Bus, evs *events.Registry,
-	m3 m3Parts, m4 m4Parts, logger *slog.Logger,
+	m3 m3Parts, m4 m4Parts, m6 m6Parts, logger *slog.Logger,
 ) ([]commands.Handler, error) {
 	fs, err := files.NewS3Store(s3Config(cfg))
 	if err != nil {
@@ -277,7 +277,7 @@ func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtim
 	if cfg.Env != "production" {
 		hs = append(hs, selftest.NewCommand(selftest.Loopback{}))
 	}
-	return append(append(hs, m3.Commands...), m4.Commands...), nil
+	return slices.Concat(hs, m3.Commands, m4.Commands, m6.Commands), nil
 }
 
 // runWorker chạy hàng đợi (queue.Worker) với handler của sự kiện nội bộ và dọn dữ liệu, lệnh ra ngoài (Runner, kèm
@@ -306,13 +306,13 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 		cleanup.RegisterTenantCleanup(fn)
 	}
 	// Lịch platform.data_deletion (Task 179): xóa dữ liệu đăng nhập Facebook theo yêu cầu của Meta, không tenant, 60 s.
-	for _, s := range slices.Concat(mods.Schedules, mods.M3.Schedules, mods.M4.Schedules,
+	for _, s := range slices.Concat(mods.Schedules, mods.M3.Schedules, mods.M4.Schedules, mods.M6.Schedules,
 		[]schedules.Schedule{dataDeletionProcessor().Schedule()}) {
 		if err := plan.Define(s); err != nil {
 			return fmt.Errorf("định nghĩa lịch %s: %w", s.Name, err)
 		}
 	}
-	cmds, err := newCommands(cfg, d, reg, hub, mods.Events, mods.M3, mods.M4, logger)
+	cmds, err := newCommands(cfg, d, reg, hub, mods.Events, mods.M3, mods.M4, mods.M6, logger)
 	if err != nil {
 		return err
 	}
@@ -341,7 +341,7 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 		// Áp bản nhập Excel (Task M1-47b): ghi mẫu, biến thể bằng Writer của catalog (sự kiện qua cùng sổ, báo hiệu).
 		catalog.NewImportApplier(catalog.Writer{Events: mods.Events, Queue: queue.NewQueue(), Realtime: hub})),
 		mods.Handlers...)
-	handlers = append(append(handlers, mods.M4.Jobs...), dataDeletionProcessor())
+	handlers = append(append(append(handlers, mods.M4.Jobs...), mods.M6.Jobs...), dataDeletionProcessor())
 	w := queue.NewWorker(d, handlers, queue.WorkerOptions{
 		WorkerID: metrics.ProcessName(cfg.Role) + "/" + uuid.NewString(), // mỗi lần chạy một mã giữ chỗ riêng
 		Metrics:  reg, Logger: logger, Role: string(cfg.Role),
@@ -527,6 +527,7 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 			ServiceKeys: web.keys, RateLimiter: web.limiter, ReadCache: wc.rc, WebOrderLimiter: web.orderLimiter,
 			CouponGuard: web.couponGuard,
 			Channels:    mods.M4.Channels, ChannelKeys: mods.M4.Keys,
+			Reports: reportInteractive(cfg, d, reg),
 		})
 	} else {
 		h, err := ingestHandler(cfg, d, reg, logger)

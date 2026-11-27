@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/modules/promotion"
+	"elimaz.com.vn/crm/internal/modules/reporting"
 	"elimaz.com.vn/crm/internal/platform/background"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
@@ -32,6 +34,8 @@ type modules struct {
 	M3 m3Parts
 	// M4 là phần của hai module M4 (wireM4): bộ adapter kênh, nguồn webhook, handler vào, lệnh, việc nền, lịch, luồng nền.
 	M4 m4Parts
+	// M6 là phần chạy nền của báo cáo (wireM6, Task 228): lệnh chạy nền, việc chụp tồn và dọn, lịch.
+	M6 m6Parts
 }
 
 // newModules dựng sổ sự kiện, gọi đúng một lần Background của ba module M2 customer, order, promotion (kế hoạch M2,
@@ -50,7 +54,9 @@ func newModules(cfg config.Config, d *db.DB, bus realtime.Bus, reg *metrics.Regi
 	if err != nil {
 		return modules{}, err
 	}
-	out := modules{Events: evs, M3: m3, M4: m4}
+	out := modules{Events: evs, M3: m3, M4: m4, M6: wireM6(reporting.Deps{
+		DB: d, Files: fs, Bus: bus, Queue: queue.NewQueue(), Cfg: cfg, Metrics: reg, Now: time.Now,
+	})}
 	consumers := m3.Consumers
 	for _, p := range parts {
 		consumers = append(consumers, p.Consumers...)
