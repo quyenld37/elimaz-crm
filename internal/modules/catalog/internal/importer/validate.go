@@ -17,8 +17,8 @@ import (
 // pricePattern: số nguyên đồng viết liền (350000) hoặc nhóm ba chữ số bằng dấu chấm (350.000).
 var pricePattern = regexp.MustCompile(`^(?:[0-9]+|[0-9]{1,3}(?:\.[0-9]{3})+)$`)
 
-// measurePattern: số đo là số nguyên viết liền (88), không số lẻ.
-var measurePattern = regexp.MustCompile(`^[0-9]{1,4}$`)
+// measurePattern: số đo cm viết liền, tối đa một chữ số thập phân sau dấu phẩy hay dấu chấm (88, 72,5, 72.5).
+var measurePattern = regexp.MustCompile(`^([0-9]{1,4})(?:[.,]([0-9]))?$`)
 
 // line là kết quả đọc một dòng: phần mẫu (product), phần biến thể (variant) và ô nào đã có lỗi.
 type line struct {
@@ -103,9 +103,9 @@ func (v *validator) parse(r xlsx.Row) *line {
 	l.product.CategoryID = v.category(l, cell(ColCategory))
 	l.product.TagIDs = v.tags(l, cell(ColTags))
 	l.product.AttributeValueIDs = v.attributes(l, r)
-	l.product.LengthCm = v.measure(l, ColLengthCm, cell(ColLengthCm))
-	l.product.WidthCm = v.measure(l, ColWidthCm, cell(ColWidthCm))
-	l.product.HeightCm = v.measure(l, ColHeightCm, cell(ColHeightCm))
+	l.product.LengthMm = v.measure(l, ColLengthCm, cell(ColLengthCm))
+	l.product.WidthMm = v.measure(l, ColWidthCm, cell(ColWidthCm))
+	l.product.HeightMm = v.measure(l, ColHeightCm, cell(ColHeightCm))
 	l.keys[ColName], l.keys[ColDescription], l.keys[ColStatus] = l.product.Name, l.product.Description, l.product.Status
 	v.parseVariant(l, cell, required)
 	return l
@@ -175,20 +175,25 @@ func (v *validator) money(l *line, col, s string) (int64, bool) {
 	return 0, false
 }
 
-// measure đọc một ô số đo (rỗng → nil) và ghi giá trị vào khóa so giữa các dòng cùng mã.
+// measure đọc một ô số đo cm (rỗng → nil), trả mm, và ghi mm vào khóa so giữa các dòng cùng mã (72,5 và 72.50 là một).
 func (v *validator) measure(l *line, col, s string) *int {
 	l.keys[col] = s
 	if s == "" {
 		return nil
 	}
-	if measurePattern.MatchString(s) {
-		if n, err := strconv.Atoi(s); err == nil && n >= MinMeasureCm && n <= MaxMeasureCm {
+	if m := measurePattern.FindStringSubmatch(s); m != nil {
+		whole, _ := strconv.Atoi(m[1]) // đã khớp 1–4 chữ số
+		n := whole * 10
+		if m[2] != "" {
+			n += int(m[2][0] - '0')
+		}
+		if n >= MinMeasureMm && n <= MaxMeasureMm {
 			l.keys[col] = strconv.Itoa(n)
 			return &n
 		}
 	}
-	v.fail(l, col, CodeInvalidMeasure, fmt.Sprintf("%s%s không hợp lệ: số nguyên cm từ %d đến %d", col, quoted(s),
-		MinMeasureCm, MaxMeasureCm))
+	v.fail(l, col, CodeInvalidMeasure, col+quoted(s)+" không hợp lệ: cm từ 0,1 đến 1000, tối đa một chữ số thập phân, "+
+		"ví dụ 72,5")
 	return nil
 }
 

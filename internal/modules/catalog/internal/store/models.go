@@ -280,9 +280,9 @@ type CatalogProduct struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	Version     int64
-	LengthCm    pgtype.Int4
-	WidthCm     pgtype.Int4
-	HeightCm    pgtype.Int4
+	LengthMm    pgtype.Int4
+	WidthMm     pgtype.Int4
+	HeightMm    pgtype.Int4
 }
 
 type CatalogProductAttributeValue struct {
@@ -342,9 +342,9 @@ type CatalogProductsV struct {
 	UpdatedAt   time.Time
 	Version     int64
 	CreatedAt   time.Time
-	LengthCm    pgtype.Int4
-	WidthCm     pgtype.Int4
-	HeightCm    pgtype.Int4
+	LengthMm    pgtype.Int4
+	WidthMm     pgtype.Int4
+	HeightMm    pgtype.Int4
 }
 
 type CatalogSeller struct {

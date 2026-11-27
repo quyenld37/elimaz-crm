@@ -605,34 +605,34 @@ describe("ProductEdit — bài viết (Task 326)", () => {
   });
 });
 
-describe("ProductEdit — số đo (Task 516)", () => {
-  it("hiện số đo đã lưu; đổi Cao, xóa Dài → updateProduct gửi measureCm đúng các số còn lại", async () => {
-    product = { ...product, measureCm: { length: 88, width: 20 } };
+describe("ProductEdit — số đo (Task 516, 517)", () => {
+  it("hiện số đo đã lưu (72,5); đổi Cao 3,5, xóa Dài → updateProduct gửi measureCm đúng các số còn lại", async () => {
+    product = { ...product, measureCm: { length: 88, width: 72.5 } };
     renderEdit(mockApi(), `/san-pham/${PID}`);
     await screen.findByRole("heading", { name: NAME_80 });
     expect(valueOf(screen.getByRole("textbox", { name: "Dài (cm)" }))).toBe("88");
-    expect(valueOf(screen.getByRole("textbox", { name: "Rộng (cm)" }))).toBe("20");
+    expect(valueOf(screen.getByRole("textbox", { name: "Rộng (cm)" }))).toBe("72,5");
     expect(valueOf(screen.getByRole("textbox", { name: "Cao (cm)" }))).toBe("");
     typeIn("Dài (cm)", "");
-    typeIn("Cao (cm)", "3");
+    typeIn("Cao (cm)", "3,5");
     vi.mocked(api.updateProduct).mockImplementation(() =>
-      ok({ ...product, measureCm: { width: 20, height: 3 }, version: 6 }),
+      ok({ ...product, measureCm: { width: 72.5, height: 3.5 }, version: 6 }),
     );
     clickSave();
     expect(await sentUpdate()).toEqual({
       version: 5,
-      measureCm: { width: 20, height: 3 },
+      measureCm: { width: 72.5, height: 3.5 },
     });
   });
 
-  it("số đo sai (0, 1001, số lẻ) → không gửi, câu dưới đúng ô", async () => {
+  it("số đo sai (0, 1001, hai số lẻ) → không gửi, câu dưới đúng ô", async () => {
     renderEdit(mockApi(), `/san-pham/${PID}`);
     await screen.findByRole("heading", { name: NAME_80 });
     typeIn("Dài (cm)", "0");
     typeIn("Rộng (cm)", "1001");
-    typeIn("Cao (cm)", "2,5");
+    typeIn("Cao (cm)", "2,55");
     clickSave();
-    expect((await screen.findAllByText("Số nguyên cm từ 1 đến 1.000")).length).toBe(3);
+    expect((await screen.findAllByText("Số cm từ 0,1 đến 1.000, tối đa một số lẻ")).length).toBe(3);
     expect(api.updateProduct).not.toHaveBeenCalled();
     expect(screen.getByRole("textbox", { name: "Dài (cm)" }).getAttribute("aria-invalid")).toBe("true");
   });

@@ -34,7 +34,7 @@ func (q *Queries) BumpProductVersion(ctx context.Context, arg BumpProductVersion
 }
 
 const getProduct = `-- name: GetProduct :one
-SELECT id, seller_id, code, name, description, article, status, version, length_cm, width_cm, height_cm
+SELECT id, seller_id, code, name, description, article, status, version, length_mm, width_mm, height_mm
 FROM catalog.products
 WHERE seller_id = $1 AND id = $2 AND deleted_at IS NULL
 `
@@ -53,9 +53,9 @@ type GetProductRow struct {
 	Article     []byte
 	Status      string
 	Version     int64
-	LengthCm    pgtype.Int4
-	WidthCm     pgtype.Int4
-	HeightCm    pgtype.Int4
+	LengthMm    pgtype.Int4
+	WidthMm     pgtype.Int4
+	HeightMm    pgtype.Int4
 }
 
 func (q *Queries) GetProduct(ctx context.Context, arg GetProductParams) (GetProductRow, error) {
@@ -70,9 +70,9 @@ func (q *Queries) GetProduct(ctx context.Context, arg GetProductParams) (GetProd
 		&i.Article,
 		&i.Status,
 		&i.Version,
-		&i.LengthCm,
-		&i.WidthCm,
-		&i.HeightCm,
+		&i.LengthMm,
+		&i.WidthMm,
+		&i.HeightMm,
 	)
 	return i, err
 }
@@ -150,7 +150,7 @@ func (q *Queries) InsertProduct(ctx context.Context, arg InsertProductParams) (I
 }
 
 const lockProduct = `-- name: LockProduct :one
-SELECT id, seller_id, code, name, description, article, status, version, length_cm, width_cm, height_cm
+SELECT id, seller_id, code, name, description, article, status, version, length_mm, width_mm, height_mm
 FROM catalog.products
 WHERE seller_id = $1 AND id = $2 AND deleted_at IS NULL
 FOR UPDATE
@@ -170,9 +170,9 @@ type LockProductRow struct {
 	Article     []byte
 	Status      string
 	Version     int64
-	LengthCm    pgtype.Int4
-	WidthCm     pgtype.Int4
-	HeightCm    pgtype.Int4
+	LengthMm    pgtype.Int4
+	WidthMm     pgtype.Int4
+	HeightMm    pgtype.Int4
 }
 
 func (q *Queries) LockProduct(ctx context.Context, arg LockProductParams) (LockProductRow, error) {
@@ -187,9 +187,9 @@ func (q *Queries) LockProduct(ctx context.Context, arg LockProductParams) (LockP
 		&i.Article,
 		&i.Status,
 		&i.Version,
-		&i.LengthCm,
-		&i.WidthCm,
-		&i.HeightCm,
+		&i.LengthMm,
+		&i.WidthMm,
+		&i.HeightMm,
 	)
 	return i, err
 }
@@ -223,14 +223,14 @@ func (q *Queries) SetProductCategory(ctx context.Context, arg SetProductCategory
 
 const setProductMeasure = `-- name: SetProductMeasure :exec
 UPDATE catalog.products
-SET length_cm = $1::int, width_cm = $2::int, height_cm = $3::int
+SET length_mm = $1::int, width_mm = $2::int, height_mm = $3::int
 WHERE seller_id = $4 AND id = $5
 `
 
 type SetProductMeasureParams struct {
-	LengthCm pgtype.Int4
-	WidthCm  pgtype.Int4
-	HeightCm pgtype.Int4
+	LengthMm pgtype.Int4
+	WidthMm  pgtype.Int4
+	HeightMm pgtype.Int4
 	SellerID uuid.UUID
 	ID       uuid.UUID
 }
@@ -239,9 +239,9 @@ type SetProductMeasureParams struct {
 // tạo; sửa số đo sau đó đi qua UpdateProduct.
 func (q *Queries) SetProductMeasure(ctx context.Context, arg SetProductMeasureParams) error {
 	_, err := q.db.Exec(ctx, setProductMeasure,
-		arg.LengthCm,
-		arg.WidthCm,
-		arg.HeightCm,
+		arg.LengthMm,
+		arg.WidthMm,
+		arg.HeightMm,
 		arg.SellerID,
 		arg.ID,
 	)
@@ -251,7 +251,7 @@ func (q *Queries) SetProductMeasure(ctx context.Context, arg SetProductMeasurePa
 const updateProduct = `-- name: UpdateProduct :one
 UPDATE catalog.products
 SET name = $1, name_search = $2, description = $3, article = $4, status = $5,
-    length_cm = $6::int, width_cm = $7::int, height_cm = $8::int,
+    length_mm = $6::int, width_mm = $7::int, height_mm = $8::int,
     version = version + 1, updated_at = now()
 WHERE seller_id = $9 AND id = $10 AND version = $11
 RETURNING version
@@ -263,9 +263,9 @@ type UpdateProductParams struct {
 	Description string
 	Article     []byte
 	Status      string
-	LengthCm    pgtype.Int4
-	WidthCm     pgtype.Int4
-	HeightCm    pgtype.Int4
+	LengthMm    pgtype.Int4
+	WidthMm     pgtype.Int4
+	HeightMm    pgtype.Int4
 	SellerID    uuid.UUID
 	ID          uuid.UUID
 	Version     int64
@@ -278,9 +278,9 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (i
 		arg.Description,
 		arg.Article,
 		arg.Status,
-		arg.LengthCm,
-		arg.WidthCm,
-		arg.HeightCm,
+		arg.LengthMm,
+		arg.WidthMm,
+		arg.HeightMm,
 		arg.SellerID,
 		arg.ID,
 		arg.Version,

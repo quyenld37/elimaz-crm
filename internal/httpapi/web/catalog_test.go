@@ -416,20 +416,20 @@ func TestWebCatalogProducts_Weight(t *testing.T) {
 	}
 }
 
-// Task 516: số đo của mẫu (Dài 88, Rộng 20 đặt qua catalog.Writer) → measureCm {length: 88, width: 20} đúng dạng
-// website (chỉ số đã nhập, không có height); mẫu chưa nhập số nào không có trường measureCm.
+// Task 516, 517: số đo của mẫu (Dài 725 mm, Rộng 1 mm đặt qua catalog.Writer) → measureCm {length: 72.5, width: 0.1}
+// (cm) đúng dạng website (chỉ số đã nhập, không có height); mẫu chưa nhập số nào không có trường measureCm.
 func TestWebCatalogProducts_Measure(t *testing.T) {
 	e := newEnv(t, nil)
 	p := e.product("QUAN01", "[]")
 	plain := e.product("QUAN02", "[]")
-	l, w := 88, 20
+	l, w := 725, 1
 	e.app(func(tx pgx.Tx) error {
 		var ver int64
 		if err := tx.QueryRow(t.Context(), "SELECT version FROM catalog.products_v WHERE product_id = $1", p.ID).Scan(&ver); err != nil {
 			return err //nolint:wrapcheck // test
 		}
 		_, err := e.writer().UpdateProduct(t.Context(), tx, e.seller, p.ID, ver,
-			catalog.ProductPatch{Measure: &catalog.MeasureCm{Length: &l, Width: &w}}, e.owner)
+			catalog.ProductPatch{Measure: &catalog.MeasureMm{Length: &l, Width: &w}}, e.owner)
 		return err //nolint:wrapcheck // test
 	})
 	items := decode(t, e.get(e.key, "/api/v1/web/catalog/products?ids="+p.ID.String()+","+plain.ID.String())).Items
@@ -441,8 +441,8 @@ func TestWebCatalogProducts_Measure(t *testing.T) {
 		switch it["code"] {
 		case "QUAN01":
 			got := obj(m)
-			if len(got) != 2 || got["length"] != float64(88) || got["width"] != float64(20) {
-				t.Fatalf("measureCm %v, mong {length 88, width 20}", m)
+			if len(got) != 2 || got["length"] != 72.5 || got["width"] != 0.1 {
+				t.Fatalf("measureCm %v, mong {length 72.5, width 0.1}", m)
 			}
 		case "QUAN02":
 			if ok {

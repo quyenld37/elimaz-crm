@@ -21222,46 +21222,47 @@ func (s *Me) SetWarnings(val []ScopeWarning) {
 
 func (*Me) getMeRes() {}
 
-// Số đo của mẫu (Task 516): Dài, Rộng, Cao theo cm, số nguyên 1–1000, mỗi số tùy
-// chọn (vắng mặt là chưa nhập). Cùng dạng với measureCm của website (chỉ các số
-// đã nhập).
+// Số đo của mẫu (Task 516, 517): Dài, Rộng, Cao theo cm, 0,1–1000, tối đa một chữ
+// số thập phân (vd 72.5), mỗi số tùy chọn (vắng mặt là chưa nhập). Số ngoài
+// khoảng hay có hơn một chữ số thập phân → 422 invalid_input. Cùng dạng với
+// measureCm của website (chỉ các số đã nhập).
 // Ref: #/components/schemas/MeasureCm
 type MeasureCm struct {
 	// Dài (cm).
-	Length OptInt32 `json:"length"`
+	Length OptFloat64 `json:"length"`
 	// Rộng (cm).
-	Width OptInt32 `json:"width"`
+	Width OptFloat64 `json:"width"`
 	// Cao (cm).
-	Height OptInt32 `json:"height"`
+	Height OptFloat64 `json:"height"`
 }
 
 // GetLength returns the value of Length.
-func (s *MeasureCm) GetLength() OptInt32 {
+func (s *MeasureCm) GetLength() OptFloat64 {
 	return s.Length
 }
 
 // GetWidth returns the value of Width.
-func (s *MeasureCm) GetWidth() OptInt32 {
+func (s *MeasureCm) GetWidth() OptFloat64 {
 	return s.Width
 }
 
 // GetHeight returns the value of Height.
-func (s *MeasureCm) GetHeight() OptInt32 {
+func (s *MeasureCm) GetHeight() OptFloat64 {
 	return s.Height
 }
 
 // SetLength sets the value of Length.
-func (s *MeasureCm) SetLength(val OptInt32) {
+func (s *MeasureCm) SetLength(val OptFloat64) {
 	s.Length = val
 }
 
 // SetWidth sets the value of Width.
-func (s *MeasureCm) SetWidth(val OptInt32) {
+func (s *MeasureCm) SetWidth(val OptFloat64) {
 	s.Width = val
 }
 
 // SetHeight sets the value of Height.
-func (s *MeasureCm) SetHeight(val OptInt32) {
+func (s *MeasureCm) SetHeight(val OptFloat64) {
 	s.Height = val
 }
 
@@ -24272,6 +24273,52 @@ func (o OptFlashSaleStatus) Get() (v FlashSaleStatus, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFlashSaleStatus) Or(d FlashSaleStatus) FlashSaleStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFloat64 returns new OptFloat64 with value set to v.
+func NewOptFloat64(v float64) OptFloat64 {
+	return OptFloat64{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFloat64 is optional float64.
+type OptFloat64 struct {
+	Value float64
+	Set   bool
+}
+
+// IsSet returns true if OptFloat64 was set.
+func (o OptFloat64) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFloat64) Reset() {
+	var v float64
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFloat64) SetTo(v float64) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFloat64) Get() (v float64, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFloat64) Or(d float64) float64 {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -45815,9 +45862,9 @@ type UpdateProductRequest struct {
 	Description OptString        `json:"description"`
 	Article     ArticleInput     `json:"article"`
 	Status      OptProductStatus `json:"status"`
-	// Số đo mới của mẫu (cm, mỗi số 1–1000, ngoài khoảng → 422 invalid_input): vắng
-	// mặt giữ nguyên; null bỏ cả ba số; một đối tượng đặt đúng các số trong
-	// đó (số vắng mặt là bỏ số đó) (Task 516).
+	// Số đo mới của mẫu (cm, mỗi số 0,1–1000, tối đa một chữ số thập phân; sai
+	// → 422 invalid_input): vắng mặt giữ nguyên; null bỏ cả ba số; một đối tượng
+	// đặt đúng các số trong đó (số vắng mặt là bỏ số đó) (Task 516, 517).
 	MeasureCm OptNilUpdateProductRequestMeasureCm `json:"measureCm"`
 }
 
@@ -45881,45 +45928,45 @@ func (s *UpdateProductRequest) SetMeasureCm(val OptNilUpdateProductRequestMeasur
 	s.MeasureCm = val
 }
 
-// Số đo mới của mẫu (cm, mỗi số 1–1000, ngoài khoảng → 422 invalid_input): vắng
-// mặt giữ nguyên; null bỏ cả ba số; một đối tượng đặt đúng các số trong
-// đó (số vắng mặt là bỏ số đó) (Task 516).
+// Số đo mới của mẫu (cm, mỗi số 0,1–1000, tối đa một chữ số thập phân; sai
+// → 422 invalid_input): vắng mặt giữ nguyên; null bỏ cả ba số; một đối tượng
+// đặt đúng các số trong đó (số vắng mặt là bỏ số đó) (Task 516, 517).
 type UpdateProductRequestMeasureCm struct {
 	// Dài (cm).
-	Length OptInt32 `json:"length"`
+	Length OptFloat64 `json:"length"`
 	// Rộng (cm).
-	Width OptInt32 `json:"width"`
+	Width OptFloat64 `json:"width"`
 	// Cao (cm).
-	Height OptInt32 `json:"height"`
+	Height OptFloat64 `json:"height"`
 }
 
 // GetLength returns the value of Length.
-func (s *UpdateProductRequestMeasureCm) GetLength() OptInt32 {
+func (s *UpdateProductRequestMeasureCm) GetLength() OptFloat64 {
 	return s.Length
 }
 
 // GetWidth returns the value of Width.
-func (s *UpdateProductRequestMeasureCm) GetWidth() OptInt32 {
+func (s *UpdateProductRequestMeasureCm) GetWidth() OptFloat64 {
 	return s.Width
 }
 
 // GetHeight returns the value of Height.
-func (s *UpdateProductRequestMeasureCm) GetHeight() OptInt32 {
+func (s *UpdateProductRequestMeasureCm) GetHeight() OptFloat64 {
 	return s.Height
 }
 
 // SetLength sets the value of Length.
-func (s *UpdateProductRequestMeasureCm) SetLength(val OptInt32) {
+func (s *UpdateProductRequestMeasureCm) SetLength(val OptFloat64) {
 	s.Length = val
 }
 
 // SetWidth sets the value of Width.
-func (s *UpdateProductRequestMeasureCm) SetWidth(val OptInt32) {
+func (s *UpdateProductRequestMeasureCm) SetWidth(val OptFloat64) {
 	s.Width = val
 }
 
 // SetHeight sets the value of Height.
-func (s *UpdateProductRequestMeasureCm) SetHeight(val OptInt32) {
+func (s *UpdateProductRequestMeasureCm) SetHeight(val OptFloat64) {
 	s.Height = val
 }
 

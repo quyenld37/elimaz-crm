@@ -31,7 +31,7 @@ const (
 	CodeFormulaNotAllowed         = xlsx.CodeFormulaNotAllowed
 	CodeCellTooLong               = xlsx.CodeCellTooLong
 	CodeInvalidBarcode            = "invalid_barcode"
-	CodeInvalidMeasure            = "invalid_measure" // số đo không phải số nguyên 1–1000 (Task 516)
+	CodeInvalidMeasure            = "invalid_measure" // số đo không phải cm 0,1–1000 một chữ số thập phân (Task 516, 517)
 )
 
 // maxQuoted: lời báo chỉ chép nội dung ô khi ô không dài quá số ký tự này.

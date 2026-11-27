@@ -22,6 +22,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/catalog/internal/article"
 	"elimaz.com.vn/crm/internal/modules/catalog/internal/barcode"
+	"elimaz.com.vn/crm/internal/modules/catalog/internal/importer"
 	"elimaz.com.vn/crm/internal/modules/catalog/internal/store"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
@@ -76,29 +77,37 @@ type ProductInput struct {
 	Code, Name, Description string
 	Article                 json.RawMessage
 	Status                  ProductStatus
-	Measure                 MeasureCm
+	Measure                 MeasureMm
 	Variants                []VariantInput
 }
 
-// Giới hạn của mỗi số đo (cm; CHECK ở migrations/0535_catalog_product_measure.sql).
+// Giới hạn của mỗi số đo (mm = cm một chữ số thập phân: 0,1–1000,0 cm; CHECK ở
+// migrations/0541_catalog_product_measure_mm.sql).
 const (
-	MinMeasureCm = 1
-	MaxMeasureCm = 1000
+	MinMeasureMm = 1
+	MaxMeasureMm = 10000
 )
 
-// MeasureCm là số đo của mẫu (Task 516): Dài, Rộng, Cao theo cm, số nguyên MinMeasureCm–MaxMeasureCm; nil là chưa
-// nhập. Website hiện khối «Số đo» chỉ với các số đã nhập.
-type MeasureCm struct {
+// MeasureMm là số đo của mẫu (Task 516, 517): Dài, Rộng, Cao theo mm số nguyên MinMeasureMm–MaxMeasureMm (cm một chữ số
+// thập phân, vd 72,5 cm = 725); nil là chưa nhập. Website hiện khối «Số đo» theo cm chỉ với các số đã nhập.
+type MeasureMm struct {
 	Length, Width, Height *int
 }
 
+// MeasureMmFromCm đổi một số đo cm (số thực của API, data.json) sang mm; ok false khi có hơn một chữ số thập phân hay
+// ngoài 0,1–1000 cm (bên gọi trả ErrInvalidMeasure).
+func MeasureMmFromCm(cm float64) (int, bool) { return importer.MeasureMmFromCm(cm) }
+
+// MeasureCmOf đổi mm sang cm cho API (725 → 72.5).
+func MeasureCmOf(mm int) float64 { return float64(mm) / 10 }
+
 // ProductPatch là phần sửa của mẫu; trường nil giữ nguyên. Measure khác nil đặt đúng ba số trong đó (số nil là bỏ số
-// đó; MeasureCm{} bỏ cả ba).
+// đó; MeasureMm{} bỏ cả ba).
 type ProductPatch struct {
 	Name, Description *string
 	Article           *json.RawMessage
 	Status            *ProductStatus
-	Measure           *MeasureCm
+	Measure           *MeasureMm
 }
 
 // VariantPatch là phần sửa của biến thể; trường nil giữ nguyên. ColorHex "" bỏ màu hex; ClearCostPrice bỏ giá nhập
@@ -118,7 +127,7 @@ type Product struct {
 	Code, Name, Description string
 	Article                 []ArticleBlock
 	Status                  ProductStatus
-	Measure                 MeasureCm
+	Measure                 MeasureMm
 	Version                 int64
 	Variants                []Variant
 }

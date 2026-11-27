@@ -22,6 +22,7 @@ import {
   suggestSku,
   validate,
   type Draft,
+  TEXT_BAD_MEASURE,
 } from "./editRules";
 
 const PID = "0195f3b2-0000-7000-8000-000000000001";
@@ -358,11 +359,11 @@ describe("bài viết trong bản nháp (Task 326)", () => {
   });
 });
 
-describe("số đo Dài/Rộng/Cao (Task 516)", () => {
-  const base = draftFromProduct(product([variant(1, "Đen", "S")], { measureCm: { length: 88, width: 20 } }), CLS);
+describe("số đo Dài/Rộng/Cao (Task 516, 517)", () => {
+  const base = draftFromProduct(product([variant(1, "Đen", "S")], { measureCm: { length: 72.5, width: 20 } }), CLS);
 
-  it("mở mẫu: ô số đo hiện số đã lưu, số chưa nhập để trống; mẫu không có measureCm → ba ô trống", () => {
-    expect(base.measure).toEqual({ length: "88", width: "20", height: "" });
+  it("mở mẫu: ô số đo hiện số đã lưu (số lẻ viết dấu phẩy), số chưa nhập để trống; mẫu không có measureCm → ba ô trống", () => {
+    expect(base.measure).toEqual({ length: "72,5", width: "20", height: "" });
     expect(draftFromProduct(product([variant(1, "Đen", "S")]), CLS).measure).toEqual({
       length: "",
       width: "",
@@ -371,13 +372,17 @@ describe("số đo Dài/Rộng/Cao (Task 516)", () => {
     expect(emptyDraft().measure).toEqual({ length: "", width: "", height: "" });
   });
 
-  it("kiểm: số nguyên 1–1.000, ô trống được; 0, 1001, số lẻ, chữ → câu dưới đúng ô", () => {
-    expect(validate({ ...base, measure: { length: "1", width: "1000", height: " " } }, "edit").ok).toBe(true);
-    const v = validate({ ...base, measure: { length: "0", width: "1001", height: "2,5" } }, "edit");
+  it("kiểm: cm 0,1–1.000, một chữ số thập phân (phẩy hay chấm), ô trống được; 0, 1000,1, hai số lẻ, chữ → câu dưới đúng ô", () => {
+    expect(validate({ ...base, measure: { length: "0,1", width: "1000", height: " " } }, "edit").ok).toBe(true);
+    expect(validate({ ...base, measure: { length: "72.5", width: "2,5", height: "1000,0" } }, "edit").ok).toBe(true);
+    const v = validate({ ...base, measure: { length: "0", width: "1000,1", height: "2,55" } }, "edit");
     expect(v.ok).toBe(false);
-    expect(v.fields.length).toBe("Số nguyên cm từ 1 đến 1.000");
-    expect(v.fields.width).toBe("Số nguyên cm từ 1 đến 1.000");
-    expect(v.fields.height).toBe("Số nguyên cm từ 1 đến 1.000");
+    expect(v.fields.length).toBe(TEXT_BAD_MEASURE);
+    expect(v.fields.width).toBe(TEXT_BAD_MEASURE);
+    expect(v.fields.height).toBe(TEXT_BAD_MEASURE);
+    expect(TEXT_BAD_MEASURE).toBe("Số cm từ 0,1 đến 1.000, tối đa một số lẻ");
+    for (const bad of ["1.000", ",5", "5,", "1e2", "-3"])
+      expect(validate({ ...base, measure: { length: bad, width: "", height: "" } }, "edit").ok).toBe(false);
     expect(
       validate({ ...base, measure: { length: "abc", width: "", height: "" } }, "edit").fields.length,
     ).toBeDefined();
@@ -387,16 +392,16 @@ describe("số đo Dài/Rộng/Cao (Task 516)", () => {
     let d = newDraft();
     for (const r of d.rows) d = setRow(d, r.key, { price: "350.000" });
     expect(createBody(d).measureCm).toBeUndefined();
-    expect(createBody({ ...d, measure: { length: " 88 ", width: "", height: "3" } }).measureCm).toEqual({
+    expect(createBody({ ...d, measure: { length: " 88 ", width: "", height: "3,5" } }).measureCm).toEqual({
       length: 88,
-      height: 3,
+      height: 3.5,
     });
   });
 
   it("sửa: không đổi → không bước; đổi một ô → bước sửa mẫu gửi cả measureCm (số trống bỏ); xóa hết → null", () => {
-    expect(savePlan(base, { ...base, measure: { length: "088", width: "20", height: "" } })).toEqual([]);
-    expect(savePlan(base, { ...base, measure: { length: "", width: "20", height: "5" } })).toEqual([
-      { kind: "product", body: { measureCm: { width: 20, height: 5 } } },
+    expect(savePlan(base, { ...base, measure: { length: "072.5", width: "20,0", height: "" } })).toEqual([]);
+    expect(savePlan(base, { ...base, measure: { length: "", width: "20", height: "0,5" } })).toEqual([
+      { kind: "product", body: { measureCm: { width: 20, height: 0.5 } } },
     ]);
     expect(savePlan(base, { ...base, measure: { length: "", width: "", height: "" } })).toEqual([
       { kind: "product", body: { measureCm: null } },

@@ -126,7 +126,8 @@ func TestParseWebFixture_Rejects(t *testing.T) {
 		"xã trùng mã tỉnh": func(m map[string]any) { at(m, "locations", 0, "wards", 0)["code"] = at(m, "locations", 0)["code"] },
 		"số đo 0":          func(m map[string]any) { at(m, "products", 0)["measureCm"] = map[string]any{"length": 0} },
 		"số đo 1001":       func(m map[string]any) { at(m, "products", 0)["measureCm"] = map[string]any{"width": 1001} },
-		"số đo lẻ":         func(m map[string]any) { at(m, "products", 0)["measureCm"] = map[string]any{"height": 2.5} },
+		"số đo 2 số lẻ":    func(m map[string]any) { at(m, "products", 0)["measureCm"] = map[string]any{"height": 2.55} },
+		"số đo 1000,1":     func(m map[string]any) { at(m, "products", 0)["measureCm"] = map[string]any{"height": 1000.1} },
 		"số đo âm":         func(m map[string]any) { at(m, "products", 0)["measureCm"] = map[string]any{"length": -3} },
 		"số đo trường lạ":  func(m map[string]any) { at(m, "products", 0)["measureCm"] = map[string]any{"depth": 3} },
 		"hai giá trị cùng vị trí": func(m map[string]any) {
@@ -408,8 +409,8 @@ func TestSeedWebFixture_CreateRerunUpdate(t *testing.T) {
 	}
 }
 
-// Task 516: số đo của tệp (measureCm của website) vào mẫu CRM: test-pants Dài 88 Rộng 20, test-nightwear 30/25/3, mẫu
-// không có measureCm thì không có số đo. Tệp đổi số đo → sửa đúng mẫu đó (1 mẫu sửa); bỏ measureCm → bỏ số đo; chạy
+// Task 516, 517: số đo của tệp (measureCm cm của website) vào mẫu CRM (mm): test-pants Dài 88 Rộng 20, test-nightwear
+// 30/25/3, mẫu không có measureCm thì không có số đo. Tệp đổi số đo (72,5 cm) → sửa đúng mẫu đó (1 mẫu sửa); bỏ measureCm → bỏ số đo; chạy
 // lại cùng tệp → 0 thay đổi.
 func TestSeedWebFixture_Measure(t *testing.T) {
 	t.Parallel()
@@ -443,14 +444,14 @@ func TestSeedWebFixture_Measure(t *testing.T) {
 			return nil
 		})
 	}
-	check("lần đầu", map[string][3]int{"test-pants": {88, 20, 0}, "test-nightwear": {30, 25, 3}})
+	check("lần đầu", map[string][3]int{"test-pants": {880, 200, 0}, "test-nightwear": {300, 250, 30}})
 	longer := mutate(t, func(m map[string]any) {
-		at(m, "products", pants)["measureCm"] = map[string]any{"length": 90, "height": 4}
+		at(m, "products", pants)["measureCm"] = map[string]any{"length": 72.5, "height": 0.1}
 	})
 	if upd := e.seed(longer); upd.Updated["product"] != 1 || upd.Total() != 1 {
 		t.Fatalf("đổi số đo: mong 1 mẫu sửa, có %+v", upd)
 	}
-	check("đổi", map[string][3]int{"test-pants": {90, 0, 4}, "test-nightwear": {30, 25, 3}})
+	check("đổi", map[string][3]int{"test-pants": {725, 0, 1}, "test-nightwear": {300, 250, 30}})
 	if again := e.seed(longer); again.Total() != 0 {
 		t.Fatalf("chạy lại: %+v", again)
 	}
@@ -458,7 +459,7 @@ func TestSeedWebFixture_Measure(t *testing.T) {
 	if upd := e.seed(none); upd.Updated["product"] != 1 {
 		t.Fatalf("bỏ số đo: %+v", upd)
 	}
-	check("bỏ", map[string][3]int{"test-nightwear": {30, 25, 3}})
+	check("bỏ", map[string][3]int{"test-nightwear": {300, 250, 30}})
 }
 
 func deref(v *int) int {

@@ -28,8 +28,12 @@ func (h *handler) CreateProduct(ctx context.Context, req *gen.CreateProductReque
 		Status: catalog.ProductStatus(req.Status.Value),
 	}
 	if req.MeasureCm.Set {
-		m := req.MeasureCm.Value
-		in.Measure = measureIn(m.Length, m.Width, m.Height)
+		v := req.MeasureCm.Value
+		m, err := measureIn(v.Length, v.Width, v.Height)
+		if err != nil {
+			return nil, err
+		}
+		in.Measure = m
 	}
 	for _, v := range req.Variants {
 		in.Variants = append(in.Variants, catalog.VariantInput{
@@ -93,10 +97,13 @@ func (h *handler) UpdateProduct(ctx context.Context, req *gen.UpdateProductReque
 		patch.Status = &s
 	}
 	if req.MeasureCm.Set {
-		var m catalog.MeasureCm // null: bỏ cả ba số
+		var m catalog.MeasureMm // null: bỏ cả ba số
 		if !req.MeasureCm.Null {
+			var err error
 			v := req.MeasureCm.Value
-			m = measureIn(v.Length, v.Width, v.Height)
+			if m, err = measureIn(v.Length, v.Width, v.Height); err != nil {
+				return nil, err
+			}
 		}
 		patch.Measure = &m
 	}
@@ -258,16 +265,23 @@ func productOut(p catalog.Product, imgs []catalog.Image) (*gen.Product, error) {
 	}, nil
 }
 
-// measureIn đổi số đo của yêu cầu sang catalog (số vắng mặt → nil; catalog kiểm khoảng).
-func measureIn(length, width, height gen.OptInt32) catalog.MeasureCm {
-	opt := func(v gen.OptInt32) *int {
+// measureIn đổi số đo cm của yêu cầu sang mm của catalog (số vắng mặt → nil). Số có hơn một chữ số thập phân hay ngoài
+// 0,1–1000 cm → catalog.ErrInvalidMeasure (422 invalid_input), không ghi gì.
+func measureIn(length, width, height gen.OptFloat64) (catalog.MeasureMm, error) {
+	bad := false
+	opt := func(v gen.OptFloat64) *int {
 		if !v.Set {
 			return nil
 		}
-		n := int(v.Value)
-		return &n
+		mm, ok := catalog.MeasureMmFromCm(v.Value)
+		bad = bad || !ok
+		return &mm
 	}
-	return catalog.MeasureCm{Length: opt(length), Width: opt(width), Height: opt(height)}
+	out := catalog.MeasureMm{Length: opt(length), Width: opt(width), Height: opt(height)}
+	if bad {
+		return catalog.MeasureMm{}, catalog.ErrInvalidMeasure
+	}
+	return out, nil
 }
 
 func articleBlockOut(b catalog.ArticleBlock) gen.ArticleBlock {

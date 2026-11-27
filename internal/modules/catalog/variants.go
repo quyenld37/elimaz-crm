@@ -303,7 +303,7 @@ func optIntOf(w pgtype.Int4) *int {
 	return &n
 }
 
-// optInt4 đổi số đã kiểm khoảng (cân nặng ≤ MaxWeightGrams, số đo ≤ MaxMeasureCm) sang tham số sqlc; nil → NULL.
+// optInt4 đổi số đã kiểm khoảng (cân nặng ≤ MaxWeightGrams, số đo ≤ MaxMeasureMm) sang tham số sqlc; nil → NULL.
 func optInt4(w *int) pgtype.Int4 {
 	if w == nil {
 		return pgtype.Int4{}

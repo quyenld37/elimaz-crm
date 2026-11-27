@@ -179,7 +179,7 @@ func assemble(ctx context.Context, tx pgx.Tx, rows []store.ProductPageRow, view 
 			Article: r.Article, Status: r.Status, CategoryIDs: []uuid.UUID{}, Tags: []string{},
 			Attributes: []WebAttr{}, Images: []WebImage{}, Variants: []WebVariant{}, UpdatedAt: r.UpdatedAt.UTC(),
 			CreatedAt: r.CreatedAt.UTC(), Version: r.Version,
-			MeasureCm: measureOf(r),
+			MeasureMm: measureOf(r),
 		}
 		if r.CategoryID.Valid {
 			out[i].CategoryIDs = append(out[i].CategoryIDs, uuid.UUID(r.CategoryID.Bytes))
@@ -355,7 +355,7 @@ func attachImages(ctx context.Context, tx pgx.Tx, q *store.Queries, ids []uuid.U
 }
 
 // measureOf: số đo của dòng mẫu (cột NULL → nil).
-func measureOf(r store.ProductPageRow) MeasureCm {
-	cm := func(v pgtype.Int4) *int { return map[bool]*int{true: new(int(v.Int32))}[v.Valid] }
-	return MeasureCm{Length: cm(r.LengthCm), Width: cm(r.WidthCm), Height: cm(r.HeightCm)}
+func measureOf(r store.ProductPageRow) MeasureMm {
+	mm := func(v pgtype.Int4) *int { return map[bool]*int{true: new(int(v.Int32))}[v.Valid] }
+	return MeasureMm{Length: mm(r.LengthMm), Width: mm(r.WidthMm), Height: mm(r.HeightMm)}
 }

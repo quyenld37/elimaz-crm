@@ -57,8 +57,8 @@ type Plan struct {
 // PlannedProduct là một mẫu theo thứ tự xuất hiện trong tệp. Status rỗng là cột trống (mẫu mới: draft; mẫu có sẵn:
 // giữ nguyên). ExistingProductID có khi mã mẫu có trong Refs.ExistingProducts hay một SKU của mẫu đã có trong
 // Refs.ExistingSKUs. AttributeValueIDs, TagIDs
-// không trùng, tăng dần. LengthCm, WidthCm, HeightCm (Task 516): nil là ô trống (mẫu mới: không có số đó; mẫu có sẵn:
-// giữ nguyên); kế hoạch lưu trước Task 516 không có ba trường (giữ nguyên).
+// không trùng, tăng dần. LengthMm, WidthMm, HeightMm (Task 516, 517: mm số nguyên = cm một chữ số thập phân): nil là ô
+// trống (mẫu mới: không có số đó; mẫu có sẵn: giữ nguyên); kế hoạch lưu trước Task 517 không có ba trường (giữ nguyên).
 type PlannedProduct struct {
 	Code              string           `json:"code"`
 	Name              string           `json:"name"`
@@ -68,9 +68,9 @@ type PlannedProduct struct {
 	AttributeValueIDs []uuid.UUID      `json:"attributeValueIds"`
 	TagIDs            []uuid.UUID      `json:"tagIds"`
 	ExistingProductID *uuid.UUID       `json:"existingProductId,omitempty"`
-	LengthCm          *int             `json:"lengthCm,omitempty"`
-	WidthCm           *int             `json:"widthCm,omitempty"`
-	HeightCm          *int             `json:"heightCm,omitempty"`
+	LengthMm          *int             `json:"lengthMm,omitempty"`
+	WidthMm           *int             `json:"widthMm,omitempty"`
+	HeightMm          *int             `json:"heightMm,omitempty"`
 	Variants          []PlannedVariant `json:"variants"`
 }
 

@@ -14,16 +14,16 @@ RETURNING id, version;
 -- Số đo của mẫu vừa tạo trong cùng transaction (Task 516; NULL là chưa nhập). Không tăng version: là một phần của lần
 -- tạo; sửa số đo sau đó đi qua UpdateProduct.
 UPDATE catalog.products
-SET length_cm = sqlc.narg(length_cm)::int, width_cm = sqlc.narg(width_cm)::int, height_cm = sqlc.narg(height_cm)::int
+SET length_mm = sqlc.narg(length_mm)::int, width_mm = sqlc.narg(width_mm)::int, height_mm = sqlc.narg(height_mm)::int
 WHERE seller_id = @seller_id AND id = @id;
 
 -- name: GetProduct :one
-SELECT id, seller_id, code, name, description, article, status, version, length_cm, width_cm, height_cm
+SELECT id, seller_id, code, name, description, article, status, version, length_mm, width_mm, height_mm
 FROM catalog.products
 WHERE seller_id = @seller_id AND id = @id AND deleted_at IS NULL;
 
 -- name: LockProduct :one
-SELECT id, seller_id, code, name, description, article, status, version, length_cm, width_cm, height_cm
+SELECT id, seller_id, code, name, description, article, status, version, length_mm, width_mm, height_mm
 FROM catalog.products
 WHERE seller_id = @seller_id AND id = @id AND deleted_at IS NULL
 FOR UPDATE;
@@ -31,7 +31,7 @@ FOR UPDATE;
 -- name: UpdateProduct :one
 UPDATE catalog.products
 SET name = @name, name_search = @name_search, description = @description, article = @article, status = @status,
-    length_cm = sqlc.narg(length_cm)::int, width_cm = sqlc.narg(width_cm)::int, height_cm = sqlc.narg(height_cm)::int,
+    length_mm = sqlc.narg(length_mm)::int, width_mm = sqlc.narg(width_mm)::int, height_mm = sqlc.narg(height_mm)::int,
     version = version + 1, updated_at = now()
 WHERE seller_id = @seller_id AND id = @id AND version = @version
 RETURNING version;

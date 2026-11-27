@@ -250,6 +250,7 @@ func importTables() []string {
 		"content.home_banner_sets", "content.looks", "content.look_items", "content.look_sets", "identity.audit_logs",
 		"platform.domain_events",
 		"fulfillment.carrier_accounts WHERE show_on_web",
+		"catalog.products WHERE length_mm IS NOT NULL OR width_mm IS NOT NULL OR height_mm IS NOT NULL",
 	}
 }
 
@@ -292,7 +293,7 @@ func TestImportWebsite_SampleDryRunApplyAgain(t *testing.T) {
 	dir := e.exportDir(false)
 	otherBefore := e.snapshot(e.other)
 	added := map[string]int{
-		kindFeedback: 3, kindPause: 1, kindCarriers: 3, kindCampaign: 3, kindGift: 1, kindBanner: 4, kindLook: 2,
+		kindMeasure: 2, kindFeedback: 3, kindPause: 1, kindCarriers: 3, kindCampaign: 3, kindGift: 1, kindBanner: 4, kindLook: 2,
 	}
 	none := map[string]int{}
 
@@ -311,7 +312,7 @@ func TestImportWebsite_SampleDryRunApplyAgain(t *testing.T) {
 	after := e.snapshot(e.tenant)
 	again, againOut := e.run(dir, false)
 	wantCounts(t, "chạy lại", again, none, map[string]int{
-		kindFeedback: 3, kindPause: 1, kindCarriers: 3, kindCampaign: 3, kindGift: 1, kindBanner: 4, kindLook: 2,
+		kindMeasure: 2, kindFeedback: 3, kindPause: 1, kindCarriers: 3, kindCampaign: 3, kindGift: 1, kindBanner: 4, kindLook: 2,
 	}, none)
 	sameCounts(t, "chạy lại", after, e.snapshot(e.tenant))
 	sameCounts(t, "tenant khác", otherBefore, e.snapshot(e.other))
@@ -629,4 +630,107 @@ func TestRun_ImportWebsiteCommandLine(t *testing.T) {
 		!strings.Contains(out, errImportVersion.Error()) {
 		t.Fatalf("version 2: thoát %d\n%s", code, out)
 	}
+}
+
+// Luật nguồn Nhanh của website (Task 517, measureOf của nhanh-projection.ts): số đo của mẫu khi mẫu có ít nhất một số
+// > 0, không thì của SKU đầu tiên có số; chỉ các số > 0 (0, null, số âm là trống như website); đổi cm → mm. Hơn một
+// chữ số thập phân, trên 1000 → lỗi (không làm tròn); không số nào → không số đo.
+func TestNhanhMeasure(t *testing.T) {
+	t.Parallel()
+	f := func(v float64) *float64 { return &v }
+	mm := func(l, w, h int) catalog.MeasureMm {
+		p := func(v int) *int {
+			if v == 0 {
+				return nil
+			}
+			return &v
+		}
+		return catalog.MeasureMm{Length: p(l), Width: p(w), Height: p(h)}
+	}
+	for name, c := range map[string]struct {
+		in   wxProductMeasure
+		want catalog.MeasureMm
+		err  bool
+	}{
+		"mẫu có số":            {wxProductMeasure{Model: &wxMeasure{Length: f(72.5), Width: f(30), Height: f(0)}, SKUs: []*wxMeasure{{Length: f(1)}}}, mm(725, 300, 0), false},
+		"mẫu trống, SKU thứ 2": {wxProductMeasure{Model: &wxMeasure{Length: f(0)}, SKUs: []*wxMeasure{nil, {Height: f(0)}, {Width: f(0.1)}, {Length: f(5)}}}, mm(0, 1, 0), false},
+		"không số nào":         {wxProductMeasure{SKUs: []*wxMeasure{{Length: f(0)}}}, catalog.MeasureMm{}, false},
+		"rỗng":                 {wxProductMeasure{}, catalog.MeasureMm{}, false},
+		"biên 1000":            {wxProductMeasure{Model: &wxMeasure{Height: f(1000)}}, mm(0, 0, 10000), false},
+		"hai số lẻ":            {wxProductMeasure{Model: &wxMeasure{Length: f(72.55)}}, catalog.MeasureMm{}, true},
+		"trên 1000":            {wxProductMeasure{Model: &wxMeasure{Width: f(1000.1)}}, catalog.MeasureMm{}, true},
+		"âm như trống":         {wxProductMeasure{Model: &wxMeasure{Length: f(-1), Width: f(5)}}, mm(0, 50, 0), false},
+		"chỉ số âm":            {wxProductMeasure{Model: &wxMeasure{Length: f(-1)}, SKUs: []*wxMeasure{{Height: f(2)}}}, mm(0, 0, 20), false},
+	} {
+		got, err := c.in.measure()
+		if (err != nil) != c.err || !sameMeasure(got, c.want) {
+			t.Errorf("%s: %+v %v, mong %+v lỗi=%v", name, got, err, c.want, c.err)
+		}
+	}
+}
+
+// Số đo từ Nhanh qua lệnh nhập (Task 517): chạy khô đếm mà không ghi; --apply ghi số đo cho mẫu CRM chưa có (P1 từ
+// mẫu, P2 từ SKU đầu có số), mục không số đo được đếm riêng, số sai và mã mẫu lạ là lỗi của mục đó; chạy lại hay
+// website đổi số → giữ số của CRM (bỏ qua); bảng in số mẫu có / không số đo.
+func TestImportWebsite_ProductMeasures(t *testing.T) {
+	t.Parallel()
+	e := newImportEnv(t)
+	dir := e.exportDir(false)
+	unknown, empty, bad := uuid.New(), uuid.New(), uuid.New()
+	editExport(t, dir, func(doc map[string]any) {
+		doc["productMeasures"] = append(doc["productMeasures"].([]any), //nolint:forcetypeassert // test
+			map[string]any{"productId": unknown.String(), "model": map[string]any{"length": 10}},
+			map[string]any{"productId": empty.String(), "model": map[string]any{"length": 0}, "skus": []any{}},
+			map[string]any{"productId": bad.String(), "model": map[string]any{"length": 72.55}},
+		)
+	})
+	measured := "SELECT count(*) FROM catalog.products WHERE length_mm IS NOT NULL"
+	dry, dryOut := e.run(dir, true)
+	if c := dry.Kinds[kindMeasure]; c.Added != 2 || c.Skipped != 1 || c.Failed != 2 {
+		t.Fatalf("chạy khô: %+v", c)
+	}
+	if n := e.count(e.tenant, measured); n != 0 {
+		t.Fatalf("chạy khô ghi số đo cho %d mẫu", n)
+	}
+	rep, out := e.run(dir, false)
+	if c := rep.Kinds[kindMeasure]; c.Added != 2 || c.Skipped != 1 || c.Failed != 2 {
+		t.Fatalf("apply: %+v\n%s", c, out)
+	}
+	for _, want := range []string{"có số đo 4, không số đo 1", unknown.String(), bad.String()} {
+		if !strings.Contains(dryOut, want) || !strings.Contains(out, want) {
+			t.Errorf("bảng thiếu %q:\n%s", want, out)
+		}
+	}
+	want := map[uuid.UUID][3]int{e.p1: {725, 300, 0}, e.p2: {880, 0, 15}}
+	e.checkMeasures("apply", want)
+	editExport(t, dir, func(doc map[string]any) {
+		doc["productMeasures"] = []any{map[string]any{"productId": e.p1.String(), "model": map[string]any{"length": 99}}}
+	})
+	again, _ := e.run(dir, false)
+	if c := again.Kinds[kindMeasure]; c.Added != 0 || c.Skipped != 1 || c.Failed != 0 {
+		t.Fatalf("chạy lại: %+v", c)
+	}
+	e.checkMeasures("chạy lại giữ số của CRM", want)
+}
+
+// checkMeasures: số đo (mm, 0 là chưa nhập) của từng mẫu đúng want.
+func (e *importEnv) checkMeasures(step string, want map[uuid.UUID][3]int) {
+	t := e.t
+	t.Helper()
+	e.app(e.tenant, func(tx pgx.Tx) error {
+		seller, err := catalog.DefaultSeller(t.Context(), tx)
+		if err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		for id, w := range want {
+			p, err := catalog.GetProduct(t.Context(), tx, seller, id)
+			if err != nil {
+				return err //nolint:wrapcheck // test
+			}
+			if got := [3]int{deref(p.Measure.Length), deref(p.Measure.Width), deref(p.Measure.Height)}; got != w {
+				t.Errorf("%s: %s số đo %v, mong %v", step, p.Code, got, w)
+			}
+		}
+		return nil
+	})
 }
