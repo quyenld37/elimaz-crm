@@ -26,4 +26,12 @@ var (
 	ErrRunInBackground = errors.New("reporting: chạy nền")
 	// ErrPageForbidden: bộ lọc Page có Page ngoài phạm vi report.sales.read của người xem (hợp đồng: 403 forbidden).
 	ErrPageForbidden = errors.New("reporting: Page ngoài phạm vi")
+	// ErrWarehouseForbidden: lọc một kho ngoài phạm vi report.inventory.read của người xem (hợp đồng: 403 forbidden).
+	ErrWarehouseForbidden = errors.New("reporting: kho ngoài phạm vi")
+	// ErrNoSnapshot: báo cáo tồn một ngày đã qua chưa có bản chụp (trước bản chụp đầu, hay ngày chưa chụp; 404
+	// no_snapshot).
+	ErrNoSnapshot = errors.New("reporting: ngày chưa có bản chụp tồn")
+	// ErrUnknownDocType: sổ tồn có doc_type ngoài bảy loại đã biết trong ngăn on_hand của kỳ (xuất nhập tồn không lặng lẽ
+	// bỏ dòng; lỗi hệ thống, 500).
+	ErrUnknownDocType = errors.New("reporting: loại chứng từ lạ trong sổ tồn")
 )
