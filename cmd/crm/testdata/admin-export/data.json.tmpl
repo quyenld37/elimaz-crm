@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "exportedAt": "2026-11-27T20:00:00.000Z",
+  "idMapGeneratedAt": "2026-11-27T19:00:00.000Z",
+  "campaigns": [
+    {"id": "a1000000-0000-4000-8000-000000000001", "name": "Sale cả shop", "scope": "all", "percent": 20,
+     "startsAt": "2026-11-01T00:00:00.000Z", "endsAt": "2026-12-31T00:00:00.000Z", "allowCoupon": true,
+     "clearance": false, "state": "enabled", "revision": 4, "createdAt": "2026-10-20T03:00:00.000Z",
+     "updatedAt": "2026-11-01T03:00:00.000Z"},
+    {"id": "a2000000-0000-4000-8000-000000000002", "name": "Giảm áo len", "scope": "products",
+     "productIds": ["{{P1}}"], "percent": 15, "startsAt": "2026-12-01T00:00:00.000Z",
+     "endsAt": "2026-12-31T00:00:00.000Z", "allowCoupon": false, "clearance": true, "state": "paused",
+     "revision": 2, "createdAt": "2026-10-21T03:00:00.000Z"},
+    {"id": "a3000000-0000-4000-8000-000000000003", "name": "Áo sơ mi", "scope": "categories",
+     "categories": [{"nhanhId": 1203, "path": ["Áo", "Áo sơ mi"]}], "percent": 10,
+     "startsAt": "2026-12-01T00:00:00.000Z", "endsAt": "2026-12-31T00:00:00.000Z", "allowCoupon": false,
+     "clearance": false, "state": "draft", "revision": 1}
+  ],
+  "banners": {"revision": 7, "items": [
+    {"id": "b1000000-0000-4000-8000-000000000001", "position": 0, "enabled": true, "kind": "campaign",
+     "campaignId": "a1000000-0000-4000-8000-000000000001", "kicker": "", "title": "", "cta": "", "theme": "red",
+     "productIds": [], "alt": ""},
+    {"id": "b2000000-0000-4000-8000-000000000002", "position": 1, "enabled": true, "kind": "new", "kicker": "Mới về",
+     "title": "Hàng mới", "cta": "Xem", "theme": "auto", "productIds": [], "alt": ""},
+    {"id": "b3000000-0000-4000-8000-000000000003", "position": 2, "enabled": false, "kind": "category",
+     "category": {"nhanhId": 1203, "path": ["Áo", "Áo sơ mi"]}, "kicker": "", "title": "", "cta": "",
+     "startsAt": "2026-12-01T00:00:00.000Z", "endsAt": "2026-12-20T00:00:00.000Z", "theme": "black",
+     "productIds": [], "alt": ""},
+    {"id": "b4000000-0000-4000-8000-000000000004", "position": 3, "enabled": true, "kind": "image", "kicker": "",
+     "title": "", "cta": "", "theme": "auto", "productIds": [],
+     "image": {"desktop": {"file": "banner-images/0123456789abcdef0123456789abcdef.webp"},
+               "mobile": {"file": "banner-images/fedcba9876543210fedcba9876543210.webp"}},
+     "alt": "Ưu đãi cuối năm", "link": {"kind": "offers"}}
+  ]},
+  "looks": {"revision": 3, "items": [
+    {"id": "c1000000-0000-4000-8000-000000000001", "position": 0, "enabled": true, "name": "Đi làm", "title": "",
+     "headline": "Gọn gàng", "story": "", "items": [{"productId": "{{P1}}", "color": "", "x": 30.5, "y": 40},
+     {"productId": "{{P2}}", "color": "", "x": 60, "y": 70.25}], "photo": {"productId": "{{P1}}", "imagePosition": 1},
+     "categories": [], "modelHeight": 165, "modelSize": "M"},
+    {"id": "c2000000-0000-4000-8000-000000000002", "position": 1, "enabled": false, "name": "Cuối tuần", "title": "",
+     "headline": "", "story": "", "items": [{"productId": "{{P2}}", "color": "", "x": 50, "y": 50}],
+     "photo": {"productId": "{{P2}}", "imagePosition": 0}, "categories": [{"nhanhId": 1203, "path": ["Áo", "Áo sơ mi"]}],
+     "modelSize": ""}
+  ]},
+  "feedback": [
+    {"id": "d1000000-0000-4000-8000-000000000001", "topic": "product", "mood": 5, "body": "Áo đẹp NOIDUNG-KIN-1",
+     "name": "Chị Lan", "contact": "0912 000 111", "state": "new", "createdAt": "2026-10-01T02:00:00.000Z",
+     "updatedAt": "2026-10-01T02:00:00.000Z"},
+    {"id": "d2000000-0000-4000-8000-000000000002", "topic": "delivery", "body": "Giao chậm NOIDUNG-KIN-2",
+     "contact": "0987654321", "orderRef": "W1234", "page": "/gop-y", "device": "iPhone", "state": "answered",
+     "note": "Đã gọi GHICHU-KIN", "createdAt": "2026-10-02T02:00:00.000Z", "updatedAt": "2026-10-03T02:00:00.000Z"},
+    {"id": "d3000000-0000-4000-8000-000000000003", "topic": "website", "body": "Trang chậm", "state": "seen",
+     "createdAt": "2026-10-04T02:00:00.000Z", "updatedAt": "2026-10-04T05:00:00.000Z"}
+  ],
+  "birthdays": {"declinedLeftOut": 1, "profiles": [
+    {"phone": "0912000111", "name": "Chị Lan", "day": 3, "month": 4, "consentZalo": true, "consentMail": false,
+     "createdAt": "2026-09-01T00:00:00.000Z", "stopTokenSha256": "00", "legacyDelivered": true},
+    {"phone": "0900000002", "name": "Anh B", "day": 9, "month": 9, "consentZalo": false, "consentMail": true,
+     "createdAt": "2026-09-02T00:00:00.000Z", "stopTokenSha256": "01", "legacyDelivered": false}
+  ]},
+  "giftSettings": {"saved": true, "enabled": true, "amount": 50000, "daysBefore": 7, "validDays": 14,
+                   "minLeadDays": 30, "minOrder": 0},
+  "checkoutPause": {"paused": true, "reason": "Bảo trì", "at": "2026-11-27T19:00:00.000Z", "by": "staff@elimaz.test"},
+  "carriers": {"configured": true, "revision": 3, "enabled": [{"nhanhId": 2, "code": "vtp"}, {"nhanhId": 26, "code": "best"}],
+               "preferred": {"nhanhId": 2, "code": "vtp"}, "at": "2026-11-01T00:00:00.000Z", "by": "staff@elimaz.test"}
+}

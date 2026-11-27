@@ -1,0 +1,4 @@
+{"version": 1, "items": [
+  {"kind": "look", "id": "c9000000-0000-4000-8000-000000000009", "reasons": ["product nhanh-model-106: not in crm-id-map.json"], "record": {"name": "SDT-0911222333"}},
+  {"kind": "campaign", "id": "a9000000-0000-4000-8000-000000000009", "reasons": ["no targets"], "record": {}}
+]}

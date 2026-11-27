@@ -106,11 +106,12 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 			_, _ = fmt.Fprintf(stderr, "mã khách %q không phải UUID; cách gọi: `crm %s <mã khách>`\n", args[1], recomputeCommand)
 			return exitConfig
 		}
-	case isServiceKeyCommand(args), isSeedFixtureCommand(args):
+	case isServiceKeyCommand(args), isSeedFixtureCommand(args), isImportWebsiteCommand(args):
 	case len(args) > 0:
 		_, _ = fmt.Fprintf(stderr, "lệnh lạ %q; chỉ có `crm`, `crm healthcheck`, `crm seed-dev <email>`, "+
-			"`crm %s <mã khách>`, `crm %s create|revoke …` hoặc `crm %s --file … --staff-email …`\n", args,
-			recomputeCommand, serviceKeyCommand, seedFixtureCommand)
+			"`crm %s <mã khách>`, `crm %s create|revoke …`, `crm %s --file … --staff-email …` hoặc "+
+			"`crm %s --dir … --tenant … --dry-run|--apply`\n", args,
+			recomputeCommand, serviceKeyCommand, seedFixtureCommand, importWebsiteCommand)
 		return exitConfig
 	}
 
@@ -130,8 +131,8 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 			return exitFail
 		}
 		return exitOK
-	case isServiceKeyCommand(args), isSeedFixtureCommand(args):
-		return runDevCommand(ctx, cfg, args, stdout, stderr, logger)
+	case isServiceKeyCommand(args), isSeedFixtureCommand(args), isImportWebsiteCommand(args):
+		return runOneOffCommand(ctx, cfg, args, stdout, stderr, logger)
 	case len(args) == 2 && args[0] == recomputeCommand:
 		if err := runRecompute(ctx, cfg, uuid.MustParse(args[1]), stdout, logger); err != nil {
 			_, _ = fmt.Fprintln(stderr, recomputeCommand+":", err)

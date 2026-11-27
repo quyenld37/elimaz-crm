@@ -56,6 +56,62 @@ func (q *Queries) FeedbackExists(ctx context.Context, id uuid.UUID) (bool, error
 	return exists, err
 }
 
+const importFeedback = `-- name: ImportFeedback :one
+INSERT INTO customer.feedback (id, tenant_id, topic, mood, body, name, contact, order_ref, page, device, customer_id,
+                               state, note, created_at, updated_at)
+VALUES ($1, NULLIF(current_setting('app.tenant_id', true), '')::uuid, $2, $3::int, $4,
+        $5::text, $6::text, $7::text, $8::text,
+        $9::text, $10::uuid, $11, $12::text, $13, $14)
+ON CONFLICT (id) DO NOTHING
+RETURNING tenant_id, id
+`
+
+type ImportFeedbackParams struct {
+	ID         uuid.UUID
+	Topic      string
+	Mood       pgtype.Int4
+	Body       string
+	Name       pgtype.Text
+	Contact    pgtype.Text
+	OrderRef   pgtype.Text
+	Page       pgtype.Text
+	Device     pgtype.Text
+	CustomerID pgtype.UUID
+	State      string
+	Note       pgtype.Text
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+type ImportFeedbackRow struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+}
+
+// Nhập góp ý cũ của website (Task 467): giữ id, giờ tạo/sửa, trạng thái, ghi chú. id đã có (tenant này hay tenant khác:
+// id là khóa chính toàn bảng) → 0 dòng, bên gọi phân biệt bằng FeedbackExists.
+func (q *Queries) ImportFeedback(ctx context.Context, arg ImportFeedbackParams) (ImportFeedbackRow, error) {
+	row := q.db.QueryRow(ctx, importFeedback,
+		arg.ID,
+		arg.Topic,
+		arg.Mood,
+		arg.Body,
+		arg.Name,
+		arg.Contact,
+		arg.OrderRef,
+		arg.Page,
+		arg.Device,
+		arg.CustomerID,
+		arg.State,
+		arg.Note,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	var i ImportFeedbackRow
+	err := row.Scan(&i.TenantID, &i.ID)
+	return i, err
+}
+
 const insertFeedback = `-- name: InsertFeedback :one
 
 INSERT INTO customer.feedback (tenant_id, topic, mood, body, name, contact, order_ref, page, device, client_hash,
