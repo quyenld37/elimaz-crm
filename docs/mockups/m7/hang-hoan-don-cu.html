@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M7 — Hàng hoàn đơn cũ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="../m3/m3.css">
+<link rel="stylesheet" href="m7.css">
+</head>
+<body data-page="hang-hoan-don-cu" data-title="Hàng hoàn đơn cũ">
+<div class="app"><main class="main">
+
+<div class="page-h" data-ca="mo08">
+	<div><h1>Hàng hoàn đơn cũ</h1><p class="sub">Nhập vào kho hàng hoàn của đơn bán trên công cụ cũ (trước ngày mở CRM). Không tạo đơn hay vận đơn nào; mỗi kiện chỉ nhập một lần theo mã tham chiếu.</p></div>
+</div>
+<p class="mk"><b>Mockup:</b> khung viền đứt là ghi chú. Đường đề xuất <code>/kho/hang-hoan-cu</code> (Task 273 chốt). Hàng hoàn của đơn tạo trong CRM vẫn nhận ở "Nhận hàng hoàn" (M3); màn này chỉ cho đơn cũ.</p>
+
+<!-- ============ A ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI A</p><h2>Nhập một kiện: mã tham chiếu, quét món, số lượng, tình trạng bán lại được / hỏng, ghi chú</h2></section>
+<div class="cols">
+<div class="card" data-ca="form">
+	<h2>Nhập kiện hàng hoàn</h2>
+	<div class="grid-f">
+		<label class="field" data-ca="chon-kho"><span>Kho nhận</span><span class="select-wrap"><select><option>Kho chính</option><option>Kho phụ Bình Thạnh</option></select></span></label>
+		<label class="field" data-ca="ma-tham-chieu chuan-hoa"><span>Mã tham chiếu</span><input class="input" value="vtp 1234 5678" placeholder="Mã vận đơn hoặc mã đơn cũ"><span class="hint">Mã vận đơn in trên kiện hoặc mã đơn cũ. Không phân biệt chữ hoa, khoảng trắng: "vtp 1234 5678" là VTP12345678.</span></label>
+	</div>
+	<div class="scan field" data-ca="them-dong quet-ma" style="margin-top:16px"><label for="sc">Quét hoặc gõ SKU để thêm món</label><input id="sc" class="input" placeholder="Quét barcode hoặc gõ SKU rồi Enter"></div>
+	<div style="margin-top:8px">
+		<div class="lrow" data-ca="ten-dai tinh-trang-tot so-luong">
+			<div><span class="sku">DAM0123-BE-M · Be · M</span><br><span class="nm clamp2">Đầm maxi lụa Hàn cao cấp cổ yếm phối ren hoa nhí tay phồng dáng dài qua gối màu be sữa</span></div>
+			<span class="stepper"><button class="ibtn" aria-label="Bớt 1">−</button><input class="input qty" value="2" inputmode="numeric" aria-label="Số lượng DAM0123-BE-M"><button class="ibtn" aria-label="Thêm 1">+</button></span>
+			<span class="cond" role="radiogroup" aria-label="Tình trạng DAM0123-BE-M"><label class="is-on"><input type="radio" name="c1" checked>Bán lại được</label><label class="is-bad"><input type="radio" name="c1">Hỏng</label></span>
+			<button class="ibtn" aria-label="Bỏ DAM0123-BE-M">✕</button>
+		</div>
+		<div class="lrow" data-ca="tinh-trang-hong">
+			<div><span class="sku">TUI0090-NAU · Nâu</span><br><span class="nm">Túi da mini</span></div>
+			<span class="stepper"><button class="ibtn" aria-label="Bớt 1">−</button><input class="input qty" value="1" inputmode="numeric" aria-label="Số lượng TUI0090-NAU"><button class="ibtn" aria-label="Thêm 1">+</button></span>
+			<span class="cond" role="radiogroup" aria-label="Tình trạng TUI0090-NAU"><label><input type="radio" name="c2">Bán lại được</label><label class="is-bad is-on"><input type="radio" name="c2" checked>Hỏng</label></span>
+			<button class="ibtn" aria-label="Bỏ TUI0090-NAU">✕</button>
+		</div>
+		<p class="hint" style="margin-top:8px">Cùng một mã có cả cái tốt và cái hỏng: quét mã đó lần nữa để thêm dòng thứ hai, chọn Hỏng. Hàng hỏng vào ngăn hàng lỗi, không bán được.</p>
+	</div>
+	<label class="field" data-ca="ghi-chu" style="margin-top:16px"><span>Ghi chú (không bắt buộc)</span><textarea class="input" placeholder="Ví dụ: khách trả vì sai size, hãng giao lại sau 2 tuần"></textarea><span class="hint">0 / 500 · chỉ lưu trong phiếu nhập, không vào nhật ký.</span></label>
+	<div class="savebar is-sticky" style="margin-top:16px"><span class="small muted grow">3 cái: 2 bán lại được, 1 hỏng</span><button class="btn btn-dark" data-ca="nhap-kho">Nhập kho</button></div>
+</div>
+<div class="stack">
+	<div class="box box-ok" data-ca="ket-qua-tao phieu-hong"><b class="ok-text">Đã nhập kiện VTP12345678 vào Kho chính.</b> Phiếu nhập PN-000431: 3 cái. Phiếu chuyển hàng lỗi PL-000021: 1 cái (Túi da mini), không bán được.<div class="row" style="margin-top:8px"><a class="btn btn-line" href="../m1/kho-phieu.html">Xem PN-000431</a><a class="btn btn-line" href="../m1/kho-phieu.html">Xem PL-000021</a><button class="btn btn-dark">Nhập kiện khác</button></div></div>
+	<div class="box box-info small"><b>Tồn tăng ngay khi bấm Nhập kho.</b> Món "Bán lại được" vào hàng bán được; món "Hỏng" vào ngăn hàng lỗi. Nhập nhầm thì làm phiếu xuất hoặc điều chỉnh có lý do ở Phiếu kho.</div>
+</div>
+</div>
+
+<!-- ============ B ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Kiện đã nhập rồi (có liên kết tới lần nhập cũ); lỗi ô; đang gửi</h2></section>
+<div class="cols">
+<div class="stack">
+	<div class="box box-err" data-ca="da-nhap-409"><b>Kiện VTP12345678 đã nhập rồi.</b> <span>Nhập lúc 10:14 02/12 vào Kho chính (Hùng). Không nhập lại, kẻo tồn bị cộng hai lần.</span><div class="row" style="margin-top:8px"><a class="btn btn-line" href="#ngay-0212" data-ca="lien-ket-phieu-cu">Xem lần nhập cũ</a></div></div>
+	<div class="card">
+		<label class="field" data-ca="tham-chieu-ngan"><span>Mã tham chiếu</span><input class="input is-err" value="V1"><span class="field-err">Mã tham chiếu từ 3 đến 64 ký tự.</span></label>
+		<div class="lrow is-err" data-ca="so-luong-0" style="margin-top:8px">
+			<div><span class="sku">AO0456-TRANG-S · Trắng · S</span><br><span class="nm">Áo sơ mi lụa cổ đức tay dài</span></div>
+			<span class="stepper"><button class="ibtn" aria-label="Bớt 1" disabled>−</button><input class="input qty is-err" value="0" inputmode="numeric" aria-label="Số lượng AO0456-TRANG-S"><button class="ibtn" aria-label="Thêm 1">+</button></span>
+			<span class="cond" role="radiogroup" aria-label="Tình trạng AO0456-TRANG-S"><label class="is-on"><input type="radio" name="c3" checked>Bán lại được</label><label class="is-bad"><input type="radio" name="c3">Hỏng</label></span>
+			<button class="ibtn" aria-label="Bỏ AO0456-TRANG-S">✕</button>
+			<p class="field-err full">Số lượng từ 1 đến 1.000. Không còn cái nào thì bỏ dòng.</p>
+		</div>
+		<div class="box box-err" data-ca="ma-la" style="margin-top:8px"><b>Không thấy mã 2000000009999.</b> <span>Kiểm lại tem, hoặc gõ SKU.</span></div>
+	</div>
+</div>
+<div class="stack">
+	<div class="card" data-ca="chua-co-dong">
+		<div class="row-between"><h2>Nhập kiện hàng hoàn</h2></div>
+		<div class="empty"><p class="small muted">Chưa có món nào. Quét hoặc gõ SKU để thêm.</p></div>
+		<div class="savebar" style="margin-top:16px"><button class="btn btn-dark" disabled>Nhập kho</button></div>
+		<p class="reason" style="margin-top:4px">Thêm ít nhất một món và mã tham chiếu thì nút mở.</p>
+	</div>
+	<div class="savebar" data-ca="dang-gui"><span class="small muted grow">Đang nhập… không bấm lại</span><button class="btn btn-dark" disabled>Đang nhập…</button></div>
+</div>
+</div>
+
+<!-- ============ C ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Danh sách đã nhập theo ngày: khoảng ngày, nhiều ngày, không có kiện nào, không quyền, lỗi tải</h2></section>
+<div class="cols">
+<div class="stack" data-ca="ds-theo-ngay">
+	<div class="toolbar" data-ca="khoang-ngay">
+		<label class="field"><span>Từ ngày</span><input class="input" value="01/12/2026" inputmode="numeric"></label>
+		<label class="field"><span>Đến ngày</span><input class="input" value="03/12/2026" inputmode="numeric"></label>
+	</div>
+	<p class="small muted">7 kiện · 16 cái (3 hỏng) trong 3 ngày</p>
+	<div class="day" data-ca="nhieu-ngay">
+		<h3>Thứ Năm 03/12 · 2 kiện</h3>
+		<div class="qrow"><div><span class="bold">SPXVN0412345678</span> <span class="small muted">· 16:40 · Lan</span><br><span class="small">Kho chính · 3 bán lại được</span></div><a class="btn btn-text" href="../m1/kho-phieu.html">PN-000437</a></div>
+		<div class="qrow"><div><span class="bold">88120345</span> <span class="small muted">· 09:05 · Hùng</span><br><span class="small">Kho phụ Bình Thạnh · 1 bán lại được, <span class="err-text">1 hỏng</span></span></div><a class="btn btn-text" href="../m1/kho-phieu.html">PN-000435</a></div>
+	</div>
+	<div class="day" id="ngay-0212">
+		<h3>Thứ Tư 02/12 · 4 kiện</h3>
+		<div class="qrow"><div><span class="bold">VTP12345678</span> <span class="small muted">· 10:14 · Hùng</span><br><span class="small">Kho chính · 2 bán lại được, <span class="err-text">1 hỏng</span></span></div><a class="btn btn-text" href="../m1/kho-phieu.html">PN-000431</a></div>
+		<div class="qrow"><div><span class="bold">GHN-LK8XQ29T</span> <span class="small muted">· 10:02 · Hùng</span><br><span class="small">Kho chính · 4 bán lại được</span></div><a class="btn btn-text" href="../m1/kho-phieu.html">PN-000430</a></div>
+		<div class="qrow"><div><span class="bold">BE0098811111VN</span> <span class="small muted">· 09:31 · Lan</span><br><span class="small">Kho chính · 1 bán lại được</span></div><a class="btn btn-text" href="../m1/kho-phieu.html">PN-000428</a></div>
+		<div class="qrow"><div><span class="bold">87001223</span> <span class="small muted">· 08:50 · Lan</span><br><span class="small">Kho chính · <span class="err-text">1 hỏng</span></span></div><a class="btn btn-text" href="../m1/kho-phieu.html">PN-000427</a></div>
+	</div>
+	<div class="day">
+		<h3>Thứ Ba 01/12 · 1 kiện</h3>
+		<div class="qrow"><div><span class="bold">VTP99887766</span> <span class="small muted">· 15:12 · Hùng</span><br><span class="small">Kho chính · 2 bán lại được</span></div><a class="btn btn-text" href="../m1/kho-phieu.html">PN-000420</a></div>
+	</div>
+</div>
+<div class="stack">
+	<div class="empty" data-ca="0-dong"><h2>Chưa nhập kiện nào từ 25/11 đến 30/11</h2><p class="small muted">Đổi khoảng ngày, hoặc nhập kiện đầu tiên ở trên.</p></div>
+	<div class="empty" data-ca="khong-quyen-403"><h2>Bạn không có quyền nhập hàng hoàn ở Kho phụ Bình Thạnh</h2><p class="small muted">Ô Kho nhận chỉ có kho bạn được giao. Báo Chủ nếu cần thêm kho.</p></div>
+	<div class="box box-err" data-ca="loi-tai"><b>Chưa tải được danh sách.</b> <span>Kiểm mạng rồi thử lại.</span><div class="row" style="margin-top:8px"><button class="btn btn-line">Thử lại</button></div></div>
+</div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

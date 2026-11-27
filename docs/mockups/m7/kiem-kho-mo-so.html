@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M7 — Kiểm kho mở sổ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="../m3/m3.css">
+<link rel="stylesheet" href="m7.css">
+</head>
+<body data-page="kiem-kho-mo-so" data-title="Kiểm kho mở sổ">
+<div class="app"><main class="main">
+
+<div class="page-h" data-ca="mo02">
+	<div><p class="crumb"><a href="../m1/kho-kiem-kho.html">Kiểm kho</a> / Mở sổ</p><h1>Kiểm kho mở sổ</h1><p class="sub">Đếm toàn bộ hàng của một kho chưa có tồn để làm số tồn đầu tiên. Đăng xong, tồn của mỗi mã bằng đúng số đếm.</p></div>
+</div>
+<p class="mk"><b>Mockup:</b> khung viền đứt là ghi chú. Dữ liệu giả: Kho chính 412 mã phải đếm (mọi biến thể đang bán của sản phẩm nháp hoặc đang bán). Đường đề xuất <code>/kho/mo-so</code>, <code>/kho/mo-so/:id</code> (Task 273 chốt).</p>
+
+<!-- ============ A ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI A</p><h2>Tạo phiên mở sổ: kho trống; kho đã có hàng; kho đã có phiên mở sổ; kho đang kiểm thường</h2></section>
+<div class="cols">
+<div class="stack">
+	<div class="card" data-ca="loi-vao">
+		<div class="row-between"><h2>Bắt đầu phiên kiểm</h2><span class="xs muted">màn Kiểm kho (M1), thêm một nút</span></div>
+		<label class="field"><span>Kho</span><span class="select-wrap"><select><option>Kho chính</option></select></span></label>
+		<div class="row" style="margin-top:16px"><button class="btn btn-line">Bắt đầu kiểm Kho chính</button><a class="btn btn-dark" href="#dem">Mở sổ kho này</a></div>
+		<p class="hint" style="margin-top:8px">Nút "Mở sổ kho này" chỉ có khi bạn có quyền mở sổ kho đó. Kho đã có hàng thì bấm sẽ báo như hộp bên phải.</p>
+	</div>
+	<div class="card" data-ca="tao-phien">
+		<h2>Bắt đầu mở sổ</h2>
+		<label class="field" data-ca="chon-kho"><span>Kho</span><span class="select-wrap"><select><option>Kho chính</option><option>Kho phụ Bình Thạnh</option></select></span></label>
+		<p class="hint" style="margin-top:8px">Chỉ hiện kho bạn có quyền mở sổ. Chỉ mở sổ được kho chưa có phiếu, tồn hay hàng giữ nào; mỗi kho mở sổ một lần.</p>
+		<button class="btn btn-dark btn-wide" style="margin-top:16px">Bắt đầu đếm Kho chính</button>
+	</div>
+	<div class="toast" data-ca="so-dong-can-dem"><span class="grow">Đã tạo phiên MS-0001 · Kho chính · <b>412 mã</b> phải đếm.</span><button class="btn">Vào đếm</button></div>
+</div>
+<div class="stack">
+	<div class="box box-err" data-ca="kho-khong-trong"><b>Kho phụ Bình Thạnh đã có hàng hoặc phiếu kho.</b> <span>Mở sổ chỉ dùng cho kho chưa có gì. Kho này dùng Kiểm kho thường để sửa số.</span><div class="row" style="margin-top:8px"><a class="btn btn-line" href="../m1/kho-kiem-kho.html">Sang Kiểm kho</a></div></div>
+	<div class="box box-info" data-ca="da-co-phien-mo-so"><b>Kho chính đã có phiên mở sổ MS-0001</b> (đang đếm, Hùng tạo lúc 19:02 30/11). Mọi người cùng đếm vào một phiên.<div class="row" style="margin-top:8px"><a class="btn btn-dark" href="#dem">Vào phiên MS-0001</a></div></div>
+	<div class="box box-err" data-ca="dang-co-phien-thuong"><b>Kho chính đang có phiên kiểm thường KK-0007.</b> <span>Áp dụng hoặc hủy phiên đó rồi mới mở sổ được.</span><div class="row" style="margin-top:8px"><a class="btn btn-line" href="../m1/kho-kiem-kho.html">Mở KK-0007</a></div></div>
+</div>
+</div>
+
+<!-- ============ B ============ -->
+<section class="st" id="dem"><p class="xs">TRẠNG THÁI B</p><h2>Đếm bằng quét mã trên điện thoại: mỗi lần quét cộng 1, nút −1 sửa quét thừa, số là tổng của mọi người</h2></section>
+<div class="phone-col stack">
+	<div class="row-between"><div><b>MS-0001 · Kho chính</b><br><span class="small muted">Mở sổ · Hùng tạo lúc 19:02 30/11</span></div><span class="chip chip-ok">Đang đếm</span></div>
+	<div class="prog" data-ca="tien-do"><div class="row-between"><span class="v">405 / 412 mã</span><a class="btn btn-text" href="#chua-dem">Còn 7 mã chưa đếm</a></div><div class="bar"><i style="width:98%"></i></div></div>
+	<div class="scan field" data-ca="quet-ma"><label for="sc">Quét barcode hoặc gõ mã</label><input id="sc" class="input" placeholder="Quét hoặc gõ SKU rồi Enter" inputmode="text"></div>
+	<div class="last-scan" data-ca="vua-quet ten-dai">
+		<div class="row-between"><span class="small muted">Vừa quét · 2000000000015</span><span class="xs ok-text">Đã lưu</span></div>
+		<div><span class="name bold">Đầm suông công sở cổ vuông tay lỡ phối nút ngọc trai dáng dài qua gối màu be sữa</span><br><span class="small">Đen · S · DAM0123-DEN-S</span></div>
+		<div class="row-between"><span class="count-big">7</span><span class="small muted" data-ca="nhieu-nguoi">Tổng của mọi người.<br>Lần cuối: Lan, 20:41.</span></div>
+		<div class="big-acts"><button class="btn btn-line" data-ca="bot-1" aria-label="Bớt 1 DAM0123-DEN-S">−1</button><button class="btn btn-dark" data-ca="cong-1" aria-label="Thêm 1 DAM0123-DEN-S">+1</button></div>
+		<p class="hint">Quét lại cùng mã để cộng 1. Quét thừa thì bấm −1. Mỗi lần quét gửi ngay một lần cộng; nhiều người đếm cùng mã thì số cộng dồn, không ghi đè nhau.</p>
+	</div>
+	<div class="box box-err" data-ca="ma-la"><b>Không thấy mã 2000000009999.</b> <span>Mã này không có trong danh mục. Kiểm lại tem, hoặc gõ SKU. Không cộng gì.</span></div>
+	<div class="box box-soft" data-ca="ma-trung-nguoi-ban"><b>Mã 8930000000017 có ở 2 người bán.</b> Chọn đúng món đang cầm để cộng 1:
+		<div class="cands" style="margin-top:8px">
+			<div class="cand"><div><span class="bold">Áo sơ mi lụa cổ đức tay dài</span><br><span class="small muted">ELIMAZ · AO0456-TRANG-S · Trắng · S</span></div><button class="btn btn-line">Cộng 1</button></div>
+			<div class="cand"><div><span class="bold">Áo sơ mi lụa cổ đức tay dài (ký gửi)</span><br><span class="small muted">Tiệm Mây · MAY-AO0456-S · Trắng · S</span></div><button class="btn btn-line">Cộng 1</button></div>
+		</div>
+	</div>
+	<div class="box box-err" data-ca="so-am"><b>Không bớt được.</b> <span>AO0789-XANH-L đang là 0, số đếm không âm.</span></div>
+	<div class="box box-soft" data-ca="cho-gui gui-lai-cung-khoa"><b>Mất mạng · 3 lần quét đang chờ gửi.</b> Cứ quét tiếp. Có mạng lại máy tự gửi đúng các lần quét đó, không đếm trùng. Đừng đóng trang khi còn lần chờ gửi.</div>
+	<div>
+		<h3>Vừa quét</h3>
+		<div style="margin-top:8px">
+			<div class="qrow is-wait"><div><span class="sku">SET0012-XAM-M</span><br><span class="nm">Set vest blazer và chân váy chữ A · Xám · M</span></div><span class="xs muted">Chờ gửi · +1</span></div>
+			<div class="qrow is-wait"><div><span class="sku">SET0012-XAM-M</span><br><span class="nm">Set vest blazer và chân váy chữ A · Xám · M</span></div><span class="xs muted">Chờ gửi · +1</span></div>
+			<div class="qrow is-wait"><div><span class="sku">VAY0101-BE-M</span><br><span class="nm">Chân váy bút chì xẻ sau · Be · M</span></div><span class="xs muted">Chờ gửi · +1</span></div>
+			<div class="qrow"><div><span class="sku">DAM0123-DEN-S</span><br><span class="nm">Đầm suông công sở cổ vuông … · Đen · S</span></div><span class="xs ok-text">Đã lưu · 7</span></div>
+			<div class="qrow"><div><span class="sku">AO0456-TRANG-S</span><br><span class="nm">Áo sơ mi lụa cổ đức tay dài · Trắng · S</span></div><span class="xs ok-text">Đã lưu · 12</span></div>
+		</div>
+	</div>
+</div>
+
+<!-- ============ C ============ -->
+<section class="st" id="chua-dem"><p class="xs">TRẠNG THÁI C</p><h2>Còn 7 mã chưa đếm (số do máy chủ đếm): mã không có hàng phải nhập 0; nút Đăng khóa</h2></section>
+<div class="cols">
+<div class="stack">
+	<div class="box box-info" data-ca="con-n-dong"><b>Còn 7 mã chưa đếm.</b> Phải có số cho mọi mã đang bán mới đăng được. Mã thật sự không có trên kệ thì bấm "Nhập 0".</div>
+	<div class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="true">Chưa đếm (7)</button><button class="tab" role="tab" aria-selected="false">Đã đếm (405)</button></div>
+	<div class="lines" data-ca="ds-chua-dem">
+		<div class="line"><div><span class="small muted">QU0789-DEN-M</span><br><span class="name bold">Quần âu ống đứng cạp cao · Đen · M</span></div><button class="btn btn-line" data-ca="nhap-0">Nhập 0</button></div>
+		<div class="line"><div><span class="small muted">QU0789-DEN-XL</span><br><span class="name bold">Quần âu ống đứng cạp cao · Đen · XL</span></div><button class="btn btn-line">Nhập 0</button></div>
+		<div class="line"><div><span class="small muted">DAM0777-HONG-L</span><br><span class="name bold clamp2">Đầm voan hai lớp cổ yếm thắt nơ eo xếp ly tầng phối ren hoa nhí · Hồng phấn · L</span></div><button class="btn btn-line">Nhập 0</button></div>
+		<div class="line"><div><span class="small muted">TUI0090-NAU</span><br><span class="name bold">Túi da mini · Nâu</span></div><button class="btn btn-line">Nhập 0</button></div>
+		<div class="line"><div><span class="small muted">KHAN0012-KEM, KHAN0012-DEN, VAY0310-XANH-S</span><br><span class="name bold">3 mã nữa</span></div><a class="btn btn-text" href="#chua-dem">Xem cả 7</a></div>
+	</div>
+</div>
+<div class="stack">
+	<div class="card">
+		<div class="row-between"><h2>Đăng mở sổ</h2><span class="chip">405 / 412</span></div>
+		<div class="kpis" style="margin-top:16px"><div class="kpi"><span class="small muted">Đã đếm</span><div class="v">405 mã</div></div><div class="kpi"><span class="small muted">Tổng số cái</span><div class="v">8.214</div></div></div>
+		<div class="savebar" data-ca="dang-khoa" style="margin-top:16px"><button class="btn btn-dark" disabled>Đăng mở sổ…</button></div>
+		<p class="reason" style="margin-top:4px">Còn 7 mã chưa đếm. Đếm hoặc nhập 0 cho cả 7 mã thì nút mở.</p>
+	</div>
+</div>
+</div>
+
+<!-- ============ D ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI D</p><h2>Nhập số đếm bằng Excel: chọn chế độ, đang đọc tệp, kết quả và lỗi từng dòng, tệp đã cộng, tệp sai, đọc lỗi</h2></section>
+<div class="cols">
+<div class="stack">
+	<div class="card" data-ca="nhap-excel">
+		<h2>Nhập số đếm từ Excel</h2>
+		<p class="small muted">Trang đầu của tệp có hai cột <b>Mã</b> (SKU hoặc barcode) và <b>Số đếm</b>. Cùng một mã xuất hiện nhiều dòng thì cộng lại. Ô có công thức không được đọc: dán giá trị.</p>
+		<div class="opts" data-ca="chon-che-do" style="margin-top:16px">
+			<label class="opt is-on"><input type="radio" name="md" checked><span class="bold">Đặt bằng số trong tệp</span><span class="hint">Mã có trong tệp lấy đúng số của tệp. Nhập lại cùng tệp không đổi gì. Dùng khi một nhóm đếm xong cả khu vực.</span></label>
+			<label class="opt"><input type="radio" name="md"><span class="bold">Cộng thêm vào số đã đếm</span><span class="hint">Cộng số trong tệp vào số đang có (kể cả số vừa quét). Một tệp chỉ cộng được một lần.</span></label>
+		</div>
+		<div class="drop" style="margin-top:16px"><b>Kéo tệp .xlsx vào đây</b><span class="small muted">hoặc</span><button class="btn btn-line">Chọn tệp</button><span class="hint">Tối đa 5 MB</span></div>
+		<div class="box box-err" data-ca="tep-sai" style="margin-top:8px"><b>Không nhận tệp dem-khu-A.csv.</b> <span>Chỉ nhận tệp .xlsx, tối đa 5 MB.</span></div>
+	</div>
+	<div class="card" data-ca="dang-xu-ly">
+		<div class="row-between"><h2>dem-khu-A.xlsx</h2><span class="chip">Đang đọc tệp</span></div>
+		<p class="small muted">Máy đang đọc và cộng vào phiên. Có thể rời trang; kết quả nằm ở đây khi xong.</p>
+	</div>
+</div>
+<div class="stack">
+	<div class="card" data-ca="ket-qua-nhap loi-tung-dong">
+		<div class="row-between"><h2>dem-khu-B.xlsx</h2><span class="chip chip-ok">Đã nhập</span></div>
+		<p><b>2.996 dòng</b> đã vào phiên (đặt bằng số trong tệp). <b class="err-text">4 dòng lỗi</b> không vào; sửa trong tệp rồi nhập lại cả tệp.</p>
+		<div class="tbl-frame" style="margin-top:8px"><table class="tbl">
+			<thead><tr><th>Dòng</th><th>Lỗi</th></tr></thead>
+			<tbody>
+				<tr class="is-err"><td data-label="Dòng" class="num">12</td><td data-label="Lỗi">Không thấy mã trong danh mục</td></tr>
+				<tr class="is-err"><td data-label="Dòng" class="num">40</td><td data-label="Lỗi">Mã có ở 2 người bán: ghi SKU thay barcode</td></tr>
+				<tr class="is-err"><td data-label="Dòng" class="num">58</td><td data-label="Lỗi">Số đếm không phải số nguyên</td></tr>
+				<tr class="is-err"><td data-label="Dòng" class="num">301</td><td data-label="Lỗi">Ô có công thức: dán giá trị</td></tr>
+			</tbody>
+		</table></div>
+		<p class="hint" style="margin-top:8px">Chỉ hiện số dòng và lỗi, không chép nội dung ô. Số âm báo "Số đếm âm".</p>
+	</div>
+	<div class="box box-err" data-ca="da-nhap-409"><b>Tệp này đã được cộng vào phiên rồi.</b> <span>Cộng lần nữa sẽ đếm trùng. Muốn nhập lại thì chọn "Đặt bằng số trong tệp".</span></div>
+	<div class="box box-err" data-ca="nhap-that-bai"><b>Không đọc được dem-khu-C.xlsx.</b> <span>Trang đầu không có cột "Mã" và "Số đếm". Không số nào được đổi.</span></div>
+</div>
+</div>
+
+<!-- ============ E ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI E</p><h2>Đăng: xác nhận; máy chủ báo còn dòng chưa đếm; người khác đã đăng; kho có hàng vào giữa chừng</h2></section>
+<div class="cols">
+<div class="backdrop" data-ca="xac-nhan-dang">
+	<div class="dlg" role="dialog" aria-labelledby="d1">
+		<div class="dlg-h"><h3 id="d1">Đăng mở sổ Kho chính?</h3></div>
+		<div class="dlg-b"><p>Tồn của <b>412 mã</b> sẽ bằng đúng số đếm, tổng <b>8.214 cái</b>. Mã đếm 0 có tồn 0.</p><p class="small muted">Đăng xong phiên không sửa được nữa. Sai số sau đó sửa bằng phiếu điều chỉnh có lý do ở Phiếu kho.</p></div>
+		<div class="dlg-f"><button class="btn btn-line">Quay lại</button><button class="btn btn-dark">Đăng</button></div>
+	</div>
+</div>
+<div class="stack">
+	<div class="box box-err" data-ca="uncounted-422"><b>Chưa đăng: còn 2 mã chưa đếm.</b> <span>Có mã mới được bật bán trong lúc đếm. Đếm 2 mã đó rồi đăng lại.</span><div class="row" style="margin-top:8px"><a class="btn btn-line" href="#chua-dem">Xem 2 mã</a></div></div>
+	<div class="box box-info" data-ca="da-dang-409"><b>Phiên MS-0001 đã được Lan đăng lúc 21:04.</b> Không đăng lại. Màn chuyển sang kết quả.</div>
+	<div class="box box-err" data-ca="kho-co-hang-luc-dang"><b>Không đăng được: Kho chính vừa có phiếu kho khác.</b> <span>Có người ghi phiếu vào kho này sau khi bắt đầu đếm, nên kho không còn trống. Không số nào được ghi. Kho này không mở sổ được nữa: hủy phiên mở sổ rồi dùng Kiểm kho thường.</span><div class="row" style="margin-top:8px"><button class="btn btn-danger">Hủy phiên MS-0001…</button></div></div>
+</div>
+</div>
+
+<!-- ============ F ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI F</p><h2>Đã đăng và kết quả kiểm: khớp; lệch; kho đã có phiếu khác sau giờ mở bán</h2></section>
+<div class="cols">
+<div class="stack" data-ca="ket-qua-kiem">
+	<div class="box box-ok"><b class="ok-text">Đã mở sổ Kho chính.</b> 412 mã, 8.214 cái. Đăng bởi Lan lúc 21:04 30/11.</div>
+	<div class="card" data-ca="kiem-khop">
+		<div class="row-between"><h2>Kiểm lại</h2><span class="chip chip-ok">Khớp</span></div>
+		<p>Sổ kho và tồn của cả 412 mã bằng đúng số đếm.</p>
+		<p class="small muted">Kiểm lúc 21:30. Đây là mốc A của đêm mở.</p>
+		<div class="row" style="margin-top:8px"><button class="btn btn-line">Kiểm lại</button></div>
+	</div>
+	<div class="box box-info" data-ca="sua-bang-phieu-dieu-chinh"><b>Phát hiện đếm sai sau khi đăng?</b> Tạo phiếu điều chỉnh có lý do ở Phiếu kho. Phiên mở sổ không mở lại.<div class="row" style="margin-top:8px"><a class="btn btn-line" href="../m1/kho-phieu.html">Sang Phiếu kho</a></div></div>
+</div>
+<div class="stack">
+	<div class="card" data-ca="kiem-lech">
+		<div class="row-between"><h2>Kiểm lại</h2><span class="chip chip-err">Lệch 2 mã</span></div>
+		<div class="tbl-frame" style="margin-top:8px"><table class="tbl">
+			<thead><tr><th>Mã</th><th class="r">Đếm</th><th class="r">Sổ mở sổ</th><th class="r">Tồn hiện tại</th></tr></thead>
+			<tbody>
+				<tr class="is-err"><td class="lead"><span class="bold nowrap">QU0789-DEN-M</span></td><td data-label="Đếm" class="r num">5</td><td data-label="Sổ mở sổ" class="r num">5</td><td data-label="Tồn hiện tại" class="r num">3</td></tr>
+				<tr class="is-err"><td class="lead"><span class="bold nowrap">SET0012-XAM-M</span></td><td data-label="Đếm" class="r num">11</td><td data-label="Sổ mở sổ" class="r num">10</td><td data-label="Tồn hiện tại" class="r num">10</td></tr>
+			</tbody>
+		</table></div>
+		<p class="small" style="margin-top:8px">Mốc A chưa đạt. Báo người quyết đêm mở trước khi mở bán.</p>
+	</div>
+	<div class="card" data-ca="da-co-chung-tu-khac">
+		<div class="row-between"><h2>Kiểm lại</h2><span class="chip chip-ok">Sổ khớp</span></div>
+		<p>Sổ mở sổ khớp số đếm của 412 mã.</p>
+		<p class="small muted">Kho đã có đơn và phiếu khác sau giờ mở bán, nên chỉ so sổ mở sổ với số đếm, không so tồn hiện tại.</p>
+	</div>
+</div>
+</div>
+
+<!-- ============ G ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI G</p><h2>Không có quyền ở kho này; lỗi tải</h2></section>
+<div class="cols">
+	<div class="empty" data-ca="khong-quyen-403"><h2>Bạn không có quyền mở sổ Kho phụ Bình Thạnh</h2><p class="small muted">Cần quyền mở sổ kho của kho này (Chủ, Quản lý hoặc nhân viên kho được giao kho). Báo Chủ nếu cần.</p></div>
+	<div class="box box-err" data-ca="loi-tai"><b>Chưa tải được phiên MS-0001.</b> <span>Kiểm mạng rồi thử lại. Các lần quét chờ gửi vẫn giữ trên máy.</span><div class="row" style="margin-top:8px"><button class="btn btn-line">Thử lại</button></div></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>
