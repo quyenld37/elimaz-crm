@@ -19,6 +19,7 @@ const (
 	codeBadDate       = "bad_date"
 	codeRangeTooLong  = "range_too_long"
 	codeUnknownReport = "unknown_report"
+	codeNoSnapshot    = "no_snapshot"
 )
 
 // reportsError đổi lỗi nghiệp vụ của báo cáo sang mã HTTP. ErrNotImplemented: phần của báo cáo mà task của nó chưa
@@ -31,6 +32,8 @@ func reportsError(err error) (status int, code string, ok bool) {
 		{reporting.ErrBadParams, http.StatusBadRequest, codeBadParams},
 		{reporting.ErrUnknownReport, http.StatusBadRequest, codeUnknownReport},
 		{reporting.ErrPageForbidden, http.StatusForbidden, codeForbidden},
+		{reporting.ErrWarehouseForbidden, http.StatusForbidden, codeForbidden},
+		{reporting.ErrNoSnapshot, http.StatusNotFound, codeNoSnapshot},
 		{reporting.ErrNotImplemented, http.StatusNotImplemented, codeNotImplemented},
 	})
 }
