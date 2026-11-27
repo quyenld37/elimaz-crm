@@ -322,3 +322,36 @@
     display: none;
   }
 }
+
+/* Task 241 (M6-18): bộ lọc, tab, dòng tồn hết hàng, bảng Tệp xuất. Chép từ docs/m6/mockup/m6.css. */
+.rp .rep-f {
+  display: flex;
+  gap: var(--space-sm) var(--space-md);
+  flex-wrap: wrap;
+  align-items: end;
+}
+.rp .rep-f .field {
+  flex: 0 1 240px;
+}
+@media (max-width: 759px) {
+  .rp .rep-f .field {
+    flex: 1 1 100%;
+  }
+}
+.rp .rt td.bold {
+  font-weight: 700;
+}
+.rp .rt td .nm.is-wide {
+  max-width: 420px;
+}
+.rp .rt td .block {
+  display: block;
+}
+.rp .rt tr.v-pad td {
+  padding: 0;
+  border: 0;
+}
+.rp .rt td .field-err {
+  white-space: normal;
+}
+/* Hộp xuất (nằm ngoài .rp vì <dialog> mở ở lớp trên cùng): chỉ dùng lớp có sẵn của styles.css. */
