@@ -247,7 +247,7 @@ func (q *Queries) TemplateCustomerName(ctx context.Context, id uuid.UUID) (Templ
 }
 
 const templateLatestOrder = `-- name: TemplateLatestOrder :one
-SELECT code
+SELECT id, code
 FROM ord.orders_v
 WHERE customer_id = ANY($1::uuid[])
   AND status <> 'cancelled'
@@ -255,12 +255,17 @@ ORDER BY created_at DESC, id DESC
 LIMIT 1
 `
 
+type TemplateLatestOrderRow struct {
+	ID   uuid.UUID
+	Code string
+}
+
 // Đơn chưa hủy mới nhất của nhóm khách (mọi hồ sơ @members).
-func (q *Queries) TemplateLatestOrder(ctx context.Context, members []uuid.UUID) (string, error) {
+func (q *Queries) TemplateLatestOrder(ctx context.Context, members []uuid.UUID) (TemplateLatestOrderRow, error) {
 	row := q.db.QueryRow(ctx, templateLatestOrder, members)
-	var code string
-	err := row.Scan(&code)
-	return code, err
+	var i TemplateLatestOrderRow
+	err := row.Scan(&i.ID, &i.Code)
+	return i, err
 }
 
 const templateOrder = `-- name: TemplateOrder :one

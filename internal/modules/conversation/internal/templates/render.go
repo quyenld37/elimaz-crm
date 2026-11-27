@@ -15,6 +15,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/store"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/identity"
+	"elimaz.com.vn/crm/internal/queries"
 )
 
 // Biến của mẫu (kế hoạch M4, Task 161, 162; 01 mục 6). Biến là "{tên}" với tên gồm chữ thường a–z và "_"; chuỗi trong
@@ -183,8 +184,8 @@ func (v *values) get(ctx context.Context, name string) (string, error) {
 		s, err = v.orderCode(ctx)
 	case VarStaffName:
 		s, err = v.staffName(ctx)
-	default: // {ma_van_don}: Task 162
-		err = &VariableMissingError{Name: name}
+	case VarTrackingCode:
+		s, err = v.trackingCode(ctx)
 	}
 	if err != nil {
 		return "", err
@@ -235,38 +236,66 @@ func (v *values) staffName(ctx context.Context) (string, error) {
 	return s, nil
 }
 
+// orderCode là mã của đơn dùng cho {ma_don}.
 func (v *values) orderCode(ctx context.Context) (string, error) {
+	_, code, err := v.order(ctx)
+	return code, err
+}
+
+// trackingCode là mã vận đơn của vận đơn hiện hành của đơn dùng cho {ma_don} (cùng đơn, Task 162). Khách chưa có đơn,
+// đơn chưa có vận đơn hiện hành hay vận đơn chưa có mã → thiếu giá trị của chính biến này.
+func (v *values) trackingCode(ctx context.Context) (string, error) {
+	id, _, err := v.order(ctx)
+	if _, ok := errors.AsType[*VariableMissingError](err); ok {
+		return "", &VariableMissingError{Name: VarTrackingCode}
+	}
+	if err != nil {
+		return "", err
+	}
+	code, ok, err := queries.TrackingCodeOfOrder(ctx, v.tx, id)
+	if err != nil {
+		return "", fmt.Errorf("đọc mã vận đơn cho mẫu: %w", err)
+	}
+	if !ok {
+		return "", &VariableMissingError{Name: VarTrackingCode}
+	}
+	return code, nil
+}
+
+// order chọn đơn cho {ma_don} và {ma_van_don}: đơn chỉ định (phải thuộc nhóm khách) hoặc đơn chưa hủy mới nhất của
+// nhóm khách. Hai biến cùng đọc trong một tx của bên gọi nên cùng một đơn.
+func (v *values) order(ctx context.Context) (uuid.UUID, string, error) {
 	root, err := customer.RootOf(ctx, v.tx, v.conv.CustomerID)
 	if err != nil {
-		return "", fmt.Errorf("đọc gốc khách cho mẫu: %w", err)
+		return uuid.Nil, "", fmt.Errorf("đọc gốc khách cho mẫu: %w", err)
 	}
 	if v.in.OrderID != nil {
 		o, err := v.q.TemplateOrder(ctx, *v.in.OrderID)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", ErrOrderNotOfCustomer
+			return uuid.Nil, "", ErrOrderNotOfCustomer
 		}
 		if err != nil {
-			return "", fmt.Errorf("đọc đơn cho mẫu: %w", err)
+			return uuid.Nil, "", fmt.Errorf("đọc đơn cho mẫu: %w", err)
 		}
 		owner, err := customer.RootOf(ctx, v.tx, o.CustomerID)
 		if err != nil && !errors.Is(err, customer.ErrNotFound) {
-			return "", fmt.Errorf("đọc khách của đơn cho mẫu: %w", err)
+			return uuid.Nil, "", fmt.Errorf("đọc khách của đơn cho mẫu: %w", err)
 		}
 		if err != nil || owner != root {
-			return "", ErrOrderNotOfCustomer
+			return uuid.Nil, "", ErrOrderNotOfCustomer
 		}
-		return o.Code, nil
+		return *v.in.OrderID, o.Code, nil
 	}
 	members, err := customer.GroupMembers(ctx, v.tx, root)
 	if err != nil {
-		return "", fmt.Errorf("đọc nhóm khách cho mẫu: %w", err)
+		return uuid.Nil, "", fmt.Errorf("đọc nhóm khách cho mẫu: %w", err)
 	}
-	code, err := v.q.TemplateLatestOrder(ctx, members)
+	o, err := v.q.TemplateLatestOrder(ctx, members)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", &VariableMissingError{Name: VarOrderCode}
+		return uuid.Nil, "", &VariableMissingError{Name: VarOrderCode}
 	}
 	if err != nil {
-		return "", fmt.Errorf("đọc đơn mới nhất cho mẫu: %w", err)
+		return uuid.Nil, "", fmt.Errorf("đọc đơn mới nhất cho mẫu: %w", err)
 	}
-	return code, nil
+	return o.ID, o.Code, nil
 }

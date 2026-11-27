@@ -62,7 +62,7 @@ WHERE id = @id;
 
 -- name: TemplateLatestOrder :one
 -- Đơn chưa hủy mới nhất của nhóm khách (mọi hồ sơ @members).
-SELECT code
+SELECT id, code
 FROM ord.orders_v
 WHERE customer_id = ANY(@members::uuid[])
   AND status <> 'cancelled'
