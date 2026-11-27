@@ -614,20 +614,20 @@ function InfoCard({
           )}
         </Field>
       </div>
-      {/* Số đo của mẫu (Task 516): website hiện "Dài 88 cm · Rộng 20 cm", chỉ các số đã nhập. */}
+      {/* Số đo của mẫu (Task 516, 517): website hiện "Dài 72,5 cm · Rộng 20 cm", chỉ các số đã nhập. */}
       <div className="grid-f p-info-more">
         {MEASURE_KEYS.map((k) => (
           <Field
             key={k}
             label={MEASURE_LABEL[k]}
             error={errors[k]}
-            hint={k === "length" && errors[k] === undefined ? "Số nguyên, để trống nếu không có" : undefined}
+            hint={k === "length" && errors[k] === undefined ? "Ví dụ 72,5; để trống nếu không có" : undefined}
           >
             {(id, invalid) => (
               <input
                 id={id}
                 className={inputClass(invalid)}
-                inputMode="numeric"
+                inputMode="decimal"
                 value={draft.measure[k]}
                 aria-invalid={invalid || undefined}
                 onChange={(e) => {

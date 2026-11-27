@@ -64,7 +64,7 @@ func (a *ImportApplier) createPlanned(ctx context.Context, tx pgx.Tx, seller uui
 ) error {
 	in := ProductInput{
 		SellerID: seller, Code: pp.Code, Name: pp.Name, Description: pp.Description, Status: ProductStatus(pp.Status),
-		Measure: MeasureCm{Length: pp.LengthCm, Width: pp.WidthCm, Height: pp.HeightCm},
+		Measure: MeasureMm{Length: pp.LengthMm, Width: pp.WidthMm, Height: pp.HeightMm},
 	}
 	for _, v := range pp.Variants {
 		in.Variants = append(in.Variants, VariantInput{
@@ -183,12 +183,12 @@ func (a *ImportApplier) updateProductFields(ctx context.Context, tx pgx.Tx, sell
 }
 
 // plannedMeasure: số đo cur với các ô có số của pp thay vào; changed khi khác cur.
-func plannedMeasure(cur MeasureCm, pp *ImportPlannedProduct) (MeasureCm, bool) {
+func plannedMeasure(cur MeasureMm, pp *ImportPlannedProduct) (MeasureMm, bool) {
 	out, changed := cur, false
 	for _, f := range []struct {
 		dst  **int
 		cell *int
-	}{{&out.Length, pp.LengthCm}, {&out.Width, pp.WidthCm}, {&out.Height, pp.HeightCm}} {
+	}{{&out.Length, pp.LengthMm}, {&out.Width, pp.WidthMm}, {&out.Height, pp.HeightMm}} {
 		if f.cell != nil && (*f.dst == nil || **f.dst != *f.cell) {
 			*f.dst, changed = f.cell, true
 		}

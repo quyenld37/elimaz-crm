@@ -24,12 +24,15 @@ export const MAX_NAME = 200;
 export const MAX_DESCRIPTION = 1000;
 export const MAX_OPTION = 50;
 export const MAX_VARIANTS = 200;
-/** Số đo của mẫu (Task 516): số nguyên cm, mỗi số 1–1.000 (catalog.MinMeasureCm, MaxMeasureCm). */
-export const MIN_MEASURE_CM = 1;
-export const MAX_MEASURE_CM = 1000;
+/**
+ * Số đo của mẫu (Task 516, 517): cm, mỗi số 0,1–1.000, tối đa một chữ số thập phân (máy chủ lưu mm số nguyên:
+ * catalog.MinMeasureMm, MaxMeasureMm).
+ */
+export const MIN_MEASURE_MM = 1;
+export const MAX_MEASURE_MM = 10000;
 export const MEASURE_KEYS = ["length", "width", "height"] as const;
 export type MeasureKey = (typeof MEASURE_KEYS)[number];
-export const TEXT_BAD_MEASURE = "Số nguyên cm từ 1 đến 1.000";
+export const TEXT_BAD_MEASURE = "Số cm từ 0,1 đến 1.000, tối đa một số lẻ";
 
 export interface VariantRow {
   /** Mã biến thể khi đã lưu; dòng mới: "new:<màu>|<size>". */
@@ -163,17 +166,23 @@ export function emptyDraft(): Draft {
   };
 }
 
-/** Ô số đo từ measureCm của máy chủ (số vắng mặt → ô trống). */
+/** Ô số đo từ measureCm của máy chủ (số vắng mặt → ô trống; số lẻ viết dấu phẩy: 72,5). */
 function measureText(m: MeasureCm | undefined): Record<MeasureKey, string> {
-  const t = (v: number | undefined) => (v === undefined ? "" : String(v));
+  const t = (v: number | undefined) => (v === undefined ? "" : String(v).replace(".", ","));
   return { length: t(m?.length), width: t(m?.width), height: t(m?.height) };
 }
 
-/** Số của một ô số đo: undefined khi trống; null khi sai (không phải số nguyên 1–1.000). */
+/**
+ * Số cm của một ô số đo ("72,5" hay "72.5" → 72.5): undefined khi trống; null khi sai (ngoài 0,1–1.000 hay hơn một
+ * chữ số thập phân). Đếm theo mm số nguyên nên hai cách viết cùng số cho cùng kết quả.
+ */
 function measureNumber(s: string): number | null | undefined {
   const t = s.trim();
-  const n = /^[0-9]{1,4}$/.test(t) ? Number(t) : 0;
-  return t === "" ? undefined : n >= MIN_MEASURE_CM && n <= MAX_MEASURE_CM ? n : null;
+  if (t === "") return undefined;
+  const m = /^([0-9]{1,4})(?:[.,]([0-9]))?$/.exec(t);
+  if (m === null) return null;
+  const mm = Number(m[1]) * 10 + Number(m[2] ?? "0");
+  return mm >= MIN_MEASURE_MM && mm <= MAX_MEASURE_MM ? mm / 10 : null;
 }
 
 /** measureCm gửi đi (gọi sau validate): chỉ các ô có số; không ô nào → undefined. */

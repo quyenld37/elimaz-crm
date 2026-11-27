@@ -3,6 +3,7 @@ package importer_test
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -11,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+	"pgregory.net/rapid"
 
 	"elimaz.com.vn/crm/internal/modules/catalog/internal/importer"
 	"elimaz.com.vn/crm/internal/platform/xlsx"
@@ -190,8 +192,9 @@ func TestValidatePrice(t *testing.T) {
 	}
 }
 
-// Ô số đo (Task 516): số nguyên 1–1000 (số 0 đầu bỏ), ô trống là nil; 0, 1001, số lẻ, số âm, chữ → invalid_measure ở
-// đúng ô, câu báo không chép ô dài.
+// Ô số đo (Task 516, 517): cm 0,1–1000, tối đa một chữ số thập phân, dấu phẩy hay dấu chấm (số 0 đầu bỏ); lưu mm số
+// nguyên; ô trống là nil; 0, 1000,1, hai chữ số thập phân, số âm, chữ, dấu phân nghìn → invalid_measure ở đúng ô, câu
+// báo không chép ô dài.
 func TestValidateMeasure(t *testing.T) {
 	for _, c := range []struct {
 		in   string
@@ -199,14 +202,23 @@ func TestValidateMeasure(t *testing.T) {
 		ok   bool
 	}{
 		{"", 0, true},
-		{"1", 1, true},
-		{"88", 88, true},
-		{"1000", 1000, true},
-		{"088", 88, true},
+		{"1", 10, true},
+		{"88", 880, true},
+		{"1000", 10000, true},
+		{"088", 880, true},
+		{"0,1", 1, true},
+		{"72,5", 725, true},
+		{"72.5", 725, true},
+		{"1000,0", 10000, true},
+		{"2.0", 20, true},
 		{"0", 0, false},
+		{"0,0", 0, false},
 		{"1001", 0, false},
-		{"2.5", 0, false},
-		{"2,5", 0, false},
+		{"1000,1", 0, false},
+		{"2.55", 0, false},
+		{"2,", 0, false},
+		{",5", 0, false},
+		{"1.000", 0, false},
 		{"-3", 0, false},
 		{"abc", 0, false},
 		{"10000", 0, false},
@@ -233,10 +245,10 @@ func TestValidateMeasure(t *testing.T) {
 	}
 }
 
-// checkPlannedMeasure: ba số đo của p đều là want (ô in trống → đều nil).
+// checkPlannedMeasure: ba số đo (mm) của p đều là want (ô in trống → đều nil).
 func checkPlannedMeasure(t *testing.T, in string, p importer.PlannedProduct, want int) {
 	t.Helper()
-	for _, got := range []*int{p.LengthCm, p.WidthCm, p.HeightCm} {
+	for _, got := range []*int{p.LengthMm, p.WidthMm, p.HeightMm} {
 		if in == "" && got != nil || in != "" && (got == nil || *got != want) {
 			t.Errorf("%q: %v, mong %d", in, got, want)
 		}
@@ -504,5 +516,25 @@ func TestValidate_ExistingProductByCode(t *testing.T) {
 	p := plan.Products[0]
 	if p.ExistingProductID == nil || *p.ExistingProductID != pid || p.Variants[0].Action != importer.ActionCreate {
 		t.Fatalf("mẫu có sẵn: %+v", p)
+	}
+}
+
+// Quy luật đổi cm → mm (Task 517): mọi mm trong [MinMeasureMm, MaxMeasureMm] đổi ra cm (mm/10) rồi đổi lại được đúng
+// mm đó; số cm có hơn một chữ số thập phân (mm + 0,5…) hay ngoài khoảng bị từ chối; NaN, ±Inf bị từ chối.
+func TestMeasureMmFromCm_RoundTrip(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		mm := rapid.IntRange(importer.MinMeasureMm, importer.MaxMeasureMm).Draw(t, "mm")
+		got, ok := importer.MeasureMmFromCm(float64(mm) / 10)
+		if !ok || got != mm {
+			t.Fatalf("%d mm → %v cm → %d, %v", mm, float64(mm)/10, got, ok)
+		}
+		if _, ok := importer.MeasureMmFromCm((float64(mm) + 0.5) / 10); ok {
+			t.Fatalf("%v cm (hai chữ số thập phân) phải bị từ chối", (float64(mm)+0.5)/10)
+		}
+	})
+	for _, bad := range []float64{0, -0.1, 0.04, 1000.1, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		if _, ok := importer.MeasureMmFromCm(bad); ok {
+			t.Errorf("%v cm phải bị từ chối", bad)
+		}
 	}
 }

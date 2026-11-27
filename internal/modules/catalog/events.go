@@ -88,7 +88,7 @@ func productAudit(p Product) map[string]any {
 		"code": p.Code, "name": p.Name, "status": string(p.Status), "version": p.Version,
 		"descriptionLength": len([]rune(p.Description)), "articleBlocks": len(p.Article), "variants": len(p.Variants),
 	}
-	for k, v := range map[string]*int{"lengthCm": p.Measure.Length, "widthCm": p.Measure.Width, "heightCm": p.Measure.Height} {
+	for k, v := range map[string]*int{"lengthMm": p.Measure.Length, "widthMm": p.Measure.Width, "heightMm": p.Measure.Height} {
 		if v != nil {
 			m[k] = *v
 		}

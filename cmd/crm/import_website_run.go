@@ -74,6 +74,9 @@ func (im *websiteImporter) run(ctx context.Context, dir string, x wxExport, unma
 		return rep, err
 	}
 	steps := []importStep{
+		{kindMeasure, func(ctx context.Context, tx pgx.Tx, c *importCount) error {
+			return im.measures(ctx, tx, x.ProductMeasures, c)
+		}},
 		{kindFeedback, func(ctx context.Context, tx pgx.Tx, c *importCount) error { return im.feedback(ctx, tx, x.Feedback, c) }},
 		{kindPause, func(ctx context.Context, tx pgx.Tx, c *importCount) error {
 			return im.pause(ctx, tx, x.CheckoutPause, c)

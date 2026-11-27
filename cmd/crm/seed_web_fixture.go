@@ -114,25 +114,25 @@ type fixtureMeasure struct {
 	Height *float64 `json:"height,omitempty"`
 }
 
-// cm đổi số đo của tệp (số thực của JSON website) sang catalog.MeasureCm; ok false khi một số không phải số nguyên
-// trong [MinMeasureCm, MaxMeasureCm]. m nil (tệp không có measureCm) → không số đo.
-func (m *fixtureMeasure) cm() (catalog.MeasureCm, bool) {
+// mm đổi số đo cm của tệp (số thực của JSON website) sang catalog.MeasureMm; ok false khi một số có hơn một chữ số
+// thập phân hay ngoài 0,1–1000 cm (catalog.MeasureMmFromCm). m nil (tệp không có measureCm) → không số đo.
+func (m *fixtureMeasure) mm() (catalog.MeasureMm, bool) {
 	if m == nil {
-		return catalog.MeasureCm{}, true
+		return catalog.MeasureMm{}, true
 	}
 	ok := true
 	conv := func(v *float64) *int {
 		if v == nil {
 			return nil
 		}
-		if *v != math.Trunc(*v) || *v < catalog.MinMeasureCm || *v > catalog.MaxMeasureCm {
+		n, good := catalog.MeasureMmFromCm(*v)
+		if !good {
 			ok = false
 			return nil
 		}
-		n := int(*v)
 		return &n
 	}
-	out := catalog.MeasureCm{Length: conv(m.Length), Width: conv(m.Width), Height: conv(m.Height)}
+	out := catalog.MeasureMm{Length: conv(m.Length), Width: conv(m.Width), Height: conv(m.Height)}
 	return out, ok
 }
 
@@ -258,8 +258,8 @@ func (p fixtureProduct) validate(seller uuid.UUID, cats, ids map[uuid.UUID]bool,
 	case len(p.CategoryIDs) != 1 || !cats[p.CategoryIDs[0]]:
 		return problemf("mẫu %q: cần đúng một danh mục có trong tệp", p.Key)
 	}
-	if _, ok := p.MeasureCm.cm(); !ok {
-		return problemf("mẫu %q: số đo phải là số nguyên cm %d–%d", p.Key, catalog.MinMeasureCm, catalog.MaxMeasureCm)
+	if _, ok := p.MeasureCm.mm(); !ok {
+		return problemf("mẫu %q: số đo phải là cm 0,1–1000, tối đa một chữ số thập phân", p.Key)
 	}
 	ids[p.ID], codes[code] = true, true
 	positions := map[int]bool{}

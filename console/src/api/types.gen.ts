@@ -732,7 +732,7 @@ export type CreateProductRequest = {
 };
 
 /**
- * Số đo của mẫu (Task 516): Dài, Rộng, Cao theo cm, số nguyên 1–1000, mỗi số tùy chọn (vắng mặt là chưa nhập). Cùng dạng với measureCm của website (chỉ các số đã nhập)
+ * Số đo của mẫu (Task 516, 517): Dài, Rộng, Cao theo cm, 0,1–1000, tối đa một chữ số thập phân (vd 72.5), mỗi số tùy chọn (vắng mặt là chưa nhập). Số ngoài khoảng hay có hơn một chữ số thập phân → 422 invalid_input. Cùng dạng với measureCm của website (chỉ các số đã nhập)
  */
 export type MeasureCm = {
     /**
@@ -756,7 +756,7 @@ export type UpdateProductRequest = {
     article?: ArticleInput;
     status?: ProductStatus;
     /**
-     * Số đo mới của mẫu (cm, mỗi số 1–1000, ngoài khoảng → 422 invalid_input): vắng mặt giữ nguyên; null bỏ cả ba số; một đối tượng đặt đúng các số trong đó (số vắng mặt là bỏ số đó) (Task 516)
+     * Số đo mới của mẫu (cm, mỗi số 0,1–1000, tối đa một chữ số thập phân; sai → 422 invalid_input): vắng mặt giữ nguyên; null bỏ cả ba số; một đối tượng đặt đúng các số trong đó (số vắng mặt là bỏ số đó) (Task 516, 517)
      */
     measureCm?: {
         /**

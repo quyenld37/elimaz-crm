@@ -44,8 +44,8 @@ const (
 	MaxOption      = 50 // màu, size
 	MaxVariants    = 200
 	MaxMoney       = 9007199254740991
-	MinMeasureCm   = 1
-	MaxMeasureCm   = 1000
+	MinMeasureMm   = 1     // 0,1 cm
+	MaxMeasureMm   = 10000 // 1000,0 cm
 
 	StatusDraft        = "draft"
 	StatusActive       = "active"
@@ -115,8 +115,8 @@ func Template(refs Refs) ([]byte, error) {
 		{ColDescription, "Không", fmt.Sprintf("Mô tả ngắn, tối đa %d ký tự, được xuống dòng.", MaxDescription)},
 		{ColStatus, "Không", "Đang nhập (ẩn với khách), Đang bán hoặc Ngừng bán. Để trống: mẫu mới là Đang nhập."},
 		{ColTags, "Không", "Mã nhãn kệ hàng, cách nhau bởi dấu ; (ví dụ: moi-ve;sale)."},
-		{ColLengthCm, "Không", fmt.Sprintf("Số đo của mẫu: số nguyên cm từ %d đến %d. Để trống: mẫu mới không có số "+
-			"này, mẫu đã có giữ số cũ. Rộng (cm), Cao (cm) điền như vậy.", MinMeasureCm, MaxMeasureCm)},
+		{ColLengthCm, "Không", "Số đo của mẫu: cm từ 0,1 đến 1000, tối đa một chữ số thập phân (ví dụ 72,5). Để trống: " +
+			"mẫu mới không có số này, mẫu đã có giữ số cũ. Rộng (cm), Cao (cm) điền như vậy."},
 		{AttributePrefix + "<tên>", "Không", "Giá trị của thuộc tính, nhiều giá trị cách nhau bởi dấu ;."},
 		{ColColor, "Có", fmt.Sprintf("Tên màu, tối đa %d ký tự.", MaxOption)},
 		{ColColorHex, "Không", "Mã màu dạng #RRGGBB, ví dụ #FF0000."},

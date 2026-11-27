@@ -69,6 +69,8 @@ type wxExport struct {
 	GiftSettings     wxGiftSettings `json:"giftSettings"`
 	CheckoutPause    wxPause        `json:"checkoutPause"`
 	Carriers         wxCarriers     `json:"carriers"`
+	// ProductMeasures (Task 517, tùy chọn): số đo Nhanh của từng mẫu website; bản xuất chưa có mục này → không nhập số đo.
+	ProductMeasures []wxProductMeasure `json:"productMeasures"`
 }
 
 // wxCategory là danh mục của website: mã Nhanh và đường tên từ cấp đầu ("Áo", "Áo sơ mi").
@@ -288,6 +290,7 @@ func decodeStrict(raw []byte, v any) error {
 
 // Tên các loại theo thứ tự chạy (nhóm khóa ADR-46 tăng dần, quyết định 8 của tệp task).
 const (
+	kindMeasure  = "số đo mẫu"
 	kindFeedback = "góp ý"
 	kindPause    = "tạm dừng nhận đơn"
 	kindCarriers = "hãng trên web"
@@ -298,7 +301,7 @@ const (
 )
 
 func importKinds() []string {
-	return []string{kindFeedback, kindPause, kindCarriers, kindCampaign, kindGift, kindBanner, kindLook}
+	return []string{kindMeasure, kindFeedback, kindPause, kindCarriers, kindCampaign, kindGift, kindBanner, kindLook}
 }
 
 // importCount là kết quả của một loại: thêm (hay đổi), bỏ qua (đã có, giữ của CRM), lỗi; Notes là dòng giải thích
