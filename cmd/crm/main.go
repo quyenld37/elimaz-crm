@@ -83,6 +83,10 @@ var (
 )
 
 func main() {
+	if isNhanhSnapshotCommand(os.Args[1:]) {
+		// Lệnh chụp chỉ đọc (ADR-48): không database, không cấu hình vai trò; chỉ cần biến môi trường của lệnh.
+		os.Exit(runNhanhSnapshot(context.Background(), os.Args[2:], config.FromOS, os.Stdout, os.Stderr))
+	}
 	os.Exit(run(context.Background(), os.Args[1:], config.FromOS, os.Stdout, os.Stderr))
 }
 
@@ -114,7 +118,7 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 	case len(args) > 0:
 		_, _ = fmt.Fprintf(stderr, "lệnh lạ %q; chỉ có `crm`, `crm healthcheck`, `crm seed-dev <email>`, "+
 			"`crm %s <mã khách>`, `crm %s create|revoke …`, `crm %s --file … --staff-email …` hoặc "+
-			"`crm %s --dir … --tenant … --dry-run|--apply`, `crm %s …`, `crm %s --sale <mã đợt>`\n", args,
+			"`crm %s --dir … --tenant … --dry-run|--apply`, `crm %s …`, `crm %s --sale <mã đợt>`, `crm nhanh-snapshot …`\n", args,
 			recomputeCommand, serviceKeyCommand, seedFixtureCommand, importWebsiteCommand, seedStagingCommand,
 			verifyFlashCommand)
 		return exitConfig
