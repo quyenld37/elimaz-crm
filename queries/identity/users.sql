@@ -31,3 +31,9 @@ RETURNING id;
 INSERT INTO identity.user_role_grants (tenant_id, user_id, role_id, scope_type, scope_id)
 VALUES (@tenant_id, @user_id, @role_id, @scope_type, @scope_id)
 ON CONFLICT DO NOTHING;
+
+-- name: GetUserByID :one
+-- Nhân viên theo mã (worker nạp lại người tạo một lần chạy nền, kế hoạch M6 Task 235): trạng thái và email đọc lúc chạy.
+SELECT id, tenant_id, email::text AS email, status
+FROM identity.users
+WHERE id = @id;

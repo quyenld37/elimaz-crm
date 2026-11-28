@@ -227,3 +227,41 @@ func TestSeedOwner(t *testing.T) {
 
 // platformTables: bảng nền tảng không RLS có cột tenant_id của M0 (như test của tenancy).
 func platformTables() []string { return []string{"platform.tenant_routes", "platform.jobs"} }
+
+// LoadUserByID (kế hoạch M6, Task 235): nạp theo mã trong tx của tenant, đọc trạng thái và grant ở mỗi lần gọi; user
+// của tenant khác là user lạ (RLS); bị khóa → ErrLocked; mất vai trò → không còn grant đó.
+func TestLoadUserByID(t *testing.T) {
+	t.Parallel()
+	s := testkit.OpenStaff(t)
+	a, b := s.Tenant(t, "A"), s.Tenant(t, "B")
+	uid := s.User(t, a, "an@elimaz.test", "active")
+	other := s.User(t, b, "binh@elimaz.test", "active")
+	s.Grant(t, a, uid, []string{"report.sales.read"}, "page", "p1")
+	load := func(tenant, id uuid.UUID) (identity.AuthUser, error) {
+		var u identity.AuthUser
+		err := tenancy.WithTenant(t.Context(), s.App, tenant, func(tx pgx.Tx) error {
+			var err error
+			u, err = identity.LoadUserByID(t.Context(), tx, id)
+			return err //nolint:wrapcheck // test
+		})
+		return u, err //nolint:wrapcheck // test
+	}
+	u, err := load(a, uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []identity.Grant{{Permission: "report.sales.read", Scope: identity.Scope{Type: "page", ID: "p1"}}}
+	if u.UserID != uid || u.TenantID != a || u.Kind != identity.KindStaff || !slices.Equal(u.Grants, want) {
+		t.Fatalf("AuthUser sai: %+v", u)
+	}
+	if _, err := load(a, other); !errors.Is(err, identity.ErrUnknownUser) {
+		t.Errorf("user tenant khác: %v, mong ErrUnknownUser", err)
+	}
+	if _, err := load(a, uuid.New()); !errors.Is(err, identity.ErrUnknownUser) {
+		t.Errorf("user không có: %v, mong ErrUnknownUser", err)
+	}
+	s.SetStatus(t, a, uid, "locked")
+	if _, err := load(a, uid); !errors.Is(err, identity.ErrLocked) {
+		t.Errorf("user bị khóa: %v, mong ErrLocked", err)
+	}
+}

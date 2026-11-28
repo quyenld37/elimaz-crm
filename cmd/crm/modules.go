@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/modules/promotion"
@@ -56,6 +57,7 @@ func newModules(cfg config.Config, d *db.DB, bus realtime.Bus, reg *metrics.Regi
 	}
 	out := modules{Events: evs, M3: m3, M4: m4, M6: wireM6(reporting.Deps{
 		DB: d, Files: fs, Bus: bus, Queue: queue.NewQueue(), Cfg: cfg, Metrics: reg, Now: time.Now,
+		Result: httpapi.ReportResultJSON, // kết quả lần chạy nền = JSON của GET báo cáo (Task 235)
 	})}
 	consumers := m3.Consumers
 	for _, p := range parts {

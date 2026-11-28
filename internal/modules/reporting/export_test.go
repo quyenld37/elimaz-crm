@@ -24,3 +24,16 @@ func MovementsQuery(s DataScope, p MovementsParams) (string, []any, error) {
 	q, err := movementsSQL(s, a, period, b)
 	return q, b.args, err
 }
+
+// HoldRunSlots chiếm mọi chỗ chạy của h (test hết chỗ); hàm trả về nhả lại.
+func HoldRunSlots(h *RunHandler) (release func()) {
+	n := cap(h.slots)
+	for range n {
+		h.slots <- struct{}{}
+	}
+	return func() {
+		for range n {
+			<-h.slots
+		}
+	}
+}
