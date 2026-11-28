@@ -203,6 +203,13 @@ type Handler interface {
 	//
 	// GET /api/v1/coupon-check
 	CheckCoupon(ctx context.Context, params CheckCouponParams) (CheckCouponRes, error)
+	// CheckOpeningStocktake implements checkOpeningStocktake operation.
+	//
+	// Kiểm lại phiên mở sổ đã đăng: số đếm khớp sổ và số dư (mốc A của đêm
+	// mở; Task 262).
+	//
+	// GET /api/v1/inventory/opening-stocktakes/{id}/check
+	CheckOpeningStocktake(ctx context.Context, params CheckOpeningStocktakeParams) (CheckOpeningStocktakeRes, error)
 	// CheckOrderDuplicates implements checkOrderDuplicates operation.
 	//
 	// Kiểm trước ở form: đơn có thể trùng (cùng khách hay cùng SĐT, có biến thể
@@ -238,6 +245,12 @@ type Handler interface {
 	//
 	// POST /api/v1/returns/{returnId}/close
 	CloseReturn(ctx context.Context, req *VersionRequest, params CloseReturnParams) (CloseReturnRes, error)
+	// CloseWatch implements closeWatch operation.
+	//
+	// Chưa đủ → 409 exit_not_met; không phải người quyết → 403 not_decider.
+	//
+	// POST /api/v1/reports/watch/close
+	CloseWatch(ctx context.Context, req *CloseWatchRequest, params CloseWatchParams) (CloseWatchRes, error)
 	// CompleteReminder implements completeReminder operation.
 	//
 	// Đánh dấu nhắc việc đã xong (cập nhật có điều kiện) (Task 169).
@@ -373,6 +386,12 @@ type Handler interface {
 	//
 	// POST /api/v1/customer-tags
 	CreateCustomerTag(ctx context.Context, req *CreateCustomerTagRequest, params CreateCustomerTagParams) (CreateCustomerTagRes, error)
+	// CreateFallbackImport implements createFallbackImport operation.
+	//
+	// Cùng tệp (sha256) đã nhập → 409 import_exists (kèm existingId).
+	//
+	// POST /api/v1/order-fallback/imports
+	CreateFallbackImport(ctx context.Context, req *CreateFallbackImportRequest, params CreateFallbackImportParams) (CreateFallbackImportRes, error)
 	// CreateFlashSale implements createFlashSale operation.
 	//
 	// Tạo đợt nháp; kết thúc không sau bắt đầu hay dài quá 7 ngày → 422
@@ -393,6 +412,30 @@ type Handler interface {
 	//
 	// POST /api/v1/label-batches
 	CreateLabelBatch(ctx context.Context, req *CreateLabelBatchRequest, params CreateLabelBatchParams) (CreateLabelBatchRes, error)
+	// CreateLaunchRun implements createLaunchRun operation.
+	//
+	// DeciderUserId phải là nhân viên active có reporting.launch.decide → không thì 422
+	// decider_invalid; đang có lượt running → 409 run_in_progress; đã có lượt live hoàn
+	// tất → 409 live_already_completed.
+	//
+	// POST /api/v1/reports/launch-runs
+	CreateLaunchRun(ctx context.Context, req *CreateLaunchRunRequest, params CreateLaunchRunParams) (CreateLaunchRunRes, error)
+	// CreateLegacyReturn implements createLegacyReturn operation.
+	//
+	// Quyền theo kho warehouseId. Tham chiếu đã dùng (so sau khi bỏ khoảng trắng, viết hoa)
+	// → 409 legacy_return_exists (kèm existingId); qty ngoài 1–1000 → 400.
+	//
+	// POST /api/v1/inventory/legacy-returns
+	CreateLegacyReturn(ctx context.Context, req *CreateLegacyReturnRequest, params CreateLegacyReturnParams) (CreateLegacyReturnRes, error)
+	// CreateOpeningStocktake implements createOpeningStocktake operation.
+	//
+	// Quyền theo kho (inventory.stocktake.opening ở kho warehouseId). Kho đã có dòng sổ, số
+	// dư khác 0 hay giữ hàng → 409 warehouse_not_empty; kho đã có phiên mở sổ chưa hủy
+	// → 409 opening_exists; kho đang có phiên kiểm thường mở → 409 stocktake_open. Đếm
+	// từng dòng dùng recordStocktakeCount, incrementStocktakeLine.
+	//
+	// POST /api/v1/inventory/opening-stocktakes
+	CreateOpeningStocktake(ctx context.Context, req *CreateOpeningStocktakeRequest, params CreateOpeningStocktakeParams) (CreateOpeningStocktakeRes, error)
 	// CreateOrder implements createOrder operation.
 	//
 	// Thân kiểu M1 (không intent, có customer.fullName, shipAddress name/phone/line) tạo thẳng
@@ -476,6 +519,13 @@ type Handler interface {
 	//
 	// POST /api/v1/inventory/documents
 	CreateStockDocument(ctx context.Context, req *CreateStockDocumentRequest, params CreateStockDocumentParams) (CreateStockDocumentRes, error)
+	// CreateStocktakeCountImport implements createStocktakeCountImport operation.
+	//
+	// Cùng tệp, cùng phiên, mode add lần hai → 409 import_already_applied; mode replace lần hai
+	// trả lại bản nhập cũ.
+	//
+	// POST /api/v1/inventory/stocktakes/{id}/count-imports
+	CreateStocktakeCountImport(ctx context.Context, req *CreateStocktakeCountImportRequest, params CreateStocktakeCountImportParams) (CreateStocktakeCountImportRes, error)
 	// CreateSupplier implements createSupplier operation.
 	//
 	// Tạo nhà cung cấp (tên không trùng trong shop).
@@ -508,6 +558,13 @@ type Handler interface {
 	//
 	// POST /api/v1/web-campaigns
 	CreateWebCampaign(ctx context.Context, req *WebCampaignInput, params CreateWebCampaignParams) (CreateWebCampaignRes, error)
+	// DecideLaunchRun implements decideLaunchRun operation.
+	//
+	// Không phải người quyết của lượt → 403 not_decider (dù có quyền); lượt đã
+	// dừng hay hoàn tất → 409 run_closed.
+	//
+	// POST /api/v1/reports/launch-runs/{id}/decision
+	DecideLaunchRun(ctx context.Context, req *DecideLaunchRunRequest, params DecideLaunchRunParams) (DecideLaunchRunRes, error)
 	// DeleteConversationTag implements deleteConversationTag operation.
 	//
 	// Xóa mềm nhãn hội thoại (Task 160).
@@ -559,6 +616,13 @@ type Handler interface {
 	//
 	// POST /api/v1/live-sessions/{id}/end
 	EndLiveSessionManually(ctx context.Context, params EndLiveSessionManuallyParams) (EndLiveSessionManuallyRes, error)
+	// EvaluateLaunchCheckpoint implements evaluateLaunchCheckpoint operation.
+	//
+	// Đánh giá mốc readiness, A (mở sổ), B (năm việc trước khi mở bán); mỗi lần
+	// một dòng kết quả (Task 270).
+	//
+	// POST /api/v1/reports/launch-runs/{id}/checkpoints/{key}/evaluate
+	EvaluateLaunchCheckpoint(ctx context.Context, params EvaluateLaunchCheckpointParams) (EvaluateLaunchCheckpointRes, error)
 	// ExchangeFacebookOAuth implements exchangeFacebookOAuth operation.
 	//
 	// Đổi mã đăng nhập lấy danh sách Page người dùng quản trị; state sai, hết hạn,
@@ -574,6 +638,13 @@ type Handler interface {
 	//
 	// POST /api/v1/birthday-customers/export
 	ExportBirthdayCustomers(ctx context.Context, req *BirthdayExportRequest, params ExportBirthdayCustomersParams) (ExportBirthdayCustomersRes, error)
+	// FinishLaunchStep implements finishLaunchStep operation.
+	//
+	// Bước 2, 6, 7 không được skipped → 422 step_not_skippable; lượt đã dừng hay hoàn
+	// tất → 409 run_closed.
+	//
+	// POST /api/v1/reports/launch-runs/{id}/steps/{no}/finish
+	FinishLaunchStep(ctx context.Context, req *FinishLaunchStepRequest, params FinishLaunchStepParams) (FinishLaunchStepRes, error)
 	// FlashSaleLive implements flashSaleLive operation.
 	//
 	// Số liệu đang chạy của từng món: suất, đơn vị trống, đang giữ, đã bán, đã
@@ -615,6 +686,13 @@ type Handler interface {
 	//
 	// GET /api/v1/catalog/imports/template
 	GetCatalogImportTemplate(ctx context.Context) (GetCatalogImportTemplateRes, error)
+	// GetCatalogLaunchReadiness implements getCatalogLaunchReadiness operation.
+	//
+	// Sản phẩm nháp, đang bán kèm điều kiện lên kệ và lý do chưa đủ (view
+	// catalog.product_readiness_v; Task 261).
+	//
+	// GET /api/v1/catalog/launch/readiness
+	GetCatalogLaunchReadiness(ctx context.Context, params GetCatalogLaunchReadinessParams) (GetCatalogLaunchReadinessRes, error)
 	// GetCodStatement implements getCodStatement operation.
 	//
 	// Một bảng kê: đầu bảng kê, tổng theo kết quả khớp và dòng theo số dòng (Task
@@ -706,6 +784,20 @@ type Handler interface {
 	//
 	// GET /api/v1/customers/{id}/timeline
 	GetCustomerTimeline(ctx context.Context, params GetCustomerTimelineParams) (GetCustomerTimelineRes, error)
+	// GetFallbackImport implements getFallbackImport operation.
+	//
+	// Kết quả một lần nhập đơn dự phòng: số đơn tạo, trùng, lỗi; từng Mã dòng
+	// (Task 268).
+	//
+	// GET /api/v1/order-fallback/imports/{id}
+	GetFallbackImport(ctx context.Context, params GetFallbackImportParams) (GetFallbackImportRes, error)
+	// GetFallbackTemplate implements getFallbackTemplate operation.
+	//
+	// Tải mẫu bảng tính đơn dự phòng (.xlsx ba trang: Đơn có sẵn Mã dòng, Mã hàng,
+	// Hướng dẫn; Task 268).
+	//
+	// GET /api/v1/order-fallback/template
+	GetFallbackTemplate(ctx context.Context) (GetFallbackTemplateRes, error)
 	// GetFile implements getFile operation.
 	//
 	// Trạng thái tệp và các biến thể ảnh công khai.
@@ -758,6 +850,25 @@ type Handler interface {
 	//
 	// GET /api/v1/label-batches/{id}
 	GetLabelBatch(ctx context.Context, params GetLabelBatchParams) (GetLabelBatchRes, error)
+	// GetLaunchReadiness implements getLaunchReadiness operation.
+	//
+	// Chỉ số đếm và mã; không tên nhân viên, tên khách.
+	//
+	// GET /api/v1/reports/launch-readiness
+	GetLaunchReadiness(ctx context.Context) (GetLaunchReadinessRes, error)
+	// GetLaunchRun implements getLaunchRun operation.
+	//
+	// Một lượt chạy: từng bước dự kiến, thực tế, chênh; mốc đi/dừng; drillPassed
+	// (MO04, Task 270).
+	//
+	// GET /api/v1/reports/launch-runs/{id}
+	GetLaunchRun(ctx context.Context, params GetLaunchRunParams) (GetLaunchRunRes, error)
+	// GetLegacyReturn implements getLegacyReturn operation.
+	//
+	// Một phiếu hàng hoàn của đơn cũ (liên kết từ lỗi legacy_return_exists; Task 264).
+	//
+	// GET /api/v1/inventory/legacy-returns/{id}
+	GetLegacyReturn(ctx context.Context, params GetLegacyReturnParams) (GetLegacyReturnRes, error)
 	// GetLiveCommentContext implements getLiveCommentContext operation.
 	//
 	// Bối cảnh chốt một comment live: khách rút gọn, đơn nháp đang mở, SĐT tách từ
@@ -779,6 +890,13 @@ type Handler interface {
 	//
 	// GET /api/v1/me
 	GetMe(ctx context.Context) (GetMeRes, error)
+	// GetOpeningStocktake implements getOpeningStocktake operation.
+	//
+	// Một phiên kiểm kho mở sổ: số dòng phải đếm, đã đếm, số đơn vị (màn
+	// "còn N dòng chưa đếm"; Task 262).
+	//
+	// GET /api/v1/inventory/opening-stocktakes/{id}
+	GetOpeningStocktake(ctx context.Context, params GetOpeningStocktakeParams) (GetOpeningStocktakeRes, error)
 	// GetOrder implements getOrder operation.
 	//
 	// Một đơn kèm dòng đơn (tên, SKU chụp lúc đặt); M2 (Task M2-24) thêm nhãn, khách,
@@ -932,6 +1050,19 @@ type Handler interface {
 	//
 	// GET /api/v1/inventory/stocktakes/{id}
 	GetStocktake(ctx context.Context, params GetStocktakeParams) (GetStocktakeRes, error)
+	// GetStocktakeCountImport implements getStocktakeCountImport operation.
+	//
+	// Trạng thái và lỗi từng dòng của một bản nhập số đếm (Task 263).
+	//
+	// GET /api/v1/inventory/count-imports/{id}
+	GetStocktakeCountImport(ctx context.Context, params GetStocktakeCountImportParams) (GetStocktakeCountImportRes, error)
+	// GetT2Report implements getT2Report operation.
+	//
+	// Quyền theo Page (conversation.t2.read ở Page id). Khoảng from–to tối đa 31 ngày → quá
+	// thì 400 range_too_long.
+	//
+	// GET /api/v1/channels/{id}/t2-report
+	GetT2Report(ctx context.Context, params GetT2ReportParams) (GetT2ReportRes, error)
 	// GetWarehousePickup implements getWarehousePickup operation.
 	//
 	// Địa chỉ lấy hàng đang lưu của kho và version để ghi (chưa ghi lần nào: chỉ
@@ -939,6 +1070,13 @@ type Handler interface {
 	//
 	// GET /api/v1/inventory/warehouses/{id}/pickup
 	GetWarehousePickup(ctx context.Context, params GetWarehousePickupParams) (GetWarehousePickupRes, error)
+	// GetWatch implements getWatch operation.
+	//
+	// Theo dõi sát 14 ngày sau mở bán: từng ngày xanh/đỏ, số ngày xanh liền, exitReady
+	// (Task 271).
+	//
+	// GET /api/v1/reports/watch
+	GetWatch(ctx context.Context) (GetWatchRes, error)
 	// GetWebCampaign implements getWebCampaign operation.
 	//
 	// Một chiến dịch kèm đích, bản xem trước đã ghi (Task 452).
@@ -969,6 +1107,15 @@ type Handler interface {
 	//
 	// GET /api/v1/web-intake
 	GetWebIntake(ctx context.Context) (GetWebIntakeRes, error)
+	// GoLivePage implements goLivePage operation.
+	//
+	// Quyền theo Page. oldToolAutomationsOff khác true → 422 old_tool_not_confirmed; Page không ở
+	// read_only → 409 mode_mismatch; loại quy tắc chưa cấu hình cho Page → 422
+	// rule_not_configured. Từ M7 bật gửi chỉ qua đây (setChannelSendMode sang enabled → 409
+	// use_go_live).
+	//
+	// POST /api/v1/channels/{id}/go-live
+	GoLivePage(ctx context.Context, req *GoLivePageRequest, params GoLivePageParams) (GoLivePageRes, error)
 	// HealthDeep implements healthDeep operation.
 	//
 	// Kiểm sâu cho dịch vụ canh ngoài (Bearer HEALTH_TOKEN, Task 20); không có dữ liệu
@@ -1001,6 +1148,14 @@ type Handler interface {
 	//
 	// POST /api/v1/cod-statements
 	ImportCodStatement(ctx context.Context, req *ImportCodStatementRequest, params ImportCodStatementParams) (ImportCodStatementRes, error)
+	// IncrementStocktakeLine implements incrementStocktakeLine operation.
+	//
+	// Mã lạ → 422 unknown_code; mã trùng giữa hai người bán → 422 ambiguous_code (kèm
+	// candidates); số đếm âm → 422 negative_count; phiên không mở → 409 stocktake_not_open.
+	// Mỗi lần quét một khóa chống trùng riêng.
+	//
+	// POST /api/v1/inventory/stocktakes/{id}/increments
+	IncrementStocktakeLine(ctx context.Context, req *IncrementStocktakeLineRequest, params IncrementStocktakeLineParams) (IncrementStocktakeLineRes, error)
 	// ListAdminUnits implements listAdminUnits operation.
 	//
 	// Tỉnh theo mã; xã theo tên, tối đa 50, q bỏ dấu và không phân biệt hoa thường.
@@ -1240,6 +1395,19 @@ type Handler interface {
 	//
 	// GET /api/v1/platform/jobs
 	ListJobs(ctx context.Context, params ListJobsParams) (ListJobsRes, error)
+	// ListLaunchRuns implements listLaunchRuns operation.
+	//
+	// Các lượt chạy đêm mở, mới nhất trước (Task 270).
+	//
+	// GET /api/v1/reports/launch-runs
+	ListLaunchRuns(ctx context.Context, params ListLaunchRunsParams) (ListLaunchRunsRes, error)
+	// ListLegacyReturns implements listLegacyReturns operation.
+	//
+	// Phiếu hàng hoàn của đơn cũ theo khoảng ngày (giờ Việt Nam), mới nhất trước
+	// (Task 264).
+	//
+	// GET /api/v1/inventory/legacy-returns
+	ListLegacyReturns(ctx context.Context, params ListLegacyReturnsParams) (ListLegacyReturnsRes, error)
 	// ListLiveComments implements listLiveComments operation.
 	//
 	// Comment của phiên live theo thời gian; lọc có SĐT, chưa xử lý (Task 172).
@@ -1278,6 +1446,13 @@ type Handler interface {
 	//
 	// GET /api/v1/me/reminders
 	ListMyReminders(ctx context.Context, params ListMyRemindersParams) (ListMyRemindersRes, error)
+	// ListOpeningStocktakes implements listOpeningStocktakes operation.
+	//
+	// Phiên kiểm kho mở sổ của các kho được giao, kèm số dòng phải đếm, đã đếm
+	// (view inventory.opening_status_v; Task 262).
+	//
+	// GET /api/v1/inventory/opening-stocktakes
+	ListOpeningStocktakes(ctx context.Context, params ListOpeningStocktakesParams) (ListOpeningStocktakesRes, error)
 	// ListOrderDuplicates implements listOrderDuplicates operation.
 	//
 	// Cặp đơn nghi trùng chưa xử lý, mới nhất trước (Task M2-23).
@@ -1479,6 +1654,13 @@ type Handler interface {
 	//
 	// GET /api/v1/carrier-locations/unmapped
 	ListUnmappedLocations(ctx context.Context, params ListUnmappedLocationsParams) (ListUnmappedLocationsRes, error)
+	// ListUnmatchedCarrierEvents implements listUnmatchedCarrierEvents operation.
+	//
+	// Sự kiện hãng của vận đơn ngoài hệ thống (đơn cũ còn đang giao): mã vận
+	// đơn, hãng, số lần, lần cuối (MO07, Task 265).
+	//
+	// GET /api/v1/fulfillment/unmatched-events
+	ListUnmatchedCarrierEvents(ctx context.Context, params ListUnmatchedCarrierEventsParams) (ListUnmatchedCarrierEventsRes, error)
 	// ListWarehouses implements listWarehouses operation.
 	//
 	// Các kho người gọi được xem (có inventory.read ở kho đó hoặc toàn shop), kho chính
@@ -1520,12 +1702,33 @@ type Handler interface {
 	//
 	// POST /api/v1/customers/{id}/merge
 	MergeCustomer(ctx context.Context, req *MergeCustomerRequest, params MergeCustomerParams) (MergeCustomerRes, error)
+	// OpenSales implements openSales operation.
+	//
+	// Không phải người quyết → 403 not_decider; mốc chưa đạt → 409
+	// checkpoint_not_passed; lần đạt cũ hơn 30 phút → 409 checkpoint_stale; lượt đã dừng
+	// hay hoàn tất → 409 run_closed.
+	//
+	// POST /api/v1/reports/launch-runs/{id}/open-sales
+	OpenSales(ctx context.Context, params OpenSalesParams) (OpenSalesRes, error)
+	// PageBackToReadOnly implements pageBackToReadOnly operation.
+	//
+	// Page không ở enabled → 409 mode_mismatch.
+	//
+	// POST /api/v1/channels/{id}/back-to-read-only
+	PageBackToReadOnly(ctx context.Context, req *PageBackToReadOnlyRequest, params PageBackToReadOnlyParams) (PageBackToReadOnlyRes, error)
 	// PayRefundObligation implements payRefundObligation operation.
 	//
 	// Ghi một lần hoàn tiền cho khách; vượt số còn phải hoàn → 409 (Task M3-30).
 	//
 	// POST /api/v1/refund-obligations/{id}/payments
 	PayRefundObligation(ctx context.Context, req *PayRefundObligationRequest, params PayRefundObligationParams) (PayRefundObligationRes, error)
+	// PostOpeningStocktake implements postOpeningStocktake operation.
+	//
+	// Còn biến thể chưa đếm → 422 uncounted_lines (kèm count); kho không còn trống → 409
+	// warehouse_not_empty; phiên đã đăng hay hủy → 409 stocktake_not_open.
+	//
+	// POST /api/v1/inventory/opening-stocktakes/{id}/post
+	PostOpeningStocktake(ctx context.Context, params PostOpeningStocktakeParams) (PostOpeningStocktakeRes, error)
 	// PostStockDocument implements postStockDocument operation.
 	//
 	// Ghi sổ phiếu nháp (đổi tồn); thiếu hàng ở một dòng thì cả phiếu không ghi
@@ -1568,6 +1771,13 @@ type Handler interface {
 	//
 	// POST /api/v1/web-campaigns/{campaignId}/preview
 	PreviewWebCampaign(ctx context.Context, req *WebCampaignRevision, params PreviewWebCampaignParams) (PreviewWebCampaignRes, error)
+	// PublishProducts implements publishProducts operation.
+	//
+	// Gửi productIds (tối đa 500) hoặc allReady = true (mọi sản phẩm nháp đủ điều
+	// kiện); thiếu cả hai → 400 invalid_input.
+	//
+	// POST /api/v1/catalog/launch/publish
+	PublishProducts(ctx context.Context, req *PublishProductsRequest, params PublishProductsParams) (PublishProductsRes, error)
 	// PutCarrierCredentials implements putCarrierCredentials operation.
 	//
 	// Ghi khóa API của tài khoản (chỉ ghi, mã hóa; không bao giờ trả lại), tài khoản
@@ -1896,8 +2106,8 @@ type Handler interface {
 	SetChannelHumanAgent(ctx context.Context, req *SetChannelHumanAgentRequest, params SetChannelHumanAgentParams) (SetChannelHumanAgentRes, error)
 	// SetChannelSendMode implements setChannelSendMode operation.
 	//
-	// Đổi chế độ gửi của Page (read_only = chỉ xem, enabled = gửi thật); kiểm version,
-	// ghi nhật ký (Task 145).
+	// Từ M7 (Task 267) chuyển sang enabled → 409 use_go_live (bật gửi chỉ qua goLivePage);
+	// về read_only vẫn được.
 	//
 	// PUT /api/v1/channels/{id}/send-mode
 	SetChannelSendMode(ctx context.Context, req *SetChannelSendModeRequest, params SetChannelSendModeParams) (SetChannelSendModeRes, error)
@@ -2004,6 +2214,13 @@ type Handler interface {
 	//
 	// POST /api/v1/channels/facebook/oauth/start
 	StartFacebookOAuth(ctx context.Context, params StartFacebookOAuthParams) (StartFacebookOAuthRes, error)
+	// StartLaunchStep implements startLaunchStep operation.
+	//
+	// Bước trước chưa done hay skipped → 409 step_out_of_order; lượt đã dừng hay hoàn
+	// tất → 409 run_closed.
+	//
+	// POST /api/v1/reports/launch-runs/{id}/steps/{no}/start
+	StartLaunchStep(ctx context.Context, params StartLaunchStepParams) (StartLaunchStepRes, error)
 	// StartLiveSessionManually implements startLiveSessionManually operation.
 	//
 	// Theo dõi live bằng tay theo mã video hay đường dẫn video (Q5, Task 170).
@@ -2054,10 +2271,16 @@ type Handler interface {
 	//
 	// POST /api/v1/identity/users/{id}/unlock
 	UnlockStaff(ctx context.Context, params UnlockStaffParams) (UnlockStaffRes, error)
+	// UnpublishProducts implements unpublishProducts operation.
+	//
+	// Ẩn lại sản phẩm đang bán (về nháp); đơn cũ giữ giá, tên lúc đặt (Task 261).
+	//
+	// POST /api/v1/catalog/launch/unpublish
+	UnpublishProducts(ctx context.Context, req *UnpublishProductsRequest, params UnpublishProductsParams) (UnpublishProductsRes, error)
 	// UpdateAutomationRule implements updateAutomationRule operation.
 	//
-	// Bật, tắt, sửa một quy tắc tự động của Page; config.kind phải trùng kind trên
-	// đường dẫn; kiểm version (Task 165).
+	// Từ M7 (Task 267) bật quy tắc khi Page còn read_only → 409 page_read_only; tắt vẫn
+	// được.
 	//
 	// PUT /api/v1/channels/{id}/automation-rules/{kind}
 	UpdateAutomationRule(ctx context.Context, req *UpdateAutomationRuleRequest, params UpdateAutomationRuleParams) (UpdateAutomationRuleRes, error)

@@ -3,6 +3,7 @@
 // `crm seed-dev <email>` (CRM_ROLE=migrate) dựng tenant, chủ shop và định tuyến email cho máy dev.
 // `crm seed-web-fixture --file <json> --staff-email <email>` (CRM_ROLE=migrate, không production) dựng danh mục mẫu
 // của bộ e2e website.
+// `crm seed-staging …` (không production) dựng dữ liệu giả cho bản thử (khung Task 260, Task 275 làm).
 // `crm recompute-customer-stats <mã khách>` (mọi vai trò, bằng DATABASE_URL) tính lại chỉ số khách cho gốc hiện tại.
 package main
 
@@ -108,12 +109,12 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 			_, _ = fmt.Fprintf(stderr, "mã khách %q không phải UUID; cách gọi: `crm %s <mã khách>`\n", args[1], recomputeCommand)
 			return exitConfig
 		}
-	case isServiceKeyCommand(args), isSeedFixtureCommand(args), isImportWebsiteCommand(args):
+	case isServiceKeyCommand(args), isSeedFixtureCommand(args), isImportWebsiteCommand(args), isSeedStagingCommand(args):
 	case len(args) > 0:
 		_, _ = fmt.Fprintf(stderr, "lệnh lạ %q; chỉ có `crm`, `crm healthcheck`, `crm seed-dev <email>`, "+
 			"`crm %s <mã khách>`, `crm %s create|revoke …`, `crm %s --file … --staff-email …` hoặc "+
-			"`crm %s --dir … --tenant … --dry-run|--apply`\n", args,
-			recomputeCommand, serviceKeyCommand, seedFixtureCommand, importWebsiteCommand)
+			"`crm %s --dir … --tenant … --dry-run|--apply`, `crm %s …`\n", args,
+			recomputeCommand, serviceKeyCommand, seedFixtureCommand, importWebsiteCommand, seedStagingCommand)
 		return exitConfig
 	}
 
@@ -133,7 +134,7 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 			return exitFail
 		}
 		return exitOK
-	case isServiceKeyCommand(args), isSeedFixtureCommand(args), isImportWebsiteCommand(args):
+	case isServiceKeyCommand(args), isSeedFixtureCommand(args), isImportWebsiteCommand(args), isSeedStagingCommand(args):
 		return runOneOffCommand(ctx, cfg, args, stdout, stderr, logger)
 	case len(args) == 2 && args[0] == recomputeCommand:
 		if err := runRecompute(ctx, cfg, uuid.MustParse(args[1]), stdout, logger); err != nil {
@@ -342,7 +343,8 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 		// Áp bản nhập Excel (Task M1-47b): ghi mẫu, biến thể bằng Writer của catalog (sự kiện qua cùng sổ, báo hiệu).
 		catalog.NewImportApplier(catalog.Writer{Events: mods.Events, Queue: queue.NewQueue(), Realtime: hub})),
 		mods.Handlers...)
-	handlers = append(append(append(handlers, mods.M4.Jobs...), mods.M6.Jobs...), dataDeletionProcessor())
+	handlers = append(append(append(append(handlers, mods.M4.Jobs...), mods.M6.Jobs...), mods.M7.Jobs...),
+		dataDeletionProcessor())
 	w := queue.NewWorker(d, handlers, queue.WorkerOptions{
 		WorkerID: metrics.ProcessName(cfg.Role) + "/" + uuid.NewString(), // mỗi lần chạy một mã giữ chỗ riêng
 		Metrics:  reg, Logger: logger, Role: string(cfg.Role),
@@ -650,10 +652,12 @@ func healthcheck(ctx context.Context, cfg config.Config) error {
 // cod_statement (M3, Task M3-04).
 func registerFilePurposes() {
 	customer.RegisterFilePurposes()
-	fulfillment.RegisterFilePurposes()  // carrier_label (M3, Task M3-04, 0306)
-	cash.RegisterFilePurposes()         // cod_statement (M3, Task M3-04, 0306)
-	order.RegisterFilePurposes()        // order_request_photo (M5, Task 195, 0504)
-	content.RegisterFilePurposes()      // web_banner (M5, Task 453, 0521)
-	reporting.RegisterFilePurposes()    // report_export, customer_export (M6, Task 226, 0604)
-	conversation.RegisterFilePurposes() // chat_outgoing (M4, Task 156, 0413); chat_image, chat_attachment, chat_avatar (Task 155, 0404)
+	fulfillment.RegisterFilePurposes()     // carrier_label (M3, Task M3-04, 0306)
+	cash.RegisterFilePurposes()            // cod_statement (M3, Task M3-04, 0306)
+	order.RegisterFilePurposes()           // order_request_photo (M5, Task 195, 0504)
+	content.RegisterFilePurposes()         // web_banner (M5, Task 453, 0521)
+	reporting.RegisterFilePurposes()       // report_export, customer_export (M6, Task 226, 0604)
+	conversation.RegisterFilePurposes()    // chat_outgoing (M4, Task 156, 0413); chat_image, chat_attachment, chat_avatar (Task 155, 0404)
+	inventory.RegisterCountImportPurpose() // inventory_count_import (M7, Task 263, 0705; khung Task 260)
+	order.RegisterFallbackPurpose()        // order_fallback_import (M7, Task 268, 0710; khung Task 260)
 }

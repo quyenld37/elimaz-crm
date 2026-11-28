@@ -107,6 +107,21 @@ func checkContractOps(t *testing.T, milestone string, want [][3]string) {
 	}
 }
 
+// checkViewsDocCols: mỗi view của want có dòng trong docs/views.md đúng cột (chuỗi "cột, cột" theo thứ tự).
+func checkViewsDocCols(t *testing.T, doc viewsDoc, want map[string]string) {
+	t.Helper()
+	for view, cols := range want {
+		got, ok := doc.views[view]
+		if !ok {
+			t.Errorf("docs/views.md thiếu dòng %s", view)
+			continue
+		}
+		if w := strings.Split(cols, ", "); !slices.Equal(got, w) {
+			t.Errorf("%s: mong cột %v, có %v", view, w, got)
+		}
+	}
+}
+
 // TestM2Contract_ViewsDoc: dòng docs/views.md của view mới M2 có đúng cột của kế hoạch (Task M2-03, 05, 06); hai dòng
 // view M1 sửa cùng migration (R13): customers_v ở Task M2-03 (nối 11 cột), orders_v ở Task M2-05.
 func TestM2Contract_ViewsDoc(t *testing.T) {
@@ -137,16 +152,7 @@ func TestM2Contract_ViewsDoc(t *testing.T) {
 		"promotion.coupons_v": "id, tenant_id, code, batch_id, name, discount_kind, value, max_discount, min_subtotal, channels, " +
 			"seller_id, max_uses, used_count, per_customer_limit, valid_from, valid_to, status, created_at, updated_at",
 	}
-	for view, cols := range want {
-		got, ok := doc.views[view]
-		if !ok {
-			t.Errorf("docs/views.md thiếu dòng %s", view)
-			continue
-		}
-		if w := strings.Split(cols, ", "); !slices.Equal(got, w) {
-			t.Errorf("%s: mong cột %v, có %v", view, w, got)
-		}
-	}
+	checkViewsDocCols(t, doc, want)
 	if slices.Contains(doc.views["promotion.coupons_v"], "bound_phone") {
 		t.Error("promotion.coupons_v không được có bound_phone (dữ liệu cá nhân)")
 	}

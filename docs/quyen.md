@@ -23,7 +23,7 @@ trị nhân viên, vai trò, nền tảng là loại `toàn shop`.
   `promotion.manage`; của M3: `fulfillment.carrier_accounts.manage`, `fulfillment.settings.manage`; của M5:
   `identity.service_keys.manage`, `order.web_intake.manage`, `content.read`, `content.manage`, `promotion.flash.manage`;
   của M6: `report.export`, `report.exports.manage`, `customer.export` (xuất, tệp xuất của người khác, danh sách khách:
-  Q13, Q14 của kế hoạch M6).
+  Q13, Q14 của kế hoạch M6); của M7: `reporting.launch.run`, `reporting.launch.decide` (đêm mở, QĐ-260-2).
 - **Quyền `web.*` chỉ khóa dịch vụ giữ** (Task 189, ADR-18): khóa của website (`ek_…`, header `Authorization`) chỉ mang
   các quyền `web.*` được cấp lúc tạo (mã: `identity.ServiceKeyPermissions`, không thuộc `identity.Permissions`); không
   vai trò nhân viên nào nhận được chúng (vai trò tự định nghĩa → `unknown_permission`), và khóa không nhận quyền nào
@@ -147,6 +147,16 @@ Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn đ
 | `report.export` | toàn shop | M6 | owner, manager, accountant | Xuất báo cáo bán hàng, tồn kho, danh sách sản phẩm ra Excel, tải tệp của mình (Task 225) |
 | `report.exports.manage` | toàn shop | M6 | owner, manager | Xem, tải lần chạy và tệp xuất của mọi nhân viên (Task 225) |
 | `customer.export` | toàn shop | M6 | owner, manager | Xuất danh sách khách ra Excel (có SĐT; mỗi lần tạo, tải ghi nhật ký; tệp giữ 24 giờ) (Task 225) |
+| `catalog.launch.publish` | none | M7 | owner, manager | Hiện hàng loạt sản phẩm nháp đủ điều kiện lên kệ, ẩn lại sản phẩm đang bán (đêm mở; Task 260, 261) |
+| `inventory.stocktake.opening` | theo đích: warehouse | M7 | owner, manager, warehouse | Tạo, đăng, kiểm lại phiên kiểm kho mở sổ của kho trống được giao (đếm thêm dùng `inventory.stocktake`; Task 260, 262) |
+| `inventory.legacy_return.create` | theo đích: warehouse | M7 | owner, manager, warehouse | Nhập hàng hoàn của đơn cũ (trước CRM) vào kho được giao bằng phiếu nhập có mã tham chiếu duy nhất, xem danh sách (Task 260, 264) |
+| `fulfillment.unmatched.read` | none | M7 | owner, manager, accountant | Xem sự kiện hãng của vận đơn ngoài hệ thống (mã vận đơn, hãng, số lần; không dữ liệu khách; Task 260, 265) |
+| `conversation.t2.read` | theo đích: page | M7 | owner, manager, sale | Xem báo cáo đối chiếu tin khi chạy chỉ xem (T2) của Page được giao (Task 260, 266) |
+| `channel.golive` | theo đích: page | M7 | owner, manager | Mở gửi Page cùng lúc bật tự động, trả Page về chỉ xem (Task 260, 267) |
+| `order.fallback.import` | none | M7 | owner, manager | Tải mẫu bảng tính đơn dự phòng, nhập lại đơn ghi tay khi CRM gặp sự cố (Task 260, 268) |
+| `reporting.launch.read` | none | M7 | owner, manager, accountant | Xem báo cáo sẵn sàng dữ liệu, lượt chạy đêm mở, theo dõi 14 ngày sau mở bán (Task 260, 269–271) |
+| `reporting.launch.run` | toàn shop | M7 | owner, manager | Bắt đầu, kết thúc các bước của đêm mở, đánh giá mốc đi/dừng (Task 260, 270) |
+| `reporting.launch.decide` | toàn shop | M7 | owner | Tạo lượt chạy đêm mở, quyết đi/dừng, mở bán, đóng theo dõi; chỉ người quyết của lượt chạy (Q25; Task 260, 270, 271) |
 | `web.catalog.read` | none | M5 | | Khóa dịch vụ: đọc sản phẩm, giá, tồn cho website |
 | `web.orders.create` | none | M5 | | Khóa dịch vụ: tạo đơn web |
 | `web.orders.read` | none | M5 | | Khóa dịch vụ: tra đơn kênh web theo mã đơn web |
@@ -157,3 +167,4 @@ Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn đ
 | `web.feedback.write` | none | M5 | | Khóa dịch vụ: gửi góp ý của khách từ form /gop-y (Task 455) |
 | `web.shipping.quote` | none | M5 | | Khóa dịch vụ: báo phí ship cho giỏ hàng |
 | `web.flash.buy` | none | M5 | | Khóa dịch vụ: bấm mua flash sale |
+| `web.catalog.preview` | none | M7 | | Khóa dịch vụ của website thử: đọc thêm sản phẩm nháp kèm `preview: true` (xem trước trước đêm mở; Task 260, 261) |

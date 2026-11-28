@@ -36,6 +36,8 @@ type modules struct {
 	M4 m4Parts
 	// M6 là phần chạy nền của báo cáo (wireM6, Task 228): lệnh chạy nền, việc chụp tồn và dọn, lịch.
 	M6 m6Parts
+	// M7 là việc nền phần khởi động cần kho tệp (wireM7, Task 260): nhập số đếm, nhập đơn dự phòng.
+	M7 m7Parts
 }
 
 // newModules dựng sổ sự kiện, gọi đúng một lần Background của ba module M2 customer, order, promotion (kế hoạch M2,
@@ -56,7 +58,7 @@ func newModules(cfg config.Config, d *db.DB, bus realtime.Bus, reg *metrics.Regi
 	}
 	out := modules{Events: evs, M3: m3, M4: m4, M6: wireM6(reporting.Deps{
 		DB: d, Files: fs, Bus: bus, Queue: queue.NewQueue(), Cfg: cfg, Metrics: reg, Now: time.Now,
-	})}
+	}), M7: wireM7(d, fs)}
 	consumers := m3.Consumers
 	for _, p := range parts {
 		consumers = append(consumers, p.Consumers...)

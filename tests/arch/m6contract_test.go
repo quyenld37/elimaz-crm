@@ -39,7 +39,8 @@ func m6Operations() [][3]string {
 }
 
 // Mọi operation M6 có trong Routes đúng đường, quyền, cờ ghi; route ghi bắt buộc Idempotency-Key (ADR-41, không
-// exempt); mọi route dưới /api/v1/reports là của bảng M6 (không route lạ, không route công khai).
+// exempt); mọi route dưới /api/v1/reports (trừ đường đêm mở, theo dõi của M7) là của bảng M6 (không route lạ, không
+// route công khai).
 func TestM6Contract_Operations(t *testing.T) {
 	t.Parallel()
 	ops := m6Operations()
@@ -49,8 +50,9 @@ func TestM6Contract_Operations(t *testing.T) {
 	checkContractOps(t, "M6", ops)
 	writes := 0
 	for _, r := range httpapi.Routes {
-		if !strings.Contains(r.Pattern, " /api/v1/reports") {
-			continue
+		if !strings.Contains(r.Pattern, " /api/v1/reports") || strings.Contains(r.Pattern, " /api/v1/reports/launch-") ||
+			strings.Contains(r.Pattern, " /api/v1/reports/watch") {
+			continue // đường M7 (Task 260) kiểm ở TestM7Contract_Operations
 		}
 		if !slices.ContainsFunc(ops, func(w [3]string) bool { return w[0] == r.OperationID }) {
 			t.Errorf("route %s (%s) dưới /api/v1/reports không có trong bảng M6", r.OperationID, r.Pattern)

@@ -26,7 +26,8 @@ func TestDefaultRoles_Content(t *testing.T) {
 		"cash.statements.import", "cash.statements.confirm", "cash.adjust", "cash.refunds.record", "cash.refunds.waive",
 	}
 	for _, p := range all {
-		if p != "identity.users.manage" && p != "identity.roles.manage" && p != "identity.service_keys.manage" && (len(p) < 9 || p[:9] != "platform.") &&
+		// M7 (Task 260): quyết đêm mở chỉ Chủ.
+		if p != "identity.users.manage" && p != "reporting.launch.decide" && p != "identity.roles.manage" && p != "identity.service_keys.manage" && (len(p) < 9 || p[:9] != "platform.") &&
 			!slices.Contains(cashOnlyOwner, p) {
 			manager = append(manager, p)
 		}
@@ -46,6 +47,8 @@ func TestDefaultRoles_Content(t *testing.T) {
 			"conversation.read", "conversation.reply", "live.operate", "files.upload",
 			// M6 (Task 225).
 			"report.sales.read",
+			// M7 (Task 260).
+			"conversation.t2.read",
 		},
 		"warehouse": {
 			"catalog.read", "inventory.read", "inventory.documents.create", "inventory.stocktake", "fulfillment.read",
@@ -57,6 +60,8 @@ func TestDefaultRoles_Content(t *testing.T) {
 			"fulfillment.pack", "fulfillment.manual_status", "inventory.aged.read",
 			// M6 (Task 225).
 			"report.inventory.read",
+			// M7 (Task 260).
+			"inventory.stocktake.opening", "inventory.legacy_return.create",
 		},
 		"accountant": {
 			"catalog.read", "inventory.read", "order.read", "fulfillment.read", "realtime.subscribe",
@@ -67,6 +72,8 @@ func TestDefaultRoles_Content(t *testing.T) {
 			"cash.refunds.record", "files.upload",
 			// M6 (Task 225).
 			"report.sales.read", "report.export",
+			// M7 (Task 260).
+			"fulfillment.unmatched.read", "reporting.launch.read",
 		},
 	}
 	names := map[string]string{"owner": "Chủ", "manager": "Quản lý", "sale": "Bán hàng", "warehouse": "Kho", "accountant": "Kế toán"}

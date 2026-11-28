@@ -385,6 +385,9 @@ func runOneOffCommand(ctx context.Context, cfg config.Config, args []string, std
 	if isImportWebsiteCommand(args) {
 		return importWebsiteExit(runImportWebsite(ctx, cfg, args[1:], stdout, logger), stderr)
 	}
+	if isSeedStagingCommand(args) {
+		return seedStagingExit(runSeedStaging(ctx, cfg, args[1:]), stderr)
+	}
 	return runDevCommand(ctx, cfg, args, stdout, stderr, logger)
 }
 

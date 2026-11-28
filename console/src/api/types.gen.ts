@@ -70,6 +70,18 @@ export type Error = {
      * Chỉ có ở insufficient_stock của lên lịch, thêm suất đợt flash sale — mọi món thiếu hàng (Task 200)
      */
     shortages?: Array<FlashShortage>;
+    /**
+     * Chỉ có ở uncounted_lines — số biến thể phải đếm mà chưa có dòng (M7, Task 262)
+     */
+    count?: number;
+    /**
+     * Chỉ có ở legacy_return_exists, import_exists — bản ghi đã có (M7, Task 264, 268)
+     */
+    existingId?: string;
+    /**
+     * Chỉ có ở ambiguous_code — các biến thể trùng mã quét giữa người bán (M7, Task 263)
+     */
+    candidates?: Array<AmbiguousCodeCandidate>;
 };
 
 export type HealthStatus = {
@@ -866,6 +878,10 @@ export type WebProduct = {
     createdAt?: string;
     version: number;
     measureCm?: MeasureCm;
+    /**
+     * true khi sản phẩm còn nháp và khóa có web.catalog.preview (website thử xem trước, M7 Task 261); khóa thường không bao giờ nhận sản phẩm nháp. Đặt đơn với sản phẩm nháp vẫn bị từ chối (variant_not_for_sale)
+     */
+    preview?: boolean;
 };
 
 export type WebAttr = {
@@ -6476,6 +6492,471 @@ export type ReportFileLink = {
     expiresAt: string;
 };
 
+export type ProductReadiness = {
+    productId: string;
+    code: string;
+    name: string;
+    status: ProductStatus;
+    ready: boolean;
+    /**
+     * Mã lý do chưa đủ điều kiện lên kệ: no_variant, no_price, no_image, image_processing, no_category, missing_attr:<mã thuộc tính>, no_tag
+     */
+    reasons: Array<string>;
+};
+
+export type ProductReadinessPage = {
+    items: Array<ProductReadiness>;
+    /**
+     * Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+     */
+    nextCursor?: string;
+    /**
+     * Số sản phẩm nháp đủ điều kiện (cả shop, không theo trang)
+     */
+    readyCount: number;
+    /**
+     * Số sản phẩm nháp còn lý do
+     */
+    notReadyCount: number;
+};
+
+export type PublishProductsRequest = {
+    productIds?: Array<string>;
+    /**
+     * true = mọi sản phẩm nháp đủ điều kiện
+     */
+    allReady?: boolean;
+};
+
+export type PublishProductsResult = {
+    published: Array<string>;
+    /**
+     * Sản phẩm được chọn mà chưa đủ điều kiện (đánh giá dưới khóa), kèm lý do
+     */
+    skipped: Array<ProductReadiness>;
+};
+
+export type UnpublishProductsRequest = {
+    productIds: Array<string>;
+};
+
+export type UnpublishProductsResult = {
+    unpublished: Array<string>;
+};
+
+export type CreateOpeningStocktakeRequest = {
+    warehouseId: string;
+};
+
+export type OpeningStocktake = {
+    stocktakeId: string;
+    warehouseId: string;
+    status: StocktakeStatus;
+    /**
+     * Số biến thể active của sản phẩm nháp hoặc đang bán phải đếm
+     */
+    linesExpected: number;
+    linesCounted: number;
+    unitsCounted: number;
+    appliedAt?: string;
+};
+
+export type OpeningStocktakeList = {
+    items: Array<OpeningStocktake>;
+};
+
+export type OpeningPostResult = {
+    stocktakeId: string;
+    linesExpected: number;
+    countedLines: number;
+    units: number;
+};
+
+export type OpeningMismatch = {
+    variantId: string;
+    sku: string;
+    counted: number;
+    /**
+     * Tổng sổ doc_type stocktake của phiên này cho biến thể
+     */
+    ledgerOpening: number;
+    onHand: number;
+};
+
+export type OpeningCheckResult = {
+    ok: boolean;
+    /**
+     * Kho đã có chứng từ khác sau khi đăng (chỉ so với sổ, không so số dư)
+     */
+    changedSince: boolean;
+    mismatches: Array<OpeningMismatch>;
+};
+
+export type IncrementStocktakeLineRequest = {
+    /**
+     * SKU hoặc barcode quét được
+     */
+    code: string;
+    /**
+     * Khác 0; âm để sửa quét thừa
+     */
+    by: number;
+};
+
+export type StocktakeIncrementResult = {
+    variantId: string;
+    /**
+     * Số đếm của dòng sau khi cộng
+     */
+    counted: number;
+};
+
+export type CountImportMode = 'replace' | 'add';
+
+export type CreateStocktakeCountImportRequest = {
+    fileId: string;
+    mode: CountImportMode;
+};
+
+export type BackgroundImportStatus = 'queued' | 'running' | 'done' | 'failed';
+
+/**
+ * Lỗi một dòng của tệp số đếm, không kèm nội dung ô
+ */
+export type CountImportRowError = {
+    row: number;
+    code: 'unknown_code' | 'ambiguous_code' | 'not_integer' | 'negative' | 'formula';
+};
+
+export type StocktakeCountImport = {
+    id: string;
+    stocktakeId: string;
+    mode: CountImportMode;
+    status: BackgroundImportStatus;
+    appliedRows: number;
+    errorRows: Array<CountImportRowError>;
+    createdAt: string;
+    finishedAt?: string;
+};
+
+export type LegacyReturnCondition = 'sellable' | 'damaged';
+
+export type LegacyReturnLine = {
+    variantId: string;
+    qty: number;
+    condition: LegacyReturnCondition;
+};
+
+export type CreateLegacyReturnRequest = {
+    warehouseId: string;
+    /**
+     * Mã vận đơn hay mã đơn cũ trên kiện hàng
+     */
+    reference: string;
+    /**
+     * Ghi chú chỉ nằm trong chứng từ, không vào nhật ký
+     */
+    note?: string;
+    lines: Array<LegacyReturnLine>;
+};
+
+export type LegacyReturn = {
+    id: string;
+    warehouseId: string;
+    reference: string;
+    /**
+     * Phiếu nhập (import) mọi dòng
+     */
+    stockDocumentId: string;
+    /**
+     * Phiếu hỏng (damage) của các dòng hỏng; không có khi mọi dòng bán được
+     */
+    damageDocumentId?: string;
+    lines: Array<LegacyReturnLine>;
+    createdBy: Actor;
+    createdAt: string;
+};
+
+export type LegacyReturnPage = {
+    items: Array<LegacyReturn>;
+    /**
+     * Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+     */
+    nextCursor?: string;
+};
+
+/**
+ * Sự kiện hãng của vận đơn không có trong CRM (không dữ liệu khách)
+ */
+export type UnmatchedCarrierEvent = {
+    id: string;
+    carrierKey: string;
+    carrierAccountId?: string;
+    trackingCode: string;
+    lastRawStatus?: string;
+    eventCount: number;
+    firstSeenAt: string;
+    lastSeenAt: string;
+};
+
+export type UnmatchedCarrierEventPage = {
+    items: Array<UnmatchedCarrierEvent>;
+    /**
+     * Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+     */
+    nextCursor?: string;
+};
+
+export type T2Day = {
+    /**
+     * Ngày theo giờ Việt Nam
+     */
+    day: string;
+    auditsExpected: number;
+    auditsDone: number;
+    auditsFailed: number;
+    checked: number;
+    missing: number;
+    /**
+     * p95 webhook_to_signal_ms chung mọi Page trong ngày (G13)
+     */
+    p95Ms: number;
+    readOnlyAllDay: boolean;
+    blockedSends: number;
+    pass: boolean;
+};
+
+export type T2Report = {
+    days: Array<T2Day>;
+    /**
+     * 7 ngày liền gần nhất đều đạt
+     */
+    pass7Days: boolean;
+};
+
+export type GoLivePageRequest = {
+    ruleKinds: Array<AutomationRuleKind>;
+    /**
+     * Xác nhận đã tắt tự động ở công cụ cũ; phải là true
+     */
+    oldToolAutomationsOff: boolean;
+};
+
+export type GoLiveResult = {
+    liveSince: string;
+    enabled: Array<AutomationRuleKind>;
+    account: ChannelAccount;
+};
+
+export type PageBackToReadOnlyRequest = {
+    reason: string;
+};
+
+export type CreateFallbackImportRequest = {
+    fileId: string;
+};
+
+/**
+ * Kết quả một Mã dòng (một đơn); chỉ mã lỗi, không dữ liệu người nhận
+ */
+export type FallbackImportRow = {
+    rowCode: string;
+    firstRow: number;
+    outcome: 'created' | 'duplicate' | 'error';
+    orderId?: string;
+    orderCode?: string;
+    /**
+     * invalid_phone, unknown_sku, not_sellable, out_of_stock, invalid_qty, invalid_amount, line_discount_exceeds, invalid_channel…
+     */
+    errorCodes: Array<string>;
+    /**
+     * Tệp có mã vận đơn cho đơn này; nhân viên gắn ở màn nhập mã vận đơn tay (Q18)
+     */
+    needsTrackingCode: boolean;
+};
+
+export type FallbackImport = {
+    id: string;
+    status: BackgroundImportStatus;
+    /**
+     * Số đơn (Mã dòng) đọc được trong tệp
+     */
+    ordersInFile: number;
+    ordersCreated: number;
+    ordersDuplicate: number;
+    ordersFailed: number;
+    /**
+     * Cảnh báo của cả lô, ví dụ fallback_source_inactive
+     */
+    warnings: Array<string>;
+    rows: Array<FallbackImportRow>;
+    createdAt: string;
+    finishedAt?: string;
+};
+
+export type ReadinessItem = {
+    /**
+     * Mã mục, ví dụ catalog.ready_ratio, channel.pages_connected
+     */
+    key: string;
+    group: string;
+    status: 'ok' | 'warn' | 'fail';
+    /**
+     * Giá trị hiện tại (số đếm, tỉ lệ; "chưa có nguồn" khi task nguồn chưa làm)
+     */
+    value: string;
+    /**
+     * Ngưỡng đạt
+     */
+    target: string;
+};
+
+export type LaunchReadiness = {
+    items: Array<ReadinessItem>;
+    fail: number;
+    warn: number;
+    evaluatedAt: string;
+};
+
+export type LaunchMode = 'drill' | 'live';
+
+export type CreateLaunchRunRequest = {
+    mode: LaunchMode;
+    plannedStartAt: string;
+    plannedWindowMinutes: number;
+    deciderUserId: string;
+};
+
+export type LaunchStep = {
+    no: number;
+    /**
+     * web_checkout_maintenance, opening_count, publish_and_switch_web, carrier_webhooks, inbox_live, smoke_checklist, open_sales
+     */
+    key: string;
+    plannedMinutes: number;
+    status: 'pending' | 'running' | 'done' | 'failed' | 'skipped';
+    startedAt?: string;
+    finishedAt?: string;
+    actualMinutes?: number;
+    /**
+     * Thực tế trừ dự kiến
+     */
+    deltaMinutes?: number;
+    note?: string;
+    actor?: Actor;
+    /**
+     * Kết quả kiểm tự động (chỉ mã và số đếm)
+     */
+    result?: {
+        [key: string]: unknown;
+    };
+};
+
+export type LaunchCheckpointKey = 'readiness' | 'A' | 'B';
+
+export type LaunchCheckpoint = {
+    key: LaunchCheckpointKey;
+    passed: boolean;
+    evaluatedAt: string;
+    /**
+     * Chỉ mã và số đếm (ví dụ warehousesNotPosted, missing)
+     */
+    result: {
+        [key: string]: unknown;
+    };
+};
+
+export type LaunchRun = {
+    id: string;
+    mode: LaunchMode;
+    status: 'planned' | 'running' | 'stopped' | 'completed';
+    plannedStartAt: string;
+    plannedWindowMinutes: number;
+    decider: Actor;
+    startedAt?: string;
+    finishedAt?: string;
+    stopReason?: string;
+    pointOfNoReturnAt?: string;
+    watchClosedAt?: string;
+    actualMinutes?: number;
+    steps: Array<LaunchStep>;
+    /**
+     * Lần đánh giá mới nhất của từng mốc
+     */
+    checkpoints: Array<LaunchCheckpoint>;
+    /**
+     * mode drill, completed và tổng thực tế ≤ plannedWindowMinutes (MO04)
+     */
+    drillPassed: boolean;
+    version: number;
+    createdAt: string;
+};
+
+export type LaunchRunPage = {
+    items: Array<LaunchRun>;
+    /**
+     * Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+     */
+    nextCursor?: string;
+};
+
+export type FinishLaunchStepRequest = {
+    outcome: 'done' | 'failed' | 'skipped';
+    note?: string;
+};
+
+export type DecideLaunchRunRequest = {
+    decision: 'go' | 'stop';
+    /**
+     * Bắt buộc khi stop
+     */
+    reason?: string;
+};
+
+/**
+ * Một ngày theo dõi (giờ Việt Nam); stockOk, codOk, inboxP95Ms vắng = thiếu số liệu (không xanh, Q15)
+ */
+export type WatchDay = {
+    day: string;
+    stockOk?: boolean;
+    codOk?: boolean;
+    inDoubtOver24h: number;
+    deadOpen: number;
+    urgentAlerts: number;
+    inboxP95Ms?: number;
+    msgMissing: number;
+    unmatchedCarrierEvents: number;
+    legacyReturns: number;
+    adjustmentsSinceOpening: number;
+    orders: number;
+    green: boolean;
+};
+
+export type Watch = {
+    /**
+     * Lượt live đã hoàn tất; vắng khi chưa mở bán
+     */
+    runId?: string;
+    days: Array<WatchDay>;
+    daysSinceOpen: number;
+    consecutiveGreen: number;
+    /**
+     * daysSinceOpen ≥ 14 và 7 ngày liền gần nhất đều xanh
+     */
+    exitReady: boolean;
+    closedAt?: string;
+};
+
+export type CloseWatchRequest = {
+    note?: string;
+};
+
+export type AmbiguousCodeCandidate = {
+    variantId: string;
+    sellerId: string;
+    sku: string;
+};
+
 export type ProductWritable = {
     id: string;
     code: string;
@@ -6700,6 +7181,14 @@ export type ReportPageLimit = number;
  * Mã lần chạy (report_runs.id)
  */
 export type ReportRunId = string;
+
+export type M7From = string;
+
+export type M7To = string;
+
+export type LaunchRunId = string;
+
+export type LaunchStepNo = number;
 
 export type HealthLiveData = {
     body?: never;
@@ -18079,3 +18568,993 @@ export type GetCustomerExportFileResponses = {
 };
 
 export type GetCustomerExportFileResponse = GetCustomerExportFileResponses[keyof GetCustomerExportFileResponses];
+
+export type GetCatalogLaunchReadinessData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * ready = đủ điều kiện; not_ready = còn lý do; bỏ trống = mọi sản phẩm nháp
+         */
+        status?: 'ready' | 'not_ready';
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/catalog/launch/readiness';
+};
+
+export type GetCatalogLaunchReadinessErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetCatalogLaunchReadinessError = GetCatalogLaunchReadinessErrors[keyof GetCatalogLaunchReadinessErrors];
+
+export type GetCatalogLaunchReadinessResponses = {
+    /**
+     * getCatalogLaunchReadiness
+     */
+    200: ProductReadinessPage;
+};
+
+export type GetCatalogLaunchReadinessResponse = GetCatalogLaunchReadinessResponses[keyof GetCatalogLaunchReadinessResponses];
+
+export type PublishProductsData = {
+    body: PublishProductsRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/catalog/launch/publish';
+};
+
+export type PublishProductsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type PublishProductsError = PublishProductsErrors[keyof PublishProductsErrors];
+
+export type PublishProductsResponses = {
+    /**
+     * publishProducts
+     */
+    200: PublishProductsResult;
+};
+
+export type PublishProductsResponse = PublishProductsResponses[keyof PublishProductsResponses];
+
+export type UnpublishProductsData = {
+    body: UnpublishProductsRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/catalog/launch/unpublish';
+};
+
+export type UnpublishProductsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type UnpublishProductsError = UnpublishProductsErrors[keyof UnpublishProductsErrors];
+
+export type UnpublishProductsResponses = {
+    /**
+     * unpublishProducts
+     */
+    200: UnpublishProductsResult;
+};
+
+export type UnpublishProductsResponse = UnpublishProductsResponses[keyof UnpublishProductsResponses];
+
+export type ListOpeningStocktakesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        warehouseId?: string;
+    };
+    url: '/api/v1/inventory/opening-stocktakes';
+};
+
+export type ListOpeningStocktakesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListOpeningStocktakesError = ListOpeningStocktakesErrors[keyof ListOpeningStocktakesErrors];
+
+export type ListOpeningStocktakesResponses = {
+    /**
+     * listOpeningStocktakes
+     */
+    200: OpeningStocktakeList;
+};
+
+export type ListOpeningStocktakesResponse = ListOpeningStocktakesResponses[keyof ListOpeningStocktakesResponses];
+
+export type CreateOpeningStocktakeData = {
+    body: CreateOpeningStocktakeRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/inventory/opening-stocktakes';
+};
+
+export type CreateOpeningStocktakeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateOpeningStocktakeError = CreateOpeningStocktakeErrors[keyof CreateOpeningStocktakeErrors];
+
+export type CreateOpeningStocktakeResponses = {
+    /**
+     * Phiên mở sổ đã mở
+     */
+    201: OpeningStocktake;
+};
+
+export type CreateOpeningStocktakeResponse = CreateOpeningStocktakeResponses[keyof CreateOpeningStocktakeResponses];
+
+export type GetOpeningStocktakeData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/opening-stocktakes/{id}';
+};
+
+export type GetOpeningStocktakeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetOpeningStocktakeError = GetOpeningStocktakeErrors[keyof GetOpeningStocktakeErrors];
+
+export type GetOpeningStocktakeResponses = {
+    /**
+     * getOpeningStocktake
+     */
+    200: OpeningStocktake;
+};
+
+export type GetOpeningStocktakeResponse = GetOpeningStocktakeResponses[keyof GetOpeningStocktakeResponses];
+
+export type PostOpeningStocktakeData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/opening-stocktakes/{id}/post';
+};
+
+export type PostOpeningStocktakeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type PostOpeningStocktakeError = PostOpeningStocktakeErrors[keyof PostOpeningStocktakeErrors];
+
+export type PostOpeningStocktakeResponses = {
+    /**
+     * postOpeningStocktake
+     */
+    200: OpeningPostResult;
+};
+
+export type PostOpeningStocktakeResponse = PostOpeningStocktakeResponses[keyof PostOpeningStocktakeResponses];
+
+export type CheckOpeningStocktakeData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/opening-stocktakes/{id}/check';
+};
+
+export type CheckOpeningStocktakeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CheckOpeningStocktakeError = CheckOpeningStocktakeErrors[keyof CheckOpeningStocktakeErrors];
+
+export type CheckOpeningStocktakeResponses = {
+    /**
+     * checkOpeningStocktake
+     */
+    200: OpeningCheckResult;
+};
+
+export type CheckOpeningStocktakeResponse = CheckOpeningStocktakeResponses[keyof CheckOpeningStocktakeResponses];
+
+export type IncrementStocktakeLineData = {
+    body: IncrementStocktakeLineRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/stocktakes/{id}/increments';
+};
+
+export type IncrementStocktakeLineErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type IncrementStocktakeLineError = IncrementStocktakeLineErrors[keyof IncrementStocktakeLineErrors];
+
+export type IncrementStocktakeLineResponses = {
+    /**
+     * incrementStocktakeLine
+     */
+    200: StocktakeIncrementResult;
+};
+
+export type IncrementStocktakeLineResponse = IncrementStocktakeLineResponses[keyof IncrementStocktakeLineResponses];
+
+export type CreateStocktakeCountImportData = {
+    body: CreateStocktakeCountImportRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/stocktakes/{id}/count-imports';
+};
+
+export type CreateStocktakeCountImportErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateStocktakeCountImportError = CreateStocktakeCountImportErrors[keyof CreateStocktakeCountImportErrors];
+
+export type CreateStocktakeCountImportResponses = {
+    /**
+     * Bản nhập đã xếp hàng
+     */
+    202: StocktakeCountImport;
+};
+
+export type CreateStocktakeCountImportResponse = CreateStocktakeCountImportResponses[keyof CreateStocktakeCountImportResponses];
+
+export type GetStocktakeCountImportData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/count-imports/{id}';
+};
+
+export type GetStocktakeCountImportErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetStocktakeCountImportError = GetStocktakeCountImportErrors[keyof GetStocktakeCountImportErrors];
+
+export type GetStocktakeCountImportResponses = {
+    /**
+     * getStocktakeCountImport
+     */
+    200: StocktakeCountImport;
+};
+
+export type GetStocktakeCountImportResponse = GetStocktakeCountImportResponses[keyof GetStocktakeCountImportResponses];
+
+export type ListLegacyReturnsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        from?: string;
+        to?: string;
+        warehouseId?: string;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/inventory/legacy-returns';
+};
+
+export type ListLegacyReturnsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListLegacyReturnsError = ListLegacyReturnsErrors[keyof ListLegacyReturnsErrors];
+
+export type ListLegacyReturnsResponses = {
+    /**
+     * listLegacyReturns
+     */
+    200: LegacyReturnPage;
+};
+
+export type ListLegacyReturnsResponse = ListLegacyReturnsResponses[keyof ListLegacyReturnsResponses];
+
+export type CreateLegacyReturnData = {
+    body: CreateLegacyReturnRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/inventory/legacy-returns';
+};
+
+export type CreateLegacyReturnErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateLegacyReturnError = CreateLegacyReturnErrors[keyof CreateLegacyReturnErrors];
+
+export type CreateLegacyReturnResponses = {
+    /**
+     * Phiếu hàng hoàn đã ghi sổ
+     */
+    201: LegacyReturn;
+};
+
+export type CreateLegacyReturnResponse = CreateLegacyReturnResponses[keyof CreateLegacyReturnResponses];
+
+export type GetLegacyReturnData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/legacy-returns/{id}';
+};
+
+export type GetLegacyReturnErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetLegacyReturnError = GetLegacyReturnErrors[keyof GetLegacyReturnErrors];
+
+export type GetLegacyReturnResponses = {
+    /**
+     * getLegacyReturn
+     */
+    200: LegacyReturn;
+};
+
+export type GetLegacyReturnResponse = GetLegacyReturnResponses[keyof GetLegacyReturnResponses];
+
+export type ListUnmatchedCarrierEventsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Khóa hãng (carrier_key)
+         */
+        carrier?: string;
+        from?: string;
+        to?: string;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/fulfillment/unmatched-events';
+};
+
+export type ListUnmatchedCarrierEventsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListUnmatchedCarrierEventsError = ListUnmatchedCarrierEventsErrors[keyof ListUnmatchedCarrierEventsErrors];
+
+export type ListUnmatchedCarrierEventsResponses = {
+    /**
+     * listUnmatchedCarrierEvents
+     */
+    200: UnmatchedCarrierEventPage;
+};
+
+export type ListUnmatchedCarrierEventsResponse = ListUnmatchedCarrierEventsResponses[keyof ListUnmatchedCarrierEventsResponses];
+
+export type GetT2ReportData = {
+    body?: never;
+    path: {
+        /**
+         * Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+         */
+        id: string;
+    };
+    query: {
+        from: string;
+        to: string;
+    };
+    url: '/api/v1/channels/{id}/t2-report';
+};
+
+export type GetT2ReportErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetT2ReportError = GetT2ReportErrors[keyof GetT2ReportErrors];
+
+export type GetT2ReportResponses = {
+    /**
+     * getT2Report
+     */
+    200: T2Report;
+};
+
+export type GetT2ReportResponse = GetT2ReportResponses[keyof GetT2ReportResponses];
+
+export type GoLivePageData = {
+    body: GoLivePageRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/channels/{id}/go-live';
+};
+
+export type GoLivePageErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GoLivePageError = GoLivePageErrors[keyof GoLivePageErrors];
+
+export type GoLivePageResponses = {
+    /**
+     * goLivePage
+     */
+    200: GoLiveResult;
+};
+
+export type GoLivePageResponse = GoLivePageResponses[keyof GoLivePageResponses];
+
+export type PageBackToReadOnlyData = {
+    body: PageBackToReadOnlyRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/channels/{id}/back-to-read-only';
+};
+
+export type PageBackToReadOnlyErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type PageBackToReadOnlyError = PageBackToReadOnlyErrors[keyof PageBackToReadOnlyErrors];
+
+export type PageBackToReadOnlyResponses = {
+    /**
+     * pageBackToReadOnly
+     */
+    200: ChannelAccount;
+};
+
+export type PageBackToReadOnlyResponse = PageBackToReadOnlyResponses[keyof PageBackToReadOnlyResponses];
+
+export type GetFallbackTemplateData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/order-fallback/template';
+};
+
+export type GetFallbackTemplateErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetFallbackTemplateError = GetFallbackTemplateErrors[keyof GetFallbackTemplateErrors];
+
+export type GetFallbackTemplateResponses = {
+    /**
+     * Tệp .xlsx
+     */
+    200: Blob | File;
+};
+
+export type GetFallbackTemplateResponse = GetFallbackTemplateResponses[keyof GetFallbackTemplateResponses];
+
+export type CreateFallbackImportData = {
+    body: CreateFallbackImportRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/order-fallback/imports';
+};
+
+export type CreateFallbackImportErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateFallbackImportError = CreateFallbackImportErrors[keyof CreateFallbackImportErrors];
+
+export type CreateFallbackImportResponses = {
+    /**
+     * Bản nhập đã xếp hàng
+     */
+    202: FallbackImport;
+};
+
+export type CreateFallbackImportResponse = CreateFallbackImportResponses[keyof CreateFallbackImportResponses];
+
+export type GetFallbackImportData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/order-fallback/imports/{id}';
+};
+
+export type GetFallbackImportErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetFallbackImportError = GetFallbackImportErrors[keyof GetFallbackImportErrors];
+
+export type GetFallbackImportResponses = {
+    /**
+     * getFallbackImport
+     */
+    200: FallbackImport;
+};
+
+export type GetFallbackImportResponse = GetFallbackImportResponses[keyof GetFallbackImportResponses];
+
+export type GetLaunchReadinessData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/reports/launch-readiness';
+};
+
+export type GetLaunchReadinessErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetLaunchReadinessError = GetLaunchReadinessErrors[keyof GetLaunchReadinessErrors];
+
+export type GetLaunchReadinessResponses = {
+    /**
+     * getLaunchReadiness
+     */
+    200: LaunchReadiness;
+};
+
+export type GetLaunchReadinessResponse = GetLaunchReadinessResponses[keyof GetLaunchReadinessResponses];
+
+export type ListLaunchRunsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/reports/launch-runs';
+};
+
+export type ListLaunchRunsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListLaunchRunsError = ListLaunchRunsErrors[keyof ListLaunchRunsErrors];
+
+export type ListLaunchRunsResponses = {
+    /**
+     * listLaunchRuns
+     */
+    200: LaunchRunPage;
+};
+
+export type ListLaunchRunsResponse = ListLaunchRunsResponses[keyof ListLaunchRunsResponses];
+
+export type CreateLaunchRunData = {
+    body: CreateLaunchRunRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/reports/launch-runs';
+};
+
+export type CreateLaunchRunErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateLaunchRunError = CreateLaunchRunErrors[keyof CreateLaunchRunErrors];
+
+export type CreateLaunchRunResponses = {
+    /**
+     * Lượt chạy đã tạo
+     */
+    201: LaunchRun;
+};
+
+export type CreateLaunchRunResponse = CreateLaunchRunResponses[keyof CreateLaunchRunResponses];
+
+export type GetLaunchRunData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/reports/launch-runs/{id}';
+};
+
+export type GetLaunchRunErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetLaunchRunError = GetLaunchRunErrors[keyof GetLaunchRunErrors];
+
+export type GetLaunchRunResponses = {
+    /**
+     * getLaunchRun
+     */
+    200: LaunchRun;
+};
+
+export type GetLaunchRunResponse = GetLaunchRunResponses[keyof GetLaunchRunResponses];
+
+export type StartLaunchStepData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+        no: number;
+    };
+    query?: never;
+    url: '/api/v1/reports/launch-runs/{id}/steps/{no}/start';
+};
+
+export type StartLaunchStepErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type StartLaunchStepError = StartLaunchStepErrors[keyof StartLaunchStepErrors];
+
+export type StartLaunchStepResponses = {
+    /**
+     * startLaunchStep
+     */
+    200: LaunchRun;
+};
+
+export type StartLaunchStepResponse = StartLaunchStepResponses[keyof StartLaunchStepResponses];
+
+export type FinishLaunchStepData = {
+    body: FinishLaunchStepRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+        no: number;
+    };
+    query?: never;
+    url: '/api/v1/reports/launch-runs/{id}/steps/{no}/finish';
+};
+
+export type FinishLaunchStepErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type FinishLaunchStepError = FinishLaunchStepErrors[keyof FinishLaunchStepErrors];
+
+export type FinishLaunchStepResponses = {
+    /**
+     * finishLaunchStep
+     */
+    200: LaunchRun;
+};
+
+export type FinishLaunchStepResponse = FinishLaunchStepResponses[keyof FinishLaunchStepResponses];
+
+export type EvaluateLaunchCheckpointData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+        key: LaunchCheckpointKey;
+    };
+    query?: never;
+    url: '/api/v1/reports/launch-runs/{id}/checkpoints/{key}/evaluate';
+};
+
+export type EvaluateLaunchCheckpointErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type EvaluateLaunchCheckpointError = EvaluateLaunchCheckpointErrors[keyof EvaluateLaunchCheckpointErrors];
+
+export type EvaluateLaunchCheckpointResponses = {
+    /**
+     * evaluateLaunchCheckpoint
+     */
+    200: LaunchCheckpoint;
+};
+
+export type EvaluateLaunchCheckpointResponse = EvaluateLaunchCheckpointResponses[keyof EvaluateLaunchCheckpointResponses];
+
+export type DecideLaunchRunData = {
+    body: DecideLaunchRunRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/reports/launch-runs/{id}/decision';
+};
+
+export type DecideLaunchRunErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type DecideLaunchRunError = DecideLaunchRunErrors[keyof DecideLaunchRunErrors];
+
+export type DecideLaunchRunResponses = {
+    /**
+     * decideLaunchRun
+     */
+    200: LaunchRun;
+};
+
+export type DecideLaunchRunResponse = DecideLaunchRunResponses[keyof DecideLaunchRunResponses];
+
+export type OpenSalesData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/reports/launch-runs/{id}/open-sales';
+};
+
+export type OpenSalesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type OpenSalesError = OpenSalesErrors[keyof OpenSalesErrors];
+
+export type OpenSalesResponses = {
+    /**
+     * openSales
+     */
+    200: LaunchRun;
+};
+
+export type OpenSalesResponse = OpenSalesResponses[keyof OpenSalesResponses];
+
+export type GetWatchData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/reports/watch';
+};
+
+export type GetWatchErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetWatchError = GetWatchErrors[keyof GetWatchErrors];
+
+export type GetWatchResponses = {
+    /**
+     * getWatch
+     */
+    200: Watch;
+};
+
+export type GetWatchResponse = GetWatchResponses[keyof GetWatchResponses];
+
+export type CloseWatchData = {
+    body: CloseWatchRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/reports/watch/close';
+};
+
+export type CloseWatchErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CloseWatchError = CloseWatchErrors[keyof CloseWatchErrors];
+
+export type CloseWatchResponses = {
+    /**
+     * closeWatch
+     */
+    200: Watch;
+};
+
+export type CloseWatchResponse = CloseWatchResponses[keyof CloseWatchResponses];

@@ -65,6 +65,9 @@ func newM3Env(t *testing.T) *m3Env {
 	e.srv = NewServer(Deps{
 		Config: config.Config{ConsoleOrigins: []string{testOrigin}}, DB: e.staff.App, Logger: discardLogger(t),
 		Access: authE.verifier(), Realtime: &realtimetest.RecordingBus{}, Files: e.files, Cash: e.cash.Service,
+		// TestM3Routes_PendingList gọi mọi route bằng một chủ shop trong vài giây: hơn ngưỡng mặc định 300/phút từ
+		// khi M7 thêm 32 route (Task 260). Ngưỡng của người dùng có test riêng (ratelimit_test.go).
+		RateLimit: RateLimit{Max: 10_000},
 	})
 	return e
 }
@@ -111,6 +114,7 @@ func TestM3Routes_PendingList(t *testing.T) {
 	pending := m3Pending(t)
 	m4 := pendingOps(t, "m4_pending.txt") // operation M4 chờ hiện thực (Task 143); 501 của chúng kiểm ở test M4
 	m6 := pendingOps(t, "m6_pending.txt") // operation M6 chờ hiện thực (Task 225); 501 kiểm ở TestM6Contract_StatusCodes
+	m7 := pendingOps(t, "m7_pending.txt") // operation M7 chờ hiện thực (Task 260); 501 kiểm ở TestM7Contract_StatusCodes
 	param := regexp.MustCompile(`\{[^}]+\}`)
 	stub := 0
 	for _, r := range Routes {
@@ -131,8 +135,9 @@ func TestM3Routes_PendingList(t *testing.T) {
 		rec := serveAs(e.srv, e.keys, r.Method, path, m3Owner, key, body)
 		code, b := rec.Code, rec.Body.String()
 		switch {
-		case code == http.StatusNotImplemented && !pending[r.OperationID] && !m4[r.OperationID] && !m6[r.OperationID]:
-			t.Errorf("%s trả 501 mà không có trong m3_pending.txt, m4_pending.txt, m6_pending.txt", r.OperationID)
+		case code == http.StatusNotImplemented && !pending[r.OperationID] && !m4[r.OperationID] && !m6[r.OperationID] &&
+			!m7[r.OperationID]:
+			t.Errorf("%s trả 501 mà không có trong m3_pending.txt, m4_pending.txt, m6_pending.txt, m7_pending.txt", r.OperationID)
 		case m4[r.OperationID] && code != http.StatusNotImplemented && code != http.StatusBadRequest:
 			t.Errorf("%s có trong m4_pending.txt mà trả %d %s: đã làm thì xóa dòng", r.OperationID, code, b)
 		case code == http.StatusNotImplemented:

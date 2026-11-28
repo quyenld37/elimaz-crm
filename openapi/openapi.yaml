@@ -6535,6 +6535,7 @@ paths:
     put:
       operationId: setChannelSendMode
       summary: 'Đổi chế độ gửi của Page (read_only = chỉ xem, enabled = gửi thật); kiểm version, ghi nhật ký (Task 145)'
+      description: Từ M7 (Task 267) chuyển sang enabled → 409 use_go_live (bật gửi chỉ qua goLivePage); về read_only vẫn được.
       x-permission: channel.manage
       parameters:
         - $ref: "#/components/parameters/ChannelID"
@@ -6749,6 +6750,7 @@ paths:
     put:
       operationId: updateAutomationRule
       summary: 'Bật, tắt, sửa một quy tắc tự động của Page; config.kind phải trùng kind trên đường dẫn; kiểm version (Task 165)'
+      description: Từ M7 (Task 267) bật quy tắc khi Page còn read_only → 409 page_read_only; tắt vẫn được.
       x-permission: conversation.settings
       parameters:
         - $ref: "#/components/parameters/ChannelID"
@@ -8281,6 +8283,694 @@ paths:
                 $ref: "#/components/schemas/ReportFileLink"
         default:
           $ref: "#/components/responses/Error"
+  # ---- M7 phần khởi động (kế hoạch M7 Task M7-15 = Task 260; hợp đồng viết trước cho Task 261–271). Mã lỗi khai ở
+  # x-error-codes; operation còn trả 501 ghi ở tests/arch/testdata/m7_pending.txt.
+  /api/v1/catalog/launch/readiness:
+    get:
+      operationId: getCatalogLaunchReadiness
+      summary: 'Sản phẩm nháp, đang bán kèm điều kiện lên kệ và lý do chưa đủ (view catalog.product_readiness_v; Task 261)'
+      x-permission: catalog.read
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: ready = đủ điều kiện; not_ready = còn lý do; bỏ trống = mọi sản phẩm nháp
+          schema:
+            type: string
+            enum: [ready, not_ready]
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: getCatalogLaunchReadiness
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductReadinessPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/launch/publish:
+    post:
+      operationId: publishProducts
+      summary: 'Hiện hàng loạt sản phẩm nháp đủ điều kiện (đánh giá lại dưới khóa); sản phẩm chưa đủ trả trong skipped (Task 261)'
+      description: Gửi productIds (tối đa 500) hoặc allReady = true (mọi sản phẩm nháp đủ điều kiện); thiếu cả hai → 400 invalid_input.
+      x-permission: catalog.launch.publish
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublishProductsRequest"
+      responses:
+        "200":
+          description: publishProducts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublishProductsResult"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/launch/unpublish:
+    post:
+      operationId: unpublishProducts
+      summary: 'Ẩn lại sản phẩm đang bán (về nháp); đơn cũ giữ giá, tên lúc đặt (Task 261)'
+      x-permission: catalog.launch.publish
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UnpublishProductsRequest"
+      responses:
+        "200":
+          description: unpublishProducts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnpublishProductsResult"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/opening-stocktakes:
+    post:
+      operationId: createOpeningStocktake
+      summary: 'Mở phiên kiểm kho mở sổ trên kho trống (Task 262)'
+      description: |
+        Quyền theo kho (inventory.stocktake.opening ở kho warehouseId). Kho đã có dòng sổ, số dư khác 0 hay giữ hàng →
+        409 warehouse_not_empty; kho đã có phiên mở sổ chưa hủy → 409 opening_exists; kho đang có phiên kiểm thường mở →
+        409 stocktake_open. Đếm từng dòng dùng recordStocktakeCount, incrementStocktakeLine.
+      x-permission: inventory.stocktake.opening
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOpeningStocktakeRequest"
+      responses:
+        "201":
+          description: Phiên mở sổ đã mở
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpeningStocktake"
+        default:
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: listOpeningStocktakes
+      summary: 'Phiên kiểm kho mở sổ của các kho được giao, kèm số dòng phải đếm, đã đếm (view inventory.opening_status_v; Task 262)'
+      x-permission: inventory.read
+      parameters:
+        - name: warehouseId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: listOpeningStocktakes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpeningStocktakeList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/opening-stocktakes/{id}:
+    get:
+      operationId: getOpeningStocktake
+      summary: 'Một phiên kiểm kho mở sổ: số dòng phải đếm, đã đếm, số đơn vị (màn "còn N dòng chưa đếm"; Task 262)'
+      x-permission: inventory.read
+      parameters:
+        - $ref: "#/components/parameters/StocktakeID"
+      responses:
+        "200":
+          description: getOpeningStocktake
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpeningStocktake"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/opening-stocktakes/{id}/post:
+    post:
+      operationId: postOpeningStocktake
+      summary: 'Đăng phiên mở sổ: tồn mở sổ = số đếm, ghi sổ đúng một lần (Task 262)'
+      description: |
+        Còn biến thể chưa đếm → 422 uncounted_lines (kèm count); kho không còn trống → 409 warehouse_not_empty; phiên đã
+        đăng hay hủy → 409 stocktake_not_open.
+      x-permission: inventory.stocktake.opening
+      parameters:
+        - $ref: "#/components/parameters/StocktakeID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: postOpeningStocktake
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpeningPostResult"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/opening-stocktakes/{id}/check:
+    get:
+      operationId: checkOpeningStocktake
+      summary: 'Kiểm lại phiên mở sổ đã đăng: số đếm khớp sổ và số dư (mốc A của đêm mở; Task 262)'
+      x-permission: inventory.stocktake.opening
+      parameters:
+        - $ref: "#/components/parameters/StocktakeID"
+      responses:
+        "200":
+          description: checkOpeningStocktake
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpeningCheckResult"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/stocktakes/{id}/increments:
+    post:
+      operationId: incrementStocktakeLine
+      summary: 'Cộng (hoặc trừ) số đếm của một mã quét (SKU hoặc barcode) vào phiên kiểm; nhiều người đếm cùng lúc (Task 263)'
+      description: |
+        Mã lạ → 422 unknown_code; mã trùng giữa hai người bán → 422 ambiguous_code (kèm candidates); số đếm âm → 422
+        negative_count; phiên không mở → 409 stocktake_not_open. Mỗi lần quét một khóa chống trùng riêng.
+      x-permission: inventory.stocktake
+      parameters:
+        - $ref: "#/components/parameters/StocktakeID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IncrementStocktakeLineRequest"
+      responses:
+        "200":
+          description: incrementStocktakeLine
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StocktakeIncrementResult"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/stocktakes/{id}/count-imports:
+    post:
+      operationId: createStocktakeCountImport
+      summary: 'Nhập số đếm từ tệp Excel đã tải (mục đích inventory_count_import), chạy nền; lỗi từng dòng (Task 263)'
+      description: Cùng tệp, cùng phiên, mode add lần hai → 409 import_already_applied; mode replace lần hai trả lại bản nhập cũ.
+      x-permission: inventory.stocktake
+      parameters:
+        - $ref: "#/components/parameters/StocktakeID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStocktakeCountImportRequest"
+      responses:
+        "202":
+          description: Bản nhập đã xếp hàng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StocktakeCountImport"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/count-imports/{id}:
+    get:
+      operationId: getStocktakeCountImport
+      summary: 'Trạng thái và lỗi từng dòng của một bản nhập số đếm (Task 263)'
+      x-permission: inventory.stocktake
+      parameters:
+        - $ref: "#/components/parameters/ImportID"
+      responses:
+        "200":
+          description: getStocktakeCountImport
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StocktakeCountImport"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/legacy-returns:
+    post:
+      operationId: createLegacyReturn
+      summary: 'Nhập hàng hoàn của đơn cũ (trước CRM) về kho: phiếu nhập, phiếu hỏng cho dòng hỏng; mã tham chiếu duy nhất (MO08, Task 264)'
+      description: |
+        Quyền theo kho warehouseId. Tham chiếu đã dùng (so sau khi bỏ khoảng trắng, viết hoa) → 409 legacy_return_exists
+        (kèm existingId); qty ngoài 1–1000 → 400.
+      x-permission: inventory.legacy_return.create
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLegacyReturnRequest"
+      responses:
+        "201":
+          description: Phiếu hàng hoàn đã ghi sổ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyReturn"
+        default:
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: listLegacyReturns
+      summary: 'Phiếu hàng hoàn của đơn cũ theo khoảng ngày (giờ Việt Nam), mới nhất trước (Task 264)'
+      x-permission: inventory.legacy_return.create
+      parameters:
+        - $ref: "#/components/parameters/M7From"
+        - $ref: "#/components/parameters/M7To"
+        - name: warehouseId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listLegacyReturns
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyReturnPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/legacy-returns/{id}:
+    get:
+      operationId: getLegacyReturn
+      summary: 'Một phiếu hàng hoàn của đơn cũ (liên kết từ lỗi legacy_return_exists; Task 264)'
+      x-permission: inventory.legacy_return.create
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: getLegacyReturn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyReturn"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/fulfillment/unmatched-events:
+    get:
+      operationId: listUnmatchedCarrierEvents
+      summary: 'Sự kiện hãng của vận đơn ngoài hệ thống (đơn cũ còn đang giao): mã vận đơn, hãng, số lần, lần cuối (MO07, Task 265)'
+      x-permission: fulfillment.unmatched.read
+      parameters:
+        - name: carrier
+          in: query
+          required: false
+          description: Khóa hãng (carrier_key)
+          schema:
+            type: string
+            maxLength: 32
+        - $ref: "#/components/parameters/M7From"
+        - $ref: "#/components/parameters/M7To"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listUnmatchedCarrierEvents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnmatchedCarrierEventPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/channels/{id}/t2-report:
+    get:
+      operationId: getT2Report
+      summary: 'Báo cáo chạy chỉ xem (T2) theo ngày của một Page: đối chiếu tin mỗi giờ, p95 tin tới màn, gửi bị chặn (MO03, Task 266)'
+      description: Quyền theo Page (conversation.t2.read ở Page id). Khoảng from–to tối đa 31 ngày → quá thì 400 range_too_long.
+      x-permission: conversation.t2.read
+      parameters:
+        - $ref: "#/components/parameters/ChannelID"
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: getT2Report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/T2Report"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/channels/{id}/go-live:
+    post:
+      operationId: goLivePage
+      summary: 'Mở gửi Page (read_only → enabled) cùng lúc bật các quy tắc tự động đã cấu hình; ghi live_since (MO06, Task 267)'
+      description: |
+        Quyền theo Page. oldToolAutomationsOff khác true → 422 old_tool_not_confirmed; Page không ở read_only → 409
+        mode_mismatch; loại quy tắc chưa cấu hình cho Page → 422 rule_not_configured. Từ M7 bật gửi chỉ qua đây
+        (setChannelSendMode sang enabled → 409 use_go_live).
+      x-permission: channel.golive
+      parameters:
+        - $ref: "#/components/parameters/ChannelID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoLivePageRequest"
+      responses:
+        "200":
+          description: goLivePage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoLiveResult"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/channels/{id}/back-to-read-only:
+    post:
+      operationId: pageBackToReadOnly
+      summary: 'Trả Page về chỉ xem (enabled → read_only), tắt mọi quy tắc tự động đang bật của Page (Task 267)'
+      description: Page không ở enabled → 409 mode_mismatch.
+      x-permission: channel.golive
+      parameters:
+        - $ref: "#/components/parameters/ChannelID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PageBackToReadOnlyRequest"
+      responses:
+        "200":
+          description: pageBackToReadOnly
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelAccount"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/order-fallback/template:
+    get:
+      operationId: getFallbackTemplate
+      summary: 'Tải mẫu bảng tính đơn dự phòng (.xlsx ba trang: Đơn có sẵn Mã dòng, Mã hàng, Hướng dẫn; Task 268)'
+      x-permission: order.fallback.import
+      responses:
+        "200":
+          description: Tệp .xlsx
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/order-fallback/imports:
+    post:
+      operationId: createFallbackImport
+      summary: 'Nhập lại bảng tính đơn dự phòng đã tải (mục đích order_fallback_import), chạy nền; không trùng đơn (Task 268)'
+      description: Cùng tệp (sha256) đã nhập → 409 import_exists (kèm existingId).
+      x-permission: order.fallback.import
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFallbackImportRequest"
+      responses:
+        "202":
+          description: Bản nhập đã xếp hàng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FallbackImport"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/order-fallback/imports/{id}:
+    get:
+      operationId: getFallbackImport
+      summary: 'Kết quả một lần nhập đơn dự phòng: số đơn tạo, trùng, lỗi; từng Mã dòng (Task 268)'
+      x-permission: order.fallback.import
+      parameters:
+        - $ref: "#/components/parameters/ImportID"
+      responses:
+        "200":
+          description: getFallbackImport
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FallbackImport"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/launch-readiness:
+    get:
+      operationId: getLaunchReadiness
+      summary: 'Báo cáo sẵn sàng dữ liệu trước đêm mở: từng mục ok, warn, fail kèm giá trị và ngưỡng (Task 269)'
+      description: Chỉ số đếm và mã; không tên nhân viên, tên khách.
+      x-permission: reporting.launch.read
+      responses:
+        "200":
+          description: getLaunchReadiness
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LaunchReadiness"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/launch-runs:
+    post:
+      operationId: createLaunchRun
+      summary: 'Tạo lượt chạy đêm mở (diễn tập drill hay thật live) với bảy bước mẫu và người quyết (Task 270)'
+      description: |
+        deciderUserId phải là nhân viên active có reporting.launch.decide → không thì 422 decider_invalid; đang có lượt
+        running → 409 run_in_progress; đã có lượt live hoàn tất → 409 live_already_completed.
+      x-permission: reporting.launch.decide
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLaunchRunRequest"
+      responses:
+        "201":
+          description: Lượt chạy đã tạo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LaunchRun"
+        default:
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: listLaunchRuns
+      summary: 'Các lượt chạy đêm mở, mới nhất trước (Task 270)'
+      x-permission: reporting.launch.read
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listLaunchRuns
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LaunchRunPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/launch-runs/{id}:
+    get:
+      operationId: getLaunchRun
+      summary: 'Một lượt chạy: từng bước dự kiến, thực tế, chênh; mốc đi/dừng; drillPassed (MO04, Task 270)'
+      x-permission: reporting.launch.read
+      parameters:
+        - $ref: "#/components/parameters/LaunchRunID"
+      responses:
+        "200":
+          description: getLaunchRun
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LaunchRun"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/launch-runs/{id}/steps/{no}/start:
+    post:
+      operationId: startLaunchStep
+      summary: 'Bắt đầu bước no của lượt chạy (theo thứ tự; bước 1 chuyển lượt sang running) (Task 270)'
+      description: Bước trước chưa done hay skipped → 409 step_out_of_order; lượt đã dừng hay hoàn tất → 409 run_closed.
+      x-permission: reporting.launch.run
+      parameters:
+        - $ref: "#/components/parameters/LaunchRunID"
+        - $ref: "#/components/parameters/LaunchStepNo"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: startLaunchStep
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LaunchRun"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/launch-runs/{id}/steps/{no}/finish:
+    post:
+      operationId: finishLaunchStep
+      summary: 'Kết thúc bước no (done, failed, skipped); bước có kiểm tự động chạy kiểm và lưu kết quả (Task 270)'
+      description: Bước 2, 6, 7 không được skipped → 422 step_not_skippable; lượt đã dừng hay hoàn tất → 409 run_closed.
+      x-permission: reporting.launch.run
+      parameters:
+        - $ref: "#/components/parameters/LaunchRunID"
+        - $ref: "#/components/parameters/LaunchStepNo"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinishLaunchStepRequest"
+      responses:
+        "200":
+          description: finishLaunchStep
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LaunchRun"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/launch-runs/{id}/checkpoints/{key}/evaluate:
+    post:
+      operationId: evaluateLaunchCheckpoint
+      summary: 'Đánh giá mốc readiness, A (mở sổ), B (năm việc trước khi mở bán); mỗi lần một dòng kết quả (Task 270)'
+      x-permission: reporting.launch.run
+      parameters:
+        - $ref: "#/components/parameters/LaunchRunID"
+        - name: key
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/LaunchCheckpointKey"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: evaluateLaunchCheckpoint
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LaunchCheckpoint"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/launch-runs/{id}/decision:
+    post:
+      operationId: decideLaunchRun
+      summary: 'Người quyết của lượt chạy quyết đi (go) hay dừng (stop, kèm lý do) (Q10, Q25; Task 270)'
+      description: Không phải người quyết của lượt → 403 not_decider (dù có quyền); lượt đã dừng hay hoàn tất → 409 run_closed.
+      x-permission: reporting.launch.decide
+      parameters:
+        - $ref: "#/components/parameters/LaunchRunID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecideLaunchRunRequest"
+      responses:
+        "200":
+          description: decideLaunchRun
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LaunchRun"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/launch-runs/{id}/open-sales:
+    post:
+      operationId: openSales
+      summary: 'Mở bán: điểm không quay lại; đòi mốc A, B đạt trong 30 phút qua và bước 1–6 xong (MO05, Task 270)'
+      description: |
+        Không phải người quyết → 403 not_decider; mốc chưa đạt → 409 checkpoint_not_passed; lần đạt cũ hơn 30 phút →
+        409 checkpoint_stale; lượt đã dừng hay hoàn tất → 409 run_closed.
+      x-permission: reporting.launch.decide
+      parameters:
+        - $ref: "#/components/parameters/LaunchRunID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: openSales
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LaunchRun"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/watch:
+    get:
+      operationId: getWatch
+      summary: 'Theo dõi sát 14 ngày sau mở bán: từng ngày xanh/đỏ, số ngày xanh liền, exitReady (Task 271)'
+      x-permission: reporting.launch.read
+      responses:
+        "200":
+          description: getWatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Watch"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reports/watch/close:
+    post:
+      operationId: closeWatch
+      summary: 'Đóng theo dõi sát khi đủ tiêu chí kết thúc (≥ 14 ngày, 7 ngày cuối xanh liền); chỉ người quyết lượt live (Task 271)'
+      description: Chưa đủ → 409 exit_not_met; không phải người quyết → 403 not_decider.
+      x-permission: reporting.launch.decide
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CloseWatchRequest"
+      responses:
+        "200":
+          description: closeWatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Watch"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -8826,6 +9516,37 @@ components:
       schema:
         type: string
         format: uuid
+    # M7 (Task 260): khoảng ngày (giờ Việt Nam) của danh sách phần khởi động; vắng = không giới hạn đầu đó.
+    M7From:
+      name: from
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date
+    M7To:
+      name: to
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date
+    LaunchRunID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    LaunchStepNo:
+      name: no
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 7
   responses:
     Error:
       description: Lỗi; không bao giờ có vết lỗi
@@ -9073,6 +9794,31 @@ components:
         - run_not_ready
         - run_expired
         - too_many_runs
+        # Phần khởi động (M7, Task 260; mã do Task 262–271 trả, khai trước theo kế hoạch)
+        - opening_exists
+        - warehouse_not_empty
+        - uncounted_lines
+        - ambiguous_code
+        - unknown_code
+        - negative_count
+        - import_already_applied
+        - legacy_return_exists
+        - use_go_live
+        - page_read_only
+        - mode_mismatch
+        - old_tool_not_confirmed
+        - rule_not_configured
+        - import_exists
+        - run_in_progress
+        - step_out_of_order
+        - step_not_skippable
+        - checkpoint_not_passed
+        - checkpoint_stale
+        - not_decider
+        - live_already_completed
+        - run_closed
+        - decider_invalid
+        - exit_not_met
       properties:
         error:
           type: string
@@ -9147,6 +9893,19 @@ components:
           description: Chỉ có ở insufficient_stock của lên lịch, thêm suất đợt flash sale — mọi món thiếu hàng (Task 200)
           items:
             $ref: "#/components/schemas/FlashShortage"
+        count:
+          type: integer
+          format: int32
+          description: Chỉ có ở uncounted_lines — số biến thể phải đếm mà chưa có dòng (M7, Task 262)
+        existingId:
+          type: string
+          format: uuid
+          description: Chỉ có ở legacy_return_exists, import_exists — bản ghi đã có (M7, Task 264, 268)
+        candidates:
+          type: array
+          description: Chỉ có ở ambiguous_code — các biến thể trùng mã quét giữa người bán (M7, Task 263)
+          items:
+            $ref: "#/components/schemas/AmbiguousCodeCandidate"
     HealthStatus:
       type: object
       required: [status]
@@ -10545,6 +11304,11 @@ components:
           format: int64
         measureCm:
           $ref: "#/components/schemas/MeasureCm"
+        preview:
+          type: boolean
+          description: >-
+            true khi sản phẩm còn nháp và khóa có web.catalog.preview (website thử xem trước, M7 Task 261); khóa thường
+            không bao giờ nhận sản phẩm nháp. Đặt đơn với sản phẩm nháp vẫn bị từ chối (variant_not_for_sale)
     WebAttr:
       type: object
       required: [name, value, position]
@@ -20531,3 +21295,821 @@ components:
         expiresAt:
           type: string
           format: date-time
+    # ---- M7 phần khởi động (Task 260; dữ liệu do Task 261–271 điền).
+    ProductReadiness:
+      type: object
+      required: [productId, code, name, status, ready, reasons]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        status:
+          $ref: "#/components/schemas/ProductStatus"
+        ready:
+          type: boolean
+        reasons:
+          type: array
+          description: >-
+            Mã lý do chưa đủ điều kiện lên kệ: no_variant, no_price, no_image, image_processing, no_category,
+            missing_attr:<mã thuộc tính>, no_tag
+          items:
+            type: string
+    ProductReadinessPage:
+      type: object
+      required: [items, readyCount, notReadyCount]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductReadiness"
+        nextCursor:
+          type: string
+          description: Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+        readyCount:
+          type: integer
+          format: int32
+          description: Số sản phẩm nháp đủ điều kiện (cả shop, không theo trang)
+        notReadyCount:
+          type: integer
+          format: int32
+          description: Số sản phẩm nháp còn lý do
+    PublishProductsRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        productIds:
+          type: array
+          maxItems: 500
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+        allReady:
+          type: boolean
+          description: true = mọi sản phẩm nháp đủ điều kiện
+    PublishProductsResult:
+      type: object
+      required: [published, skipped]
+      properties:
+        published:
+          type: array
+          items:
+            type: string
+            format: uuid
+        skipped:
+          type: array
+          description: Sản phẩm được chọn mà chưa đủ điều kiện (đánh giá dưới khóa), kèm lý do
+          items:
+            $ref: "#/components/schemas/ProductReadiness"
+    UnpublishProductsRequest:
+      type: object
+      additionalProperties: false
+      required: [productIds]
+      properties:
+        productIds:
+          type: array
+          minItems: 1
+          maxItems: 500
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+    UnpublishProductsResult:
+      type: object
+      required: [unpublished]
+      properties:
+        unpublished:
+          type: array
+          items:
+            type: string
+            format: uuid
+    CreateOpeningStocktakeRequest:
+      type: object
+      additionalProperties: false
+      required: [warehouseId]
+      properties:
+        warehouseId:
+          type: string
+          format: uuid
+    OpeningStocktake:
+      type: object
+      required: [stocktakeId, warehouseId, status, linesExpected, linesCounted, unitsCounted]
+      properties:
+        stocktakeId:
+          type: string
+          format: uuid
+        warehouseId:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/StocktakeStatus"
+        linesExpected:
+          type: integer
+          format: int32
+          description: Số biến thể active của sản phẩm nháp hoặc đang bán phải đếm
+        linesCounted:
+          type: integer
+          format: int32
+        unitsCounted:
+          type: integer
+          format: int64
+        appliedAt:
+          type: string
+          format: date-time
+    OpeningStocktakeList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpeningStocktake"
+    OpeningPostResult:
+      type: object
+      required: [stocktakeId, linesExpected, countedLines, units]
+      properties:
+        stocktakeId:
+          type: string
+          format: uuid
+        linesExpected:
+          type: integer
+          format: int32
+        countedLines:
+          type: integer
+          format: int32
+        units:
+          type: integer
+          format: int64
+    OpeningMismatch:
+      type: object
+      required: [variantId, sku, counted, ledgerOpening, onHand]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        counted:
+          type: integer
+          format: int32
+        ledgerOpening:
+          type: integer
+          format: int32
+          description: Tổng sổ doc_type stocktake của phiên này cho biến thể
+        onHand:
+          type: integer
+          format: int32
+    OpeningCheckResult:
+      type: object
+      required: [ok, changedSince, mismatches]
+      properties:
+        ok:
+          type: boolean
+        changedSince:
+          type: boolean
+          description: Kho đã có chứng từ khác sau khi đăng (chỉ so với sổ, không so số dư)
+        mismatches:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpeningMismatch"
+    IncrementStocktakeLineRequest:
+      type: object
+      additionalProperties: false
+      required: [code, by]
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: SKU hoặc barcode quét được
+        by:
+          type: integer
+          format: int32
+          minimum: -1000
+          maximum: 1000
+          description: Khác 0; âm để sửa quét thừa
+    StocktakeIncrementResult:
+      type: object
+      required: [variantId, counted]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        counted:
+          type: integer
+          format: int32
+          description: Số đếm của dòng sau khi cộng
+    CountImportMode:
+      type: string
+      enum: [replace, add]
+    CreateStocktakeCountImportRequest:
+      type: object
+      additionalProperties: false
+      required: [fileId, mode]
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        mode:
+          $ref: "#/components/schemas/CountImportMode"
+    BackgroundImportStatus:
+      type: string
+      enum: [queued, running, done, failed]
+    CountImportRowError:
+      type: object
+      required: [row, code]
+      description: Lỗi một dòng của tệp số đếm, không kèm nội dung ô
+      properties:
+        row:
+          type: integer
+          format: int32
+        code:
+          type: string
+          enum: [unknown_code, ambiguous_code, not_integer, negative, formula]
+    StocktakeCountImport:
+      type: object
+      required: [id, stocktakeId, mode, status, appliedRows, errorRows, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        stocktakeId:
+          type: string
+          format: uuid
+        mode:
+          $ref: "#/components/schemas/CountImportMode"
+        status:
+          $ref: "#/components/schemas/BackgroundImportStatus"
+        appliedRows:
+          type: integer
+          format: int32
+        errorRows:
+          type: array
+          items:
+            $ref: "#/components/schemas/CountImportRowError"
+        createdAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+    LegacyReturnCondition:
+      type: string
+      enum: [sellable, damaged]
+    LegacyReturnLine:
+      type: object
+      additionalProperties: false
+      required: [variantId, qty, condition]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        qty:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+        condition:
+          $ref: "#/components/schemas/LegacyReturnCondition"
+    CreateLegacyReturnRequest:
+      type: object
+      additionalProperties: false
+      required: [warehouseId, reference, lines]
+      properties:
+        warehouseId:
+          type: string
+          format: uuid
+        reference:
+          type: string
+          minLength: 3
+          maxLength: 64
+          description: Mã vận đơn hay mã đơn cũ trên kiện hàng
+        note:
+          type: string
+          maxLength: 500
+          description: Ghi chú chỉ nằm trong chứng từ, không vào nhật ký
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/LegacyReturnLine"
+    LegacyReturn:
+      type: object
+      required: [id, warehouseId, reference, stockDocumentId, lines, createdBy, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        warehouseId:
+          type: string
+          format: uuid
+        reference:
+          type: string
+        stockDocumentId:
+          type: string
+          format: uuid
+          description: Phiếu nhập (import) mọi dòng
+        damageDocumentId:
+          type: string
+          format: uuid
+          description: Phiếu hỏng (damage) của các dòng hỏng; không có khi mọi dòng bán được
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/LegacyReturnLine"
+        createdBy:
+          $ref: "#/components/schemas/Actor"
+        createdAt:
+          type: string
+          format: date-time
+    LegacyReturnPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LegacyReturn"
+        nextCursor:
+          type: string
+          description: Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+    UnmatchedCarrierEvent:
+      type: object
+      required: [id, carrierKey, trackingCode, eventCount, firstSeenAt, lastSeenAt]
+      description: Sự kiện hãng của vận đơn không có trong CRM (không dữ liệu khách)
+      properties:
+        id:
+          type: string
+          format: uuid
+        carrierKey:
+          type: string
+        carrierAccountId:
+          type: string
+          format: uuid
+        trackingCode:
+          type: string
+        lastRawStatus:
+          type: string
+        eventCount:
+          type: integer
+          format: int32
+        firstSeenAt:
+          type: string
+          format: date-time
+        lastSeenAt:
+          type: string
+          format: date-time
+    UnmatchedCarrierEventPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnmatchedCarrierEvent"
+        nextCursor:
+          type: string
+          description: Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+    T2Day:
+      type: object
+      required: [day, auditsExpected, auditsDone, auditsFailed, checked, missing, p95Ms, readOnlyAllDay, blockedSends, pass]
+      properties:
+        day:
+          type: string
+          format: date
+          description: Ngày theo giờ Việt Nam
+        auditsExpected:
+          type: integer
+          format: int32
+        auditsDone:
+          type: integer
+          format: int32
+        auditsFailed:
+          type: integer
+          format: int32
+        checked:
+          type: integer
+          format: int32
+        missing:
+          type: integer
+          format: int32
+        p95Ms:
+          type: number
+          format: double
+          description: p95 webhook_to_signal_ms chung mọi Page trong ngày (G13)
+        readOnlyAllDay:
+          type: boolean
+        blockedSends:
+          type: integer
+          format: int64
+        pass:
+          type: boolean
+    T2Report:
+      type: object
+      required: [days, pass7Days]
+      properties:
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/T2Day"
+        pass7Days:
+          type: boolean
+          description: 7 ngày liền gần nhất đều đạt
+    GoLivePageRequest:
+      type: object
+      additionalProperties: false
+      required: [ruleKinds, oldToolAutomationsOff]
+      properties:
+        ruleKinds:
+          type: array
+          maxItems: 4
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/AutomationRuleKind"
+        oldToolAutomationsOff:
+          type: boolean
+          description: Xác nhận đã tắt tự động ở công cụ cũ; phải là true
+    GoLiveResult:
+      type: object
+      required: [liveSince, enabled, account]
+      properties:
+        liveSince:
+          type: string
+          format: date-time
+        enabled:
+          type: array
+          items:
+            $ref: "#/components/schemas/AutomationRuleKind"
+        account:
+          $ref: "#/components/schemas/ChannelAccount"
+    PageBackToReadOnlyRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+    CreateFallbackImportRequest:
+      type: object
+      additionalProperties: false
+      required: [fileId]
+      properties:
+        fileId:
+          type: string
+          format: uuid
+    FallbackImportRow:
+      type: object
+      required: [rowCode, firstRow, outcome, errorCodes, needsTrackingCode]
+      description: Kết quả một Mã dòng (một đơn); chỉ mã lỗi, không dữ liệu người nhận
+      properties:
+        rowCode:
+          type: string
+        firstRow:
+          type: integer
+          format: int32
+        outcome:
+          type: string
+          enum: [created, duplicate, error]
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+        errorCodes:
+          type: array
+          description: invalid_phone, unknown_sku, not_sellable, out_of_stock, invalid_qty, invalid_amount, line_discount_exceeds, invalid_channel…
+          items:
+            type: string
+        needsTrackingCode:
+          type: boolean
+          description: Tệp có mã vận đơn cho đơn này; nhân viên gắn ở màn nhập mã vận đơn tay (Q18)
+    FallbackImport:
+      type: object
+      required: [id, status, ordersInFile, ordersCreated, ordersDuplicate, ordersFailed, warnings, rows, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/BackgroundImportStatus"
+        ordersInFile:
+          type: integer
+          format: int32
+          description: Số đơn (Mã dòng) đọc được trong tệp
+        ordersCreated:
+          type: integer
+          format: int32
+        ordersDuplicate:
+          type: integer
+          format: int32
+        ordersFailed:
+          type: integer
+          format: int32
+        warnings:
+          type: array
+          description: Cảnh báo của cả lô, ví dụ fallback_source_inactive
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/FallbackImportRow"
+        createdAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+    ReadinessItem:
+      type: object
+      required: [key, group, status, value, target]
+      properties:
+        key:
+          type: string
+          description: Mã mục, ví dụ catalog.ready_ratio, channel.pages_connected
+        group:
+          type: string
+        status:
+          type: string
+          enum: [ok, warn, fail]
+        value:
+          type: string
+          description: Giá trị hiện tại (số đếm, tỉ lệ; "chưa có nguồn" khi task nguồn chưa làm)
+        target:
+          type: string
+          description: Ngưỡng đạt
+    LaunchReadiness:
+      type: object
+      required: [items, fail, warn, evaluatedAt]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReadinessItem"
+        fail:
+          type: integer
+          format: int32
+        warn:
+          type: integer
+          format: int32
+        evaluatedAt:
+          type: string
+          format: date-time
+    LaunchMode:
+      type: string
+      enum: [drill, live]
+    CreateLaunchRunRequest:
+      type: object
+      additionalProperties: false
+      required: [mode, plannedStartAt, plannedWindowMinutes, deciderUserId]
+      properties:
+        mode:
+          $ref: "#/components/schemas/LaunchMode"
+        plannedStartAt:
+          type: string
+          format: date-time
+        plannedWindowMinutes:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1440
+        deciderUserId:
+          type: string
+          format: uuid
+    LaunchStep:
+      type: object
+      required: [no, key, plannedMinutes, status]
+      properties:
+        no:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 7
+        key:
+          type: string
+          description: web_checkout_maintenance, opening_count, publish_and_switch_web, carrier_webhooks, inbox_live, smoke_checklist, open_sales
+        plannedMinutes:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum: [pending, running, done, failed, skipped]
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        actualMinutes:
+          type: integer
+          format: int32
+        deltaMinutes:
+          type: integer
+          format: int32
+          description: Thực tế trừ dự kiến
+        note:
+          type: string
+        actor:
+          $ref: "#/components/schemas/Actor"
+        result:
+          type: object
+          additionalProperties: true
+          description: Kết quả kiểm tự động (chỉ mã và số đếm)
+    LaunchCheckpointKey:
+      type: string
+      enum: [readiness, A, B]
+    LaunchCheckpoint:
+      type: object
+      required: [key, passed, evaluatedAt, result]
+      properties:
+        key:
+          $ref: "#/components/schemas/LaunchCheckpointKey"
+        passed:
+          type: boolean
+        evaluatedAt:
+          type: string
+          format: date-time
+        result:
+          type: object
+          additionalProperties: true
+          description: Chỉ mã và số đếm (ví dụ warehousesNotPosted, missing)
+    LaunchRun:
+      type: object
+      required: [id, mode, status, plannedStartAt, plannedWindowMinutes, decider, steps, checkpoints, drillPassed, version, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        mode:
+          $ref: "#/components/schemas/LaunchMode"
+        status:
+          type: string
+          enum: [planned, running, stopped, completed]
+        plannedStartAt:
+          type: string
+          format: date-time
+        plannedWindowMinutes:
+          type: integer
+          format: int32
+        decider:
+          $ref: "#/components/schemas/Actor"
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        stopReason:
+          type: string
+        pointOfNoReturnAt:
+          type: string
+          format: date-time
+        watchClosedAt:
+          type: string
+          format: date-time
+        actualMinutes:
+          type: integer
+          format: int32
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/LaunchStep"
+        checkpoints:
+          type: array
+          description: Lần đánh giá mới nhất của từng mốc
+          items:
+            $ref: "#/components/schemas/LaunchCheckpoint"
+        drillPassed:
+          type: boolean
+          description: mode drill, completed và tổng thực tế ≤ plannedWindowMinutes (MO04)
+        version:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+    LaunchRunPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LaunchRun"
+        nextCursor:
+          type: string
+          description: Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+    FinishLaunchStepRequest:
+      type: object
+      additionalProperties: false
+      required: [outcome]
+      properties:
+        outcome:
+          type: string
+          enum: [done, failed, skipped]
+        note:
+          type: string
+          maxLength: 2000
+    DecideLaunchRunRequest:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [go, stop]
+        reason:
+          type: string
+          maxLength: 1000
+          description: Bắt buộc khi stop
+    WatchDay:
+      type: object
+      required: [day, inDoubtOver24h, deadOpen, urgentAlerts, msgMissing, unmatchedCarrierEvents, legacyReturns, adjustmentsSinceOpening, orders, green]
+      description: Một ngày theo dõi (giờ Việt Nam); stockOk, codOk, inboxP95Ms vắng = thiếu số liệu (không xanh, Q15)
+      properties:
+        day:
+          type: string
+          format: date
+        stockOk:
+          type: boolean
+        codOk:
+          type: boolean
+        inDoubtOver24h:
+          type: integer
+          format: int32
+        deadOpen:
+          type: integer
+          format: int32
+        urgentAlerts:
+          type: integer
+          format: int32
+        inboxP95Ms:
+          type: integer
+          format: int32
+        msgMissing:
+          type: integer
+          format: int32
+        unmatchedCarrierEvents:
+          type: integer
+          format: int32
+        legacyReturns:
+          type: integer
+          format: int32
+        adjustmentsSinceOpening:
+          type: integer
+          format: int32
+        orders:
+          type: integer
+          format: int32
+        green:
+          type: boolean
+    Watch:
+      type: object
+      required: [days, daysSinceOpen, consecutiveGreen, exitReady]
+      properties:
+        runId:
+          type: string
+          format: uuid
+          description: Lượt live đã hoàn tất; vắng khi chưa mở bán
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchDay"
+        daysSinceOpen:
+          type: integer
+          format: int32
+        consecutiveGreen:
+          type: integer
+          format: int32
+        exitReady:
+          type: boolean
+          description: daysSinceOpen ≥ 14 và 7 ngày liền gần nhất đều xanh
+        closedAt:
+          type: string
+          format: date-time
+    CloseWatchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        note:
+          type: string
+          maxLength: 1000
+    AmbiguousCodeCandidate:
+      type: object
+      required: [variantId, sellerId, sku]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        sellerId:
+          type: string
+          format: uuid
+        sku:
+          type: string
