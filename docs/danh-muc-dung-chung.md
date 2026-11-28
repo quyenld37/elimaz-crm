@@ -1293,6 +1293,9 @@ type Inbound struct {
 	ReceivedAt time.Time
 
 	Via string
+
+	Attempts    int
+	LastAttempt bool
 }
 type InboundEvent struct {
 	Type string

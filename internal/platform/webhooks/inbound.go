@@ -33,6 +33,11 @@ type Inbound struct {
 	ReceivedAt time.Time
 	// Via là đường sự kiện tới: ViaWebhook, ViaLiveStream, ViaLivePoll, ViaCommentPoll, ViaBackfill, ViaHistory.
 	Via string
+	// Attempts là số lần chạy của việc vào tính cả lần này (lần đầu là 1); LastAttempt: lần này là lượt thử cuối theo
+	// Policy.MaxAttempts của InboundKind (handler trả lỗi thì việc dead). Handler dùng để kết thúc êm thay vì dead
+	// (fulfillment, Task 265: tín hiệu hãng của vận đơn ngoài hệ thống).
+	Attempts    int
+	LastAttempt bool
 }
 
 // InboundHandler xử lý sự kiện vào của một nguồn (module nghiệp vụ, adapter kênh).
@@ -92,6 +97,7 @@ func (ih inboundJobHandler) Handle(ctx context.Context, j queue.Job, tx pgx.Tx) 
 	in := Inbound{
 		Type: e.Type, OccurredAt: e.OccurredAt.UTC(), Data: e.Payload, JobID: j.ID, TenantID: *j.TenantID,
 		ReceivedAt: p.ReceivedAt.UTC(), Via: p.Via,
+		Attempts: j.Attempts, LastAttempt: j.Attempts >= ih.Kind().Policy.MaxAttempts,
 	}
 	// Việc ghi trước Task M2-33 không có receivedAt, via: lấy giờ nhận của bản nhận, đường webhook.
 	if in.ReceivedAt.IsZero() {

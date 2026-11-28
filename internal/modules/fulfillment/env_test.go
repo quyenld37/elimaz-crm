@@ -227,6 +227,12 @@ func (e *shipEnv) trySignal(sig fulfillment.Signal, reg *metrics.Registry) error
 // trySignalFrom như trySignal với hãng a (nguồn a.Key()).
 func (e *shipEnv) trySignalFrom(a fulfillment.CarrierAdapter, sig fulfillment.Signal, reg *metrics.Registry) error {
 	e.t.Helper()
+	return e.trySignalAt(a, sig, reg, 1, false)
+}
+
+// trySignalAt như trySignalFrom ở lần chạy attempts của việc vào; last: lượt thử cuối (webhooks.Inbound.LastAttempt).
+func (e *shipEnv) trySignalAt(a fulfillment.CarrierAdapter, sig fulfillment.Signal, reg *metrics.Registry, attempts int, last bool) error {
+	e.t.Helper()
 	hs := fulfillment.New(fulfillment.Deps{
 		DB: e.staff.App, Queue: queue.NewQueue(), Carriers: mustRegistry(e.t, a), Metrics: reg,
 	}).InboundHandlers()
@@ -240,6 +246,7 @@ func (e *shipEnv) trySignalFrom(a fulfillment.CarrierAdapter, sig fulfillment.Si
 	return e.app(func(tx pgx.Tx) error {
 		return hs[0].Handle(e.t.Context(), webhooks.Inbound{
 			Type: fulfillment.SignalType, Data: data, JobID: uuid.New(), TenantID: e.tenant,
+			Attempts: attempts, LastAttempt: last,
 		}, tx)
 	})
 }

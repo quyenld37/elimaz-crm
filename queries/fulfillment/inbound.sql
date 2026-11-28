@@ -18,3 +18,12 @@ WHERE carrier_account_id = @carrier_account_id AND code = @code;
 SELECT id
 FROM fulfillment.shipments
 WHERE carrier_account_id = @carrier_account_id AND tracking_code = @tracking_code;
+
+-- name: InboundAccountHasPending :one
+-- Tài khoản hãng có vận đơn đang chờ mã hãng (chưa có tracking_code, chưa hủy hay kết thúc) không: tín hiệu lạ có thể
+-- là của vận đơn đó (VC10), chờ thử lại thay vì ghi "ngoài hệ thống" (Task 265). Index shipments_account_tracking.
+SELECT EXISTS (
+    SELECT 1 FROM fulfillment.shipments
+    WHERE carrier_account_id = @carrier_account_id AND tracking_code IS NULL
+      AND status NOT IN ('cancelled', 'delivered', 'returned')
+);

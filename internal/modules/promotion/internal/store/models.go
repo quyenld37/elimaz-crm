@@ -1395,6 +1395,18 @@ type FulfillmentShippingQuote struct {
 	UpdatedAt        time.Time
 }
 
+type FulfillmentUnmatchedCarrierEvent struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	CarrierKey       string
+	CarrierAccountID *uuid.UUID
+	TrackingCode     string
+	LastRawStatus    pgtype.Text
+	FirstSeenAt      time.Time
+	LastSeenAt       time.Time
+	EventCount       int32
+}
+
 type IdentityAuditLog struct {
 	ID            uuid.UUID
 	TenantID      uuid.UUID

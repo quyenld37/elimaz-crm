@@ -82,12 +82,20 @@ func TestSignal_ShipmentNotYetKnown(t *testing.T) {
 	if n := e.refreshJobs(s.ID); n != 0 {
 		t.Fatalf("lệnh tra = %d", n)
 	}
-	// Cùng mã hãng nhưng gửi vào tuyến của tài khoản đối tác: không thấy.
+	// Cùng mã hãng nhưng gửi vào tuyến của tài khoản đối tác: không thấy vận đơn của tài khoản kia (Q-7). Tài khoản đối
+	// tác không có vận đơn chờ mã hãng → từ M7 (Task 265, nhánh a) là sự kiện ngoài hệ thống: xong, ghi unmatched của
+	// tài khoản đối tác, không lệnh tra.
 	e.ownerExec("UPDATE fulfillment.shipments SET tracking_code = 'TRK-LATE' WHERE id = $1", s.ID)
 	partner := sig
 	partner.RouteKey = e.routeKey(e.shop.PartnerAccount)
-	if err := e.trySignal(partner, nil); !errors.Is(err, fulfillment.ErrShipmentNotYetKnown) {
-		t.Fatalf("tuyến tài khoản khác = %v, muốn ErrShipmentNotYetKnown", err)
+	if err := e.trySignal(partner, nil); err != nil {
+		t.Fatalf("tuyến tài khoản khác = %v, muốn nil (ngoài hệ thống)", err)
+	}
+	if n := e.refreshJobs(s.ID); n != 0 {
+		t.Fatalf("lệnh tra qua tuyến tài khoản khác = %d", n)
+	}
+	if n := e.unmatchedCount(e.shop.PartnerAccount, "TRK-LATE"); n != 1 {
+		t.Fatalf("unmatched của tài khoản đối tác = %d, muốn 1", n)
 	}
 	if err := e.trySignal(sig, nil); err != nil {
 		t.Fatal(err)
