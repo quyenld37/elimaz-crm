@@ -95,7 +95,7 @@ func (h *handler) ListOrderPayments(ctx context.Context, params gen.ListOrderPay
 }
 
 // ListRefundObligations (GET /api/v1/refund-obligations, cash.cod.read): nghĩa vụ hoàn mới nhất trước, lọc theo
-// trạng thái; con trỏ là mã nghĩa vụ cuối trang trước (sai dạng → 400).
+// trạng thái và đơn (orderId, Task 524); con trỏ là mã nghĩa vụ cuối trang trước (sai dạng → 400).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) ListRefundObligations(ctx context.Context, params gen.ListRefundObligationsParams) (gen.ListRefundObligationsRes, error) {
@@ -108,8 +108,11 @@ func (h *handler) ListRefundObligations(ctx context.Context, params gen.ListRefu
 	}
 	page := &gen.RefundObligationPage{Items: []gen.RefundObligation{}}
 	err = h.catalogRead(ctx, func(tx pgx.Tx) error {
-		items, next, err := h.d.Cash.ListRefundObligations(ctx, tx, string(params.Status.Or("")), before,
-			int(params.Limit.Or(defaultPaymentLimit)))
+		f := cash.RefundFilter{Status: string(params.Status.Or(""))}
+		if id, ok := params.OrderId.Get(); ok {
+			f.OrderID = &id
+		}
+		items, next, err := h.d.Cash.ListRefundObligations(ctx, tx, f, before, int(params.Limit.Or(defaultPaymentLimit)))
 		if err != nil {
 			return err //nolint:wrapcheck // cash đã bọc
 		}

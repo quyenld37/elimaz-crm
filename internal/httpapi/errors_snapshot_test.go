@@ -428,6 +428,7 @@ func domainErrorSnapshot() []snapshotCase {
 		{"cash.ErrPaymentExceedsTotal", cash.ErrPaymentExceedsTotal, http.StatusConflict, "payment_exceeds_total"},
 		{"cash.ErrRefundExceedsRemaining", cash.ErrRefundExceedsRemaining, http.StatusConflict, "refund_exceeds_remaining"},
 		{"cash.ErrReasonRequired", cash.ErrReasonRequired, http.StatusUnprocessableEntity, "invalid_input"},
+		{"cash.ErrExchangeCreditPending", cash.ErrExchangeCreditPending, http.StatusConflict, "exchange_credit_pending"},
 		{"queries.ErrInvalidInput", queries.ErrInvalidInput, http.StatusBadRequest, "invalid_input"},
 	}
 }

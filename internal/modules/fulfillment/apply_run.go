@@ -277,12 +277,20 @@ func (r *applyRun) emitChanged(ctx context.Context, from shipstate.Status, d shi
 		Payload: StatusChanged{
 			ShipmentID: r.sh.ID, Status: Status(d.Next), CODAmount: r.sh.CodAmount, OrderID: r.sh.OrderID,
 			From: Status(from), Effects: effects, CODCollected: r.in.Tracking.CODCollected, OccurredAt: &at,
-			Source: string(r.in.Source),
+			Source: string(r.in.Source), ActorID: r.stepActor(),
 		},
 	}); err != nil {
 		return fmt.Errorf("phát %s: %w", TopicShipmentStatusChanged, err)
 	}
 	return nil
+}
+
+// stepActor là người dùng của bước khi bước do nhân viên làm (nguồn staff có người dùng); khác → uuid.Nil.
+func (r *applyRun) stepActor() uuid.UUID {
+	if r.in.Source != SrcStaff {
+		return uuid.Nil
+	}
+	return r.in.Actor.UserID
 }
 
 // openAnomaly mở bất thường kind của vận đơn (đã mở cùng loại → không thêm) và đặt needs_review.

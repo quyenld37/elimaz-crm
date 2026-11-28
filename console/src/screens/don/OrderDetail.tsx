@@ -42,6 +42,7 @@ import {
 import { ReturnDialog } from "./ReturnDialog";
 import { ReturnsCard } from "./ReturnsCard";
 import { DeliveryStatsBadge } from "../len-don/DeliveryStatsBadge";
+import { OrderRefundsCard } from "../payments/OrderRefundsCard";
 import { PaymentsBox } from "../payments/PaymentsBox";
 import { ShippingPanel } from "../shipping/ShippingPanel";
 import { OrderShipmentCards } from "../shipping/Timeline";
@@ -647,6 +648,7 @@ function OrderView({ o, refetch }: { o: Order; refetch: () => void }) {
               : {})}
           />
           {can("cash.payments.record") && <PaymentsBox order={o} />}
+          {can("cash.cod.read") && <OrderRefundsCard order={o} />}
           <section className="card">
             <h2>Phụ trách, nguồn</h2>
             <div className="stack-sm">

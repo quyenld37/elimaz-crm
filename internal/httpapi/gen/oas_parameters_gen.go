@@ -29082,6 +29082,8 @@ func decodeListReconcileFindingsParams(args [0]string, argsEscaped bool, r *http
 // ListRefundObligationsParams is parameters of listRefundObligations operation.
 type ListRefundObligationsParams struct {
 	Status OptListRefundObligationsStatus `json:",omitempty,omitzero"`
+	// Chỉ nghĩa vụ của đơn này (thẻ Nghĩa vụ hoàn trên chi tiết đơn, Task 524).
+	OrderId OptUUID `json:",omitempty,omitzero"`
 	// Chuỗi mờ nextCursor của trang trước; gửi lại nguyên.
 	Cursor OptString `json:",omitempty,omitzero"`
 	Limit  OptInt32  `json:",omitempty,omitzero"`
@@ -29095,6 +29097,15 @@ func unpackListRefundObligationsParams(packed middleware.Parameters) (params Lis
 		}
 		if v, ok := packed[key]; ok {
 			params.Status = v.(OptListRefundObligationsStatus)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "orderId",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.OrderId = v.(OptUUID)
 		}
 	}
 	{
@@ -29172,6 +29183,47 @@ func decodeListRefundObligationsParams(args [0]string, argsEscaped bool, r *http
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "status",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: orderId.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "orderId",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotOrderIdVal uuid.UUID
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToUUID(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotOrderIdVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.OrderId.SetTo(paramsDotOrderIdVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "orderId",
 			In:   "query",
 			Err:  err,
 		}

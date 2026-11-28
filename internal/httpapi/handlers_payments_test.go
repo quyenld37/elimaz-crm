@@ -146,6 +146,18 @@ func TestPaymentsAPI_RefundObligations(t *testing.T) {
 		t.Errorf("nghĩa vụ: %v", ob)
 	}
 	id, _ := ob["id"].(string)
+	// Lọc theo đơn (Task 524): đúng đơn → nghĩa vụ đó; đơn khác → rỗng; orderId sai dạng → 400.
+	if code, b := e.send(http.MethodGet, "/api/v1/refund-obligations?orderId="+o.ID.String(), m3Accounter, ""); code != http.StatusOK ||
+		len(b["items"].([]any)) != 1 || b["items"].([]any)[0].(map[string]any)["id"] != id { //nolint:forcetypeassert // test
+		t.Errorf("lọc theo đơn: %d %v", code, b)
+	}
+	if code, b := e.send(http.MethodGet, "/api/v1/refund-obligations?orderId="+uuid.NewString(), m3Accounter, ""); code != http.StatusOK ||
+		len(b["items"].([]any)) != 0 { //nolint:forcetypeassert // test
+		t.Errorf("lọc đơn khác: %d %v", code, b)
+	}
+	if code, b := e.send(http.MethodGet, "/api/v1/refund-obligations?orderId=x", m3Accounter, ""); code != http.StatusBadRequest {
+		t.Errorf("orderId sai dạng: %d %v", code, b)
+	}
 	pay := "/api/v1/refund-obligations/" + id + "/payments"
 	if code, b := e.send(http.MethodPost, pay, m3Accounter, `{"amount":250000}`); code != http.StatusConflict ||
 		b["error"] != "refund_exceeds_remaining" {

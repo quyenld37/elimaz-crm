@@ -7035,7 +7035,8 @@ func (s *Server) handleCreateServiceKeyRequest(args [0]string, argsEscaped bool,
 // handleCreateShipmentRequest handles createShipment operation.
 //
 // Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa
-// hủy → shipment_exists.
+// hủy → shipment_exists. Đơn đổi chưa có phiếu cấn trừ tiền món trả → 409
+// exchange_credit_pending (bỏ qua bằng skipExchangeCredit, Task 524).
 //
 // POST /api/v1/orders/{id}/shipments
 func (s *Server) handleCreateShipmentRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -20500,6 +20501,10 @@ func (s *Server) handleListRefundObligationsRequest(args [0]string, argsEscaped 
 					Name: "status",
 					In:   "query",
 				}: params.Status,
+				{
+					Name: "orderId",
+					In:   "query",
+				}: params.OrderId,
 				{
 					Name: "cursor",
 					In:   "query",

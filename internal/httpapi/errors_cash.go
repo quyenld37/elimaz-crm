@@ -15,6 +15,7 @@ const (
 	codeStatementChanged    = "statement_changed"
 	codeCODLockedByShipment = "cod_locked_by_shipment"
 	codeRefundExceeds       = "refund_exceeds_remaining"
+	codeExchangeCreditWait  = "exchange_credit_pending"
 )
 
 // cashError đổi lỗi nghiệp vụ của tiền, bảng kê COD (M3, Task M3-31) sang mã HTTP, rồi lỗi phiếu thu, nghĩa vụ hoàn
@@ -56,5 +57,6 @@ func paymentsError(err error) (status int, code string, ok bool) {
 		{cash.ErrPaymentExceedsTotal, http.StatusConflict, codePaymentExceedsTotal},
 		{cash.ErrRefundExceedsRemaining, http.StatusConflict, codeRefundExceeds},
 		{cash.ErrReasonRequired, http.StatusUnprocessableEntity, codeInvalidInput},
+		{cash.ErrExchangeCreditPending, http.StatusConflict, codeExchangeCreditWait},
 	})
 }

@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
+	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 )
@@ -38,7 +40,10 @@ func shipAuthorize(u identity.AuthUser, perm identity.Permission, hidden error) 
 }
 
 // CreateShipment (POST /api/v1/orders/{id}/shipments, fulfillment.ship ở kho của đơn) → 202: vận đơn creating; lệnh
-// tạo ở hãng chạy nền. Từ chối nghiệp vụ, thiếu phạm vi: không lưu theo khóa.
+// tạo ở hãng chạy nền. Từ chối nghiệp vụ, thiếu phạm vi: không lưu theo khóa. Đơn đổi còn phải cấn trừ tiền món trả
+// (cash.ExchangeCreditPending, kiểm sau Ship: đơn đã khóa, phạm vi đã kiểm) → 409 exchange_credit_pending, transaction
+// lùi; skipExchangeCredit = true bỏ kiểm (khách trả đủ COD, phần món trả thành nghĩa vụ hoàn khi kho nhận), audit ghi
+// cờ (Task 524).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) CreateShipment(ctx context.Context, req *gen.CreateShipmentRequest, params gen.CreateShipmentParams) (gen.CreateShipmentRes, error) {
@@ -46,13 +51,20 @@ func (h *handler) CreateShipment(ctx context.Context, req *gen.CreateShipmentReq
 	if err != nil {
 		return nil, err
 	}
-	out, err := h.refusableWrite(ctx, statusCreated, isShipmentRefusal, "tạo vận đơn",
+	skip := req.SkipExchangeCredit.Or(false)
+	out, err := h.refusableWrite(ctx, statusCreated, isCreateShipmentRefusal, "tạo vận đơn",
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
 			v, err := svc.Ship(ctx, tx, shipInput(params.ID, req, u), orderActor(u))
 			if err != nil {
 				return nil, err //nolint:wrapcheck // sentinel của fulfillment
 			}
-			return shipmentViewOut(v), h.audit(ctx, tx, u, "fulfillment.shipment.create", "shipment", v.ID, nil, v.AuditFields())
+			fields := v.AuditFields()
+			if skip {
+				fields["skipExchangeCredit"] = true
+			} else if err := exchangeCreditReady(ctx, tx, v.OrderID); err != nil {
+				return nil, err
+			}
+			return shipmentViewOut(v), h.audit(ctx, tx, u, "fulfillment.shipment.create", "shipment", v.ID, nil, fields)
 		})
 	if err != nil {
 		return nil, err
@@ -76,6 +88,23 @@ func shipInput(orderID uuid.UUID, req *gen.CreateShipmentRequest, u identity.Aut
 		in.FeeActual = &fee
 	}
 	return in
+}
+
+// exchangeCreditReady: đơn orderID không phải đơn đổi còn phải cấn trừ; còn → cash.ErrExchangeCreditPending.
+func exchangeCreditReady(ctx context.Context, tx pgx.Tx, orderID uuid.UUID) error {
+	pending, err := cash.ExchangeCreditPending(ctx, tx, orderID)
+	if err != nil {
+		return fmt.Errorf("kiểm phiếu cấn trừ của đơn đổi: %w", err)
+	}
+	if pending {
+		return cash.ErrExchangeCreditPending
+	}
+	return nil
+}
+
+// isCreateShipmentRefusal: từ chối của gửi hãng (không lưu theo khóa: gửi lại sau khi có phiếu cấn trừ thì qua).
+func isCreateShipmentRefusal(err error) bool {
+	return isShipmentRefusal(err) || errors.Is(err, cash.ErrExchangeCreditPending)
 }
 
 func isShipmentRefusal(err error) bool {

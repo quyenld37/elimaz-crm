@@ -140,6 +140,27 @@ func (e *payEnv) receiveExchange(c exchangeCase) error {
 	return e.deliver(e.orderEvent(c.orig.ID, order.TopicOrderPartiallyReturned))
 }
 
+// shipReplacement gửi hãng đơn thay thế của c (vận đơn thật, chưa có phiếu cấn trừ thì COD đủ).
+func (e *payEnv) shipReplacement(c exchangeCase) {
+	e.t.Helper()
+	if err := e.app(func(tx pgx.Tx) error {
+		_, err := e.shop.Shipment(e.t.Context(), tx, e.seller, c.replacement, e.user)
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		e.t.Fatalf("gửi hãng đơn thay thế: %v", err)
+	}
+}
+
+// detachShipment gỡ vận đơn hiện hành của đơn id (chủ bảng; như DetachCurrentShipment khi hủy vận đơn: đơn về
+// confirmed không vận đơn).
+func (e *payEnv) detachShipment(id uuid.UUID) {
+	e.t.Helper()
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(e.t.Context(), "UPDATE ord.orders SET current_shipment_id = NULL WHERE id = $1", id)
+		return err //nolint:wrapcheck // test
+	})
+}
+
 // creditsOf đếm phiếu của đơn id theo phương thức method.
 func (e *payEnv) creditsOf(id uuid.UUID, method string) int64 {
 	e.t.Helper()
@@ -254,12 +275,7 @@ func TestExchangeCredit_ShippedBeforeConsumer(t *testing.T) {
 	t.Parallel()
 	e := newPayEnv(t)
 	c := e.exchanged(180000)
-	if err := e.app(func(tx pgx.Tx) error {
-		_, err := e.shop.Shipment(t.Context(), tx, e.seller, c.replacement, e.user)
-		return err //nolint:wrapcheck // test
-	}); err != nil {
-		t.Fatalf("gửi hãng đơn thay thế: %v", err)
-	}
+	e.shipReplacement(c)
 	err := e.deliver(e.orderEvent(c.replacement, order.TopicOrderCreated))
 	if !errors.Is(err, cash.ErrCODLockedByShipment) || !errors.Is(err, queue.ErrPermanent) {
 		t.Fatalf("giao order.created: %v; muốn ErrCODLockedByShipment, ErrPermanent", err)
@@ -277,10 +293,10 @@ func TestExchangeCredit_ShippedBeforeConsumer(t *testing.T) {
 	}
 	// Vận đơn bị gỡ (như DetachCurrentShipment khi hủy vận đơn: đơn về confirmed không vận đơn) rồi nhân viên chạy lại
 	// việc dead → không cấn trừ nữa (đã chốt lúc nhận), không trả tiền hoàn hai lần.
-	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
-		_, err := tx.Exec(t.Context(), "UPDATE ord.orders SET current_shipment_id = NULL WHERE id = $1", c.replacement)
-		return err //nolint:wrapcheck // test
-	})
+	e.detachShipment(c.replacement)
+	if e.pending(c.replacement) {
+		t.Error("đã chốt nghĩa vụ exchange mà gửi hãng lại vẫn bị chặn (Task 524)")
+	}
 	e.mustDeliver(e.orderEvent(c.replacement, order.TopicOrderCreated))
 	if n := e.paymentsTotal(c.replacement); n != 0 {
 		t.Errorf("chạy lại sau khi gỡ vận đơn: tổng phiếu %d, muốn 0", n)

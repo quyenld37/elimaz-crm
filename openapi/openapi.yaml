@@ -1819,7 +1819,9 @@ paths:
     post:
       operationId: createShipment
       summary: Tạo vận đơn cho đơn bằng một tài khoản hãng (vận đơn creating, lệnh tạo ở hãng chạy nền)
-      description: Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa hủy → shipment_exists.
+      description: >-
+        Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa hủy → shipment_exists. Đơn đổi
+        chưa có phiếu cấn trừ tiền món trả → 409 exchange_credit_pending (bỏ qua bằng skipExchangeCredit, Task 524).
       x-permission: fulfillment.ship
       parameters:
         - $ref: "#/components/parameters/OrderID"
@@ -5086,6 +5088,13 @@ paths:
           schema:
             type: string
             enum: [open, paid, waived]
+        - name: orderId
+          in: query
+          required: false
+          description: Chỉ nghĩa vụ của đơn này (thẻ Nghĩa vụ hoàn trên chi tiết đơn, Task 524)
+          schema:
+            type: string
+            format: uuid
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/Limit"
       responses:
@@ -9691,6 +9700,7 @@ components:
         - carrier_account_unavailable
         - cod_locked_by_shipment
         - correction_blocked
+        - exchange_credit_pending
         - create_in_progress
         - order_not_shippable
         - payment_exceeds_total
@@ -10897,6 +10907,11 @@ components:
           description: Mã hãng nhập tay (chỉ tài khoản mode manual); trùng vận đơn khác → 409 tracking_code_conflict
         feeActual:
           $ref: "#/components/schemas/Money"
+        skipExchangeCredit:
+          type: boolean
+          description: >-
+            Đơn đổi chưa có phiếu cấn trừ tiền món trả → 409 exchange_credit_pending (Task 524). true: người gửi chọn
+            gửi không cấn trừ (khách trả đủ COD; tiền món trả thành nghĩa vụ hoàn khi kho nhận hàng), ghi audit.
     Shipment:
       type: object
       required: [id, orderId, code, carrierKey, carrierAccountId, status, codAmount, createdAt]

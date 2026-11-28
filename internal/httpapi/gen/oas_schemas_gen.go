@@ -12593,6 +12593,10 @@ type CreateShipmentRequest struct {
 	// tracking_code_conflict.
 	TrackingCode OptString `json:"trackingCode"`
 	FeeActual    OptMoney  `json:"feeActual"`
+	// Đơn đổi chưa có phiếu cấn trừ tiền món trả → 409 exchange_credit_pending (Task
+	// 524). true: người gửi chọn gửi không cấn trừ (khách trả đủ COD; tiền món
+	// trả thành nghĩa vụ hoàn khi kho nhận hàng), ghi audit.
+	SkipExchangeCredit OptBool `json:"skipExchangeCredit"`
 }
 
 // GetCarrierAccountId returns the value of CarrierAccountId.
@@ -12650,6 +12654,11 @@ func (s *CreateShipmentRequest) GetFeeActual() OptMoney {
 	return s.FeeActual
 }
 
+// GetSkipExchangeCredit returns the value of SkipExchangeCredit.
+func (s *CreateShipmentRequest) GetSkipExchangeCredit() OptBool {
+	return s.SkipExchangeCredit
+}
+
 // SetCarrierAccountId sets the value of CarrierAccountId.
 func (s *CreateShipmentRequest) SetCarrierAccountId(val uuid.UUID) {
 	s.CarrierAccountId = val
@@ -12703,6 +12712,11 @@ func (s *CreateShipmentRequest) SetTrackingCode(val OptString) {
 // SetFeeActual sets the value of FeeActual.
 func (s *CreateShipmentRequest) SetFeeActual(val OptMoney) {
 	s.FeeActual = val
+}
+
+// SetSkipExchangeCredit sets the value of SkipExchangeCredit.
+func (s *CreateShipmentRequest) SetSkipExchangeCredit(val OptBool) {
+	s.SkipExchangeCredit = val
 }
 
 // Ref: #/components/schemas/CreateStaffRequest
