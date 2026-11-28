@@ -3,7 +3,7 @@
 
 -- name: LockCustomers :many
 -- Khóa cả tập hồ sơ theo id tăng dần (LockRows chạy trên kết quả đã sắp) và trả gốc đọc dưới khóa.
-SELECT id, tenant_id, root_id
+SELECT id, tenant_id, root_id, do_not_contact, do_not_contact_at
 FROM customer.customers
 WHERE id = ANY (@ids::uuid[])
 ORDER BY id

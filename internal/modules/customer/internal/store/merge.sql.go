@@ -111,7 +111,7 @@ func (q *Queries) InsertMerge(ctx context.Context, arg InsertMergeParams) (Inser
 
 const lockCustomers = `-- name: LockCustomers :many
 
-SELECT id, tenant_id, root_id
+SELECT id, tenant_id, root_id, do_not_contact, do_not_contact_at
 FROM customer.customers
 WHERE id = ANY ($1::uuid[])
 ORDER BY id
@@ -119,9 +119,11 @@ FOR UPDATE
 `
 
 type LockCustomersRow struct {
-	ID       uuid.UUID
-	TenantID uuid.UUID
-	RootID   uuid.UUID
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	RootID         uuid.UUID
+	DoNotContact   bool
+	DoNotContactAt pgtype.Timestamptz
 }
 
 // Gộp khách và hoàn tác (kế hoạch M2, Task M2-11; 05 mục 1, Q14). Gộp chỉ đổi root_id, không dời dữ liệu. Chạy trong
@@ -136,7 +138,13 @@ func (q *Queries) LockCustomers(ctx context.Context, ids []uuid.UUID) ([]LockCus
 	items := []LockCustomersRow{}
 	for rows.Next() {
 		var i LockCustomersRow
-		if err := rows.Scan(&i.ID, &i.TenantID, &i.RootID); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.RootID,
+			&i.DoNotContact,
+			&i.DoNotContactAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
