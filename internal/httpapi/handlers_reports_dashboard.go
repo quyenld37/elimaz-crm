@@ -24,16 +24,21 @@ func (h *handler) GetSalesDashboard(ctx context.Context, params gen.GetSalesDash
 		r := gen.NewRunInBackgroundSalesDashboardResponse(*bg)
 		return &r, nil
 	}
-	rep, ok := res.(reporting.DashboardReport)
-	if !ok {
-		return nil, fmt.Errorf("kết quả tổng quan %T", res)
-	}
-	out, err := dashboardResponse(rep)
+	out, err := dashboardOut(res)
 	if err != nil {
 		return nil, err
 	}
 	r := gen.NewSalesDashboardReportSalesDashboardResponse(out)
 	return &r, nil
+}
+
+// dashboardOut đổi kết quả tổng quan của module sang kiểu của hợp đồng (GET và lần chạy nền dùng chung).
+func dashboardOut(res any) (gen.SalesDashboardReport, error) {
+	rep, ok := res.(reporting.DashboardReport)
+	if !ok {
+		return gen.SalesDashboardReport{}, fmt.Errorf("kết quả tổng quan %T", res)
+	}
+	return dashboardResponse(rep)
 }
 
 // dashboardResponse đổi kết quả của module sang kiểu của hợp đồng.

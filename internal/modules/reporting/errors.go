@@ -34,4 +34,13 @@ var (
 	// ErrUnknownDocType: sổ tồn có doc_type ngoài bảy loại đã biết trong ngăn on_hand của kỳ (xuất nhập tồn không lặng lẽ
 	// bỏ dòng; lỗi hệ thống, 500).
 	ErrUnknownDocType = errors.New("reporting: loại chứng từ lạ trong sổ tồn")
+	// ErrForbidden: người tạo lần chạy không có quyền đọc của họ báo cáo hay phạm vi rỗng (403 forbidden).
+	ErrForbidden = errors.New("reporting: không có quyền")
+	// ErrExportForbidden: xuất tệp báo cáo bán hàng, tồn kho mà không có report.export (403 export_forbidden).
+	ErrExportForbidden = errors.New("reporting: không có quyền xuất tệp")
+	// ErrTooManyRuns: người này đã có đủ REPORT_MAX_PENDING_PER_USER lần chạy đang chờ hay chạy (429 too_many_runs).
+	ErrTooManyRuns = errors.New("reporting: quá nhiều lần chạy đang chờ")
+	// ErrRunNotFound: không có lần chạy, thuộc họ khác, tenant khác, hay không phải người tạo và không có
+	// report.exports.manage (404 run_not_found, không lộ sự tồn tại).
+	ErrRunNotFound = errors.New("reporting: không có lần chạy")
 )

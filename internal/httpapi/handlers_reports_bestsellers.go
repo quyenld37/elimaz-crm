@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 
@@ -29,9 +30,24 @@ func (h *handler) GetSalesBestSellers(ctx context.Context, params gen.GetSalesBe
 		r := gen.NewRunInBackgroundSalesBestSellersResponse(*bg)
 		return &r, nil
 	}
+	out, err := bestSellersOut(p, res)
+	if err != nil {
+		return nil, err
+	}
+	r := gen.NewSalesBestSellersReportSalesBestSellersResponse(out)
+	return &r, nil
+}
+
+// bestSellersOut đổi kết quả bán chạy (tham số p) sang kiểu của hợp đồng (GET và lần chạy nền dùng chung); mức, cơ
+// sở bỏ trống là sku, placed như module.
+func bestSellersOut(p *reporting.BestSellersParams, res any) (gen.SalesBestSellersReport, error) {
 	rep, ok := res.(reporting.BestSellersReport)
 	if !ok {
-		return nil, fmt.Errorf("kết quả bán chạy kiểu %T", res)
+		return gen.SalesBestSellersReport{}, fmt.Errorf("kết quả bán chạy kiểu %T", res)
+	}
+	period, err := paramsPeriod(p.PeriodParams)
+	if err != nil {
+		return gen.SalesBestSellersReport{}, err
 	}
 	rows := make([]gen.SalesBestSellerRow, 0, len(rep.Rows))
 	for _, r := range rep.Rows {
@@ -42,13 +58,25 @@ func (h *handler) GetSalesBestSellers(ctx context.Context, params gen.GetSalesBe
 			ReturnedQuantity: gen.ReportCount(r.ReturnedQuantity),
 		})
 	}
-	out := gen.NewSalesBestSellersReportSalesBestSellersResponse(gen.SalesBestSellersReport{
-		Status: gen.SalesBestSellersReportStatusReady,
-		Period: gen.ReportPeriod{From: params.From, To: params.To},
-		Level:  gen.SalesBestSellersReportLevel(p.Level), Basis: gen.SalesBestSellersReportBasis(p.Basis),
-		Rows: rows, TotalRows: gen.ReportCount(rep.TotalRows),
-	})
-	return &out, nil
+	return gen.SalesBestSellersReport{
+		Status: gen.SalesBestSellersReportStatusReady, Period: period,
+		Level: gen.SalesBestSellersReportLevel(cmp.Or(p.Level, reporting.LevelSKU)),
+		Basis: gen.SalesBestSellersReportBasis(cmp.Or(p.Basis, reporting.SalesBasisPlaced)),
+		Rows:  rows, TotalRows: gen.ReportCount(rep.TotalRows),
+	}, nil
+}
+
+// paramsPeriod là kỳ của hợp đồng đọc từ tham số from, to (đã kiểm) của module.
+func paramsPeriod(p reporting.PeriodParams) (gen.ReportPeriod, error) {
+	from, err := reportDate(p.From)
+	if err != nil {
+		return gen.ReportPeriod{}, err
+	}
+	to, err := reportDate(p.To)
+	if err != nil {
+		return gen.ReportPeriod{}, err
+	}
+	return gen.ReportPeriod{From: from, To: to}, nil
 }
 
 // optStringOut đổi chuỗi có thể vắng sang trường không bắt buộc của hợp đồng.

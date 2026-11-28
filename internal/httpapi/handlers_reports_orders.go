@@ -31,9 +31,19 @@ func (h *handler) GetSalesOrdersReport(ctx context.Context, params gen.GetSalesO
 		r := gen.NewRunInBackgroundSalesOrdersReportResponse(*bg)
 		return &r, nil
 	}
+	out, err := ordersOut(res)
+	if err != nil {
+		return nil, err
+	}
+	r := gen.NewSalesOrdersReportSalesOrdersReportResponse(out)
+	return &r, nil
+}
+
+// ordersOut đổi kết quả báo cáo đơn sang kiểu của hợp đồng (GET và lần chạy nền dùng chung).
+func ordersOut(res any) (gen.SalesOrdersReport, error) {
 	rep, ok := res.(*reporting.OrdersReport)
 	if !ok {
-		return nil, fmt.Errorf("kết quả báo cáo đơn %T", res)
+		return gen.SalesOrdersReport{}, fmt.Errorf("kết quả báo cáo đơn %T", res)
 	}
 	out := gen.SalesOrdersReport{
 		Status: gen.SalesOrdersReportStatusReady,
@@ -44,8 +54,7 @@ func (h *handler) GetSalesOrdersReport(ctx context.Context, params gen.GetSalesO
 	for _, r := range rep.Rows {
 		out.Rows = append(out.Rows, ordersRow(r))
 	}
-	r := gen.NewSalesOrdersReportSalesOrdersReportResponse(out)
-	return &r, nil
+	return out, nil
 }
 
 // ListSalesOrdersDrilldown (GET /api/v1/reports/sales/orders/drilldown).
@@ -71,9 +80,19 @@ func (h *handler) ListSalesOrdersDrilldown(ctx context.Context, params gen.ListS
 		r := gen.NewRunInBackgroundSalesOrdersDrilldownResponse(*bg)
 		return &r, nil
 	}
+	out, err := drilldownOut(res)
+	if err != nil {
+		return nil, err
+	}
+	r := gen.NewSalesOrdersDrilldownSalesOrdersDrilldownResponse(out)
+	return &r, nil
+}
+
+// drilldownOut đổi một trang danh sách chi tiết sang kiểu của hợp đồng (GET và lần chạy nền dùng chung).
+func drilldownOut(res any) (gen.SalesOrdersDrilldown, error) {
 	page, ok := res.(*reporting.DrillPage)
 	if !ok {
-		return nil, fmt.Errorf("kết quả danh sách chi tiết %T", res)
+		return gen.SalesOrdersDrilldown{}, fmt.Errorf("kết quả danh sách chi tiết %T", res)
 	}
 	out := gen.SalesOrdersDrilldown{
 		Status: gen.SalesOrdersDrilldownStatusReady, Total: gen.ReportCount(page.Total),
@@ -105,8 +124,7 @@ func (h *handler) ListSalesOrdersDrilldown(ctx context.Context, params gen.ListS
 	if page.Next != nil {
 		out.NextCursor = gen.NewOptString(page.Next.String())
 	}
-	r := gen.NewSalesOrdersDrilldownSalesOrdersDrilldownResponse(out)
-	return &r, nil
+	return out, nil
 }
 
 // salesFilterParams dựng bộ lọc chung của báo cáo đơn và danh sách chi tiết từ tham số query.

@@ -1,6 +1,7 @@
 package reporting
 
 import (
+	"encoding/json"
 	"slices"
 	"time"
 
@@ -23,6 +24,11 @@ type Deps struct {
 	Cfg     config.Config
 	Metrics *metrics.Registry
 	Now     func() time.Time
+	// Defs: sổ báo cáo của lần chạy nền; nil → Defs() (test cắm Def thử).
+	Defs map[Key]Def
+	// Result đổi kết quả của Def.JSON (tham số p) sang đúng JSON mà GET của báo cáo trả, để màn "Xem" của lần chạy
+	// hiện như báo cáo tại chỗ; cmd/crm nối httpapi.ReportResultJSON. nil → encoding/json (test của module).
+	Result func(k Key, p Params, res any) (json.RawMessage, error)
 }
 
 // JobHandlers là lệnh của M6 cho Runner của worker: command.report_run (runs.go).

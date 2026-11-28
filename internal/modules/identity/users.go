@@ -58,13 +58,9 @@ func LoadUser(ctx context.Context, d *db.DB, email string) (AuthUser, error) {
 		if row.Status != statusActive {
 			return ErrLocked
 		}
-		rows, err := q.ListUserGrants(ctx, row.ID)
+		grants, err := userGrants(ctx, q, row.ID)
 		if err != nil {
-			return fmt.Errorf("đọc quyền của nhân viên: %w", err)
-		}
-		grants := make([]Grant, 0, len(rows))
-		for _, r := range rows {
-			grants = append(grants, Grant{Permission: Permission(r.Permission), Scope: Scope{Type: r.ScopeType, ID: r.ScopeID}})
+			return err
 		}
 		// Gán trọn ở cuối: fn có thể chạy lại (RetryTx), không cộng dồn.
 		u = AuthUser{UserID: row.ID, TenantID: tenantID, Email: row.Email, Grants: grants, Kind: KindStaff}
@@ -74,6 +70,42 @@ func LoadUser(ctx context.Context, d *db.DB, email string) (AuthUser, error) {
 		return AuthUser{}, err //nolint:wrapcheck // lỗi sentinel của gói hoặc lỗi đã bọc ở trên
 	}
 	return u, nil
+}
+
+// LoadUserByID nạp nhân viên id và mọi grant trong tx của bên gọi (ngữ cảnh tenant, tenancy.WithTenant), như LoadUser
+// nhưng theo mã: việc nền kiểm lại trạng thái và quyền của người đã yêu cầu ở lúc chạy (lần chạy nền báo cáo, kế hoạch
+// M6 Task 235). TenantID là tenant của dòng user (RLS: chỉ tenant của tx). Lỗi: không có (hay của tenant khác) → ErrUnknownUser;
+// không active → ErrLocked; lỗi database bọc.
+func LoadUserByID(ctx context.Context, tx pgx.Tx, id uuid.UUID) (AuthUser, error) {
+	q := store.New(tx)
+	row, err := q.GetUserByID(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return AuthUser{}, ErrUnknownUser
+	}
+	if err != nil {
+		return AuthUser{}, fmt.Errorf("đọc nhân viên theo mã: %w", err)
+	}
+	if row.Status != statusActive {
+		return AuthUser{}, ErrLocked
+	}
+	grants, err := userGrants(ctx, q, row.ID)
+	if err != nil {
+		return AuthUser{}, err
+	}
+	return AuthUser{UserID: row.ID, TenantID: row.TenantID, Email: row.Email, Grants: grants, Kind: KindStaff}, nil
+}
+
+// userGrants đọc cặp (quyền, phạm vi) của user qua mọi vai trò còn active.
+func userGrants(ctx context.Context, q *store.Queries, userID uuid.UUID) ([]Grant, error) {
+	rows, err := q.ListUserGrants(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("đọc quyền của nhân viên: %w", err)
+	}
+	grants := make([]Grant, 0, len(rows))
+	for _, r := range rows {
+		grants = append(grants, Grant{Permission: Permission(r.Permission), Scope: Scope{Type: r.ScopeType, ID: r.ScopeID}})
+	}
+	return grants, nil
 }
 
 // SeedOwner (lệnh crm seed-dev, chạy bằng chủ bảng) dựng vai trò mẫu của tenant (EnsureDefaultRoles; owner có mọi
