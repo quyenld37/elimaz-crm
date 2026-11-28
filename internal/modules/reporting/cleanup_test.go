@@ -10,6 +10,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/reporting"
 	"elimaz.com.vn/crm/internal/platform/config"
+	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
@@ -41,15 +42,7 @@ func TestRuns_Cleanup(t *testing.T) {
 	e.ownerExec(t, `UPDATE reporting.report_runs SET created_at = now() - interval '91 days' WHERE id = $1`, old)
 	e.ownerExec(t, `UPDATE reporting.report_runs SET created_at = now() - interval '89 days' WHERE id = $1`, young)
 
-	var out json.RawMessage
-	err := tenancy.WithTenant(t.Context(), e.st.App, e.tenant, func(tx pgx.Tx) error {
-		var err error
-		out, err = reporting.NewCleanupHandler(reporting.Deps{}).Handle(t.Context(), queue.Job{TenantID: &e.tenant}, tx)
-		return err //nolint:wrapcheck // test
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	out := e.cleanup(t, e.st.App)
 	if s, _, res := e.row(t, expired); s != "expired" || res != nil {
 		t.Errorf("quá hạn = %s, result %s; mong expired, NULL", s, res)
 	}
@@ -68,7 +61,7 @@ func TestRuns_Cleanup(t *testing.T) {
 	if n := e.st.CountIn(t, e.tenant, `SELECT count(*) FROM reporting.report_runs WHERE id = $1`, young); n != 1 {
 		t.Errorf("dòng 89 ngày bị xóa")
 	}
-	if string(out) != `{"expired":1,"failed":1,"deleted":1}` {
+	if string(out) != `{"expired":1,"expiredFiles":0,"failed":1,"deleted":1}` {
 		t.Errorf("kết quả dọn = %s", out)
 	}
 
@@ -81,4 +74,34 @@ func TestRuns_Cleanup(t *testing.T) {
 	if !found {
 		t.Errorf("thiếu lịch reporting.cleanup mỗi giờ theo tenant")
 	}
+}
+
+// runCleanup chạy một lượt reporting.cleanup trên d (pool của crm_app, hay pool có bộ ghi câu lệnh).
+func (e *runsEnv) runCleanup(t *testing.T, d *db.DB) (json.RawMessage, error) {
+	var out json.RawMessage
+	err := tenancy.WithTenant(t.Context(), d, e.tenant, func(tx pgx.Tx) error {
+		var err error
+		out, err = reporting.NewCleanupHandler(reporting.Deps{}).Handle(t.Context(), queue.Job{TenantID: &e.tenant}, tx)
+		return err //nolint:wrapcheck // test
+	})
+	return out, err //nolint:wrapcheck // test
+}
+
+// cleanup chạy một lượt dọn; lỗi → t.Fatal.
+func (e *runsEnv) cleanup(t *testing.T, d *db.DB) json.RawMessage {
+	t.Helper()
+	out, err := e.runCleanup(t, d)
+	if err != nil {
+		t.Fatalf("dọn: %v", err)
+	}
+	return out
+}
+
+// cleanupQuiet như cleanup nhưng chạy được trong goroutine khác (lỗi ghi bằng t.Errorf).
+func (e *runsEnv) cleanupQuiet(t *testing.T, d *db.DB) json.RawMessage {
+	out, err := e.runCleanup(t, d)
+	if err != nil {
+		t.Errorf("dọn: %v", err)
+	}
+	return out
 }

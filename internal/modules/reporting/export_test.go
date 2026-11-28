@@ -37,3 +37,6 @@ func HoldRunSlots(h *RunHandler) (release func()) {
 		}
 	}
 }
+
+// RateText là rateText (tỷ lệ phần vạn ra chữ của tệp xuất) cho test gói reporting_test.
+func RateText(bp *int32) string { return rateText(bp) }

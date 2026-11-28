@@ -96,6 +96,7 @@ func dashboardDef() Def {
 		}
 		return dashboard(ctx, tx, s, dp)
 	}
+	d.Rows, d.Columns, d.FileName = dashboardRows, dashboardColumns, periodFile("tong-quan")
 	return d
 }
 

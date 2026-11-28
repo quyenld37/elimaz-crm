@@ -2,6 +2,7 @@ package reporting
 
 import (
 	"encoding/json"
+	"log/slog"
 	"slices"
 	"time"
 
@@ -29,6 +30,9 @@ type Deps struct {
 	// Result đổi kết quả của Def.JSON (tham số p) sang đúng JSON mà GET của báo cáo trả, để màn "Xem" của lần chạy
 	// hiện như báo cáo tại chỗ; cmd/crm nối httpapi.ReportResultJSON. nil → encoding/json (test của module).
 	Result func(k Key, p Params, res any) (json.RawMessage, error)
+	// Log ghi một dòng cho mỗi tệp xuất xong (chỉ mã lần chạy, báo cáo, số dòng, số byte, thời gian; Task 237); nil →
+	// slog.Default().
+	Log *slog.Logger
 }
 
 // JobHandlers là lệnh của M6 cho Runner của worker: command.report_run (runs.go).

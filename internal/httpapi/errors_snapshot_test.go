@@ -267,6 +267,8 @@ func domainErrorSnapshot() []snapshotCase {
 		{"reporting.ErrForbidden", reporting.ErrForbidden, http.StatusForbidden, "forbidden"},
 		{"reporting.ErrTooManyRuns", reporting.ErrTooManyRuns, http.StatusTooManyRequests, "too_many_runs"},
 		{"reporting.ErrRunNotFound", reporting.ErrRunNotFound, http.StatusNotFound, "run_not_found"},
+		{"reporting.ErrRunNotReady", reporting.ErrRunNotReady, http.StatusConflict, "run_not_ready"},
+		{"reporting.ErrRunExpired", reporting.ErrRunExpired, http.StatusGone, "run_expired"},
 		{"conversation.CommentClaimedError", &conversation.CommentClaimedError{ByName: "An"}, http.StatusConflict, "comment_claimed"},
 		{"conversation.OpenDraftExistsError", &conversation.OpenDraftExistsError{}, http.StatusConflict, "open_draft_exists"},
 		{"weborders.ErrBadLimit", weborders.ErrBadLimit, http.StatusBadRequest, "bad_request"},
