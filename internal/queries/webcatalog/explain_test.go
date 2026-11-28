@@ -126,9 +126,9 @@ func TestPlansHaveNoSeqScan(t *testing.T) {
 		name, file, query string
 		args              []any
 	}{
-		{"trang mẫu đầu", "products.sql.go", "productPage", []any{uuid.Nil, sellers, 200}},
-		{"trang mẫu sau", "products.sql.go", "productPage", []any{page[199], sellers, 200}},
-		{"mẫu theo mã", "products.sql.go", "productsByIDs", []any{page[:100], sellers}},
+		{"trang mẫu đầu", "products.sql.go", "productPage", []any{uuid.Nil, sellers, false, 200}},
+		{"trang mẫu sau", "products.sql.go", "productPage", []any{page[199], sellers, false, 200}},
+		{"mẫu theo mã", "products.sql.go", "productsByIDs", []any{page[:100], sellers, false}},
 		{"biến thể của trang", "products.sql.go", "variantsOf", []any{ids[5], page}},
 		{"ảnh của trang", "products.sql.go", "imagesOf", []any{page}},
 		{"nhãn của trang", "products.sql.go", "tagIDsOf", []any{page}},

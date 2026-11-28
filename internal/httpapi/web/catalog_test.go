@@ -153,17 +153,7 @@ func (e *env) serve(mod func(*httpapi.Deps)) {
 
 func (e *env) serviceKey(perm identity.Permission) string {
 	e.t.Helper()
-	var full string
-	if err := tenancy.WithTenant(e.t.Context(), e.staff.App, e.tenant, func(tx pgx.Tx) error {
-		var err error
-		_, full, err = identity.CreateServiceKey(e.t.Context(), tx, identity.CreateServiceKeyInput{
-			Name: "Website " + string(perm), Permissions: []identity.Permission{perm}, Actor: e.owner,
-		})
-		return err //nolint:wrapcheck // test
-	}); err != nil {
-		e.t.Fatal(err)
-	}
-	return full
+	return e.serviceKeyWith(perm)
 }
 
 // get gửi GET path với khóa key (rỗng: không gửi) và các cặp header thêm.

@@ -186,12 +186,13 @@ type CashShipmentCodV struct {
 }
 
 type CatalogAttribute struct {
-	ID        uuid.UUID
-	TenantID  uuid.UUID
-	Code      string
-	Name      string
-	Position  int32
-	CreatedAt time.Time
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	Code             string
+	Name             string
+	Position         int32
+	CreatedAt        time.Time
+	RequiredForShelf bool
 }
 
 type CatalogAttributeValue struct {
@@ -283,6 +284,7 @@ type CatalogProduct struct {
 	LengthMm    pgtype.Int4
 	WidthMm     pgtype.Int4
 	HeightMm    pgtype.Int4
+	PublishedAt *time.Time
 }
 
 type CatalogProductAttributeValue struct {
@@ -315,6 +317,13 @@ type CatalogProductImagesV struct {
 	FileID    uuid.UUID
 	Color     pgtype.Text
 	Position  int32
+}
+
+type CatalogProductReadinessV struct {
+	ProductID uuid.UUID
+	Status    string
+	Ready     bool
+	Reasons   interface{}
 }
 
 type CatalogProductTag struct {

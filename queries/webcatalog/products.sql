@@ -11,19 +11,23 @@ SELECT warehouse_id FROM inventory.warehouses_v WHERE code = @code::text;
 
 -- name: ProductPage :many
 -- Trang mẫu theo khóa product_id tăng dần (keyset), mẫu chưa xóa của các người bán sellers (đang hoạt động, ADR-29).
+-- Mẫu nháp chỉ có khi preview (khóa có web.catalog.preview, kế hoạch M7 Task 261).
 SELECT p.product_id, p.seller_id, p.code, p.name, p.description, p.article, p.status, p.category_id, p.updated_at,
        p.version, p.created_at, p.length_mm, p.width_mm, p.height_mm
 FROM catalog.products_v AS p
 WHERE p.product_id > @after::uuid AND p.deleted_at IS NULL AND p.seller_id = ANY(@sellers::uuid[])
+  AND (@preview::bool OR p.status <> 'draft')
 ORDER BY p.product_id
 LIMIT @lim::int;
 
 -- name: ProductsByIDs :many
--- Mẫu theo danh sách mã (cùng điều kiện với ProductPage): mã không có, đã xóa, của người bán ngừng thì không có dòng.
+-- Mẫu theo danh sách mã (cùng điều kiện với ProductPage): mã không có, đã xóa, của người bán ngừng, nháp khi không
+-- preview thì không có dòng.
 SELECT p.product_id, p.seller_id, p.code, p.name, p.description, p.article, p.status, p.category_id, p.updated_at,
        p.version, p.created_at, p.length_mm, p.width_mm, p.height_mm
 FROM catalog.products_v AS p
 WHERE p.product_id = ANY(@ids::uuid[]) AND p.deleted_at IS NULL AND p.seller_id = ANY(@sellers::uuid[])
+  AND (@preview::bool OR p.status <> 'draft')
 ORDER BY p.product_id;
 
 -- name: VariantsOf :many
