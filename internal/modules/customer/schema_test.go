@@ -346,7 +346,8 @@ func TestSchemaViewsAndRules(t *testing.T) {
 	owner := e.staff.Owner
 	want := map[string]string{
 		"customers_v": "id, root_id, full_name, created_at, tenant_id, code, lifecycle, birthday, order_count, " +
-			"delivered_count, returned_count, total_spent, last_order_at, updated_at, version, do_not_contact, name_source",
+			"delivered_count, returned_count, total_spent, last_order_at, updated_at, version, do_not_contact, name_source, " +
+			"return_rate_bp", // M6 Task 238 (0605) nối cuối
 		"customer_identities_v": "tenant_id, id, customer_id, kind, scope, value, verified_at, source, created_at",
 		"customer_addresses_v": "tenant_id, id, customer_id, recipient_name, phone, province_code, ward_code, street, " +
 			"is_default",

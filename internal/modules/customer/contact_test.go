@@ -62,6 +62,11 @@ func TestMigration0403CustomersView(t *testing.T) {
 		t.Fatalf("migrate 0403: %v", err)
 	}
 	after := testkit.Columns(t, owner, "customer", "customers_v")
+	// Mốc sau nối cột sau name_source (R3; 0605 của M6 Task 238 có test riêng): chỉ xét tới hai cột của 0403.
+	if len(after) < len(before)+2 {
+		t.Fatalf("customers_v trước %v, sau %v", before, after)
+	}
+	after = after[:len(before)+2]
 	expectColumnsAppended(t, before, after, 2)
 	if got := after[len(before):]; got[0].Name != "do_not_contact" || got[1].Name != "name_source" {
 		t.Errorf("hai cột cuối: %v", got)
