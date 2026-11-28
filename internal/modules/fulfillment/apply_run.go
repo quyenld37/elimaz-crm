@@ -277,6 +277,7 @@ func (r *applyRun) emitChanged(ctx context.Context, from shipstate.Status, d shi
 		Payload: StatusChanged{
 			ShipmentID: r.sh.ID, Status: Status(d.Next), CODAmount: r.sh.CodAmount, OrderID: r.sh.OrderID,
 			From: Status(from), Effects: effects, CODCollected: r.in.Tracking.CODCollected, OccurredAt: &at,
+			Source: string(r.in.Source),
 		},
 	}); err != nil {
 		return fmt.Errorf("phát %s: %w", TopicShipmentStatusChanged, err)
