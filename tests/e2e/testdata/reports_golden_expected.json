@@ -1,0 +1,70 @@
+{
+  "_ghi_chu": "Số đúng của kịch bản chín đơn qua API thật (Task 242, M6-19), viết tay trước khi chạy theo bảng ở Task 227 và test của Task 229-232. Khác kế hoạch: hãng giả chỉ có một khóa hãng (fake) nên chiều hãng là fake/unknown, không phải VTP/SPX/Best; phí vận đơn do hãng giả báo nên không ghi cứng ở đây (so với câu đếm độc lập). Khóa dòng viết bằng tên: An, Bình (nhân viên), Live trưa P1, Mes P2, Website (nguồn), P1, P2 (Page); unknown là nhóm không xác định.",
+  "dashboard": {
+    "placed": {"orders": 8, "goodsAmount": 2110000, "shippingFeeCharged": 150000},
+    "active": {"orders": 7, "goodsAmount": 1910000, "shippingFeeCharged": 150000},
+    "cancelled": {"orders": 1, "goodsAmount": 200000, "shippingFeeCharged": 0},
+    "delivered": {"orders": 2, "goodsAmount": 750000, "shippingFeeCharged": 60000},
+    "returned": {"orders": 1, "goodsAmount": 250000, "shippingFeeCharged": 30000},
+    "avgGoodsAmount": 272857,
+    "customerReturns": {"items": 1, "refundAmount": 150000},
+    "pending": {"confirm": 1, "ship": 1, "cancelRequested": 1},
+    "byChannel": {
+      "facebook": {"placed": {"orders": 6, "goodsAmount": 1500000, "shippingFeeCharged": 120000}, "active": {"orders": 5, "goodsAmount": 1300000, "shippingFeeCharged": 120000}},
+      "web": {"placed": {"orders": 1, "goodsAmount": 360000, "shippingFeeCharged": 30000}, "active": {"orders": 1, "goodsAmount": 360000, "shippingFeeCharged": 30000}},
+      "manual": {"placed": {"orders": 1, "goodsAmount": 250000, "shippingFeeCharged": 0}, "active": {"orders": 1, "goodsAmount": 250000, "shippingFeeCharged": 0}}
+    }
+  },
+  "dashboardP1": {
+    "placed": {"orders": 4},
+    "active": {"orders": 4, "goodsAmount": 1150000, "shippingFeeCharged": 120000},
+    "pending": {"confirm": 0, "ship": 0, "cancelRequested": 1}
+  },
+  "ordersCareBy": {
+    "rows": {
+      "An": {"orders": 4, "placed": 4, "active": 4, "cancelled": 0, "goodsAmount": 1150000, "shippingFeeCharged": 120000, "avgGoodsAmount": 287500, "delivered": 2, "returned": 1, "successRateBp": 6666},
+      "Bình": {"orders": 3, "placed": 3, "active": 2, "cancelled": 1, "goodsAmount": 400000, "shippingFeeCharged": 0, "avgGoodsAmount": 200000, "delivered": 0, "returned": 0, "successRateBp": null},
+      "unknown": {"orders": 1, "placed": 1, "active": 1, "cancelled": 0, "goodsAmount": 360000, "shippingFeeCharged": 30000, "avgGoodsAmount": 360000, "delivered": 0, "returned": 0, "successRateBp": null}
+    },
+    "totals": {"orders": 8, "placed": 8, "active": 7, "cancelled": 1, "goodsAmount": 1910000, "shippingFeeCharged": 150000, "avgGoodsAmount": 272857, "delivered": 2, "returned": 1, "successRateBp": 6666}
+  },
+  "ordersCounts": {
+    "source": {"Live trưa P1": 4, "Mes P2": 2, "Website": 1, "unknown": 1},
+    "carrier": {"fake": 5, "unknown": 3},
+    "channel": {"facebook": 6, "web": 1, "manual": 1},
+    "page": {"P1": 4, "P2": 2, "unknown": 2},
+    "status": {"new": 1, "confirmed": 1, "shipping": 1, "cancel_requested": 1, "cancelled": 1, "delivered": 2, "returned": 1}
+  },
+  "ordersCompleted": {
+    "totals": {"orders": 3, "placed": null, "active": null, "cancelled": null, "goodsAmount": 750000, "shippingFeeCharged": 60000, "avgGoodsAmount": 375000, "delivered": 2, "returned": 1, "successRateBp": 6666},
+    "rows": {
+      "An": {"orders": 3, "goodsAmount": 750000, "shippingFeeCharged": 60000, "avgGoodsAmount": 375000, "delivered": 2, "returned": 1, "successRateBp": 6666}
+    }
+  },
+  "carriers": {
+    "rows": {
+      "fake": {"created": 5, "cancelled": 1, "inProgress": 2, "returning": 0, "deliveryFailed": 0, "delivered": 2, "returned": 1, "successRateBp": 6666, "codTotal": 1420000}
+    },
+    "totals": {"created": 5, "cancelled": 1, "inProgress": 2, "returning": 0, "deliveryFailed": 0, "delivered": 2, "returned": 1, "successRateBp": 6666, "codTotal": 1420000}
+  },
+  "bestSellers": {
+    "skuPlaced": [
+      {"sku": "AO-A-M", "quantity": 4, "orders": 2, "goodsAmount": 600000},
+      {"sku": "AO-A-S", "quantity": 3, "orders": 2, "goodsAmount": 450000},
+      {"sku": "QUAN-B", "quantity": 2, "orders": 2, "goodsAmount": 500000},
+      {"sku": "VAY-C", "quantity": 2, "orders": 1, "goodsAmount": 360000}
+    ],
+    "productPlaced": [
+      {"name": "Áo A", "quantity": 7, "orders": 4, "goodsAmount": 1050000},
+      {"name": "Quần B", "quantity": 2, "orders": 2, "goodsAmount": 500000},
+      {"name": "Váy C", "quantity": 2, "orders": 1, "goodsAmount": 360000}
+    ],
+    "productDelivered": [
+      {"name": "Áo A", "quantity": 5, "orders": 2, "goodsAmount": 750000}
+    ],
+    "skuDelivered": [
+      {"sku": "AO-A-M", "quantity": 3, "orders": 1, "goodsAmount": 450000, "returnedQuantity": 1},
+      {"sku": "AO-A-S", "quantity": 2, "orders": 1, "goodsAmount": 300000, "returnedQuantity": 0}
+    ]
+  }
+}
