@@ -21,6 +21,14 @@
 //	loadkit m2slow   -log <log PostgreSQL> -top 3                         kế hoạch auto_explain của các câu chậm nhất
 //	loadkit m2report -search F -orders F -series F -sample F [-slow F]    chấm ngưỡng M2; KHÔNG ĐẠT thì thoát 1
 //
+// Bộ thử tải M5 (kế hoạch M5 Task 219, loadtest/m5_run.sh; m5.go):
+//
+//	loadkit m5key   -db <chủ bảng> -api <gốc> -tokens F -out key.json   người bán, kho, khóa dịch vụ của website
+//	loadkit m5sale  -db <chủ bảng> -api <gốc> -tokens F -slots N -limit L -hold M -start-in D -out sale.json
+//	loadkit m5close -api <gốc> -tokens F -sale <mã đợt>                  đóng đợt
+//	loadkit m5stats -db <chủ bảng> -from T -out F                        số đo database (deadlock, tx_retry, histogram)
+//	loadkit m5report -mode <bài> -slots N -k6 F -before F -after F -verify-exit N   chấm ngưỡng M5; KHÔNG ĐẠT thì thoát 1
+//
 // Chỉ cho máy dev và máy thử: không bao giờ chạy với database production.
 package main
 
@@ -47,7 +55,7 @@ import (
 	"elimaz.com.vn/crm/internal/testkit/loadstats"
 )
 
-var errUsage = errors.New("cách dùng: loadkit seed|access|sse|stats|report|fbseed|fbend|fbstats|fbreport|m2seed|m2stats|m2report|m2slow [cờ]")
+var errUsage = errors.New("cách dùng: loadkit seed|access|sse|stats|report|fbseed|fbend|fbstats|fbreport|m2seed|m2stats|m2report|m2slow|m5key|m5sale|m5close|m5stats|m5report [cờ]")
 
 // errFailed: report có tiêu chí KHÔNG ĐẠT (thoát 1, bảng vẫn in ra).
 var errFailed = errors.New("có tiêu chí không đạt")
@@ -97,6 +105,16 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		return cmdM2Report(fs, args[1:])
 	case "m2slow":
 		return cmdM2Slow(fs, args[1:])
+	case "m5key":
+		return cmdM5Key(ctx, fs, args[1:], logger)
+	case "m5sale":
+		return cmdM5Sale(ctx, fs, args[1:], logger)
+	case "m5close":
+		return cmdM5Close(ctx, fs, args[1:])
+	case "m5stats":
+		return cmdM5Stats(ctx, fs, args[1:])
+	case "m5report":
+		return cmdM5Report(fs, args[1:])
 	}
 	return errUsage
 }

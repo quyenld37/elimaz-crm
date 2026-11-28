@@ -202,9 +202,10 @@ func TestViewsDocParses(t *testing.T) {
 	// (birthday_profiles_v), 1 view mới của M4 Task 145 (channel_accounts_v), 2 view mới của M4 Task 151 (conversations_v,
 	// tags_v), 1 view mới của M4 Task 169 (call_logs_v), 1 view mới của M4 Task 161 (reply_templates_v), 1 view mới của
 	// M4 Task 165 (automation_rules_v), 3 view mới của M5 Task 199 (flash_sales_v, flash_sale_items_v,
-	// flash_units_summary_v), 2 view mới của M7 viết trước ở Task 260 (product_readiness_v, opening_status_v).
-	if len(doc.views) != 53 {
-		t.Fatalf("docs/views.md phải có 53 view (20 của M1, 10 mới của M2, 9 mới của M3, 6 mới của M5, 6 mới của M4, "+
+	// flash_units_summary_v), 2 view mới của M7 viết trước ở Task 260 (product_readiness_v, opening_status_v), 3 view mới
+	// của M5 Task 219 (flash_sale_units_v, flash_sale_claims_v, order_flash_lines_v).
+	if len(doc.views) != 56 {
+		t.Fatalf("docs/views.md phải có 56 view (20 của M1, 10 mới của M2, 9 mới của M3, 9 mới của M5, 6 mới của M4, "+
 			"2 mới của M7), có %d",
 			len(doc.views))
 	}
