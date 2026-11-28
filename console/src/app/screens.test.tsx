@@ -45,7 +45,7 @@ function conventionProblems(modules: Record<string, unknown>, permissions: Reado
   const slot = new Map<string, string>();
   for (const file of Object.keys(modules).sort()) {
     for (const s of (modules[file] as { screens: readonly ScreenRoute[] }).screens) {
-      for (const p of [s.permission, ...(s.alsoRequires ?? [])]) {
+      for (const p of [s.permission, ...(s.orPermissions ?? []), ...(s.alsoRequires ?? [])]) {
         if (!permissions.has(p)) problems.push(`${file}: "${s.path}" khai quyền "${p}" không có trong docs/quyen.md`);
       }
       if (s.hidden === true) continue;
@@ -243,6 +243,58 @@ describe("quyền đi kèm của màn (alsoRequires)", () => {
       </MemoryRouter>,
     );
     expect(screen.getByText(/Tài khoản của bạn không được xem Đếm/)).toBeTruthy();
+  });
+});
+
+// Màn nhận một trong nhiều quyền (orPermissions, Task 519): "Tệp xuất" mở cho vai kho chỉ có report.inventory.read.
+describe("quyền thay thế của màn (orPermissions)", () => {
+  const all = (...perms: string[]): Grant[] =>
+    perms.map((permission) => ({ permission, scope: { type: "all", id: "" } }));
+  const tep = {
+    ...ok,
+    path: "/tep",
+    label: "Tệp",
+    permission: "report.sales.read",
+    orPermissions: ["report.inventory.read"],
+    order: 20,
+  };
+  const screens = loadScreens({ "../screens/a/route.tsx": { screens: [ok, tep] } });
+  const t = (): Screen => {
+    const d = screens.find((x) => x.path === "/tep");
+    if (d === undefined) throw new Error("thiếu màn");
+    return d;
+  };
+
+  it("canSee: quyền chính hay một quyền thay thế đều đủ; không có cái nào thì không", () => {
+    expect(t().orPermissions).toEqual(["report.inventory.read"]);
+    expect(canSee(all("report.sales.read"), t())).toBe(true);
+    expect(canSee(all("report.inventory.read"), t())).toBe(true);
+    expect(canSee(all("customer.export"), t())).toBe(false);
+    expect(canSee([], t())).toBe(false);
+  });
+
+  it("vẫn đòi mọi alsoRequires dù có quyền thay thế", () => {
+    const s: Screen = { ...t(), alsoRequires: ["catalog.read"] };
+    expect(canSee(all("report.inventory.read"), s)).toBe(false);
+    expect(canSee(all("report.inventory.read", "catalog.read"), s)).toBe(true);
+  });
+
+  it("menu và route: vai chỉ có quyền thay thế thấy mục", () => {
+    const grants = all("report.inventory.read");
+    expect(allowedScreens(screens, grants).map((x) => x.path)).toEqual(["/tep"]);
+  });
+
+  it("orPermissions sai kiểu → lỗi nêu trường; quyền ngoài bảng quyền → lỗi như quyền chính", () => {
+    expect(() => loadScreens({ "x/route.tsx": { screens: [{ ...ok, orPermissions: "a" }] } })).toThrow(/orPermissions/);
+    expect(() => loadScreens({ "x/route.tsx": { screens: [{ ...ok, orPermissions: [""] }] } })).toThrow(
+      /orPermissions/,
+    );
+    expect(
+      conventionProblems(
+        { "../screens/a/route.tsx": { screens: [{ ...ok, orPermissions: ["kho.dem"] }] } },
+        PERMISSIONS,
+      ),
+    ).toEqual(['../screens/a/route.tsx: "/a" khai quyền "kho.dem" không có trong docs/quyen.md']);
   });
 });
 

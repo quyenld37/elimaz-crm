@@ -49,9 +49,13 @@ func TestFlashBuyHTTP_ValkeyDownAndTrace(t *testing.T) {
 	if counts["200 bought"] != 30 || counts["200 sold_out"] != 170 || server5xx != 0 {
 		t.Fatalf("kết quả %v, 5xx %d; muốn 30 bought, 170 sold_out, không 5xx", counts, server5xx)
 	}
-	if n := f.s.count(`SELECT count(*) FROM inventory.flash_sale_units WHERE flash_sale_item_id = $1
-		AND status IN ('held', 'sold')`, f.sale.Item); n != 30 {
-		t.Fatalf("%d đơn vị suất đã lấy, muốn 30", n)
+	// Bảng có RLS (áp cả chủ bảng): đếm trong ngữ cảnh tenant, không thì ra 0 dòng (Task 525).
+	var n int
+	if err := tenancy.WithTenant(t.Context(), f.s.owner, f.s.tenant, func(tx pgx.Tx) error {
+		return tx.QueryRow(t.Context(), `SELECT count(*) FROM inventory.flash_sale_units WHERE flash_sale_item_id = $1
+			AND status IN ('held', 'sold')`, f.sale.Item).Scan(&n)
+	}); err != nil || n != 30 {
+		t.Fatalf("%d đơn vị suất đã lấy (lỗi %v), muốn 30", n, err)
 	}
 	if n := counterSum(f.reg, "gate_degraded"); n == 0 {
 		t.Fatal("gate_degraded = 0 sau khi Valkey dừng")
@@ -147,13 +151,15 @@ func (f *flashE2E) crowdWithValkeyStop(n, stopAfter int) (map[string]int, int64)
 	return counts, server5xx.Load()
 }
 
-// website gửi lượt mua của khách i tới khi có câu trả lời cuối; onReply nhận status của mỗi lần.
+// website gửi lượt mua của khách i tới khi có câu trả lời cuối; onReply nhận status của mỗi lần. Như website thật
+// (ADR-41): 503, 409 thì gửi lại cùng khóa sau Retry-After (Task 525: gửi lại sau 5–25 ms vượt giới hạn 10 lượt/10 s
+// của chính khách → 429 too_fast).
 func (f *flashE2E) website(i int, onReply func(int)) string {
 	phone := fmt.Sprintf("09%08d", 30000000+i)
 	ip := fmt.Sprintf("10.20.%d.%d", i/256, i%256)
 	ref := fmt.Sprintf("E2E-FS-%d", i)
-	for attempt := 1; attempt <= 2000; attempt++ {
-		status, result, err := f.post(ref, phone, ip, min(attempt, 10))
+	for attempt := 1; attempt <= 100; attempt++ {
+		status, result, retryAfter, err := f.post(ref, phone, ip, min(attempt, 10))
 		if err != nil {
 			f.s.t.Errorf("gửi lượt mua: %v", err)
 			return "lỗi"
@@ -162,18 +168,22 @@ func (f *flashE2E) website(i int, onReply func(int)) string {
 		if status != http.StatusServiceUnavailable && status != http.StatusConflict {
 			return strconv.Itoa(status) + " " + result
 		}
-		time.Sleep(time.Duration(5+attempt%20) * time.Millisecond)
+		wait := time.Duration(5+attempt%20) * time.Millisecond
+		if retryAfter > 0 {
+			wait = retryAfter + wait
+		}
+		time.Sleep(wait)
 	}
 	return "hết lượt"
 }
 
-// post gửi một lượt mua; trả status và result (hay mã lỗi).
-func (f *flashE2E) post(ref, phone, ip string, attempt int) (int, string, error) {
+// post gửi một lượt mua; trả status, result (hay mã lỗi) và Retry-After (0 khi không có).
+func (f *flashE2E) post(ref, phone, ip string, attempt int) (int, string, time.Duration, error) {
 	path := fmt.Sprintf("%s/api/v1/web/flash-sales/%s/items/%s/buy", f.api.URL, f.sale.ID, f.sale.Item)
 	body := fmt.Sprintf(`{"externalRef":%q,"phone":%q,"qty":1,"clientIp":%q}`, ref, phone, ip)
 	req, err := http.NewRequestWithContext(f.s.t.Context(), http.MethodPost, path, strings.NewReader(body))
 	if err != nil {
-		return 0, "", err //nolint:wrapcheck // test
+		return 0, "", 0, err //nolint:wrapcheck // test
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+f.key)
@@ -181,13 +191,14 @@ func (f *flashE2E) post(ref, phone, ip string, attempt int) (int, string, error)
 	req.Header.Set("X-Attempt", strconv.Itoa(attempt))
 	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
 	if err != nil {
-		return 0, "", err //nolint:wrapcheck // test
+		return 0, "", 0, err //nolint:wrapcheck // test
 	}
 	defer func() { _ = resp.Body.Close() }()
+	secs, _ := strconv.Atoi(resp.Header.Get("Retry-After"))
 	raw, err := io.ReadAll(resp.Body)
 	var b struct{ Result, Error string }
 	_ = json.Unmarshal(raw, &b)
-	return resp.StatusCode, b.Result + b.Error, err //nolint:wrapcheck // test
+	return resp.StatusCode, b.Result + b.Error, time.Duration(secs) * time.Second, err //nolint:wrapcheck // test
 }
 
 // checkSpans: có đoạn flash.admission và flash.buy; không span nào chứa SĐT hay IP của khách thử.

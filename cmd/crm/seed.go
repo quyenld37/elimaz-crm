@@ -10,6 +10,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/adapters/carrier/fake"
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
@@ -34,6 +35,23 @@ func openOwner(ctx context.Context, cfg config.Config) (*db.DB, error) {
 		return nil, fmt.Errorf("mở database bằng chủ bảng: %w", err)
 	}
 	return owner, nil
+}
+
+// seedDevAdminUnits nạp địa giới tối thiểu cho kịch bản "một đơn đi trọn" (scripts/demo): tỉnh 79 và phường 26734, cùng
+// mã với hãng giả (tools/fakecarrier), qua customer.EnsureFixtureAdminUnits (chủ bảng; danh mục chung, không tenant_id).
+// Mã đã có với nội dung khác (danh mục thật nạp bằng migration) thì giữ nguyên bản đã có, không lỗi.
+func seedDevAdminUnits(ctx context.Context, owner *db.DB) error {
+	err := owner.RetryTx(ctx, db.TxOptions{}, func(tx pgx.Tx) error {
+		_, _, err := customer.EnsureFixtureAdminUnits(ctx, tx, []customer.AdminUnit{
+			{Code: "79", Level: customer.AdminProvince, Name: "TP Hồ Chí Minh"},
+			{Code: "26734", Level: customer.AdminWard, ParentCode: "79", Name: "Phường Sài Gòn"},
+		})
+		return err //nolint:wrapcheck // customer đã bọc
+	})
+	if err != nil {
+		return fmt.Errorf("seed địa giới dev: %w", err)
+	}
+	return nil
 }
 
 // seedDev (`crm seed-dev <email>`) dựng dữ liệu dev trên database đã migrate, bằng chuỗi chủ bảng: tenant "ELIMAZ",
@@ -87,6 +105,9 @@ func seedDev(ctx context.Context, cfg config.Config, email string, logger *slog.
 		return err //nolint:wrapcheck // đã bọc trong fulfillment
 	}); err != nil {
 		return fmt.Errorf("seed người bán, kho, tài khoản hãng: %w", err)
+	}
+	if err := seedDevAdminUnits(ctx, owner); err != nil {
+		return err
 	}
 	logger.Info("seed-dev xong", slog.String("tenant_id", tenantID.String()))
 	return nil

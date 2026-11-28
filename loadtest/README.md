@@ -176,3 +176,94 @@ Trên một máy có compose dev riêng (không phải bộ chung `crm-shared`: 
 - Nạp bằng COPY với `session_replication_role = replica` (trigger kiểm tổng, khóa ngoại tắt trong phiên nạp); dữ liệu tự
   đúng do seedperf dựng và test `internal/testkit/perfseed` kiểm lại bằng SQL. Không có vận đơn, lịch sử trạng thái, nhóm khách gộp.
 - auto_explain bật trong lúc tải (đếm dòng, buffers ở mọi câu của crm_app): số đo có thể chậm hơn bản không đo một chút.
+
+# Bộ thử tải M3 — webhook hãng vận chuyển (kế hoạch M3 Task M3-48, ADR-42)
+
+Đo đường webhook hãng → lệnh tra (máy giả trả trong 200 ms) → vận đơn đổi trạng thái ở 10× ca hiện tại: 2.000
+đơn/ngày × khoảng 6 tin hãng mỗi vận đơn, dồn đỉnh 20 tin/giây trong 15 phút. Kết quả ghi vào `docs/do-luong/thu-tai-m3.md`.
+
+## Chạy
+
+Máy Mac không chạy tải nặng: bài chạy ở bể từ xa (job `loadtest` của `.github/workflows/test-remote.yml`):
+
+```sh
+CRM_CI_STATIC=false CRM_CI_LOADTEST=carrier    scripts/ci/remote-test.sh <tree|commit> <base> <tệp gói rỗng>
+CRM_CI_STATIC=false CRM_CI_LOADTEST=carrier:1m scripts/ci/remote-test.sh …   # chạy khói 1 phút (200 vận đơn)
+```
+
+Trên máy có compose dev riêng: `make db-up` rồi `loadtest/carrier_run.sh` (biến ở đầu tệp; `DURATION`, `SHIPMENTS` cho
+chạy khói, `SHIPMENTS` = `RATE` × giây / 6).
+
+## Tải gồm gì
+
+| Phần | Ở đâu | Làm gì |
+|---|---|---|
+| Dữ liệu | `loadkit carrierseed` | Tài khoản hãng giả fake-1 có tuyến webhook, mã địa giới đã khớp, `SHIPMENTS` đơn 1 cái qua API, mỗi đơn gửi hãng qua API (lệnh tạo của worker gửi máy giả thật) tới khi đủ vận đơn chờ thu gom |
+| Hãng giả | `tools/fakecarrier` | `FAKECARRIER_TRACK_DELAY=200ms`: mọi lần tra trả sau 200 ms; không tự gửi webhook |
+| Tin hãng | `k6/carrier_webhooks.js` | Lượt i đổi vận đơn i mod N sang bước kế tiếp ở trang quản trị của máy giả (lấy hàng → đang chuyển → đang giao → giao thất bại → đang giao → thành công), rồi gửi một webhook có chữ ký tới `/hooks/fake/<route>` |
+| Chấm | `carrier_run.sh` | SQL nối webhook của lượt (`eventId = lt.<run>.<mã hãng>.<lần đổi>`) với sự kiện vận đơn CRM ghi (`<trạng thái>:<lần đổi>`) |
+
+## Ngưỡng và cách đo
+
+| Tiêu chí | Ngưỡng | Đo bằng |
+|---|---|---|
+| Nhận webhook | p95 < 300 ms | k6 `webhook_ms` |
+| Webhook khác 200 | 0 | k6 `webhook_bad` (và `advance_bad`: trang quản trị máy giả lỗi) |
+| Webhook tới vận đơn đổi trạng thái (gồm lệnh tra 200 ms) | p95 < 5 s | `shipment_events.recorded_at` − `sentAt` của webhook, đồng hồ của cùng máy |
+| Mỗi tin được áp | đã áp = đã gửi | số webhook của lượt có sự kiện vận đơn cùng khóa |
+| Deadlock | không tăng | `pg_stat_database.deadlocks` đầu, cuối |
+| `tx_retry_exhausted` | 0 | `platform.metrics_minute` từ lúc bắt đầu |
+| Việc dead | không tăng | `platform.jobs` |
+
+## Giới hạn
+
+- Số đo ở bể GitHub (4 vCPU, PostgreSQL trong cùng máy) là số đo tạm; tiêu chí chính thức đo lại trên server thử trước
+  khi chạy thật (kế hoạch M3 Task 140 Điểm dừng C).
+- Bài không đo lại `heavy.js` của M0 (bài đó dựng image Docker riêng); xem `docs/do-luong/thu-tai-m3.md`.
+
+# Bộ thử tải M5 — flash sale và lượt đọc của website (kế hoạch M5 Task 219 / M5-36, ADR-42)
+
+Đo lượt mua flash sale và lượt đọc của website dưới tải; kiểm không bán vượt bằng `crm verify-flash`. Kết quả ghi vào
+`docs/do-luong/thu-tai-m5.md`.
+
+## Chạy
+
+Máy Mac không chạy tải. Bài chính chạy ở bể từ xa (job `loadtest` của `.github/workflows/test-remote.yml`):
+
+```sh
+CRM_CI_STATIC=false CRM_CI_LOADTEST=m5:all scripts/ci/remote-test.sh <tree|commit> <base> <tệp gói rỗng>
+CRM_CI_LOADTEST=m5:flash_spike,web_read …      # một số bài
+CRM_CI_LOADTEST=m5:flash_spike@20s …           # chạy khói: rút phần giữ tải (spike, sustained, web_read)
+```
+
+Trên một máy có compose dev riêng: `make dev` (cần profile `valkey`) rồi `loadtest/m5_run.sh all|<bài>[,<bài>…]` (biến ở
+đầu tệp). Không chạy trên bộ chung `crm-shared` (bài đổi giới hạn, đẩy tải vào PostgreSQL dùng chung).
+
+## Tải gồm gì
+
+| Phần | Ở đâu | Làm gì |
+|---|---|---|
+| Vai trò CRM | `m5_run.sh`, `fb_lib.sh` | `ingest`, `api`, `worker` dựng từ mã đang thử, chạy như tiến trình; api nối hai Valkey của compose dev (`VALKEY_CACHE_URL`, `VALKEY_GATE_URL`); `RATE_LIMITS_JSON` nâng `web_key` (xem "Giới hạn"); cổng nhận vào flash, giới hạn theo SĐT, IP giữ mặc định |
+| Dữ liệu thử | `loadkit seed`, `m5key`, `m5sale` | tenant "Thử tải", 2 nhân viên owner; khóa dịch vụ (`web.catalog.read`, `web.flash.buy`) qua API nhân viên; tỉnh, xã thử T01/T01001; mỗi bài một đợt flash sale mới (một món, tồn suất + 100), mở sau 20 s; `web_read` thêm 30 mẫu × 3 biến thể |
+| Tải khách | `k6/m5/*.js` | gọi thẳng API web bằng khóa dịch vụ như website; mỗi người ảo một SĐT giả `09xxxxxxxx` và IP `10.x.y.z`; 503 → gửi lại cùng `Idempotency-Key` theo `Retry-After`, `X-Attempt` tăng (tối đa 10) |
+| Số đo | `loadkit m5stats` (trước, sau), `crm verify-flash`, `loadkit m5report` | `pg_stat_database` (deadlock, kết nối), `platform.metrics_minute` (`flash_buy_ms`, `job_pickup_ms` của việc `event.*`, `tx_retry` theo SQLSTATE, `tx_retry_exhausted`, `flash_result`, `cache_hit`/`cache_miss`), bảng chấm |
+
+| Bài | Kịch bản | Đạt khi |
+|---|---|---|
+| `flash_spike` (FS03) | 500 suất, giới hạn 1; lượt bấm lên 1.000/giây trong 10 s, giữ 60 s; người ảo = lượt mod 20.000 (ramping-arrival-rate thay 20.000 VU thật) | đúng 500 bought; `flash_buy_ms` p95 ≤ 300 ms (cận ngăn histogram); ngoài 503, 429 không mã lỗi nào; verify-flash đạt; deadlock +0; `tx_retry_exhausted` < 1% lượt mua |
+| `flash_per_customer` (FS05) | một SĐT, 100 yêu cầu song song (mỗi yêu cầu một mã đơn), 429 không gửi lại | đúng 1 bought; verify-flash đạt |
+| `flash_sustained` (FS16) | 15.000 suất; 50 người mới mỗi giây trong 5 phút, mỗi người mua rồi hoàn tất đơn | 15.000 bought, 15.000 hoàn tất; p95 ≤ 300 ms; nhận việc `event.*` p95 ≤ 1 s; không lỗi; verify-flash đạt; deadlock +0 |
+| `flash_abandon` (FS06) | 500 suất, hạn giữ 5 phút; đợt một 500 người, số chẵn hoàn tất; phút 6 đợt hai đúng số người bỏ đi mua lại | 500 bought; đợt hai mua được = số suất mở lại; đợt hai không nhận sold_out ("hết oan"); verify-flash đạt |
+| `flash_close_with_holds` (FS17) | 200 người giữ suất; giây 60 nhân viên đóng đợt; giây 70 số chẵn hoàn tất; chờ số lẻ hết hạn giữ | 200 bought; đóng được; 100 hoàn tất; verify-flash đạt (gồm (g) đối chiếu held của số dư) |
+| `web_read` (FS02, FS13) | 500 yêu cầu/giây trong 10 phút, chia đều `catalog/products?ids` (10 mẫu), `availability` (10 biến thể), `flash-sales/current` | k6 `read_ms` p95 < 200 ms, p99 < 500 ms; không lỗi; trúng bộ đệm > 95% |
+
+FS14 (ghi, không chấm): phân bố giây từ lúc mở tới lượt bấm đầu của người mua được (`bought_arrival_s`) so với mọi lượt
+bấm (`arrival_s`).
+
+## Giới hạn
+
+- k6, CRM, PostgreSQL, Valkey cùng một máy: số đo tạm; đo lại trên server thử với k6 từ máy khác (Task 221 Step 4).
+- `web_key` mặc định 1.200/phút (QĐ23) chặn ngay tải flash sale qua một khóa; bài nâng lên để đo CRM. Số cho production
+  ghi ở "Việc phát hiện thêm" của Task 219.
+- p95 phía máy chủ đọc từ histogram theo phút (cận ngăn 50, 100, 200, 300, 400, 500, 1000 ms…): "≤ 300 ms" là chấm chặt
+  nhất có được.

@@ -29,6 +29,7 @@ import {
   shipment,
   type Fake,
 } from "./shippingTestkit";
+import { TEXT_WAIT_CREDIT } from "./ShippingPanel";
 
 let fake: Fake;
 beforeEach(() => {
@@ -309,6 +310,35 @@ describe("Gửi hãng (VC03, HV10)", () => {
     renderPanel(confirmedOrder({ codAmount: 0 }));
     await sendButton(/^Gửi hãng · Viettel Post/);
     expect(within(panel()).getByText(/Hãng chỉ giao, không thu tiền/)).toBeTruthy();
+  });
+
+  it("đơn đổi chưa có phiếu cấn trừ: nút gửi mờ kèm lý do; có phiếu (đã thu > 0) thì gửi được (Task 116)", async () => {
+    latestQuotes();
+    const R9 = "0195f3b2-0000-7000-8000-00000000a199";
+    fake.returns.set(R9, {
+      id: R9,
+      code: "TH0000031",
+      orderId: "0195f3b2-0000-7000-8000-00000000d0ff",
+      kind: "exchange",
+      status: "requested",
+      refundAmount: 177_049,
+      items: [],
+      createdAt: "2026-11-20T00:00:00Z",
+      version: 1,
+    });
+    const ex = { orderType: "exchange" as const, replacedReturnId: R9, grandTotal: 180_000 };
+    const view = renderPanel(confirmedOrder({ ...ex, prepaidTotal: 0, codAmount: 180_000 }));
+    const btn = await sendButton("Gửi hãng · Viettel Post · 32.000 ₫");
+    await waitFor(() => {
+      expect(btn).toHaveProperty("disabled", true);
+    });
+    expect(panel().textContent).toContain(TEXT_WAIT_CREDIT);
+    view.unmount();
+    renderPanel(confirmedOrder({ ...ex, prepaidTotal: 177_049, codAmount: 2_951 }));
+    const ok = await sendButton("Gửi hãng · Viettel Post · 32.000 ₫");
+    await waitFor(() => {
+      expect(ok).toHaveProperty("disabled", false);
+    });
   });
 
   it("không có quyền gửi hãng ở kho của đơn: nút mờ kèm lý do (trạng thái H)", async () => {

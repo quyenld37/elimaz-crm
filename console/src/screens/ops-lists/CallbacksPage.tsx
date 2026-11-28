@@ -175,8 +175,10 @@ export function CallbacksPage() {
   const [who, setWho] = useState<Who>("all");
   const mine = who === "mine";
   const unassigned = who === "none";
-  const [outcomeFor, setOutcomeFor] = useState<CallbackTask | null>(null);
-  const [assignFor, setAssignFor] = useState<CallbackTask | null>(null);
+  // Hộp mở cho một việc: giữ bản đã bấm, nhưng gửi đi bản mới nhất trong danh sách (sau 409 danh sách tải lại, hộp
+  // phải dùng version mới, không thì lưu lại cứ 409 mãi).
+  const [outcomeOf, setOutcomeFor] = useState<CallbackTask | null>(null);
+  const [assignOf, setAssignFor] = useState<CallbackTask | null>(null);
   const counts = useOpsCounts().data;
   const paged = useOpsPaged(callbacksKey(status, mine), (query) =>
     unwrap(
@@ -185,6 +187,9 @@ export function CallbacksPage() {
   );
   const { list } = paged;
   const loaded = list.data?.pages.flatMap((p) => p.items) ?? [];
+  const fresh = (t: CallbackTask | null) => (t === null ? null : (loaded.find((r) => r.id === t.id) ?? t));
+  const outcomeFor = fresh(outcomeOf);
+  const assignFor = fresh(assignOf);
   const rows = unassigned ? loaded.filter((r) => r.assignee === undefined) : loaded;
   const openCount = list.data?.pages[0]?.openCount;
   const claim = useWriteAction((key, t: CallbackTask) =>

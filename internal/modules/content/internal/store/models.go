@@ -28,6 +28,13 @@ type CashCodLedgerEntry struct {
 	ShipmentID uuid.UUID
 }
 
+type CashCodOpenHolding struct {
+	TenantID       uuid.UUID
+	ShipmentID     uuid.UUID
+	CarrierHolding int64
+	UpdatedAt      time.Time
+}
+
 type CashCodStatement struct {
 	ID               uuid.UUID
 	TenantID         uuid.UUID
@@ -186,12 +193,13 @@ type CashShipmentCodV struct {
 }
 
 type CatalogAttribute struct {
-	ID        uuid.UUID
-	TenantID  uuid.UUID
-	Code      string
-	Name      string
-	Position  int32
-	CreatedAt time.Time
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	Code             string
+	Name             string
+	Position         int32
+	CreatedAt        time.Time
+	RequiredForShelf bool
 }
 
 type CatalogAttributeValue struct {
@@ -283,6 +291,7 @@ type CatalogProduct struct {
 	LengthMm    pgtype.Int4
 	WidthMm     pgtype.Int4
 	HeightMm    pgtype.Int4
+	PublishedAt *time.Time
 }
 
 type CatalogProductAttributeValue struct {
@@ -315,6 +324,13 @@ type CatalogProductImagesV struct {
 	FileID    uuid.UUID
 	Color     pgtype.Text
 	Position  int32
+}
+
+type CatalogProductReadinessV struct {
+	ProductID uuid.UUID
+	Status    string
+	Ready     bool
+	Reasons   interface{}
 }
 
 type CatalogProductTag struct {
@@ -1395,6 +1411,18 @@ type FulfillmentShippingQuote struct {
 	UpdatedAt        time.Time
 }
 
+type FulfillmentUnmatchedCarrierEvent struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	CarrierKey       string
+	CarrierAccountID *uuid.UUID
+	TrackingCode     string
+	LastRawStatus    pgtype.Text
+	FirstSeenAt      time.Time
+	LastSeenAt       time.Time
+	EventCount       int32
+}
+
 type IdentityAuditLog struct {
 	ID            uuid.UUID
 	TenantID      uuid.UUID
@@ -1470,7 +1498,32 @@ type IdentityUsersV struct {
 	Status      string
 }
 
+type InventoryCountImport struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	StocktakeID uuid.UUID
+	FileID      uuid.UUID
+	FileSha256  string
+	Mode        string
+	Status      string
+	PendingRows []byte
+	AppliedRows int32
+	ErrorRows   []byte
+	CreatedBy   uuid.UUID
+	CreatedAt   time.Time
+	FinishedAt  *time.Time
+}
+
 type InventoryFlashSaleUnit struct {
+	ID              uuid.UUID
+	TenantID        uuid.UUID
+	FlashSaleItemID uuid.UUID
+	Status          string
+	OrderItemID     *uuid.UUID
+	UpdatedAt       time.Time
+}
+
+type InventoryFlashSaleUnitsV struct {
 	ID              uuid.UUID
 	TenantID        uuid.UUID
 	FlashSaleItemID uuid.UUID
@@ -1486,6 +1539,18 @@ type InventoryFlashUnitsSummaryV struct {
 	Held            int64
 	Sold            int64
 	Released        int64
+}
+
+type InventoryLegacyReturn struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	WarehouseID      uuid.UUID
+	Reference        string
+	ReferenceNorm    string
+	StockDocumentID  uuid.UUID
+	DamageDocumentID *uuid.UUID
+	CreatedBy        uuid.UUID
+	CreatedAt        time.Time
 }
 
 type InventoryOpeningStatusV struct {
@@ -1746,6 +1811,14 @@ type OrdOrderDuplicateLink struct {
 	ResolvedAt   *time.Time
 	ResolvedBy   *uuid.UUID
 	Resolution   pgtype.Text
+}
+
+type OrdOrderFlashLinesV struct {
+	ID              uuid.UUID
+	TenantID        uuid.UUID
+	OrderID         uuid.UUID
+	FlashSaleItemID *uuid.UUID
+	Quantity        int32
 }
 
 type OrdOrderItem struct {
@@ -2372,6 +2445,14 @@ type PromotionFlashSale struct {
 }
 
 type PromotionFlashSaleClaim struct {
+	TenantID        uuid.UUID
+	FlashSaleItemID uuid.UUID
+	CustomerID      uuid.UUID
+	Quantity        int32
+	UpdatedAt       time.Time
+}
+
+type PromotionFlashSaleClaimsV struct {
 	TenantID        uuid.UUID
 	FlashSaleItemID uuid.UUID
 	CustomerID      uuid.UUID

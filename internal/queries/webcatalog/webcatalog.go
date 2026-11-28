@@ -31,8 +31,9 @@ var ErrBadLimit = errors.New("webcatalog: limit ngoài khoảng")
 
 // Products trả tối đa limit (1–MaxPage) mẫu có mã lớn hơn after (uuid.Nil: từ đầu) theo mã tăng dần, chưa xóa, của
 // người bán đang hoạt động, kèm biến thể, ảnh (một lời gọi files.PublicVariants cho cả trang), nhãn, thuộc tính. next
-// là mã của mẫu cuối khi trang đủ limit (còn có thể có trang sau), uuid.Nil khi hết.
-func Products(ctx context.Context, tx pgx.Tx, after uuid.UUID, limit int, view ImageView) ([]WebProduct, uuid.UUID, error) {
+// là mã của mẫu cuối khi trang đủ limit (còn có thể có trang sau), uuid.Nil khi hết. Mẫu nháp chỉ có khi preview
+// (khóa có web.catalog.preview, kế hoạch M7 Task 261), kèm Preview = true; không preview → như M5, không mẫu nháp.
+func Products(ctx context.Context, tx pgx.Tx, after uuid.UUID, limit int, view ImageView, preview bool) ([]WebProduct, uuid.UUID, error) {
 	if limit < 1 || limit > MaxPage {
 		return nil, uuid.Nil, ErrBadLimit
 	}
@@ -41,7 +42,7 @@ func Products(ctx context.Context, tx pgx.Tx, after uuid.UUID, limit int, view I
 	if err != nil {
 		return nil, uuid.Nil, fmt.Errorf("đọc người bán đang hoạt động: %w", err)
 	}
-	rows, err := q.ProductPage(ctx, store.ProductPageParams{After: after, Sellers: sellers, Lim: int32(limit)})
+	rows, err := q.ProductPage(ctx, store.ProductPageParams{After: after, Sellers: sellers, Preview: preview, Lim: int32(limit)})
 	if err != nil {
 		return nil, uuid.Nil, fmt.Errorf("đọc trang mẫu cho website: %w", err)
 	}
@@ -57,8 +58,8 @@ func Products(ctx context.Context, tx pgx.Tx, after uuid.UUID, limit int, view I
 }
 
 // ProductsByID trả các mẫu trong ids (tối đa MaxIDs, mã trùng tính một lần) theo mã tăng dần, cùng điều kiện với
-// Products: mã không có, đã xóa, của người bán ngừng hoạt động thì không có trong kết quả.
-func ProductsByID(ctx context.Context, tx pgx.Tx, ids []uuid.UUID, view ImageView) ([]WebProduct, error) {
+// Products: mã không có, đã xóa, của người bán ngừng hoạt động, mẫu nháp khi không preview thì không có trong kết quả.
+func ProductsByID(ctx context.Context, tx pgx.Tx, ids []uuid.UUID, view ImageView, preview bool) ([]WebProduct, error) {
 	if len(ids) > MaxIDs {
 		return nil, ErrBadLimit
 	}
@@ -70,7 +71,7 @@ func ProductsByID(ctx context.Context, tx pgx.Tx, ids []uuid.UUID, view ImageVie
 	if err != nil {
 		return nil, fmt.Errorf("đọc người bán đang hoạt động: %w", err)
 	}
-	rows, err := q.ProductsByIDs(ctx, store.ProductsByIDsParams{Ids: ids, Sellers: sellers})
+	rows, err := q.ProductsByIDs(ctx, store.ProductsByIDsParams{Ids: ids, Sellers: sellers, Preview: preview})
 	if err != nil {
 		return nil, fmt.Errorf("đọc mẫu theo mã cho website: %w", err)
 	}
@@ -179,7 +180,7 @@ func assemble(ctx context.Context, tx pgx.Tx, rows []store.ProductPageRow, view 
 			Article: r.Article, Status: r.Status, CategoryIDs: []uuid.UUID{}, Tags: []string{},
 			Attributes: []WebAttr{}, Images: []WebImage{}, Variants: []WebVariant{}, UpdatedAt: r.UpdatedAt.UTC(),
 			CreatedAt: r.CreatedAt.UTC(), Version: r.Version,
-			MeasureMm: measureOf(r),
+			MeasureMm: measureOf(r), Preview: r.Status == "draft",
 		}
 		if r.CategoryID.Valid {
 			out[i].CategoryIDs = append(out[i].CategoryIDs, uuid.UUID(r.CategoryID.Bytes))

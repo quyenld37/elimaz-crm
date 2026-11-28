@@ -18,7 +18,7 @@ WHERE requested_by = @requested_by AND status IN ('queued', 'running');
 -- Worker nhận lần chạy: queued → running (running → running khi chạy lại sau khi worker chết). 0 dòng: đã kết thúc.
 UPDATE reporting.report_runs SET status = 'running', started_at = now(), version = version + 1
 WHERE id = @id AND status IN ('queued', 'running')
-RETURNING id, seller_id, family, report, format, params, requested_by;
+RETURNING id, seller_id, family, report, format, params, requested_by, created_at;
 
 -- name: FinishRunReady :one
 -- Ghi kết quả bảng: chỉ lần chạy đang running (một lần chuyển sang ready); 0 dòng → bên khác đã kết thúc.
@@ -27,6 +27,19 @@ SET status = 'ready', result = @result, row_count = @row_count, finished_at = no
     expires_at = now() + make_interval(secs => @ttl_seconds::bigint), version = version + 1
 WHERE id = @id AND status = 'running'
 RETURNING id;
+
+-- name: FinishRunFile :one
+-- Ghi tệp xlsx xong (Task 237): chỉ lần chạy đang running (một lần chuyển sang ready); 0 dòng → bên khác đã kết thúc,
+-- bên gọi không đăng ký tệp. expires_at do bên gọi tính từ mốc lấy trước khi ghi tệp lên kho (Task 515).
+UPDATE reporting.report_runs
+SET status = 'ready', row_count = @row_count, truncated = @truncated, file_bytes = @file_bytes, finished_at = now(),
+    expires_at = @expires_at, version = version + 1
+WHERE id = @id AND status = 'running'
+RETURNING id;
+
+-- name: SetRunFile :exec
+-- Gắn dòng platform.files của tệp vào lần chạy vừa ready (cùng transaction với FinishRunFile).
+UPDATE reporting.report_runs SET file_id = @file_id WHERE id = @id;
 
 -- name: FailRun :one
 -- Lần chạy hỏng (lỗi nghiệp vụ, hết lượt, hết hạn): chỉ khi còn queued hay running. 0 dòng → đã kết thúc.
@@ -42,7 +55,8 @@ SELECT status, family, requested_by FROM reporting.report_runs WHERE id = @id;
 -- name: GetRun :one
 -- Một lần chạy kèm kết quả và tên người tạo (identity.users_v, G15).
 SELECT r.id, r.family, r.report, r.format, r.status, r.reason, r.params, r.row_count, r.truncated, r.result,
-       r.created_at, r.finished_at, r.expires_at, r.requested_by, coalesce(u.display_name, '')::text AS requested_by_name
+       r.created_at, r.finished_at, r.expires_at, r.requested_by, coalesce(u.display_name, '')::text AS requested_by_name,
+       r.file_id
 FROM reporting.report_runs AS r
 LEFT JOIN identity.users_v AS u ON u.id = r.requested_by
 WHERE r.id = @id AND r.family = @family;
@@ -100,3 +114,18 @@ WHERE id IN (
     LIMIT @lim
     FOR UPDATE SKIP LOCKED
 );
+
+-- name: LockExpiredFileRuns :many
+-- Dọn (d): khóa lần chạy xlsx ready quá hạn (12a, trước mọi câu chạm platform.files của nhóm 12b), id tăng dần, bỏ
+-- qua dòng đang bị khóa, tối đa @lim.
+SELECT id FROM reporting.report_runs
+WHERE status = 'ready' AND format = 'xlsx' AND expires_at <= now()
+ORDER BY id
+LIMIT @lim
+FOR UPDATE SKIP LOCKED;
+
+-- name: ExpireFileRuns :many
+-- Dọn (d): các lần chạy đã khóa → expired; trả file_id để bên gọi đánh dấu xóa dòng tệp.
+UPDATE reporting.report_runs SET status = 'expired', version = version + 1
+WHERE id = ANY(@ids::uuid[]) AND status = 'ready'
+RETURNING file_id;

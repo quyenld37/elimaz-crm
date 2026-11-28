@@ -42,6 +42,7 @@ import {
 import { ReturnDialog } from "./ReturnDialog";
 import { ReturnsCard } from "./ReturnsCard";
 import { DeliveryStatsBadge } from "../len-don/DeliveryStatsBadge";
+import { PaymentsBox } from "../payments/PaymentsBox";
 import { ShippingPanel } from "../shipping/ShippingPanel";
 import { OrderShipmentCards } from "../shipping/Timeline";
 import "../len-don/len-don.css";
@@ -645,6 +646,7 @@ function OrderView({ o, refetch }: { o: Order; refetch: () => void }) {
                 }
               : {})}
           />
+          {can("cash.payments.record") && <PaymentsBox order={o} />}
           <section className="card">
             <h2>Phụ trách, nguồn</h2>
             <div className="stack-sm">

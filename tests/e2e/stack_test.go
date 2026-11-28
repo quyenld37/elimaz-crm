@@ -72,15 +72,25 @@ type stack struct {
 	ext    *testkit.FakeExternal
 	ingest *httptest.Server
 	api    *httptest.Server
+	// m3: hai module M3 đủ phần (stackOptions.m3); nil khi stack chỉ nối phần M1.
+	m3 *m3Wiring
+	// cmds là lệnh của worker (test tra lại lệnh in_doubt bằng commands.ResolveInDoubt).
+	cmds []commands.Handler
 }
 
 type stackOptions struct {
+	// appURL đổi chuỗi kết nối crm_app của api, worker và module (proxy có công tắc: database ngừng giữa lúc worker
+	// chạy lệnh); nil: nối thẳng. Hub LISTEN, chủ bảng của test luôn nối thẳng.
+	appURL func(appURL string) string
 	// ingestURL đổi chuỗi kết nối của pool ingest (proxy có công tắc); nil: như worker.
 	ingestURL func(appURL string) string
 	// drainEvery: nhịp Drainer của ingest (mặc định 100 ms).
 	drainEvery time.Duration
 	// fakeCarrierURL: địa chỉ tools/fakecarrier (bí mật secret32); rỗng → không nối hãng giả.
 	fakeCarrierURL string
+	// m3: nối đủ hai module M3 (fulfillment, cash) và phần chạy nền của M2 như cmd/crm (đường trọn M3, Task M3-48);
+	// cần fakeCarrierURL. false: chỉ lệnh tạo, tra vận đơn và consumer sổ COD của M1.
+	m3 bool
 }
 
 func newStack(t *testing.T, o stackOptions) *stack {
@@ -100,13 +110,20 @@ func newStack(t *testing.T, o stackOptions) *stack {
 
 	_, ownerURL, appURL := testkit.StartPostgres(t)
 	s.owner = openPool(t, ownerURL, false)
-	s.app = openPool(t, appURL, true)
+	if o.appURL != nil {
+		s.app = openPool(t, o.appURL(appURL), true)
+	} else {
+		s.app = openPool(t, appURL, true)
+	}
 	ingestURL := appURL
 	if o.ingestURL != nil {
 		ingestURL = o.ingestURL(appURL)
 	}
 	ingestDB := openPool(t, ingestURL, true)
 	s.seed()
+	if o.fakeCarrierURL != "" {
+		s.seedFakeLocations()
+	}
 
 	logger := slog.New(slog.DiscardHandler)
 	reg := metrics.NewRegistry()
@@ -114,21 +131,11 @@ func newStack(t *testing.T, o stackOptions) *stack {
 	var wg sync.WaitGroup
 	// Sổ consumer dùng chung cho api, lệnh vận chuyển và worker, như newModules của cmd/crm.
 	evs := events.NewRegistry()
-	if err := evs.Register(cash.Consumer{}); err != nil {
-		t.Fatal(err)
-	}
 
 	// api: hub LISTEN thật + máy chủ HTTP thật (fulfillment.Service như cmd/crm, cho gửi hãng của M3).
 	hub := realtime.NewPGHub(realtime.PGHubOptions{URL: appURL, Metrics: reg, Logger: logger})
 	wg.Go(func() { hub.Run(ctx) })
-	streamStop := make(chan struct{})
-	s.api = httptest.NewUnstartedServer(httpapi.NewServer(httpapi.Deps{
-		Config: config.Config{ConsoleOrigins: []string{stackOrigin}}, DB: s.app, Logger: logger, Events: evs,
-		Access: s.keys.Verifier(t, stackAUD), Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop},
-		Fulfillment: fulfillment.New(fulfillment.Deps{DB: s.app, Queue: queue.NewQueue(), Bus: hub, Events: evs}).Service,
-	}))
-	s.api.Config.RegisterOnShutdown(func() { close(streamStop) })
-	s.api.Start()
+	s.startAPI(o, hub, evs, reg, logger)
 
 	// ingest: /hooks/* + Drainer.
 	ingestSources := []webhooks.Source{selftest.NewSource(secret32)}
@@ -146,6 +153,7 @@ func newStack(t *testing.T, o stackOptions) *stack {
 
 	// worker: cùng các handler, lệnh như cmd/crm.
 	handlers, cmds := s.workerHandlers(o, hub, evs, reg)
+	s.cmds = cmds
 	w := queue.NewWorker(s.app, handlers, queue.WorkerOptions{
 		WorkerID: "e2e-worker", Metrics: reg, Logger: logger, Commands: commands.NewRunner(s.app, cmds),
 	})
@@ -163,6 +171,29 @@ func newStack(t *testing.T, o stackOptions) *stack {
 	return s
 }
 
+// startAPI đăng ký consumer (đủ M3 khi o.m3, không thì consumer sổ COD của M1) vào evs và chạy máy chủ HTTP thật của
+// api (fulfillment.Service như cmd/crm, cho gửi hãng của M3; đủ hai module M3 khi o.m3).
+func (s *stack) startAPI(o stackOptions, hub *realtime.PGHub, evs *events.Registry, reg *metrics.Registry, logger *slog.Logger) {
+	s.t.Helper()
+	if o.m3 {
+		s.m3 = s.wireM3(o.fakeCarrierURL, hub, evs, reg)
+	} else if err := evs.Register(cash.Consumer{}); err != nil {
+		s.t.Fatal(err)
+	}
+	streamStop := make(chan struct{})
+	apiDeps := httpapi.Deps{
+		Config: config.Config{ConsoleOrigins: []string{stackOrigin}}, DB: s.app, Logger: logger, Events: evs,
+		Access: s.keys.Verifier(s.t, stackAUD), Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop},
+		Fulfillment: fulfillment.New(fulfillment.Deps{DB: s.app, Queue: queue.NewQueue(), Bus: hub, Events: evs}).Service,
+	}
+	if s.m3 != nil {
+		apiDeps = s.m3.apiDeps(apiDeps)
+	}
+	s.api = httptest.NewUnstartedServer(httpapi.NewServer(apiDeps))
+	s.api.Config.RegisterOnShutdown(func() { close(streamStop) })
+	s.api.Start()
+}
+
 // workerHandlers trả handler và lệnh của worker, như cmd/crm: tách gói, sự kiện vào selftest (và tín hiệu hãng giả khi
 // có o.fakeCarrierURL), consumer sự kiện nội bộ của evs; lệnh selftest (và hai lệnh vận chuyển với hãng giả).
 func (s *stack) workerHandlers(o stackOptions, hub *realtime.PGHub, evs *events.Registry, reg *metrics.Registry) ([]queue.Handler, []commands.Handler) {
@@ -170,7 +201,15 @@ func (s *stack) workerHandlers(o stackOptions, hub *realtime.PGHub, evs *events.
 	sources := []webhooks.Source{selftest.NewSource("")}
 	inboundHandlers := []webhooks.InboundHandler{selftest.NewInbound(hub)}
 	cmds := []commands.Handler{selftest.NewCommand(s.ext)}
-	if o.fakeCarrierURL != "" {
+	var jobs []queue.Handler
+	switch {
+	case s.m3 != nil:
+		src, in, c, j, err := s.m3.worker()
+		if err != nil {
+			s.t.Fatal(err)
+		}
+		sources, inboundHandlers, cmds, jobs = append(sources, src...), append(inboundHandlers, in...), append(cmds, c...), j
+	case o.fakeCarrierURL != "":
 		client := fake.NewClient(o.fakeCarrierURL, secret32, nil)
 		sources = append(sources, carrier.WebhookSource(client, ""))
 		co := fulfillment.CommandOptions{
@@ -194,7 +233,7 @@ func (s *stack) workerHandlers(o stackOptions, hub *realtime.PGHub, evs *events.
 	if err != nil {
 		s.t.Fatal(err)
 	}
-	return append(append([]queue.Handler{split}, evs.JobHandlers()...), inbound...), cmds
+	return append(append(append([]queue.Handler{split}, evs.JobHandlers()...), inbound...), jobs...), cmds
 }
 
 func openPool(t *testing.T, u string, tracing bool) *db.DB {
@@ -230,6 +269,37 @@ func (s *stack) seed() {
 		s.t.Fatal(err)
 	}
 	s.token = s.keys.Sign(cfaccesstest.AccessClaims{Email: stackOwner, AUD: stackAUD, MFA: []string{"mfa"}})
+}
+
+// fakeProvince, fakeWard là mã tỉnh, phường của địa chỉ giao thử: hãng giả (tools/fakecarrier /v1/locations) có cùng
+// mã; seedFakeLocations khớp sẵn hai mã cho hãng giả.
+const (
+	fakeProvince = "79"
+	fakeWard     = "26734"
+)
+
+// seedFakeLocations: danh mục hành chính có tỉnh fakeProvince, phường fakeWard (bảng chung, chủ bảng) và hai mã đã khớp
+// với hãng giả trong carrier_locations của tenant (như sau khi syncCarrierLocations chạy): hãng giả khai Locations nên
+// báo phí, tạo vận đơn đòi địa chỉ đã khớp (address_unmapped).
+func (s *stack) seedFakeLocations() {
+	s.t.Helper()
+	ctx := s.t.Context()
+	if _, err := s.owner.Pool.Exec(ctx, `INSERT INTO customer.admin_units
+		(code, level, parent_code, name, name_search, effective_from, source) VALUES
+		($1, 'province', NULL, 'Thành phố Hồ Chí Minh', 'thanh pho ho chi minh', DATE '2025-07-01', 'test'),
+		($2, 'ward', $1, 'Phường Sài Gòn', 'phuong sai gon', DATE '2025-07-01', 'test')
+		ON CONFLICT DO NOTHING`, fakeProvince, fakeWard); err != nil {
+		s.t.Fatal(err)
+	}
+	if err := tenancy.WithTenant(ctx, s.owner, s.tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `INSERT INTO fulfillment.carrier_locations
+			(tenant_id, carrier_key, level, our_code, carrier_code, carrier_name, synced_at) VALUES
+			($1, 'fake', 'province', $2, $2, 'TP Hồ Chí Minh', now()), ($1, 'fake', 'ward', $3, $3, 'Phường Sài Gòn', now())
+			ON CONFLICT DO NOTHING`, s.tenant, fakeProvince, fakeWard)
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		s.t.Fatal(err)
+	}
 }
 
 // seedSelftestTenant dựng tenant "E2E", chủ shop stackOwner (identity.SeedOwner), định tuyến email và định tuyến

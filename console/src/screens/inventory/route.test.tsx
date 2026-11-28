@@ -15,6 +15,10 @@ it("route.tsx khai đúng path, nhãn, nhóm, quyền, trang ẩn, also, order",
     ["/kho/kiem-kho/:id", "Kiểm kho", "Kho", "inventory.stocktake", true, [], 31],
     // Task 327: Nhà cung cấp.
     ["/kho/nha-cung-cap", "Nhà cung cấp", "Kho", "inventory.read", false, [], 40],
+    // Task 273 (M7-28): Kiểm kho mở sổ không có mục menu (HV01); Hàng hoàn đơn cũ ngay sau Nhận hàng hoàn (HV02).
+    ["/kho/mo-so", "Kiểm kho mở sổ", "Kho", "inventory.stocktake.opening", true, [], 32],
+    ["/kho/mo-so/:id", "Kiểm kho mở sổ", "Kho", "inventory.stocktake.opening", true, [], 33],
+    ["/kho/hang-hoan-cu", "Hàng hoàn đơn cũ", "Kho", "inventory.legacy_return.create", false, [], 16],
   ]);
 });
 
@@ -28,5 +32,8 @@ it("Kiểm kho đòi thêm inventory.read và catalog.read; màn khác không đ
     ["/kho/kiem-kho", ["inventory.read", "catalog.read"]],
     ["/kho/kiem-kho/:id", ["inventory.read", "catalog.read"]],
     ["/kho/nha-cung-cap", []],
+    ["/kho/mo-so", ["inventory.read", "catalog.read"]],
+    ["/kho/mo-so/:id", ["inventory.read", "catalog.read", "inventory.stocktake"]],
+    ["/kho/hang-hoan-cu", ["inventory.read", "catalog.read"]],
   ]);
 });

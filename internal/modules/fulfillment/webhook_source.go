@@ -20,7 +20,7 @@ const SignalType = inbound.SignalType
 type Signal = inbound.Signal
 
 // ErrShipmentNotYetKnown báo tài khoản có nhưng chưa có vận đơn mang mã của tín hiệu; lỗi tạm (việc vào thử lại theo
-// lịch của hàng đợi, hết lượt thì dead và cảnh báo).
+// lịch của hàng đợi; ở lượt thử cuối handler ghi "ngoài hệ thống" và xong thay vì dead, Task 265).
 var ErrShipmentNotYetKnown = inbound.ErrShipmentNotYetKnown
 
 // ErrNoRouteKey báo gói webhook hãng nhận ở đường không có khóa tuyến (/hooks/<hãng>); hãng chỉ được đăng ký đường

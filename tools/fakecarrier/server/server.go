@@ -29,7 +29,9 @@ const retryAfterSeconds = "7"
 
 // Options là cấu hình của máy chủ: kho trạng thái (nil → chỉ trong bộ nhớ), bí mật Bearer và chữ ký webhook, URL nhận
 // webhook (rỗng: không gửi), thời gian giữ yêu cầu ở chế độ timeout_after_create, client gửi webhook, logger, phí báo
-// cố định (0: theo công thức cân nặng, tiền; > 0: một dịch vụ std đúng số này, cho e2e website, Task 511).
+// cố định (0: theo công thức cân nặng, tiền; > 0: một dịch vụ std đúng số này, cho e2e website, Task 511), thời gian
+// chờ trước khi trả mỗi lần tra kiện (theo code, theo mã hãng, hành trình; 0: trả ngay — bài thử tải webhook hãng của
+// M3 đặt 200 ms, Task 139).
 type Options struct {
 	Store      *Store
 	Secret     string
@@ -38,6 +40,7 @@ type Options struct {
 	HTTPClient *http.Client
 	Logger     *slog.Logger
 	QuoteFee   int64
+	TrackDelay time.Duration
 }
 
 // Server là bộ xử lý HTTP của hãng giả.
@@ -74,8 +77,8 @@ func New(o Options) *Server {
 	s := &Server{st: st, cfg: o, hc: hc, logger: logger, now: time.Now, calls: map[string]int{}}
 	mux := http.NewServeMux()
 	mux.Handle("POST /v1/parcels", s.auth(opCreate, s.createParcel))
-	mux.Handle("GET /v1/parcels", s.auth("lookup", s.parcelByCode))
-	mux.Handle("GET /v1/parcels/{tracking}", s.auth("status", s.parcelByTracking))
+	mux.Handle("GET /v1/parcels", s.auth("lookup", s.slowTrack(s.parcelByCode)))
+	mux.Handle("GET /v1/parcels/{tracking}", s.auth("status", s.slowTrack(s.parcelByTracking)))
 	s.routesM3(mux)
 	mux.HandleFunc("POST /admin/parcels/{tracking}/advance", s.advance)
 	mux.HandleFunc("POST /admin/mode", s.setMode)
@@ -84,6 +87,22 @@ func New(o Options) *Server {
 	})
 	s.Handler = mux
 	return s
+}
+
+// slowTrack chờ TrackDelay (hoặc tới khi bên gọi bỏ) rồi chạy next.
+func (s *Server) slowTrack(next http.HandlerFunc) http.HandlerFunc {
+	if s.cfg.TrackDelay <= 0 {
+		return next
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		t := time.NewTimer(s.cfg.TrackDelay)
+		defer t.Stop()
+		select {
+		case <-t.C:
+			next(w, r)
+		case <-r.Context().Done():
+		}
+	}
 }
 
 // auth kiểm Bearer rồi đếm một lần gọi thao tác op (Calls).

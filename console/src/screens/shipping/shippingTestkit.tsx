@@ -11,6 +11,7 @@ import type {
   Grant,
   Me,
   Order,
+  Return,
   ShipAccount,
   Shipment,
   ShipmentCod,
@@ -129,6 +130,8 @@ export interface Fake {
   settings: FulfillmentSettings;
   /** Danh mục địa giới: tỉnh (parent rỗng) và xã theo mã tỉnh. */
   adminUnits: AdminUnit[];
+  /** Phiếu trả theo id (getReturn: phiếu đổi của đơn thay thế, Task 138). */
+  returns: Map<string, Return>;
 }
 
 const FORBIDDEN = { error: "forbidden", request_id: "t" };
@@ -167,6 +170,7 @@ export function installFake(): Fake {
     addressChanges: [],
     settings: SETTINGS,
     adminUnits: [],
+    returns: new Map(),
   };
   // Yêu cầu ghi: ghi lại; trả câu trả lời xếp sẵn (kèm header như Retry-After) hoặc mặc định theo đường.
   const onWrite = async (req: Request, path: string): Promise<Response> => {
@@ -224,6 +228,11 @@ export function installFake(): Fake {
     if (/^\/api\/v1\/orders\/[^/]+\/shipments$/.test(path)) return reply({ items: fake.orderShipments });
     if (/^\/api\/v1\/customers\/[^/]+\/delivery-stats$/.test(path)) {
       return fake.stats === null ? reply(NOT_FOUND, 404) : reply(fake.stats);
+    }
+    const rid = /^\/api\/v1\/returns\/([^/]+)$/.exec(path)?.[1];
+    if (rid !== undefined) {
+      const r = fake.returns.get(rid);
+      return r === undefined ? reply(NOT_FOUND, 404) : reply(r);
     }
     const sid = /^\/api\/v1\/shipments\/([^/]+)$/.exec(path)?.[1];
     const s = sid === undefined ? undefined : fake.shipments.get(sid);

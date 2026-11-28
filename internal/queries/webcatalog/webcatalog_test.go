@@ -124,13 +124,19 @@ func (e *env) variantIDs(product uuid.UUID) []uuid.UUID {
 	return vs
 }
 
-// byID: ProductsByID với view mặc định.
+// byID: ProductsByID với view mặc định, khóa thường (không xem trước).
 func (e *env) byID(ids []uuid.UUID) []webcatalog.WebProduct {
+	e.t.Helper()
+	return e.byIDWith(ids, false)
+}
+
+// byIDWith: ProductsByID với view mặc định; preview như khóa có web.catalog.preview (Task 261).
+func (e *env) byIDWith(ids []uuid.UUID, preview bool) []webcatalog.WebProduct {
 	e.t.Helper()
 	var ps []webcatalog.WebProduct
 	e.read(func(tx pgx.Tx) error {
 		var err error
-		ps, err = webcatalog.ProductsByID(e.t.Context(), tx, ids, view())
+		ps, err = webcatalog.ProductsByID(e.t.Context(), tx, ids, view(), preview)
 		return err //nolint:wrapcheck // test
 	})
 	return ps
@@ -140,31 +146,39 @@ func (e *env) all() []uuid.UUID {
 	return append(slices.Clone(e.productsOfSeller[e.seller]), e.productsOfSeller[e.partner]...)
 }
 
-// pages đọc mọi trang limit và trả mã mẫu theo thứ tự cùng cỡ từng trang.
+// pages đọc mọi trang limit (khóa thường) và trả mã mẫu theo thứ tự cùng cỡ từng trang.
 func (e *env) pages(limit int) ([]uuid.UUID, []int) {
 	e.t.Helper()
-	var ids []uuid.UUID
-	var sizes []int
+	ids, sizes, _ := e.pagesWith(limit, false)
+	return ids, sizes
+}
+
+// pagesWith như pages với cờ xem trước preview; trả thêm mã các mẫu có Preview = true.
+func (e *env) pagesWith(limit int, preview bool) (ids []uuid.UUID, sizes []int, previewed []uuid.UUID) {
+	e.t.Helper()
 	after := uuid.Nil
 	for range 10 {
 		var ps []webcatalog.WebProduct
 		var next uuid.UUID
 		e.read(func(tx pgx.Tx) error {
 			var err error
-			ps, next, err = webcatalog.Products(e.t.Context(), tx, after, limit, view())
+			ps, next, err = webcatalog.Products(e.t.Context(), tx, after, limit, view(), preview)
 			return err //nolint:wrapcheck // test
 		})
 		sizes = append(sizes, len(ps))
 		for _, p := range ps {
 			ids = append(ids, p.ID)
+			if p.Preview {
+				previewed = append(previewed, p.ID)
+			}
 		}
 		if next == uuid.Nil {
-			return ids, sizes
+			return ids, sizes, previewed
 		}
 		after = next
 	}
 	e.t.Fatal("quá 10 trang")
-	return nil, nil
+	return nil, nil, nil
 }
 
 // 450 mẫu, limit 200 → 3 trang 200, 200, 50; đủ 450 mã, không trùng, mã tăng dần; mỗi mẫu 3 biến thể.
@@ -180,7 +194,7 @@ func TestProducts_Pages(t *testing.T) {
 		t.Fatalf("mã theo trang khác mã đã tạo (%d / %d)", len(ids), len(want))
 	}
 	e.read(func(tx pgx.Tx) error {
-		ps, _, err := webcatalog.Products(t.Context(), tx, uuid.Nil, 5, view())
+		ps, _, err := webcatalog.Products(t.Context(), tx, uuid.Nil, 5, view(), false)
 		for _, p := range ps {
 			if len(p.Variants) != 3 || p.ShortDescription == "" || string(p.Article) != "[]" {
 				t.Errorf("mẫu %s: %d biến thể, mô tả %q, bài viết %s", p.Code, len(p.Variants), p.ShortDescription, p.Article)
@@ -190,7 +204,7 @@ func TestProducts_Pages(t *testing.T) {
 	})
 	for _, bad := range []int{0, webcatalog.MaxPage + 1} {
 		e.read(func(tx pgx.Tx) error {
-			if _, _, err := webcatalog.Products(t.Context(), tx, uuid.Nil, bad, view()); !errors.Is(err, webcatalog.ErrBadLimit) {
+			if _, _, err := webcatalog.Products(t.Context(), tx, uuid.Nil, bad, view(), false); !errors.Is(err, webcatalog.ErrBadLimit) {
 				t.Errorf("limit %d: mong ErrBadLimit, có %v", bad, err)
 			}
 			return nil
@@ -203,14 +217,14 @@ func TestProductsByID(t *testing.T) {
 	e := newEnv(t)
 	all := e.all()
 	e.read(func(tx pgx.Tx) error {
-		ps, err := webcatalog.ProductsByID(t.Context(), tx, []uuid.UUID{all[7], uuid.New(), all[3], all[7]}, view())
+		ps, err := webcatalog.ProductsByID(t.Context(), tx, []uuid.UUID{all[7], uuid.New(), all[3], all[7]}, view(), false)
 		if err != nil || len(ps) != 2 {
 			t.Fatalf("2 mã: %d mẫu, %v", len(ps), err)
 		}
-		if _, err := webcatalog.ProductsByID(t.Context(), tx, all[:webcatalog.MaxIDs+1], view()); !errors.Is(err, webcatalog.ErrBadLimit) {
+		if _, err := webcatalog.ProductsByID(t.Context(), tx, all[:webcatalog.MaxIDs+1], view(), false); !errors.Is(err, webcatalog.ErrBadLimit) {
 			t.Errorf("101 mã: mong ErrBadLimit, có %v", err)
 		}
-		if ps, err := webcatalog.ProductsByID(t.Context(), tx, all[:webcatalog.MaxIDs], view()); err != nil || len(ps) != webcatalog.MaxIDs {
+		if ps, err := webcatalog.ProductsByID(t.Context(), tx, all[:webcatalog.MaxIDs], view(), false); err != nil || len(ps) != webcatalog.MaxIDs {
 			t.Errorf("100 mã: %d mẫu, %v", len(ps), err)
 		}
 		return nil
@@ -228,7 +242,7 @@ func TestProducts_CreatedAt(t *testing.T) {
 	var byID []webcatalog.WebProduct
 	e.read(func(tx pgx.Tx) error {
 		var err error
-		byID, err = webcatalog.ProductsByID(t.Context(), tx, []uuid.UUID{all[5], all[6]}, view())
+		byID, err = webcatalog.ProductsByID(t.Context(), tx, []uuid.UUID{all[5], all[6]}, view(), false)
 		return err //nolint:wrapcheck // test
 	})
 	if len(byID) != 2 {
@@ -247,7 +261,7 @@ func TestProducts_Measure(t *testing.T) {
 	var byID []webcatalog.WebProduct
 	e.read(func(tx pgx.Tx) error {
 		var err error
-		byID, err = webcatalog.ProductsByID(t.Context(), tx, []uuid.UUID{all[3], all[4]}, view())
+		byID, err = webcatalog.ProductsByID(t.Context(), tx, []uuid.UUID{all[3], all[4]}, view(), false)
 		return err //nolint:wrapcheck // test
 	})
 	for from, ps := range map[string][]webcatalog.WebProduct{"ProductsByID": byID, "Products": e.allProducts()} {
@@ -302,7 +316,7 @@ func (e *env) allProducts() []webcatalog.WebProduct {
 		)
 		e.read(func(tx pgx.Tx) error {
 			var err error
-			ps, next, err = webcatalog.Products(e.t.Context(), tx, after, webcatalog.MaxPage, view())
+			ps, next, err = webcatalog.Products(e.t.Context(), tx, after, webcatalog.MaxPage, view(), false)
 			return err //nolint:wrapcheck // test
 		})
 		out = append(out, ps...)
@@ -322,7 +336,7 @@ func TestProducts_SellerSuspended(t *testing.T) {
 		t.Fatalf("người bán ngừng: mong 400 mẫu của ELIMAZ, có %d", len(ids))
 	}
 	e.read(func(tx pgx.Tx) error {
-		ps, err := webcatalog.ProductsByID(t.Context(), tx, e.productsOfSeller[e.partner][:3], view())
+		ps, err := webcatalog.ProductsByID(t.Context(), tx, e.productsOfSeller[e.partner][:3], view(), false)
 		if err != nil || len(ps) != 0 {
 			t.Errorf("theo mã của người bán ngừng: %d mẫu, %v", len(ps), err)
 		}
@@ -334,8 +348,8 @@ func TestProducts_SellerSuspended(t *testing.T) {
 	}
 }
 
-// [WB09]: biến thể ngừng bán vẫn có trong kết quả với status discontinued, sellable false; mẫu nháp có với status
-// draft và mọi biến thể sellable false; còn hàng ở kho MAIN → available; cân nặng rỗng → nil, 450 → 450.
+// [WB09]: biến thể ngừng bán vẫn có trong kết quả với status discontinued, sellable false; mẫu nháp (chỉ khi xem
+// trước, Task 261) có với status draft, preview true và mọi biến thể sellable false; còn hàng ở kho MAIN → available; cân nặng rỗng → nil, 450 → 450.
 func TestProducts_VariantFields(t *testing.T) {
 	e := newEnv(t)
 	all := e.all()
@@ -350,7 +364,7 @@ func TestProducts_VariantFields(t *testing.T) {
 		_, err = tx.Exec(t.Context(), "UPDATE catalog.products SET status = 'draft' WHERE id = $1", all[1])
 		return err //nolint:wrapcheck // test
 	})
-	ps := e.byID(all[:2])
+	ps := e.byIDWith(all[:2], true)
 	got := ps[0].Variants
 	if got[0].ID != vs[0] || !got[0].Available || !got[0].Sellable || got[0].Status != "active" || got[0].WeightGrams != nil {
 		t.Errorf("biến thể còn hàng: %+v", got[0])
@@ -361,7 +375,7 @@ func TestProducts_VariantFields(t *testing.T) {
 	if got[2].WeightGrams == nil || *got[2].WeightGrams != 450 || got[2].Available {
 		t.Errorf("biến thể có cân nặng, chưa nhập kho: %+v", got[2])
 	}
-	if ps[1].Status != "draft" || slices.ContainsFunc(ps[1].Variants, func(v webcatalog.WebVariant) bool { return v.Sellable }) {
+	if ps[0].Preview || !ps[1].Preview || ps[1].Status != "draft" || slices.ContainsFunc(ps[1].Variants, func(v webcatalog.WebVariant) bool { return v.Sellable }) {
 		t.Errorf("mẫu nháp: %s, %+v", ps[1].Status, ps[1].Variants)
 	}
 }
@@ -513,7 +527,7 @@ func TestProducts_Images(t *testing.T) {
 	}
 	var p webcatalog.WebProduct
 	e.read(func(tx pgx.Tx) error {
-		ps, err := webcatalog.ProductsByID(t.Context(), tx, all[:1], view())
+		ps, err := webcatalog.ProductsByID(t.Context(), tx, all[:1], view(), false)
 		p = ps[0]
 		return err //nolint:wrapcheck // test
 	})
@@ -540,7 +554,7 @@ func (e *env) publicVariantCalls() int {
 	e.t.Helper()
 	var sqls []string
 	e.read(func(tx pgx.Tx) error {
-		_, _, err := webcatalog.Products(e.t.Context(), recordingTx{Tx: tx, sqls: &sqls}, uuid.Nil, 200, view())
+		_, _, err := webcatalog.Products(e.t.Context(), recordingTx{Tx: tx, sqls: &sqls}, uuid.Nil, 200, view(), false)
 		return err //nolint:wrapcheck // test
 	})
 	n := 0
@@ -620,7 +634,7 @@ func TestTaxonomyAndClassification(t *testing.T) {
 		if tx0, err = webcatalog.Taxonomy(t.Context(), tx); err != nil {
 			return err //nolint:wrapcheck // test
 		}
-		ps, err := webcatalog.ProductsByID(t.Context(), tx, all[:1], view())
+		ps, err := webcatalog.ProductsByID(t.Context(), tx, all[:1], view(), false)
 		p = ps[0]
 		return err //nolint:wrapcheck // test
 	})

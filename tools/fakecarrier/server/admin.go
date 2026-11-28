@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"slices"
 	"time"
 
 	"elimaz.com.vn/crm/internal/adapters/carrier/fake"
@@ -21,12 +22,20 @@ type advanceReq struct {
 	To string `json:"to"`
 }
 
-// advance (POST /admin/parcels/{tracking}/advance {to: picked_up|delivered|created}): đổi trạng thái kiện rồi gửi
-// webhook có chữ ký. Chế độ forge: không đổi trạng thái, webhook nói "delivered" (API vẫn trả trạng thái thật).
+// advanceTargets trả trạng thái thô trang quản trị đổi được (mọi trạng thái của hãng giả, fake.Raw*).
+func advanceTargets() []string {
+	return []string{
+		rawCreated, rawPickedUp, rawInTransit, rawOutForDelivery, rawDeliveryFailed, rawDelivered, fake.RawReturning,
+		fake.RawReturned, rawCancelled, fake.RawLost,
+	}
+}
+
+// advance (POST /admin/parcels/{tracking}/advance {to: một trạng thái của advanceTargets()}): đổi trạng thái kiện rồi
+// gửi webhook có chữ ký. Chế độ forge: không đổi trạng thái, webhook nói "delivered" (API vẫn trả trạng thái thật).
 // Trả {parcel, webhookStatus} (0: không gửi được hoặc không cấu hình URL).
 func (s *Server) advance(w http.ResponseWriter, r *http.Request) {
 	var in advanceReq
-	if err := decode(r, &in); err != nil || (in.To != rawCreated && in.To != rawPickedUp && in.To != rawDelivered) {
+	if err := decode(r, &in); err != nil || !slices.Contains(advanceTargets(), in.To) {
 		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "invalid_status"})
 		return
 	}

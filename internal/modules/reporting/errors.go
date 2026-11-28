@@ -43,4 +43,8 @@ var (
 	// ErrRunNotFound: không có lần chạy, thuộc họ khác, tenant khác, hay không phải người tạo và không có
 	// report.exports.manage (404 run_not_found, không lộ sự tồn tại).
 	ErrRunNotFound = errors.New("reporting: không có lần chạy")
+	// ErrRunNotReady: tải tệp của lần chạy chưa xong (queued, running) hay hỏng (failed) (409 run_not_ready).
+	ErrRunNotReady = errors.New("reporting: lần chạy chưa có tệp")
+	// ErrRunExpired: tải tệp của lần chạy đã hết hạn (expired, quá expires_at, tệp đã xóa) (410 run_expired).
+	ErrRunExpired = errors.New("reporting: tệp của lần chạy đã hết hạn")
 )

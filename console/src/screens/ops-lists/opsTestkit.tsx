@@ -134,6 +134,16 @@ const ROUTES: [RegExp, Handler][] = [
     },
   ],
   [/^\/api\/v1\/orders\/([^/]+)$/, (_m, _q, f) => (f.orderReads.push(_m[1] ?? ""), reply(order(f)))],
+  [
+    /^\/api\/v1\/admin-units$/,
+    (_m, q) =>
+      reply({
+        items:
+          (q.get("parent") ?? "") === ""
+            ? [{ code: "01", name: "Hà Nội", level: "province" }]
+            : [{ code: "00163", name: "Phường Láng Hạ", level: "ward", parentCode: "01" }],
+      }),
+  ],
   [/^\/api\/v1\/shipments\/stuck$/, (_m, q, f) => reply(page(f.stuck, q))],
   [/^\/api\/v1\/shipments\/review$/, (_m, q, f) => reply({ ...page(f.review, q), counts: f.counts })],
   [

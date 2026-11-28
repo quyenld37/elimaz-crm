@@ -1,6 +1,6 @@
 // Kiểm và xếp các màn tự đăng ký (Task 393, M1-x2). Quy ước: mỗi màn là thư mục src/screens/<tên>/ có route.tsx xuất
 //   export const screens: readonly ScreenRoute[] = [{ path, label, group, permission, order, element, also?, hidden?,
-//   alsoRequires?, badge? }];
+//   alsoRequires?, orPermissions?, badge? }];
 // src/app/screens.ts nạp mọi route.tsx bằng import.meta.glob; không có danh sách màn viết tay nào khác. Tệp sai quy
 // ước (thiếu hay sai trường, trùng path giữa hai tệp) làm hỏng lần nạp với lỗi nêu tên tệp: khung không chạy với một
 // màn thiếu quyền hay hai màn giành một path.
@@ -20,7 +20,7 @@ function parseScreen(file: string, i: number, v: unknown): { screen: Screen; ord
   const fail = (field: string, rule: string) =>
     new Error(`${file}: screens[${String(i)}].${field} ${rule} (quy ước màn: src/app/loadScreens.ts)`);
   if (!isRecord(v)) throw fail("", "phải là đối tượng ScreenRoute");
-  const { path, label, group, permission, order, element, also, hidden, alsoRequires, badge } = v;
+  const { path, label, group, permission, order, element, also, hidden, alsoRequires, orPermissions, badge } = v;
   if (!isText(path) || !path.startsWith("/")) throw fail("path", "phải là chuỗi bắt đầu bằng /");
   if (!isText(label)) throw fail("label", "phải là chuỗi không rỗng");
   if (!isGroup(group)) throw fail("group", `phải là một trong ${NAV_GROUPS.join(", ")}`);
@@ -32,6 +32,9 @@ function parseScreen(file: string, i: number, v: unknown): { screen: Screen; ord
   if (alsoRequires !== undefined && !(Array.isArray(alsoRequires) && alsoRequires.every(isText))) {
     throw fail("alsoRequires", "phải là mảng khóa quyền không rỗng (docs/quyen.md)");
   }
+  if (orPermissions !== undefined && !(Array.isArray(orPermissions) && orPermissions.every(isText))) {
+    throw fail("orPermissions", "phải là mảng khóa quyền không rỗng (docs/quyen.md)");
+  }
   if (badge !== undefined && !isValidElement(badge)) throw fail("badge", "phải là phần tử React (số đếm trên menu)");
   const screen: Screen = {
     path,
@@ -42,6 +45,7 @@ function parseScreen(file: string, i: number, v: unknown): { screen: Screen; ord
     ...(also === undefined ? {} : { also: also.filter(isText) }),
     ...(hidden === undefined ? {} : { hidden }),
     ...(alsoRequires === undefined ? {} : { alsoRequires: alsoRequires.filter(isText) }),
+    ...(orPermissions === undefined ? {} : { orPermissions: orPermissions.filter(isText) }),
     ...(badge === undefined ? {} : { badge }),
   };
   return { screen, order };

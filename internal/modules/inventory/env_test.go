@@ -125,6 +125,17 @@ func (e *invEnv) variants(n int) []uuid.UUID {
 	return ids
 }
 
+// secondWarehouse tạo kho W2 của người bán mặc định (chủ bảng).
+func (e *invEnv) secondWarehouse() uuid.UUID {
+	e.t.Helper()
+	var w2 uuid.UUID
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		return tx.QueryRow(e.t.Context(), `INSERT INTO inventory.warehouses (tenant_id, operated_by_seller_id, code, name)
+			VALUES ($1, $2, 'W2', 'Kho phụ') RETURNING id`, e.tenant, e.seller).Scan(&w2)
+	})
+	return w2
+}
+
 // stock tạo một biến thể có on_hand = n ở kho MAIN.
 func (e *invEnv) stock(n int32) uuid.UUID {
 	e.t.Helper()

@@ -154,11 +154,7 @@ func TestAgedReservations_Warehouses(t *testing.T) {
 	t.Parallel()
 	e := newInvEnv(t)
 	main := e.agedSeed(inventory.StateHeld, agedNow().Add(-30*24*time.Hour))
-	var w2 uuid.UUID
-	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
-		return tx.QueryRow(t.Context(), `INSERT INTO inventory.warehouses (tenant_id, operated_by_seller_id, code, name)
-			VALUES ($1, $2, 'W2', 'Kho phụ') RETURNING id`, e.tenant, e.seller).Scan(&w2)
-	})
+	w2 := e.secondWarehouse()
 	if rows, _ := e.aged(20, 180, []uuid.UUID{w2}, inventory.AgedPage{}); len(rows) != 0 {
 		t.Errorf("chỉ kho W2: thấy %+v", rows)
 	}

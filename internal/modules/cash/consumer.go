@@ -28,8 +28,23 @@ const (
 	FindingUnexpectedCancelAfterPickup = postings.FindingUnexpectedCancelAfterPickup
 )
 
-// reasonCarrierCorrected là lý do của bút toán đảo collected khi hãng sửa "đã giao" thành "hoàn".
-const reasonCarrierCorrected = "Hãng sửa trạng thái từ Thành công sang Đang chuyển hoàn"
+// Lý do của bút toán đảo collected khi "đã giao" thành "hoàn": hãng sửa lại, hay nhân viên đảo vì bấm nhầm (nguồn staff
+// trong payload, Task 138).
+const (
+	reasonCarrierCorrected = "Hãng sửa trạng thái từ Thành công sang Đang chuyển hoàn"
+	reasonStaffCorrected   = "Nhân viên sửa trạng thái từ Thành công sang Đang chuyển hoàn"
+)
+
+// sourceStaff là nguồn "nhân viên" của bước vận đơn (fulfillment.SrcStaff).
+const sourceStaff = string(fulfillment.SrcStaff)
+
+// reversalReason là lý do bút toán đảo theo nguồn source của bước.
+func reversalReason(source string) string {
+	if source == sourceStaff {
+		return reasonStaffCorrected
+	}
+	return reasonCarrierCorrected
+}
 
 // Consumer ghi sổ COD theo shipment.status_changed (events.Consumer; cmd/crm đăng ký qua Module.Consumers). Mỗi sự
 // kiện: khóa tư vấn sổ COD của vận đơn (LockShipmentCOD), đọc COD X qua fulfillment.shipments_v, số dư và bút toán của
@@ -80,15 +95,18 @@ func (Consumer) Handle(ctx context.Context, e events.StoredEvent, tx pgx.Tx) err
 		return fmt.Errorf("sự kiện %s: %w: %w", e.ID, err, queue.ErrPermanent)
 	}
 	for _, a := range acts {
-		if err := apply(ctx, tx, e, p.ShipmentID, sh.Code, a); err != nil {
+		if err := apply(ctx, tx, e, p, sh.Code, a); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// apply làm một việc của luật trong tx.
-func apply(ctx context.Context, tx pgx.Tx, e events.StoredEvent, shipmentID uuid.UUID, code string, a postings.Action) error {
+// apply làm một việc của luật trong tx cho sự kiện p của vận đơn.
+func apply(ctx context.Context, tx pgx.Tx, e events.StoredEvent, p fulfillment.StatusChanged, code string,
+	a postings.Action,
+) error {
+	shipmentID := p.ShipmentID
 	carrier := Actor{Type: ActorCarrier}
 	switch {
 	case a.Post != nil:
@@ -103,7 +121,7 @@ func apply(ctx context.Context, tx pgx.Tx, e events.StoredEvent, shipmentID uuid
 			return fmt.Errorf("ghi bút toán %s: %w", a.Post.Kind, err)
 		}
 	case a.Reverse != uuid.Nil:
-		if _, err := Reverse(ctx, tx, a.Reverse, reasonCarrierCorrected, carrier); err != nil {
+		if _, err := Reverse(ctx, tx, a.Reverse, reversalReason(p.Source), carrier); err != nil {
 			return fmt.Errorf("đảo bút toán collected: %w", err)
 		}
 	case a.Finding != "":

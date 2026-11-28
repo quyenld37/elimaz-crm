@@ -115,3 +115,18 @@ func TestM3Contract_PendingList(t *testing.T) {
 		seen[op] = true
 	}
 }
+
+// Đóng mốc M3 (Task M3-48): testdata/m3_pending.txt không còn operation nào chờ (chỉ còn chú thích, dòng trống); mọi
+// operation của bảng M3 đã hiện thực. TestM3Routes_PendingList (internal/httpapi) đòi khi đó không operation M3 nào
+// trả 501.
+func TestM3Contract_PendingEmptyAtClose(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("testdata", "m3_pending.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for line := range strings.SplitSeq(string(b), "\n") {
+		if op := strings.TrimSpace(line); op != "" && !strings.HasPrefix(op, "#") {
+			t.Errorf("m3_pending.txt còn %q: M3 đã đóng mốc, operation phải hiện thực và xóa dòng", op)
+		}
+	}
+}

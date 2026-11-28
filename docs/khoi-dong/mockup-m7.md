@@ -18,10 +18,10 @@ Theo kế hoạch M7 Task 247 (M7-02) Step 4: danh sách 15 màn của M7, trạ
 | 7 | Sẵn sàng dữ liệu | Chưa vẽ (để sau) | — | — | Task 272 (M7-27), để sau |
 | 8 | Đêm mở | Chưa vẽ (để sau) | — | — | Task 272, để sau |
 | 9 | Theo dõi 14 ngày | Chưa vẽ (để sau) | — | — | Task 272, để sau |
-| 10 | Kiểm kho mở sổ | **Đã chốt** 28/11/2026 (Claude thay chủ shop, điều phối M7 giao; HV01, HV03–HV09) | `docs/mockups/m7/kiem-kho-mo-so.html` | `docs/mockups/m7/shots/kiem-kho-mo-so-{1512,390,360}.png` | Task 273 (M7-28) |
+| 10 | Kiểm kho mở sổ | **Đã chốt** 28/11/2026 (Claude thay chủ shop, điều phối M7 giao; HV01, HV03–HV09) | `docs/mockups/m7/kiem-kho-mo-so.html` | `docs/mockups/m7/shots/kiem-kho-mo-so-{1512,390,360}.png` | Task 273 (M7-28), đã code `console/src/screens/inventory/{opening,legacy}` (chỗ khác mockup: ghi ở `docs/tasks/task-273.md`) |
 | 11 | Hiện sản phẩm hàng loạt | Chưa vẽ (để sau) | — | — | Task 274 (M7-29), để sau |
 | 12 | Mở gửi một Page | Chưa vẽ (để sau) | — | — | Task 274, để sau |
-| 13 | Hàng hoàn của đơn cũ | **Đã chốt** 28/11/2026 (Claude thay chủ shop, điều phối M7 giao; HV02, HV10, HV11) | `docs/mockups/m7/hang-hoan-don-cu.html` | `docs/mockups/m7/shots/hang-hoan-don-cu-{1512,390,360}.png` | Task 273 (M7-28) |
+| 13 | Hàng hoàn của đơn cũ | **Đã chốt** 28/11/2026 (Claude thay chủ shop, điều phối M7 giao; HV02, HV10, HV11) | `docs/mockups/m7/hang-hoan-don-cu.html` | `docs/mockups/m7/shots/hang-hoan-don-cu-{1512,390,360}.png` | Task 273 (M7-28), đã code `console/src/screens/inventory/{opening,legacy}` (chỗ khác mockup: ghi ở `docs/tasks/task-273.md`) |
 | 14 | Bảng tính dự phòng | Chưa vẽ (để sau) | — | — | Task 274, để sau |
 | 15 | Báo cáo T2 | Chưa vẽ (để sau) | — | — | Task 274, để sau |
 

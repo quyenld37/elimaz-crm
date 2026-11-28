@@ -33,7 +33,9 @@ func (m *Module) inboundInbound() []webhooks.InboundHandler {
 		if !a.Capabilities().Webhook {
 			continue
 		}
-		out = append(out, inbound.New(inbound.Options{Source: k, Enqueue: m.enqueueSignalRefresh, Metrics: m.d.Metrics}))
+		out = append(out, inbound.New(inbound.Options{
+			Source: k, Enqueue: m.enqueueSignalRefresh, Record: RecordUnmatched, Metrics: m.d.Metrics,
+		}))
 	}
 	return out
 }

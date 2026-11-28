@@ -197,6 +197,13 @@ const webordersPkg = "weborders"
 // webordersSchemas: schema mà queries/weborders được nhắc view _v.
 func webordersSchemas() []string { return []string{"ord", "fulfillment"} }
 
+// flashverifyPkg: tên "module" của queries/flashverify (lệnh crm verify-flash, kế hoạch M5 Task 219): không có schema
+// riêng, chỉ được nhắc view _v đã công bố của flashverifySchemas (đợt, đơn vị suất, dòng đơn, số dư của món).
+const flashverifyPkg = "flashverify"
+
+// flashverifySchemas: schema mà queries/flashverify được nhắc view _v.
+func flashverifySchemas() []string { return []string{"promotion", "inventory", "ord"} }
+
 // viewReadExceptions: ngoại lệ "chỉ đọc view, không nhập Go" (kế hoạch M2, Q19, Task M2-02): module ở khóa được nhắc
 // đúng các view trong danh sách dù không được gọi module chủ. Lý do ghi ở cột "Mốc đọc" của dòng docs/views.md.
 func viewReadExceptions() map[string][]string {
@@ -236,6 +243,8 @@ func checkRef(module, ident string, views map[string][]string) string {
 		return checkViewOnlyRef("queries/webcatalog", webcatalogSchemas(), ident, schema, name, views)
 	case webordersPkg:
 		return checkViewOnlyRef("queries/weborders", webordersSchemas(), ident, schema, name, views)
+	case flashverifyPkg:
+		return checkViewOnlyRef("queries/flashverify", flashverifySchemas(), ident, schema, name, views)
 	}
 	if schema == "pg_catalog" || schema == "information_schema" || (module != queriesPkg && schema == schemaOfModule(module)) {
 		return ""

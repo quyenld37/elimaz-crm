@@ -3,6 +3,7 @@ package conversation_test
 import (
 	"errors"
 	"io/fs"
+	"slices"
 	"strings"
 	"testing"
 
@@ -15,6 +16,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/conversation"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
+	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/modules/reporting"
 	"elimaz.com.vn/crm/internal/platform/files"
@@ -24,10 +26,10 @@ import (
 
 // tablePurposes là mọi mục đích có dòng trong platform.file_purposes sau migration của nhánh này.
 func tablePurposes() []files.Purpose {
-	ps := append(files.M1Purposes(), customer.ImportPurpose(), fulfillment.LabelPurpose(), cash.StatementPurpose(),
-		order.RequestPhotoPurpose(), content.BannerPurpose(), conversation.OutgoingImageFilePurpose())
-	ps = append(ps, conversation.InboundFilePurposes()...)
-	return append(ps, reporting.FilePurposes()...)
+	return slices.Concat(files.M1Purposes(), []files.Purpose{
+		customer.ImportPurpose(), fulfillment.LabelPurpose(), cash.StatementPurpose(), order.RequestPhotoPurpose(),
+		content.BannerPurpose(), conversation.OutgoingImageFilePurpose(), inventory.CountImportPurpose(),
+	}, conversation.InboundFilePurposes(), reporting.FilePurposes())
 }
 
 // migrationUp là phần Up của migration name.

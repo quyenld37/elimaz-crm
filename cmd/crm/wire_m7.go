@@ -22,7 +22,7 @@ type m7Parts struct {
 // fs nil (vai trò không có kho tệp): việc cần tệp chờ trong hàng đợi như lệnh của M3.
 func wireM7(d *db.DB, fs files.FileStore) m7Parts {
 	return m7Parts{Jobs: background.Collect(
-		inventory.CountImportJobs(inventory.CountImportDeps{DB: d, Files: fs, Queue: queue.NewQueue(), Now: time.Now}),
+		inventory.CountImportJobs(inventory.CountImportDeps{Now: time.Now}),
 		order.FallbackImportJobs(order.FallbackImportDeps{DB: d, Files: fs, Queue: queue.NewQueue(), Now: time.Now}),
 	)}
 }

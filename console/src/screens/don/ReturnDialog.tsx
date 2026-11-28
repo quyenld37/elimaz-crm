@@ -3,6 +3,9 @@
 // trả là số cuối. Quá số ngày đổi trả của shop chỉ cảnh báo (Q26). Tạo phiếu không đổi tồn; đổi hàng tạo đơn thay thế
 // cùng khách, giao tới địa chỉ của đơn gốc, nên cần thêm quyền lên đơn ở kho của đơn gốc (Task 436, docs/quyen.md):
 // không có order.create ở gán nào thì khóa "Đổi hàng"; có nhưng theo kho khác thì máy chủ trả 403, hộp thoại hiện lỗi.
+// M3 Task 138 (mockup docs/mockups/m3/tra-doi.html trạng thái A, B; HV27, HV28): cột "Còn được trả" (tính cả phiếu đang
+// mở, ghi mã phiếu đang mở), hộp "Tạo phiếu là đã duyệt"; đổi hàng hiện Món mới / Cấn trừ món trả / Phí ship đơn đổi /
+// COD đơn mới (ước tính như cash refunds.creditAmount; số cuối do CRM ghi khi tạo đơn và khi kho nhận).
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import {
@@ -16,6 +19,7 @@ import {
 import { unwrap } from "../../app/errors";
 import { useWriteAction } from "../../app/idempotency";
 import { VariantPicker, optionText } from "../len-don/VariantPicker";
+import { exchangeMoney } from "../payments/paymentRules";
 import { formatMoney } from "../products/productRules";
 import { Dialog } from "../staff/staffData";
 import { orderKey, timelineKey, useOrderSettings } from "./orderData";
@@ -32,6 +36,7 @@ interface Swap {
   variantId: string;
   sku: string;
   name: string;
+  price: number;
   qty: number;
 }
 
@@ -84,6 +89,7 @@ export function ReturnDialog({
     (s, c) => s + (c.n !== null && c.n >= 1 && c.n <= c.l.remaining ? c.l.refund(c.n) : 0),
     0,
   );
+  const newTotal = swaps.reduce((n, sw) => n + sw.price * sw.qty, 0);
   const block =
     bad !== undefined
       ? `Dòng ${bad.l.item.sku} chỉ còn trả được ${String(bad.l.remaining)}`
@@ -108,7 +114,16 @@ export function ReturnDialog({
     setSwaps((ss) =>
       ss.some((s) => s.variantId === h.variantId)
         ? ss.map((s) => (s.variantId === h.variantId ? { ...s, qty: Math.min(MAX_QTY, s.qty + 1) } : s))
-        : [...ss, { variantId: h.variantId, sku: h.sku, name: `${h.productName} ${optionText(h)}`.trim(), qty: 1 }],
+        : [
+            ...ss,
+            {
+              variantId: h.variantId,
+              sku: h.sku,
+              name: `${h.productName} ${optionText(h)}`.trim(),
+              price: h.price,
+              qty: 1,
+            },
+          ],
     );
   };
 
@@ -184,7 +199,8 @@ export function ReturnDialog({
             <tr>
               <th>Dòng</th>
               <th className="r">Đã mua</th>
-              <th className="r">Đã trả</th>
+              <th className="r">Đã/đang trả</th>
+              <th className="r">Còn được trả</th>
               <th>Trả lần này</th>
               <th className="r">Hoàn dự kiến</th>
             </tr>
@@ -213,8 +229,14 @@ export function ReturnDialog({
                   <td data-label="Đã mua" className="r num">
                     {l.item.qty}
                   </td>
-                  <td data-label="Đã trả" className="r num">
+                  <td data-label="Đã/đang trả" className="r num">
                     {l.returned}
+                  </td>
+                  <td data-label="Còn được trả" className="r">
+                    <span className="num">{l.remaining}</span>
+                    {none && l.openCodes.length > 0 && (
+                      <span className="xs muted wrap-any">{` Đang có phiếu ${l.openCodes.join(", ")}`}</span>
+                    )}
                   </td>
                   <td data-label="Trả lần này" className={none ? "muted" : undefined}>
                     {none ? (
@@ -269,9 +291,16 @@ export function ReturnDialog({
       </div>
       {bad !== undefined && <p className="field-err">{block}</p>}
       <p className="small">
-        Hoàn dự kiến chia theo giá sau giảm của từng món; món cuối của dòng nhận phần lẻ (&quot;Đã trả&quot; tính cả
-        phiếu đang mở). Tổng: <span className="money">{formatMoney(total)}</span>. Tiền hoàn ghi ở M3.
+        Hoàn dự kiến chia theo giá sau giảm của từng món; món cuối của dòng nhận phần lẻ (&quot;Đã/đang trả&quot; tính
+        cả phiếu đang mở). Tổng: <span className="money">{formatMoney(total)}</span>.
       </p>
+      {chosen.length > 0 && bad === undefined && (
+        <div className="box box-soft small">
+          {kind === "exchange"
+            ? "Tạo phiếu là đã duyệt. Tồn chưa tăng: kho bấm nhận món trả thì tồn mới tăng; tiền món trả cấn trừ vào đơn mới."
+            : `Tạo phiếu là đã duyệt. Tồn chưa tăng, chưa hoàn tiền: kho bấm nhận hàng thì tồn mới tăng và mở nghĩa vụ hoàn ${formatMoney(total)} cho kế toán chi.`}
+        </div>
+      )}
       {kind === "exchange" && (
         <div className="stack-sm">
           <p className="label">Hàng đổi cho khách</p>
@@ -296,6 +325,7 @@ export function ReturnDialog({
               ))}
             </ul>
           )}
+          {swaps.length > 0 && <ExchangeSum refund={total} total={newTotal} />}
           <p className="hint">Đơn đổi cùng khách, giao tới địa chỉ của đơn này, không dùng mã giảm giá.</p>
         </div>
       )}
@@ -312,5 +342,41 @@ export function ReturnDialog({
       </label>
       {write.message !== null && <div className="box box-err">{write.message}</div>}
     </Dialog>
+  );
+}
+
+/** Tiền của đơn đổi: món mới, cấn trừ món trả, phí ship 0, COD đơn mới; câu cấn trừ hoặc phần dư thành nghĩa vụ hoàn. */
+function ExchangeSum({ refund, total }: { refund: number; total: number }) {
+  const m = exchangeMoney(refund, total);
+  return (
+    <section className="stack-sm" aria-label="Tiền đơn đổi">
+      <div className="sum">
+        <div className="sum-r" aria-label="Món mới">
+          <span>Món mới</span>
+          <span className="money">{formatMoney(total)}</span>
+        </div>
+        <div className="sum-r" aria-label="Cấn trừ món trả">
+          <span>Cấn trừ món trả</span>
+          <span className="money">{m.credit === 0 ? formatMoney(0) : `−${formatMoney(m.credit)}`}</span>
+        </div>
+        <div className="sum-r" aria-label="Phí ship đơn đổi">
+          <span>Phí ship đơn đổi</span>
+          <span className="money">{formatMoney(0)}</span>
+        </div>
+        <div className="sum-r is-total" aria-label="COD đơn mới">
+          <span>COD đơn mới</span>
+          <span className="money">{formatMoney(m.cod)}</span>
+        </div>
+      </div>
+      <div className="box box-soft small">
+        {m.surplus > 0
+          ? `Dư ${formatMoney(m.surplus)} cho khách. Thành nghĩa vụ hoàn khi kho đã nhận món trả; kế toán chi hoặc Chủ miễn kèm lý do.`
+          : `Cấn trừ ${formatMoney(m.credit)} — khách trả thêm ${formatMoney(m.cod)}. Tạo phiếu đổi và đơn mới; đơn gốc giữ nguyên.`}
+      </div>
+      <p className="hint">
+        COD đơn mới không bao giờ âm. Số cuối do CRM ghi khi tạo đơn mới và tính lại khi kho nhận món trả; đơn mới chỉ
+        gửi hãng sau khi có phiếu cấn trừ.
+      </p>
+    </section>
   );
 }
