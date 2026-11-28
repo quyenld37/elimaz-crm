@@ -12,7 +12,7 @@ Tệp này viết tay, giữ dưới 200 dòng. Chỉ ghi điều không đọc 
 - Claude viết code; chủ shop duyệt. Chủ shop không đọc code: mọi báo cáo viết tiếng Việt, giữ thuật ngữ tiếng Anh và giải thích một lần.
 - Chỉ làm đúng task đang được giao. Việc ngoài phạm vi ghi vào "Việc phát hiện thêm" của tệp task, không tự làm.
 - Commit cục bộ sau mỗi task là được phép. **Không push, không deploy, không vào máy chủ, không tạo tài khoản** khi chưa có OK riêng của chủ shop trong chat.
-- CRM không bao giờ gọi Nhanh, không đọc dữ liệu Nhanh.
+- CRM không gọi Nhanh, không đọc dữ liệu Nhanh, trừ MỘT ngoại lệ (ADR-48, 28/11): lệnh `crm nhanh-snapshot` và gói `internal/adapters/nhanh`, chỉ đọc, chỉ trước và trong đêm mở; `tests/arch/no_nhanh_test.go` cấm mọi nơi khác. Dữ liệu khách thật chỉ ở server, không vào testdata hay nhánh `ci/*`.
 - Không chọn công nghệ vì "quen", "có sẵn", "tải nhỏ nên đủ". Thêm thư viện ngoài ADR-44 thì ghi một dòng vào `docs/phu-thuoc.md` (tên, phiên bản, giấy phép, việc nó làm, vì sao thư viện chuẩn không đủ).
 
 ## Cách làm mỗi task
