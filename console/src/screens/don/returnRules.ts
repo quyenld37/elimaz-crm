@@ -1,5 +1,6 @@
 // Luật của hộp thoại Trả/đổi (kế hoạch M2 Task M2-28; máy chủ: pricing.RefundFor và order.priceReturnLines của Task
-// M2-22). Tiền hoàn ở đây chỉ để hiện trước; máy chủ tính lại và số của máy chủ là số cuối.
+// M2-22; dòng thiếu một phần và phiếu giao một phần theo M3 Task 138). Tiền hoàn ở đây chỉ để hiện trước; máy chủ tính
+// lại và số của máy chủ là số cuối.
 import type { OrderItem, Return, TimelineItem } from "../../api";
 
 // floor(a × b / c) không tràn: nhân bằng BigInt như mulDiv (128 bit) của Go.
@@ -37,26 +38,35 @@ export interface ReturnableLine {
   /** Đã trả (mọi phiếu chưa hủy, kể cả phiếu đang mở). */
   returned: number;
   remaining: number;
+  /** Mã các phiếu đang mở (chờ nhận hàng hoặc kho đang nhận) có dòng này. */
+  openCodes: string[];
   /** Tiền hoàn dự kiến khi trả thêm n đơn vị. */
   refund(n: number): number;
 }
 
-/** Số đã trả, còn trả được và tiền hoàn của từng dòng đơn, tính như priceReturnLines của máy chủ. */
+/**
+ * Số đã trả, còn trả được và tiền hoàn của từng dòng đơn, tính như priceReturnLines của máy chủ: dòng phiếu có món
+ * thiếu (missing > 0, kể cả dòng trộn Tốt/Hỏng/Thiếu của Task 136) và phiếu giao một phần (tiền hoàn 0) tính "đã hoàn"
+ * là phần lẽ ra của cả dòng phiếu, để đơn vị cuối không nhận tiền của các đơn vị đó.
+ */
 export function returnableLines(items: readonly OrderItem[], returns: readonly Return[]): ReturnableLine[] {
-  const prior = returns.filter((r) => r.status !== "cancelled").flatMap((r) => r.items);
+  const prior = returns.filter((r) => r.status !== "cancelled").flatMap((r) => r.items.map((it) => ({ it, r })));
   return items.map((item) => {
     let returned = 0;
     let refunded = 0;
-    for (const p of prior) {
+    const openCodes: string[] = [];
+    for (const { it: p, r } of prior) {
       if (p.orderItemId !== item.id) continue;
       returned += p.qty;
-      // Dòng "thiếu": tiền hoàn đã về 0 khi kho nhận; tính phần lẽ ra của nó để món cuối không nhận tiền món thiếu.
-      refunded += p.condition === "missing" ? refundFor(item.netAmount, item.qty, 0, p.qty, 0) : p.refundAmount;
+      if ((r.status === "requested" || r.status === "received") && !openCodes.includes(r.code)) openCodes.push(r.code);
+      const shortfall = (p.missing ?? 0) > 0 || p.condition === "missing" || r.kind === "partial_delivery";
+      refunded += shortfall ? refundFor(item.netAmount, item.qty, 0, p.qty, 0) : p.refundAmount;
     }
     return {
       item,
       returned,
       remaining: Math.max(0, item.qty - returned),
+      openCodes,
       refund: (n: number) => refundFor(item.netAmount, item.qty, returned, n, refunded),
     };
   });

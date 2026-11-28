@@ -5,7 +5,8 @@
 // giữ tài khoản đã chọn. Tài khoản nhập mã tay dán mã khi gửi; tự giao chỉ một nút. Có vận đơn: đang tạo → kết quả
 // lệnh tạo (CreateStateBanner, kèm "Hủy để đổi hãng" khi lệnh tạo đã kết thúc); đã gửi → ShipmentCard (Task 134). Nút
 // theo quyền ở kho của đơn; máy chủ vẫn kiểm. Đơn web có hãng khách chọn (Task 490): dòng "Khách chọn: …" và chọn sẵn
-// tài khoản đó trong bảng so phí (không có trong bảng thì rẻ nhất như cũ); không tự gửi hãng.
+// tài khoản đó trong bảng so phí (không có trong bảng thì rẻ nhất như cũ); không tự gửi hãng. Đơn đổi (Task 116, 138):
+// chỉ gửi hãng sau khi CRM đã ghi phiếu cấn trừ tiền món trả (đã thu > 0), vì COD khóa khi đơn đã gửi hãng.
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
@@ -20,6 +21,7 @@ import { ApiError, unwrap } from "../../app/errors";
 import { useWriteAction } from "../../app/idempotency";
 import { shortTime } from "../../app/time";
 import { reloadOrder } from "../don/orderData";
+import { useReplacedReturn } from "../payments/exchangeData";
 import { canAt } from "../inventory/stocktakeRules";
 import { parseMoney } from "../products/editRules";
 import { formatMoney } from "../products/productRules";
@@ -57,6 +59,21 @@ const TEXT_PARAMS_CHANGED =
 const TEXT_EXPIRED = "Giá đã cũ. Báo phí lại trước khi gửi; tài khoản đang chọn được giữ.";
 
 const percent = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 });
+
+export const TEXT_WAIT_CREDIT =
+  "Đang chờ CRM cấn trừ tiền món trả vào đơn đổi này; gửi hãng sau khi có phiếu cấn trừ (COD khóa khi đã gửi hãng)";
+
+/**
+ * Lý do chưa gửi hãng được của đơn đổi o (null: gửi được): phiếu đổi có tiền hoàn mà đơn chưa có phiếu cấn trừ (đã thu
+ * 0). Consumer cash ghi phiếu cấn trừ ngay sau khi tạo đơn; đơn đã gửi hãng trước đó thì khách phải trả đủ COD.
+ */
+function useExchangeWait(o: Order): string | null {
+  const { rid, ret } = useReplacedReturn(o);
+  if (rid === undefined || (o.prepaidTotal ?? 0) > 0 || o.grandTotal === 0) return null;
+  if (ret.data === undefined)
+    return ret.isError ? "Chưa đọc được phiếu đổi của đơn này. Tải lại trang" : "Đang đọc phiếu đổi";
+  return ret.data.refundAmount > 0 ? TEXT_WAIT_CREDIT : null;
+}
 
 /** Khóa dòng bảng so phí của hãng khách chọn (QuoteTable: "tài khoản|dịch vụ"); phí dự phòng, không có → null. */
 const customerPick = (c: OrderWebShipping | undefined) =>
@@ -109,6 +126,7 @@ function Compose({
 }) {
   const qc = useQueryClient();
   const { loaded, grants } = useGrants();
+  const exchangeWait = useExchangeWait(o);
   const wh = o.warehouseId ?? "";
   const canQuote = canAt(grants, "fulfillment.quote", wh);
   const canShip = canAt(grants, "fulfillment.ship", wh);
@@ -251,6 +269,8 @@ function Compose({
           : null;
     onClick = () => void send(pick);
   }
+
+  if (exchangeWait !== null && onClick !== null && label !== "Báo phí lại") why = exchangeWait;
 
   const st = stats.data;
   const priced = rows.find(isPriced);

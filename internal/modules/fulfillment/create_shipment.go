@@ -68,6 +68,9 @@ type StatusChanged struct {
 	CODCollected *int64     `json:"codCollected,omitempty"`
 	Partial      bool       `json:"partial,omitempty"`
 	OccurredAt   *time.Time `json:"occurredAt,omitempty"`
+	// Source là nguồn của bước khi bước đi qua luồng áp tin (carrier_api, staff, system; rỗng ở sự kiện cũ và luồng
+	// khác): sổ COD ghi lý do bút toán đảo theo nguồn (Task 138).
+	Source string `json:"source,omitempty"`
 }
 
 // CreateCommandKind là loại lệnh fulfillment.create_shipment của M1 (giữ tên): không hết hạn khi chờ, mỗi lần gửi tối

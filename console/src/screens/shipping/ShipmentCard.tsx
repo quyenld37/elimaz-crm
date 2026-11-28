@@ -2,7 +2,9 @@
 // HV12–HV16 chủ shop OK 21/11). Mã hãng, nhãn trạng thái, "Cập nhật lần cuối" (lastCarrierEventAt, kèm lần CRM hỏi
 // lastSyncedAt và lỗi đồng bộ), băng kẹt "Hãng chưa cập nhật N giờ", băng đang yêu cầu hủy; nút Đồng bộ lại, In nhãn,
 // Đổi địa chỉ, Hủy / đổi hãng; vận đơn nhập mã tay, tự giao: "Cập nhật trạng thái". Dưới thẻ: yêu cầu đổi địa chỉ đang
-// mở, khung COD bốn ngăn. Nút theo quyền ở kho của đơn; máy chủ vẫn kiểm.
+// mở, khung COD bốn ngăn. Nút theo quyền ở kho của đơn; máy chủ vẫn kiểm. Task 138 (HV29, HV35): "Ghi giao một phần"
+// khi đang chuyển hay giao thất bại, "Đảo "Thành công"" khi đã giao — cần fulfillment.correct ở kho của đơn (người khác
+// thấy nút mờ kèm lý do).
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -18,6 +20,9 @@ import { CancelDialog } from "./CancelDialog";
 import { CodBox } from "./CodBox";
 import { Act, TEXT_NO_SHIP_PERM } from "./CreateStateBanner";
 import { ManualStatusDialog } from "./ManualStatusDialog";
+import { CodAdjustmentDialog } from "../payments/CodAdjustmentDialog";
+import { CorrectionDialog } from "../returns/CorrectionDialog";
+import { PartialDeliveryDialog } from "../returns/PartialDeliveryDialog";
 import { ADDRESS_CHANGE_STATUSES, hoursSilent, isClosed, statusChip, statusText, syncErrorText } from "./shipmentRules";
 import { shipmentKey, useFulfillmentSettings, useGrants, useOpenAddressChange } from "./useShipment";
 
@@ -26,7 +31,15 @@ export const TEXT_CANCEL_WAIT = "Đang chờ hãng xác nhận hủy — hàng c
 const TEXT_PICKED_UP =
   "Hãng đã lấy hàng: không hủy được. Muốn dừng giao thì gọi hãng; khi hãng chuyển hoàn, đơn đi luồng hàng hoàn";
 
-type Open = "cancel" | "address" | "manual" | null;
+type Open = "cancel" | "address" | "manual" | "correct" | "partial" | "cod" | null;
+
+export const TEXT_NO_CORRECT = 'Cần quyền "Sửa vận đơn" (Chủ, Quản lý)';
+const PARTIAL_STATUSES: readonly Shipment["status"][] = ["shipping", "delivery_failed"];
+
+/** Ghi giao một phần được không (fulfillment partial.Decide): đang chuyển, giao thất bại; chờ thu gom khi hãng đã báo
+ * giao một phần (vận đơn ở "Cần xem"; máy chủ kiểm việc partial_reported còn mở). */
+const partialAllowed = (s: Shipment) =>
+  PARTIAL_STATUSES.includes(s.status) || (s.status === "awaiting_pickup" && s.needsReview === true);
 
 /** Dòng "Cập nhật lần cuối lúc … (hãng) · CRM hỏi lúc …" của vận đơn nối API. */
 function LastUpdate({ s }: { s: Shipment }) {
@@ -95,7 +108,12 @@ export function ShipmentExtras({ s, order: o }: { s: Shipment; order: Order }) {
           canShip={canAt(grants, "fulfillment.ship", o.warehouseId ?? "")}
         />
       )}
-      <CodBox id={s.id} canRead={loaded ? hasPermission(grants, "cash.cod.read") : null} />
+      <CodBox
+        s={s}
+        orderCode={o.code}
+        canRead={loaded ? hasPermission(grants, "cash.cod.read") : null}
+        canAdjust={hasPermission(grants, "cash.adjust")}
+      />
     </>
   );
 }
@@ -109,6 +127,8 @@ export function ShipmentCard({ s, order: o }: { s: Shipment; order: Order }) {
   const canReplace = canAt(grants, "fulfillment.cancel", wh);
   const canManual = canAt(grants, "fulfillment.manual_status", wh);
   const canPrint = canAt(grants, "fulfillment.print", wh);
+  const canCorrect = canAt(grants, "fulfillment.correct", wh);
+  const correctWhy = !loaded ? "Đang tải quyền" : canCorrect ? null : TEXT_NO_CORRECT;
   const canCancelOrder = hasPermission(grants, "order.cancel");
   const change = useOpenAddressChange(s.id);
   const [open, setOpen] = useState<Open>(null);
@@ -214,6 +234,20 @@ export function ShipmentCard({ s, order: o }: { s: Shipment; order: Order }) {
               </button>
             </Act>
           )}
+          {partialAllowed(s) && (
+            <Act reason={correctWhy}>
+              <button
+                type="button"
+                className="btn btn-line"
+                disabled={correctWhy !== null}
+                onClick={() => {
+                  setOpen("partial");
+                }}
+              >
+                Ghi giao một phần
+              </button>
+            </Act>
+          )}
           <Act reason={cancelWhy}>
             <button
               type="button"
@@ -224,6 +258,22 @@ export function ShipmentCard({ s, order: o }: { s: Shipment; order: Order }) {
               }}
             >
               Hủy / đổi hãng
+            </button>
+          </Act>
+        </div>
+      )}
+      {s.status === "delivered" && (
+        <div className="row">
+          <Act reason={correctWhy}>
+            <button
+              type="button"
+              className="btn btn-line"
+              disabled={correctWhy !== null}
+              onClick={() => {
+                setOpen("correct");
+              }}
+            >
+              Đảo &quot;Thành công&quot;
             </button>
           </Act>
         </div>
@@ -263,6 +313,37 @@ export function ShipmentCard({ s, order: o }: { s: Shipment; order: Order }) {
       )}
       {open === "address" && (
         <AddressChangeDialog
+          s={s}
+          order={o}
+          onClose={() => {
+            setOpen(null);
+          }}
+        />
+      )}
+      {open === "correct" && (
+        <CorrectionDialog
+          s={s}
+          order={o}
+          canAdjust={hasPermission(grants, "cash.adjust")}
+          onClose={() => {
+            setOpen(null);
+          }}
+          onAdjust={() => {
+            setOpen("cod");
+          }}
+        />
+      )}
+      {open === "cod" && (
+        <CodAdjustmentDialog
+          s={s}
+          orderCode={o.code}
+          onClose={() => {
+            setOpen(null);
+          }}
+        />
+      )}
+      {open === "partial" && (
+        <PartialDeliveryDialog
           s={s}
           order={o}
           onClose={() => {

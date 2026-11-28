@@ -201,6 +201,12 @@ func TestCorrection_TI08(t *testing.T) {
 	if a := e.correctedAlerts(); len(a) != 0 {
 		t.Fatalf("cảnh báo carrier-corrected khi nhân viên sửa = %v, muốn không", a)
 	}
+	// shipment.status_changed của bước đảo mang nguồn staff (sổ COD ghi lý do "Nhân viên sửa…", Task 138).
+	if n := e.count(`SELECT count(*) FROM platform.domain_events WHERE topic = 'shipment.status_changed'
+		AND aggregate_id = $1 AND payload->>'status' = 'returning' AND payload->>'source' = 'staff'`,
+		s.ID.String()); n != 1 {
+		t.Fatalf("sự kiện đảo có source staff = %d, muốn 1", n)
+	}
 	if _, err := e.correct(s.ID, p.Token); !errors.Is(err, fulfillment.ErrCorrectionNotAllowed) {
 		t.Fatalf("áp lần hai (đã returning) = %v, muốn ErrCorrectionNotAllowed", err)
 	}

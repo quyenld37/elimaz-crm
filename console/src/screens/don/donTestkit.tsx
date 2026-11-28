@@ -11,6 +11,7 @@ import type {
   OrderDuplicate,
   OrderItem,
   OrderListItem,
+  Payment,
   Return,
   StaffMember,
   TimelineItem,
@@ -192,6 +193,8 @@ export interface Fake {
   couponChecks: number;
   /** Mức nhận/hoàn của khách (getCustomerDeliveryStats); null → 404 (huy hiệu không hiện). */
   deliveryStats: DeliveryStats | null;
+  /** Phiếu thu, cọc, hoàn của đơn (listOrderPayments, Task 138); null → 403 như người thiếu cash.payments.record. */
+  payments: Payment[] | null;
 }
 
 const json = (b: unknown, status = 200) =>
@@ -219,6 +222,7 @@ export function installFake(): Fake {
     variantHits: [],
     couponChecks: 0,
     deliveryStats: null,
+    payments: [],
   };
   // Yêu cầu ghi: ghi lại khóa, thân; trả câu trả lời xếp sẵn hoặc đối tượng hiện tại.
   const onWrite = async (req: Request, p: string): Promise<Response> => {
@@ -232,6 +236,17 @@ export function installFake(): Fake {
     });
     const r = fake.replies.shift();
     if (r !== undefined) return json(r.body, r.status);
+    if (p.endsWith("/payments")) {
+      const pay: Payment = {
+        id: "0195f3b2-0000-7000-8000-0000000pa999",
+        orderId: O1,
+        method: "deposit",
+        amount: 1,
+        receivedAt: "2026-11-19T01:00:00Z",
+        createdAt: "2026-11-19T01:00:00Z",
+      };
+      return json(pay, 201);
+    }
     if (p.endsWith("/notes")) {
       return json({ id: "n1", body: "x", author: { id: ME, name: "Tôi" }, createdAt: "2026-11-19T01:00:00Z" }, 201);
     }
@@ -262,6 +277,11 @@ export function installFake(): Fake {
       }
       if (/^\/api\/v1\/customers\/[^/]+\/delivery-stats$/.test(p)) {
         return fake.deliveryStats === null ? json(NOT_FOUND, 404) : json(fake.deliveryStats);
+      }
+      if (/^\/api\/v1\/orders\/[^/]+\/payments$/.test(p)) {
+        return fake.payments === null
+          ? json({ error: "forbidden", request_id: "t" }, 403)
+          : json({ items: fake.payments });
       }
       const tm = /^\/api\/v1\/orders\/([^/]+)\/timeline$/.exec(p);
       if (tm !== null) {
