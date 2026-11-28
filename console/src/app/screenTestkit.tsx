@@ -56,6 +56,10 @@ export interface WriteQueue {
   replies: { status: number; body: unknown }[];
   /** Có thì yêu cầu ghi chờ lời hứa này rồi mới trả (xem trạng thái "đang gửi"). */
   hold: Promise<void> | null;
+  /** Có thì mọi lần thử ghi (kể cả lần rớt mạng chưa tới máy chủ) được ghi lại: đường và khóa chống trùng. */
+  attempts?: { path: string; key: string | null }[];
+  /** Có thì bấy nhiêu lần thử ghi tới sẽ rớt mạng (fetch từ chối, chưa tới máy chủ, không vào writes). */
+  dropNext?: number;
 }
 
 /** Hàng đợi ghi rỗng, để trải vào API giả của một màn. */
@@ -83,6 +87,11 @@ export function stubApi<F extends WriteQueue>(
     vi.fn(async (req: Request) => {
       const url = new URL(req.url);
       if (req.method === "GET") return read(fake, url.pathname, url.searchParams);
+      fake.attempts?.push({ path: url.pathname, key: req.headers.get("Idempotency-Key") });
+      if (fake.dropNext !== undefined && fake.dropNext > 0) {
+        fake.dropNext--;
+        throw new TypeError("Failed to fetch");
+      }
       const body = await bodyOf(req);
       fake.writes.push({ method: req.method, path: url.pathname, key: req.headers.get("Idempotency-Key"), body });
       if (fake.hold !== null) await fake.hold;

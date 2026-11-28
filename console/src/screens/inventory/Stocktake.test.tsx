@@ -2,7 +2,7 @@
 // Màn Kiểm kho (kế hoạch M1 Task 329): phần không có trong e2e (e2e/stocktake.phone.spec.ts): ô chọn kho chỉ có kho
 // đang hoạt động mà người dùng được đếm (theo phạm vi quyền), không kho nào → câu báo; phiên không có → câu lỗi.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Grant, Me, Warehouse } from "../../api";
@@ -81,6 +81,17 @@ describe("StocktakeStart", () => {
   it("toàn shop → mọi kho đang hoạt động, kho đã đóng không có", async () => {
     grants = [{ permission: "inventory.stocktake", scope: { type: "all", id: "" } }];
     expect(await warehouseOptions()).toEqual(["Kho chính", "Kho phụ"]);
+  });
+
+  it("có quyền mở sổ kho đang chọn → nút Mở sổ kho này dẫn tới /kho/mo-so của kho đó; không có quyền thì không có nút (HV01)", async () => {
+    grants = [
+      { permission: "inventory.stocktake", scope: { type: "all", id: "" } },
+      { permission: "inventory.stocktake.opening", scope: { type: "warehouse", id: B } },
+    ];
+    expect(await warehouseOptions()).toEqual(["Kho chính", "Kho phụ"]);
+    expect(screen.queryByRole("link", { name: "Mở sổ kho này" })).toBeNull();
+    fireEvent.change(screen.getByRole("combobox", { name: "Kho" }), { target: { value: B } });
+    expect(screen.getByRole("link", { name: "Mở sổ kho này" }).getAttribute("href")).toBe(`/kho/mo-so?kho=${B}`);
   });
 
   it("không được đếm kho nào → câu báo, không có nút bắt đầu", async () => {

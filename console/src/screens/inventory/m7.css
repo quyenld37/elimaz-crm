@@ -1,0 +1,268 @@
+/* Lớp riêng của hai màn M7 (Kiểm kho mở sổ, Hàng hoàn đơn cũ; Task 273), chép từ mockup đã duyệt: docs/mockups/m7/m7.css
+   (thành phần mới của M7) và vài lớp của docs/mockups/m1/m1.css (kpi, toast, thanh tiến độ, ô thả tệp, tab) đặt dưới
+   .m7 để không đụng màn khác. Chỉ biến token có sẵn. Không có gì chỉ hiện khi rê chuột. */
+.m7 {
+  max-width: 760px;
+}
+.m7 .kpis {
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.m7 .kpi {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  padding: var(--space-md);
+  min-width: 0;
+}
+.m7 .kpi .v {
+  font-size: 26px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--title);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.m7 .kpi.is-bad {
+  border-color: var(--buy);
+  background: var(--soft-sale);
+}
+.m7 .kpi.is-bad .v {
+  color: var(--buy);
+}
+.m7 .toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: var(--r-box);
+  padding: 8px 8px 8px var(--space-md);
+  max-width: 520px;
+  box-shadow: var(--shadow);
+  flex-wrap: wrap;
+}
+.m7 .toast .grow {
+  min-width: 160px;
+}
+.m7 .toast .btn {
+  border-color: var(--paper);
+  background: var(--ink);
+  color: var(--paper);
+}
+.m7 .bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.m7 .bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ink);
+}
+.m7 .drop {
+  border: 1px dashed var(--edge);
+  border-radius: var(--r-box);
+  padding: var(--space-lg);
+  text-align: center;
+  display: grid;
+  gap: var(--space-sm);
+  justify-items: center;
+  background: var(--paper);
+}
+
+/* Tiến độ đếm mở sổ: số đã đếm / phải đếm và thanh (.bar của M1) */
+.prog {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+.prog .v {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--title);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Nút cộng/bớt lớn của lần quét vừa rồi (đếm bằng điện thoại: ngón cái bấm được) */
+.big-acts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--space-sm);
+}
+.big-acts .btn {
+  min-height: 52px;
+  font-size: 16px;
+}
+
+/* Dòng của lần quét gần đây: trạng thái gửi ở cột phải */
+.qrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--space-md);
+  align-items: center;
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--rule);
+  min-width: 0;
+}
+.qrow .sku {
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.qrow .nm {
+  color: var(--name);
+  font-weight: 600;
+}
+.qrow.is-wait {
+  background: var(--surface);
+}
+
+/* Ứng viên khi mã trùng giữa hai người bán */
+.cands {
+  display: grid;
+  gap: var(--space-sm);
+}
+.cand {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  align-items: center;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--paper);
+  min-width: 0;
+}
+
+/* Chọn chế độ nhập tệp và tình trạng hàng hoàn: hai lựa chọn có chữ, mỗi lựa chọn một nhãn bọc ô radio */
+.opts {
+  display: grid;
+  gap: var(--space-sm);
+}
+.opt {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px var(--space-sm);
+  align-items: start;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  padding: 10px var(--space-md);
+  cursor: pointer;
+  min-height: var(--tap);
+}
+.opt input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--ink);
+}
+.opt .hint {
+  grid-column: 2;
+}
+.opt.is-on {
+  border-color: var(--ink);
+}
+.cond {
+  display: inline-flex;
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  overflow: hidden;
+  flex: none;
+}
+.cond label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  padding: 0 12px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--label);
+}
+.cond label + label {
+  border-left: 1px solid var(--rule);
+}
+.cond input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--ink);
+}
+.cond label.is-on {
+  background: var(--surface);
+  color: var(--ink);
+}
+.cond label.is-bad.is-on {
+  background: var(--soft-sale);
+  color: var(--buy);
+}
+
+/* Dòng hàng hoàn: sản phẩm | số lượng | tình trạng | bỏ */
+.lrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: var(--space-sm) var(--space-md);
+  align-items: center;
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--rule);
+  min-width: 0;
+}
+.lrow.is-err {
+  background: var(--soft-sale);
+}
+.lrow .sku {
+  font-size: 13px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.lrow .nm {
+  color: var(--name);
+  font-weight: 600;
+}
+.lrow .qty {
+  width: 72px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  padding: 8px 4px;
+}
+.lrow .full {
+  grid-column: 1 / -1;
+}
+@media (max-width: 759px) {
+  /* Điện thoại: tên món một dòng; số lượng và nút bỏ một dòng; tình trạng chiếm cả dòng (hai nút đủ to cho ngón tay). */
+  .lrow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .lrow > :first-child,
+  .lrow .cond {
+    grid-column: 1 / -1;
+  }
+  .lrow .cond {
+    display: flex;
+    order: 1;
+  }
+  .lrow .full {
+    order: 2;
+  }
+  .lrow .cond label {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+}
+
+/* Nhóm theo ngày của danh sách hàng hoàn cũ */
+.day {
+  display: grid;
+  gap: 0;
+}
+.day > h3 {
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 14px;
+}
