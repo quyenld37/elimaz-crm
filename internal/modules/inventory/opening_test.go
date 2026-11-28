@@ -65,17 +65,6 @@ func (e *invEnv) fixtureVariant(tx pgx.Tx, seller, p uuid.UUID, sku, status stri
 	return id, err //nolint:wrapcheck // test
 }
 
-// secondWarehouse tạo kho W2 (chủ bảng) và trả mã.
-func (e *invEnv) secondWarehouse() uuid.UUID {
-	e.t.Helper()
-	var w uuid.UUID
-	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
-		return tx.QueryRow(e.t.Context(), `INSERT INTO inventory.warehouses (tenant_id, operated_by_seller_id, code, name)
-			VALUES ($1, $2, 'W2', 'Kho phụ') RETURNING id`, e.tenant, e.seller).Scan(&w)
-	})
-	return w
-}
-
 func (e *invEnv) createOpening(wh uuid.UUID) (inventory.Stocktake, int, error) {
 	var s inventory.Stocktake
 	var n int

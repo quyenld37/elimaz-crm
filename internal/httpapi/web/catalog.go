@@ -77,10 +77,12 @@ func (c *Catalog) clock() time.Time {
 
 // Products trả trang mẫu (cursor, limit) hoặc các mẫu theo ids, có ETag (sha256 của thân); If-None-Match khớp → 304.
 // Theo ids: mỗi mẫu một khóa SpaceProduct (các mẫu thiếu trong bộ đệm tải chung một transaction); theo trang: một khóa
-// SpaceProductsPage.
+// SpaceProductsPage. preview (khóa có web.catalog.preview, kế hoạch M7 Task 261): có cả mẫu nháp kèm preview: true,
+// đọc qua khóa đệm riêng (trang: hậu tố _p1; theo mã: một khóa ids_p1_<băm> của SpaceProductsPage, làm mới ở mọi sự kiện
+// mẫu), để khóa thường không bao giờ nhận bản đệm có mẫu nháp.
 //
 //nolint:ireturn // kiểu trả của operation do ogen sinh (gen.Handler)
-func (c *Catalog) Products(ctx context.Context, tenant uuid.UUID, p gen.WebCatalogProductsParams) (gen.WebCatalogProductsRes, error) {
+func (c *Catalog) Products(ctx context.Context, tenant uuid.UUID, preview bool, p gen.WebCatalogProductsParams) (gen.WebCatalogProductsRes, error) {
 	var (
 		page gen.WebProductPage
 		err  error
@@ -89,9 +91,13 @@ func (c *Catalog) Products(ctx context.Context, tenant uuid.UUID, p gen.WebCatal
 		if p.Cursor.Set {
 			return nil, ErrBadQuery
 		}
-		page, err = c.byIDs(ctx, tenant, p.Ids)
+		if preview {
+			page, err = c.byIDsPreview(ctx, tenant, dedupe(p.Ids))
+		} else {
+			page, err = c.byIDs(ctx, tenant, p.Ids)
+		}
 	} else {
-		page, err = c.page(ctx, tenant, p)
+		page, err = c.page(ctx, tenant, preview, p)
 	}
 	if err != nil {
 		return nil, err
@@ -107,8 +113,8 @@ func (c *Catalog) Products(ctx context.Context, tenant uuid.UUID, p gen.WebCatal
 	return &gen.WebProductPageHeaders{ETag: gen.NewOptString(tag), Response: page}, nil
 }
 
-// page đọc một trang qua khóa p_<after>_<limit> của SpaceProductsPage.
-func (c *Catalog) page(ctx context.Context, tenant uuid.UUID, p gen.WebCatalogProductsParams) (gen.WebProductPage, error) {
+// page đọc một trang qua khóa p_<after>_<limit> (xem trước: p_<after>_<limit>_p1) của SpaceProductsPage.
+func (c *Catalog) page(ctx context.Context, tenant uuid.UUID, preview bool, p gen.WebCatalogProductsParams) (gen.WebProductPage, error) {
 	after := uuid.Nil
 	if s, ok := p.Cursor.Get(); ok {
 		id, err := uuid.Parse(s)
@@ -119,12 +125,25 @@ func (c *Catalog) page(ctx context.Context, tenant uuid.UUID, p gen.WebCatalogPr
 	}
 	limit := int(p.Limit.Or(webcatalog.MaxPage))
 	key := "p_" + strings.ReplaceAll(after.String(), "-", "") + "_" + strconv.Itoa(limit)
+	if preview {
+		key += "_p1"
+	}
+	return c.cachedPage(ctx, tenant, key, func(tx pgx.Tx) ([]webcatalog.WebProduct, uuid.UUID, error) {
+		return webcatalog.Products(ctx, tx, after, limit, c.imageView(), preview)
+	})
+}
+
+// cachedPage đọc một trang qua khóa key của SpaceProductsPage (hạn pageTTL); thiếu thì read đọc các mẫu trong một
+// transaction tenancy.WithTenant và trang được dựng theo thứ tự read trả (next khác uuid.Nil → nextCursor).
+func (c *Catalog) cachedPage(ctx context.Context, tenant uuid.UUID, key string,
+	read func(tx pgx.Tx) ([]webcatalog.WebProduct, uuid.UUID, error),
+) (gen.WebProductPage, error) {
 	raw, _, err := c.rc.GetOrLoad(ctx, tenant, cache.SpaceProductsPage, key, pageTTL, func(ctx context.Context) ([]byte, error) {
 		var out gen.WebProductPage
 		err := tenancy.WithTenant(ctx, c.db, tenant, func(tx pgx.Tx) error {
-			ps, next, err := webcatalog.Products(ctx, tx, after, limit, c.imageView())
+			ps, next, err := read(tx)
 			if err != nil {
-				return err //nolint:wrapcheck // webcatalog đã bọc
+				return err
 			}
 			out = gen.WebProductPage{Items: make([]gen.WebProduct, 0, len(ps))}
 			for _, wp := range ps {
@@ -167,6 +186,28 @@ func (c *Catalog) byIDs(ctx context.Context, tenant uuid.UUID, ids []uuid.UUID) 
 	return out, nil
 }
 
+// byIDsPreview đọc các mã ids (đã bỏ trùng) cho khóa xem trước qua một khóa ids_p1_<sha256 của ids theo thứ tự gửi> của
+// SpaceProductsPage (cả vùng làm mới ở mọi sự kiện mẫu, nên hiện/ẩn thấy ngay); giữ thứ tự gửi như byIDs.
+func (c *Catalog) byIDsPreview(ctx context.Context, tenant uuid.UUID, ids []uuid.UUID) (gen.WebProductPage, error) {
+	h := sha256.New()
+	for _, id := range ids {
+		h.Write(id[:])
+	}
+	key := "ids_p1_" + hex.EncodeToString(h.Sum(nil))
+	return c.cachedPage(ctx, tenant, key, func(tx pgx.Tx) ([]webcatalog.WebProduct, uuid.UUID, error) {
+		ps, err := webcatalog.ProductsByID(ctx, tx, ids, c.imageView(), true)
+		if err != nil {
+			return nil, uuid.Nil, err //nolint:wrapcheck // webcatalog đã bọc
+		}
+		at := make(map[uuid.UUID]int, len(ids))
+		for i, id := range ids {
+			at[id] = i
+		}
+		slices.SortFunc(ps, func(x, y webcatalog.WebProduct) int { return at[x.ID] - at[y.ID] })
+		return ps, uuid.Nil, nil
+	})
+}
+
 // eachCached đọc từng mã của ids qua khóa <mã> của space (hạn ttl) và trả giá trị của các mã có, theo thứ tự ids. Lần
 // thiếu đầu tiên gọi loadAll một lần cho mọi mã còn lại (một transaction), các lần thiếu sau lấy từ bản vừa tải; mã
 // loadAll không trả được đệm là absent và không có trong kết quả.
@@ -204,7 +245,7 @@ func (c *Catalog) loadProducts(ctx context.Context, tenant uuid.UUID, ids []uuid
 	m := make(map[uuid.UUID][]byte, len(ids))
 	err := tenancy.WithTenant(ctx, c.db, tenant, func(tx pgx.Tx) error {
 		clear(m) // RetryTx có thể chạy lại thân hàm
-		ps, err := webcatalog.ProductsByID(ctx, tx, ids, c.imageView())
+		ps, err := webcatalog.ProductsByID(ctx, tx, ids, c.imageView(), false)
 		if err != nil {
 			return err //nolint:wrapcheck // webcatalog đã bọc
 		}
@@ -239,6 +280,9 @@ func (c *Catalog) product(ctx context.Context, tx pgx.Tx, wp webcatalog.WebProdu
 		Attributes: make([]gen.WebAttr, 0, len(wp.Attributes)), Images: make([]gen.WebImage, 0, len(wp.Images)),
 		Variants: make([]gen.WebVariant, 0, len(wp.Variants)), UpdatedAt: wp.UpdatedAt,
 		CreatedAt: gen.NewOptDateTime(wp.CreatedAt), Version: wp.Version, MeasureCm: MeasureOut(wp.MeasureMm.Length, wp.MeasureMm.Width, wp.MeasureMm.Height),
+	}
+	if wp.Preview {
+		g.Preview = gen.NewOptBool(true)
 	}
 	for _, a := range wp.Attributes {
 		g.Attributes = append(g.Attributes, gen.WebAttr{Name: a.Name, Value: a.Value, Position: int32(a.Position)}) //nolint:gosec // G115: vị trí nhỏ

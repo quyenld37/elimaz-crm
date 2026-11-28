@@ -23,6 +23,7 @@ const (
 	codeOpeningExists      = "opening_exists"
 	codeWarehouseNotEmpty  = "warehouse_not_empty"
 	codeUncountedLines     = "uncounted_lines"
+	codeLegacyReturnExists = "legacy_return_exists"
 )
 
 // inventoryError đổi lỗi nghiệp vụ của kho (và thiếu quyền ở kho của yêu cầu) sang mã HTTP. ErrNotFound: phiếu, nhà
@@ -45,15 +46,21 @@ func inventoryError(err error) (status int, code string, ok bool) {
 		{inventory.ErrSupplierNameTaken, http.StatusConflict, codeSupplierNameTaken},
 		{inventory.ErrSupplierArchived, http.StatusUnprocessableEntity, codeSupplierArchived},
 		{inventory.ErrSupplierNotForKind, http.StatusUnprocessableEntity, codeSupplierNotForKind},
+		{inventory.ErrDuplicateReference, http.StatusConflict, codeLegacyReturnExists},
 		{inventory.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
 	})
 }
 
-// inventoryDetail: lỗi kho có trường chi tiết trong thân — uncounted_lines kèm count (Task 262).
+// inventoryDetail: lỗi kho có trường chi tiết trong thân — uncounted_lines kèm count (Task 262); kiện hàng hoàn đã nhập
+// (409 legacy_return_exists, Task 264) kèm existingId để màn hình liên kết tới phiếu đã có.
 func inventoryDetail(err error) (errorBody, int, bool) {
 	if e, ok := errors.AsType[*inventory.UncountedLinesError](err); ok {
 		n := int32(min(e.N, math.MaxInt32)) //nolint:gosec // đã chặn trên
 		return errorBody{Error: codeUncountedLines, Count: &n}, http.StatusUnprocessableEntity, true
+	}
+	if e, ok := errors.AsType[*inventory.DuplicateReferenceError](err); ok {
+		id := e.ExistingID.String()
+		return errorBody{Error: codeLegacyReturnExists, ExistingID: &id}, http.StatusConflict, true
 	}
 	return errorBody{}, 0, false
 }

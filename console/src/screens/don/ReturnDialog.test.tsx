@@ -3,6 +3,10 @@
 // tiền hoàn dự kiến khớp máy chủ (pricing.RefundFor), quá số ngày đổi trả chỉ cảnh báo (kế hoạch M2 Task M2-28).
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const fail = (): never => {
+  throw new Error("thiếu phiếu");
+};
 import {
   CARE_ONLY,
   I1,
@@ -83,6 +87,15 @@ async function openDialog() {
   await screen.findByRole("row", { name: /TH0000009/ });
   fireEvent.click(screen.getByRole("button", { name: "Tạo phiếu trả/đổi" }));
   return screen.findByRole("dialog", { name: "Trả/đổi hàng · DH0001235" });
+}
+
+/** Hộp thoại ở chế độ Đổi hàng (có order.create), đã chọn 1 món DAM0123-BE-M để trả. */
+async function openExchange() {
+  fake.grants = grantsOf("order.return", "order.create");
+  const dlg = await openDialog();
+  fireEvent.click(within(dlg).getByRole("radio", { name: "Đổi hàng" }));
+  fireEvent.click(within(within(dlg).getByRole("row", { name: /DAM0123-BE-M/ })).getByRole("checkbox"));
+  return dlg;
 }
 
 describe("Hộp thoại Trả/đổi", () => {
@@ -167,10 +180,7 @@ describe("Hộp thoại Trả/đổi", () => {
   });
 
   it("order.create theo kho khác: máy chủ trả 403, hộp thoại hiện lỗi, không đóng", async () => {
-    fake.grants = grantsOf("order.return", "order.create");
-    const dlg = await openDialog();
-    fireEvent.click(within(dlg).getByRole("radio", { name: "Đổi hàng" }));
-    fireEvent.click(within(within(dlg).getByRole("row", { name: /DAM0123-BE-M/ })).getByRole("checkbox"));
+    const dlg = await openExchange();
     fake.replies.push({ status: 403, body: { error: "forbidden", request_id: "t" } });
     fake.variantHits = [
       {
@@ -196,5 +206,93 @@ describe("Hộp thoại Trả/đổi", () => {
       body: { kind: "exchange", replacement: { items: [{ variantId: V3, qty: 1 }] } },
     });
     expect(screen.getByRole("dialog", { name: "Trả/đổi hàng · DH0001235" })).toBeTruthy();
+  });
+
+  it("HV27: cột Còn được trả, hộp 'tạo phiếu là đã duyệt' kèm tiền nghĩa vụ hoàn dự kiến", async () => {
+    const dlg = await openDialog();
+    expect(within(dlg).getByRole("columnheader", { name: "Đã/đang trả" })).toBeTruthy();
+    expect(within(dlg).getByRole("columnheader", { name: "Còn được trả" })).toBeTruthy();
+    const rowA = within(dlg).getByRole("row", { name: /DAM0123-BE-M/ });
+    fireEvent.click(within(rowA).getByRole("checkbox"));
+    expect(dlg.textContent).toContain(
+      "Tạo phiếu là đã duyệt. Tồn chưa tăng, chưa hoàn tiền: kho bấm nhận hàng thì tồn mới tăng và mở nghĩa vụ hoàn 620.000 ₫ cho kế toán chi.",
+    );
+  });
+
+  it("dòng hết số trả vì phiếu đang mở: ghi mã phiếu đang mở", async () => {
+    fake.returns.set(R1, {
+      ...(fake.returns.get(R1) ?? fail()),
+      items: [{ id: "ri1", orderItemId: I1, qty: 3, refundAmount: 1_860_000 }],
+    });
+    const dlg = await openDialog();
+    const rowA = within(dlg).getByRole("row", { name: /DAM0123-BE-M/ });
+    expect(rowA.textContent).toContain("Đang có phiếu TH0000012");
+  });
+});
+
+/** Món mới tìm được trong hộp đổi hàng: giá price. */
+function hit(price: number) {
+  return {
+    variantId: V3,
+    productId: "p9",
+    sku: "AO0105-TRANG-M",
+    barcode: "",
+    productCode: "AO0105",
+    productName: "Áo sơ mi lụa",
+    color: "Trắng",
+    size: "M",
+    price,
+    sellable: true,
+  };
+}
+
+async function pickSwap(dlg: HTMLElement) {
+  const box = within(dlg).getByRole("combobox", { name: "Thêm sản phẩm theo mã, tên hoặc barcode" });
+  fireEvent.focus(box);
+  fireEvent.change(box, { target: { value: "AO0105" } });
+  fireEvent.click(await within(dlg).findByRole("option", { name: /AO0105-TRANG-M/ }));
+}
+
+describe("Đổi hàng: tiền cấn trừ của đơn thay thế (TD06, HV28)", () => {
+  it("món mới 180.000, món trả 177.049 → 'Cấn trừ 177.049 ₫ — khách trả thêm 2.951 ₫'", async () => {
+    fake.grants = grantsOf("order.return", "order.create");
+    fake.orders.set(
+      O1,
+      order({
+        status: "delivered",
+        label: "delivered",
+        editScope: CARE_ONLY,
+        items: [
+          orderItem({ sku: "AO0105-TRANG-S", qty: 1, unitPrice: 190_000, netAmount: 177_049, lineDiscount: 12_951 }),
+        ],
+        returns: [],
+      }),
+    );
+    renderAt(`/don/${O1}`);
+    fireEvent.click(await screen.findByRole("button", { name: "Tạo phiếu trả/đổi" }));
+    const dlg = await screen.findByRole("dialog", { name: "Trả/đổi hàng · DH0001235" });
+    fireEvent.click(within(dlg).getByRole("radio", { name: "Đổi hàng" }));
+    fireEvent.click(within(within(dlg).getByRole("row", { name: /AO0105-TRANG-S/ })).getByRole("checkbox"));
+    fake.variantHits = [hit(180_000)];
+    await pickSwap(dlg);
+    const sum = within(dlg).getByRole("region", { name: "Tiền đơn đổi" });
+    expect(within(sum).getByLabelText("Món mới").textContent).toContain("180.000 ₫");
+    expect(within(sum).getByLabelText("Cấn trừ món trả").textContent).toContain("−177.049 ₫");
+    expect(within(sum).getByLabelText("Phí ship đơn đổi").textContent).toContain("0 ₫");
+    expect(within(sum).getByLabelText("COD đơn mới").textContent).toContain("2.951 ₫");
+    expect(dlg.textContent).toContain("Cấn trừ 177.049 ₫ — khách trả thêm 2.951 ₫.");
+  });
+
+  it("món trả đắt hơn: COD 0, phần dư thành nghĩa vụ hoàn khi kho nhận", async () => {
+    const dlg = await openExchange();
+    fake.variantHits = [hit(450_000)];
+    await pickSwap(dlg);
+    const sum = within(dlg).getByRole("region", { name: "Tiền đơn đổi" });
+    expect(within(sum).getByLabelText("COD đơn mới").textContent).toContain("0 ₫");
+    expect(within(sum).getByLabelText("Cấn trừ món trả").textContent).toContain("−450.000 ₫");
+    expect(dlg.textContent).toContain(
+      "Dư 170.000 ₫ cho khách. Thành nghĩa vụ hoàn khi kho đã nhận món trả; kế toán chi hoặc Chủ miễn kèm lý do.",
+    );
+    expect(dlg.textContent).toContain("COD đơn mới không bao giờ âm.");
   });
 });

@@ -4,11 +4,16 @@ import (
 	"context"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
+	"elimaz.com.vn/crm/internal/modules/identity"
 )
+
+// permWebCatalogPreview là quyền khóa dịch vụ của website thử: đọc thêm mẫu nháp (Task 260, 261).
+const permWebCatalogPreview = identity.Permission("web.catalog.preview")
 
 // Danh mục cho website (Task 190, M5-07; x-auth: service_key, web.catalog.read): handler mỏng, mọi việc ở web.Catalog.
 
-// WebCatalogProducts (GET /api/v1/web/catalog/products) → 200 có ETag hoặc 304.
+// WebCatalogProducts (GET /api/v1/web/catalog/products) → 200 có ETag hoặc 304; khóa có web.catalog.preview (website
+// thử, Task 261) nhận thêm mẫu nháp kèm preview: true.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) WebCatalogProducts(ctx context.Context, params gen.WebCatalogProductsParams) (gen.WebCatalogProductsRes, error) {
@@ -16,7 +21,8 @@ func (h *handler) WebCatalogProducts(ctx context.Context, params gen.WebCatalogP
 	if !ok {
 		return nil, errNoAuthUser
 	}
-	return h.d.webCatalog.Products(ctx, u.TenantID, params) //nolint:wrapcheck // lỗi của web, đổi mã ở errors*.go
+	preview := identity.Can(u, permWebCatalogPreview, nil)
+	return h.d.webCatalog.Products(ctx, u.TenantID, preview, params) //nolint:wrapcheck // lỗi của web, đổi mã ở errors*.go
 }
 
 // WebCatalogChanges (GET /api/v1/web/catalog/changes) → 200.

@@ -64,7 +64,12 @@ const LIST = "/khuyen-mai/chien-dich";
 const isCode = (e: unknown, code: string) => e instanceof ApiError && e.code === code;
 const asScope = (v: string): WebCampaignScope => SCOPES.find((s) => s === v) ?? "categories";
 
-function Field(o: { label: string; error?: string; hint?: ReactNode; children: (id: string) => ReactNode }) {
+export function Field(o: {
+  label: string;
+  error?: string | undefined;
+  hint?: ReactNode;
+  children: (id: string) => ReactNode;
+}) {
   const id = useId();
   return (
     <div className="field">

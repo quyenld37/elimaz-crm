@@ -23,6 +23,8 @@ const (
 	codeExportForbid  = "export_forbidden"
 	codeRunNotFound   = "run_not_found"
 	codeTooManyRuns   = "too_many_runs"
+	codeRunNotReady   = "run_not_ready"
+	codeRunExpired    = "run_expired"
 )
 
 // reportsError đổi lỗi nghiệp vụ của báo cáo sang mã HTTP. ErrNotImplemented: phần của báo cáo mà task của nó chưa
@@ -41,6 +43,8 @@ func reportsError(err error) (status int, code string, ok bool) {
 		{reporting.ErrForbidden, http.StatusForbidden, codeForbidden},
 		{reporting.ErrTooManyRuns, http.StatusTooManyRequests, codeTooManyRuns},
 		{reporting.ErrRunNotFound, http.StatusNotFound, codeRunNotFound},
+		{reporting.ErrRunNotReady, http.StatusConflict, codeRunNotReady},
+		{reporting.ErrRunExpired, http.StatusGone, codeRunExpired},
 		{reporting.ErrNotImplemented, http.StatusNotImplemented, codeNotImplemented},
 	})
 }

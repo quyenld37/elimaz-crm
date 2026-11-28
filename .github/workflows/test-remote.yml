@@ -55,7 +55,7 @@ on:
         default: "false"
         type: string
       loadtest:
-        description: "bài thử tải: live | chaos (M4, Task 180), m2 (Task 88: make perf-m2), kèm :<thời lượng> khi chạy khói (vd live:1m); rỗng: không chạy"
+        description: "bài thử tải: live | chaos (M4, Task 180), m2 (Task 88: make perf-m2), carrier (M3, Task 139: webhook hãng), kèm :<thời lượng> khi chạy khói (vd live:1m); M5 (Task 219): m5:all | m5:<bài>[,<bài>…][@<thời lượng>]; rỗng: không chạy"
         required: false
         default: ""
         type: string
@@ -221,14 +221,14 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$rc"
 
-  # Task 180: bài thử tải M4 (loadtest/fb_run.sh) ở máy đã chọn; chủ shop 26/11: máy Mac không chạy tải nặng. Vai trò CRM
+  # Task 180: bài thử tải M4 (loadtest/fb_run.sh) ở máy đã chọn; Task 219: bài M5 (loadtest/m5_run.sh, thêm Valkey); chủ shop 26/11: máy Mac không chạy tải nặng. Vai trò CRM
   # chạy như tiến trình trên máy (không dựng image); PostgreSQL, SeaweedFS của compose dev dựng trong job. Không chạy trên
   # vps: dịch vụ ở đó dùng chung, bài chaos dừng PostgreSQL. Task 88: bài m2 (make perf-m2) nạp 1 triệu khách, 5 triệu
   # đơn (database ~10 GB; runner ubuntu-24.04 còn ~88 GB đĩa trống), cả bài ~25 phút trong hạn 60 phút của mọi job.
   loadtest:
     if: github.event_name == 'workflow_dispatch' && inputs.loadtest != '' && inputs.runner != 'vps'
     runs-on: ${{ fromJSON(inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || inputs.runner == 'ubicloud' && '"ubicloud-standard-2"' || '"ubuntu-24.04"') }}
-    timeout-minutes: 60
+    timeout-minutes: 60  # sáu bài M5 lần lượt ~40 phút (run 46106941415: 37 phút)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
@@ -236,6 +236,9 @@ jobs:
           go-version-file: go.mod
       - name: PostgreSQL 18, SeaweedFS của compose dev
         run: make db-up
+      - name: Valkey hai tiến trình (chỉ bài M5)
+        if: startsWith(inputs.loadtest, 'm5:')
+        run: docker compose -p "$COMPOSE_PROJECT" -f docker/compose.dev.yml --profile valkey up -d --wait valkey-cache valkey-gate
       - name: k6 v2.0.0 (ghim, kiểm sha256), psql
         run: |
           curl -sSfL -o /tmp/k6.tgz https://github.com/grafana/k6/releases/download/v2.0.0/k6-v2.0.0-linux-amd64.tar.gz
@@ -246,22 +249,49 @@ jobs:
         env:
           SPEC: ${{ inputs.loadtest }}
         run: |
-          MODE=${SPEC%%:*}
-          case "$SPEC" in *:*) export DURATION=${SPEC#*:} ;; esac
           set -o pipefail
-          if [ "$MODE" = m2 ]; then
-            make perf-m2 2>&1 | tee loadtest.log
+          case "$SPEC" in
+          m5:*)
+            # Task 219: m5:<bài,…>[@<thời lượng>]; Valkey của compose dự án này (cổng mặc định 6390, 6391).
+            M5=${SPEC#m5:}
+            case "$M5" in *@*) export DURATION=${M5#*@}; M5=${M5%@*} ;; esac
+            loadtest/m5_run.sh "$M5" 2>&1 | tee loadtest.log
             rc=${PIPESTATUS[0]}
-            out=$(ls -d loadtest/out/m2-* | tail -1)
-            title="Thử tải M2"
-          else
-            loadtest/fb_run.sh "$MODE" 2>&1 | tee loadtest.log
-            rc=${PIPESTATUS[0]}
-            out=$(ls -d loadtest/out/fb-* | tail -1)
-            title="Thử tải M4"
-          fi
+            out=$(ls -d loadtest/out/m5-* | tail -1)
+            title="Thử tải M5"
+            ;;
+          *)
+            MODE=${SPEC%%:*}
+            case "$SPEC" in *:*) export DURATION=${SPEC#*:} ;; esac
+            if [ "$MODE" = m2 ]; then
+              make perf-m2 2>&1 | tee loadtest.log
+              rc=${PIPESTATUS[0]}
+              out=$(ls -d loadtest/out/m2-* | tail -1)
+              title="Thử tải M2"
+            elif [ "$MODE" = carrier ]; then
+              # Task 139: bài thử tải webhook hãng M3; chạy khói (có thời lượng) thì số vận đơn = 20 tin/giây × giây / 6.
+              case "$SPEC" in *:*)
+                n=${DURATION%[smh]}; case ${DURATION#"$n"} in s) secs=$n ;; m) secs=$((n * 60)) ;; *) secs=$((n * 3600)) ;; esac
+                export SHIPMENTS=$((secs * 20 / 6)) ;;
+              esac
+              set +e # bài đỏ vẫn ghi bảng chấm vào tóm tắt
+              loadtest/carrier_run.sh 2>&1 | tee loadtest.log
+              rc=${PIPESTATUS[0]}
+              set -e
+              out=$(ls -d loadtest/out/carrier-* | tail -1)
+              title="Thử tải M3 (webhook hãng)"
+            else
+              loadtest/fb_run.sh "$MODE" 2>&1 | tee loadtest.log
+              rc=${PIPESTATUS[0]}
+              out=$(ls -d loadtest/out/fb-* | tail -1)
+              title="Thử tải M4"
+            fi
+            ;;
+          esac
           { echo "### $title: $SPEC"; cat "$out/report.md" 2>/dev/null || tail -60 loadtest.log; } >> "$GITHUB_STEP_SUMMARY"
           for f in chaos.log chaos.csv live.csv k6-live.txt k6-staff.txt k6-search.txt k6-orders.txt k6-orders.log seedperf.log db-size.txt; do [ -f "$out/$f" ] && { echo "== $f"; cat "$out/$f"; }; done
+          for f in k6.txt loadkit.log fakecarrier.log; do [ -f "$out/$f" ] && { echo "== $f"; tail -100 "$out/$f"; }; done
+          for d in "$out"/*/; do [ -f "$d/k6.txt" ] && { echo "== $d k6"; cat "$d/k6.txt"; tail -20 "$d/k6.log"; }; done
           if [ "$rc" != 0 ]; then for r in ingest api worker; do [ -f "$out/$r.log" ] || continue; echo "== $r.log (đuôi)"; grep -v webcache "$out/$r.log" | tail -30; done; fi
           exit "$rc"
 

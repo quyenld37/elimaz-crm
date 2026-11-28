@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Phần chung của fb_run.sh và fb_chaos.sh (bộ thử tải M4, kế hoạch M4 Task 180): cấu hình và vòng đời ba vai trò CRM
+# Phần chung của fb_run.sh, fb_chaos.sh (bộ thử tải M4, kế hoạch M4 Task 180) và carrier_run.sh (M3 Task M3-48): cấu hình và vòng đời ba vai trò CRM
 # (ingest, api, worker) chạy như tiến trình trên máy thử, cùng một tệp nhị phân `crm` dựng từ mã đang thử.
 # Chỉ dùng biến do fb_run.sh đặt: BIN, OUT, PG_HOST, CRM_PG_PORT, PG_DB, CRM_S3_PORT, API_PORT, INGEST_PORT,
 # GRAPH_PORT, ACCESS_PORT, META_SECRET, META_APP. Không bao giờ chạy với database có dữ liệu thật.
@@ -44,6 +44,11 @@ role_vars() {
 		return 2
 		;;
 	esac
+	# Bài thử tải webhook hãng (carrier_run.sh, Task M3-48) đặt LT_FAKECARRIER_URL, LT_FAKECARRIER_SECRET: nối hãng giả
+	# cho ba vai trò (nguồn /hooks/fake/<route> ở ingest, lệnh tạo, tra ở worker, gửi hãng ở api).
+	if [ -n "${LT_FAKECARRIER_URL:-}" ] && [ "$1" != migrate ]; then
+		export FAKECARRIER_URL="$LT_FAKECARRIER_URL" FAKECARRIER_WEBHOOK_SECRET="$LT_FAKECARRIER_SECRET"
+	fi
 }
 
 # start_role <vai trò>: chạy vai trò ở nền, log vào $OUT/<vai trò>.log, mã tiến trình ở $OUT/pids/<vai trò>.

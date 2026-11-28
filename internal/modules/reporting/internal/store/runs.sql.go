@@ -46,6 +46,33 @@ func (q *Queries) DeleteOldRuns(ctx context.Context, lim int32) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const expireFileRuns = `-- name: ExpireFileRuns :many
+UPDATE reporting.report_runs SET status = 'expired', version = version + 1
+WHERE id = ANY($1::uuid[]) AND status = 'ready'
+RETURNING file_id
+`
+
+// Dọn (d): các lần chạy đã khóa → expired; trả file_id để bên gọi đánh dấu xóa dòng tệp.
+func (q *Queries) ExpireFileRuns(ctx context.Context, ids []uuid.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, expireFileRuns, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var file_id pgtype.UUID
+		if err := rows.Scan(&file_id); err != nil {
+			return nil, err
+		}
+		items = append(items, file_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const expireJSONRuns = `-- name: ExpireJSONRuns :many
 WITH c AS (
     SELECT id FROM reporting.report_runs
@@ -100,6 +127,37 @@ func (q *Queries) FailRun(ctx context.Context, arg FailRunParams) (uuid.UUID, er
 	return id, err
 }
 
+const finishRunFile = `-- name: FinishRunFile :one
+UPDATE reporting.report_runs
+SET status = 'ready', row_count = $1, truncated = $2, file_bytes = $3, finished_at = now(),
+    expires_at = $4, version = version + 1
+WHERE id = $5 AND status = 'running'
+RETURNING id
+`
+
+type FinishRunFileParams struct {
+	RowCount  pgtype.Int4
+	Truncated bool
+	FileBytes pgtype.Int8
+	ExpiresAt time.Time
+	ID        uuid.UUID
+}
+
+// Ghi tệp xlsx xong (Task 237): chỉ lần chạy đang running (một lần chuyển sang ready); 0 dòng → bên khác đã kết thúc,
+// bên gọi không đăng ký tệp. expires_at do bên gọi tính từ mốc lấy trước khi ghi tệp lên kho (Task 515).
+func (q *Queries) FinishRunFile(ctx context.Context, arg FinishRunFileParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, finishRunFile,
+		arg.RowCount,
+		arg.Truncated,
+		arg.FileBytes,
+		arg.ExpiresAt,
+		arg.ID,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const finishRunReady = `-- name: FinishRunReady :one
 UPDATE reporting.report_runs
 SET status = 'ready', result = $1, row_count = $2, finished_at = now(),
@@ -130,7 +188,8 @@ func (q *Queries) FinishRunReady(ctx context.Context, arg FinishRunReadyParams) 
 
 const getRun = `-- name: GetRun :one
 SELECT r.id, r.family, r.report, r.format, r.status, r.reason, r.params, r.row_count, r.truncated, r.result,
-       r.created_at, r.finished_at, r.expires_at, r.requested_by, coalesce(u.display_name, '')::text AS requested_by_name
+       r.created_at, r.finished_at, r.expires_at, r.requested_by, coalesce(u.display_name, '')::text AS requested_by_name,
+       r.file_id
 FROM reporting.report_runs AS r
 LEFT JOIN identity.users_v AS u ON u.id = r.requested_by
 WHERE r.id = $1 AND r.family = $2
@@ -157,6 +216,7 @@ type GetRunRow struct {
 	ExpiresAt       time.Time
 	RequestedBy     uuid.UUID
 	RequestedByName string
+	FileID          pgtype.UUID
 }
 
 // Một lần chạy kèm kết quả và tên người tạo (identity.users_v, G15).
@@ -179,6 +239,7 @@ func (q *Queries) GetRun(ctx context.Context, arg GetRunParams) (GetRunRow, erro
 		&i.ExpiresAt,
 		&i.RequestedBy,
 		&i.RequestedByName,
+		&i.FileID,
 	)
 	return i, err
 }
@@ -377,6 +438,36 @@ func (q *Queries) ListRunsMine(ctx context.Context, arg ListRunsMineParams) ([]L
 	return items, nil
 }
 
+const lockExpiredFileRuns = `-- name: LockExpiredFileRuns :many
+SELECT id FROM reporting.report_runs
+WHERE status = 'ready' AND format = 'xlsx' AND expires_at <= now()
+ORDER BY id
+LIMIT $1
+FOR UPDATE SKIP LOCKED
+`
+
+// Dọn (d): khóa lần chạy xlsx ready quá hạn (12a, trước mọi câu chạm platform.files của nhóm 12b), id tăng dần, bỏ
+// qua dòng đang bị khóa, tối đa @lim.
+func (q *Queries) LockExpiredFileRuns(ctx context.Context, lim int32) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, lockExpiredFileRuns, lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockStaleRuns = `-- name: LockStaleRuns :many
 SELECT id, job_id FROM reporting.report_runs
 WHERE status IN ('queued', 'running') AND expires_at + interval '1 hour' <= now()
@@ -414,7 +505,7 @@ func (q *Queries) LockStaleRuns(ctx context.Context, lim int32) ([]LockStaleRuns
 const markRunning = `-- name: MarkRunning :one
 UPDATE reporting.report_runs SET status = 'running', started_at = now(), version = version + 1
 WHERE id = $1 AND status IN ('queued', 'running')
-RETURNING id, seller_id, family, report, format, params, requested_by
+RETURNING id, seller_id, family, report, format, params, requested_by, created_at
 `
 
 type MarkRunningRow struct {
@@ -425,6 +516,7 @@ type MarkRunningRow struct {
 	Format      string
 	Params      []byte
 	RequestedBy uuid.UUID
+	CreatedAt   time.Time
 }
 
 // Worker nhận lần chạy: queued → running (running → running khi chạy lại sau khi worker chết). 0 dòng: đã kết thúc.
@@ -439,6 +531,7 @@ func (q *Queries) MarkRunning(ctx context.Context, id uuid.UUID) (MarkRunningRow
 		&i.Format,
 		&i.Params,
 		&i.RequestedBy,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -459,6 +552,21 @@ func (q *Queries) RunHead(ctx context.Context, id uuid.UUID) (RunHeadRow, error)
 	var i RunHeadRow
 	err := row.Scan(&i.Status, &i.Family, &i.RequestedBy)
 	return i, err
+}
+
+const setRunFile = `-- name: SetRunFile :exec
+UPDATE reporting.report_runs SET file_id = $1 WHERE id = $2
+`
+
+type SetRunFileParams struct {
+	FileID pgtype.UUID
+	ID     uuid.UUID
+}
+
+// Gắn dòng platform.files của tệp vào lần chạy vừa ready (cùng transaction với FinishRunFile).
+func (q *Queries) SetRunFile(ctx context.Context, arg SetRunFileParams) error {
+	_, err := q.db.Exec(ctx, setRunFile, arg.FileID, arg.ID)
+	return err
 }
 
 const setRunJob = `-- name: SetRunJob :exec

@@ -120,35 +120,7 @@ func TestMotDonDiTron_HaiDonSongSongTon1(t *testing.T) {
 	// Không t.Parallel (Task 484): newStack đặt tracer provider của cả tiến trình (telemetry.Setup).
 	r := newOrderRun(t)
 	v := r.productWithStock("E2E02", 1)
-	var (
-		wg       sync.WaitGroup
-		statuses [2]int
-		bodies   [2]map[string]any
-		errs     [2]error
-	)
-	for i := range 2 {
-		wg.Go(func() {
-			statuses[i], bodies[i], errs[i] = r.call(http.MethodPost, "/api/v1/orders", orderReq(v, 1, 30000))
-		})
-	}
-	wg.Wait()
-	for _, err := range errs {
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	got := []int{statuses[0], statuses[1]}
-	slices.Sort(got)
-	if !slices.Equal(got, []int{http.StatusCreated, http.StatusConflict}) {
-		t.Fatalf("hai đơn song song = %v (%v), muốn một 201, một 409", statuses, bodies)
-	}
-	loser := bodies[0]
-	if statuses[1] == http.StatusConflict {
-		loser = bodies[1]
-	}
-	if loser["error"] != "out_of_stock" {
-		t.Fatalf("đơn thua = %v, muốn out_of_stock", loser)
-	}
+	r.race(http.MethodPost, "/api/v1/orders", orderReq(v, 1, 30000), nil, http.StatusCreated, http.StatusConflict, "out_of_stock")
 	r.stockIs(v, stock{onHand: 1, held: 1})
 	if n := r.count(`SELECT count(*) FROM ord.orders`); n != 1 {
 		t.Fatalf("số đơn = %d, muốn 1", n)
@@ -194,6 +166,45 @@ func TestMotDonDiTron_Script(t *testing.T) {
 	t.Logf("kết quả script:\n%s", got)
 }
 
+// race gửi hai lần yêu cầu method path body cùng lúc (Idempotency-Key khác nhau); during (nil: không có) chạy trong lúc
+// hai yêu cầu đang đi. Đòi đúng một lần trả win và một lần trả lose với mã lỗi loseCode; trả thân của lần thắng.
+func (r *orderRun) race(method, path string, body any, during func(), win, lose int, loseCode string) map[string]any {
+	r.t.Helper()
+	var (
+		wg       sync.WaitGroup
+		statuses [2]int
+		bodies   [2]map[string]any
+		errs     [2]error
+	)
+	for i := range 2 {
+		wg.Go(func() { statuses[i], bodies[i], errs[i] = r.call(method, path, body) })
+	}
+	if during != nil {
+		during()
+	}
+	wg.Wait()
+	for _, err := range errs {
+		if err != nil {
+			r.t.Fatal(err)
+		}
+	}
+	got := []int{statuses[0], statuses[1]}
+	slices.Sort(got)
+	want := []int{win, lose}
+	slices.Sort(want)
+	if !slices.Equal(got, want) {
+		r.t.Fatalf("hai lần %s %s cùng lúc = %v (%v), muốn một %d, một %d", method, path, statuses, bodies, win, lose)
+	}
+	winner, loser := bodies[0], bodies[1]
+	if statuses[0] == lose {
+		winner, loser = bodies[1], bodies[0]
+	}
+	if loser["error"] != loseCode {
+		r.t.Fatalf("lần thua = %v, muốn %s", loser, loseCode)
+	}
+	return winner
+}
+
 // orderRun: stack có hãng giả thật (tools/fakecarrier chạy tiến trình riêng, gửi webhook về ingest của stack).
 type orderRun struct {
 	t  *testing.T
@@ -203,14 +214,22 @@ type orderRun struct {
 
 func newOrderRun(t *testing.T) *orderRun {
 	t.Helper()
+	return newOrderRunWith(t, stackOptions{})
+}
+
+// newOrderRunWith như newOrderRun với tùy chọn o của stack (fakeCarrierURL do hàm đặt) và biến môi trường thêm env của
+// hãng giả.
+func newOrderRunWith(t *testing.T, o stackOptions, env ...string) *orderRun {
+	t.Helper()
 	port := freePort(t)
 	fc := "http://127.0.0.1:" + strconv.Itoa(port)
-	s := newStack(t, stackOptions{fakeCarrierURL: fc})
+	o.fakeCarrierURL = fc
+	s := newStack(t, o)
 	bin := buildPackage(t, "./tools/fakecarrier")
-	_, _, stdout, stderr := startRole(t, bin, []string{
+	_, _, stdout, stderr := startRole(t, bin, append([]string{
 		"PORT=" + strconv.Itoa(port), "FAKECARRIER_WEBHOOK_SECRET=" + secret32, "FAKECARRIER_DATA=-",
 		"FAKECARRIER_WEBHOOK_URL=" + s.ingest.URL + "/hooks/fake",
-	})
+	}, env...))
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 	if err := waitReady(ctx, fc+"/health"); err != nil {
@@ -323,9 +342,11 @@ func (r *orderRun) partnerUntouched(pv uuid.UUID, qty int32) {
 
 func orderReq(v uuid.UUID, qty int, fee int64) map[string]any {
 	return map[string]any{
-		"customer":    map[string]any{"fullName": "Chị Lan"},
-		"items":       []map[string]any{{"variantId": v, "qty": qty}},
-		"shipAddress": map[string]any{"name": "Chị Lan", "phone": "+84901234567", "line": "12 Lê Lợi, Q1"},
+		"customer": map[string]any{"fullName": "Chị Lan"},
+		"items":    []map[string]any{{"variantId": v, "qty": qty}},
+		"shipAddress": map[string]any{
+			"name": "Chị Lan", "phone": "+84901234567", "line": "12 Lê Lợi", "provinceCode": fakeProvince, "wardCode": fakeWard,
+		},
 		"shippingFee": fee,
 	}
 }

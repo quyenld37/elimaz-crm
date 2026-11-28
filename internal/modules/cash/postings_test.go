@@ -178,6 +178,36 @@ func TestPostings_ReversalBeforeRemit(t *testing.T) {
 	})
 }
 
+// Lý do bút toán đảo theo nguồn của bước (Task 118 → 138): nhân viên đảo (source staff) ghi "Nhân viên sửa…", hãng sửa
+// (carrier_api hay sự kiện cũ không có source) ghi "Hãng sửa…".
+func TestPostings_ReversalReasonBySource(t *testing.T) {
+	t.Parallel()
+	e := newCODEnv(t)
+	for _, c := range []struct{ source, want string }{
+		{"staff", "Nhân viên sửa trạng thái từ Thành công sang Đang chuyển hoàn"},
+		{"carrier_api", "Hãng sửa trạng thái từ Thành công sang Đang chuyển hoàn"},
+		{"", "Hãng sửa trạng thái từ Thành công sang Đang chuyển hoàn"},
+	} {
+		s := e.v1(fulfillment.StatusDelivered, effPickedUp, effDelivered)
+		rev := e.fx(s, 4, fulfillment.StatusReturning, nil, effReversed, effReturning)
+		var p fulfillment.StatusChanged
+		if err := json.Unmarshal(rev.Payload, &p); err != nil {
+			t.Fatal(err)
+		}
+		p.Source = c.source
+		raw, err := json.Marshal(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rev.Payload = raw
+		e.mustHandle(rev)
+		if got := e.count(`SELECT count(*) FROM cash.cod_transfers WHERE shipment_id = $1 AND kind = 'reversal'
+			AND reason = $2`, s, c.want); got != 1 {
+			t.Errorf("nguồn %q: %d bút toán đảo lý do %q, muốn 1", c.source, got, c.want)
+		}
+	}
+}
+
 // remit ghi bút toán remitted như bảng kê đã chốt: hãng giữ −630.000, về shop +598.000, phí +32.000.
 func (e *codEnv) remit(s uuid.UUID) {
 	e.t.Helper()

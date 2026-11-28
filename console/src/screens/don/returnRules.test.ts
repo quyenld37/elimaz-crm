@@ -88,6 +88,31 @@ describe("returnableLines", () => {
     expect(a?.refund(2)).toBe(666_667);
     expect(a?.refund(1)).toBe(333_333);
   });
+  it("dòng thiếu một phần (Tốt/Hỏng/Thiếu, Task 136: mixed, missing > 0): đã hoàn là phần lẽ ra của cả dòng phiếu", () => {
+    // Máy chủ (priceReturnLines): MissingQty > 0 → RefundFor(net, qty, 0, số trên phiếu, 0), không lấy refundAmount.
+    const rs = [
+      ret({
+        status: "restocked",
+        items: [{ id: "i1", orderItemId: "a", qty: 2, refundAmount: 333_333, sellable: 1, missing: 1 }],
+      }),
+    ];
+    const [a] = returnableLines([item("a", 3, 1_000_000)], rs);
+    // Đã hoàn trước = floor(1.000.000 × 2 / 3) = 666.666; trả nốt 1 món → 333.334.
+    expect(a?.refund(1)).toBe(333_334);
+  });
+
+  it("phiếu giao một phần (tiền hoàn 0): đã hoàn là phần lẽ ra của các món chưa giao, như máy chủ", () => {
+    const rs = [
+      ret({
+        kind: "partial_delivery",
+        status: "restocked",
+        items: [{ id: "i1", orderItemId: "a", qty: 1, refundAmount: 0, sellable: 1 }],
+      }),
+    ];
+    const [a] = returnableLines([item("a", 3, 1_000_000)], rs);
+    expect(a?.returned).toBe(1);
+    expect(a?.refund(2)).toBe(666_667);
+  });
 });
 
 describe("ngày giao thành công", () => {

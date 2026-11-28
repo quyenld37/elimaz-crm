@@ -122,7 +122,7 @@ func (c apiClient) call(ctx context.Context, method, path string, body, out any,
 		}
 		rd = bytes.NewReader(b)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, c.base+path, rd)
+	req, err := http.NewRequestWithContext(ctx, method, c.base+path, rd) //nolint:gosec // G704: gốc api do người chạy đưa vào cờ -api
 	if err != nil {
 		return fmt.Errorf("dựng %s %s: %w", method, path, err)
 	}
@@ -132,7 +132,7 @@ func (c apiClient) call(ctx context.Context, method, path string, body, out any,
 	if method != http.MethodGet {
 		req.Header.Set("Idempotency-Key", uuid.NewString())
 	}
-	resp, err := c.hc.Do(req)
+	resp, err := c.hc.Do(req) //nolint:gosec // G704: gốc api do người chạy (fb_run.sh, m5_run.sh) đưa vào cờ -api
 	if err != nil {
 		return fmt.Errorf("gọi %s %s: %w", method, path, err)
 	}
@@ -152,6 +152,26 @@ func (c apiClient) call(ctx context.Context, method, path string, body, out any,
 		return fmt.Errorf("đọc kết quả %s: %w", path, err)
 	}
 	return nil
+}
+
+// openLoadShop mở database bằng chủ bảng, đọc tenant thử (loadkit seed đã dựng) và dựng cửa hàng của nó (seedShop);
+// trả pool (bên gọi đóng), tenant, kho. Lỗi sau khi mở: pool đã đóng.
+func openLoadShop(ctx context.Context, dbURL string) (*db.DB, uuid.UUID, uuid.UUID, error) {
+	owner, err := openOwner(ctx, dbURL)
+	if err != nil {
+		return nil, uuid.Nil, uuid.Nil, err
+	}
+	tenantID, err := tenancy.SeedTenant(ctx, owner, loadTenantName)
+	if err != nil {
+		owner.Pool.Close()
+		return nil, uuid.Nil, uuid.Nil, fmt.Errorf("đọc tenant thử: %w", err)
+	}
+	wh, err := seedShop(ctx, owner, tenantID)
+	if err != nil {
+		owner.Pool.Close()
+		return nil, uuid.Nil, uuid.Nil, err
+	}
+	return owner, tenantID, wh, nil
 }
 
 // seedShop (chủ bảng) dựng người bán ELIMAZ, kho MAIN và cài đặt đơn mặc định của tenant (như `crm seed-dev`); trả kho.
@@ -186,7 +206,7 @@ type fbSeedOptions struct {
 // tay.
 func seedFB(ctx context.Context, c apiClient, hc *http.Client, wh uuid.UUID, o fbSeedOptions) (fbFixture, error) {
 	f := fbFixture{WarehouseID: wh, StockEach: o.StockEach}
-	vars, err := seedProduct(ctx, c, o.Variants)
+	_, vars, err := seedProduct(ctx, c, o.Variants)
 	if err != nil {
 		return f, err
 	}
@@ -217,7 +237,8 @@ func seedFB(ctx context.Context, c apiClient, hc *http.Client, wh uuid.UUID, o f
 	return f, nil
 }
 
-func seedProduct(ctx context.Context, c apiClient, n int) ([]string, error) {
+// seedProduct tạo một mẫu đang bán có n biến thể; trả mã mẫu và mã biến thể.
+func seedProduct(ctx context.Context, c apiClient, n int) (string, []string, error) {
 	type variant struct {
 		SKU   string `json:"sku"`
 		Color string `json:"color"`
@@ -234,21 +255,22 @@ func seedProduct(ctx context.Context, c apiClient, n int) ([]string, error) {
 		in.Variants = append(in.Variants, variant{SKU: fmt.Sprintf("%s-%02d", in.Code, i), Color: "Đỏ", Size: fmt.Sprintf("S%02d", i), Price: 199_000})
 	}
 	var out struct {
+		ID       string `json:"id"`
 		Variants []struct {
 			ID string `json:"id"`
 		} `json:"variants"`
 	}
 	if err := c.call(ctx, http.MethodPost, "/api/v1/catalog/products", in, &out, http.StatusCreated); err != nil {
-		return nil, err
+		return "", nil, err
 	}
 	ids := make([]string, 0, len(out.Variants))
 	for _, v := range out.Variants {
 		ids = append(ids, v.ID)
 	}
 	if len(ids) != n {
-		return nil, fmt.Errorf("%w: mẫu thử có %d biến thể, cần %d", errAPI, len(ids), n)
+		return "", nil, fmt.Errorf("%w: mẫu thử có %d biến thể, cần %d", errAPI, len(ids), n)
 	}
-	return ids, nil
+	return out.ID, ids, nil
 }
 
 func seedStock(ctx context.Context, c apiClient, wh uuid.UUID, variants []string, each int) error {
@@ -369,17 +391,11 @@ func cmdFBSeed(ctx context.Context, fs *flag.FlagSet, args []string, logger *slo
 	fs.IntVar(&o.Pages, "pages", 2, "số Page")
 	fs.IntVar(&o.Variants, "variants", 20, "số biến thể")
 	fs.IntVar(&o.StockEach, "stock", 500, "tồn mỗi biến thể")
-	if err := fs.Parse(args); err != nil {
-		return fmt.Errorf("đọc cờ: %w", err)
-	}
-	if err := sf.check(); err != nil {
-		return err
-	}
-	o.Graph = *graph
-	sh, err := prepareShop(ctx, *sf.db, *sf.tokens, nil)
+	sh, err := sf.prepare(ctx, fs, args, nil)
 	if err != nil {
 		return err
 	}
+	o.Graph = *graph
 	hc := &http.Client{Timeout: 30 * time.Second}
 	f, err := seedFB(ctx, apiClient{base: *sf.api, token: sh.token, hc: hc}, hc, sh.warehouse, o)
 	if err != nil {
@@ -390,7 +406,7 @@ func cmdFBSeed(ctx context.Context, fs *flag.FlagSet, args []string, logger *slo
 	return writeJSON(*sf.out, f)
 }
 
-// seedFlags là các cờ chung của fbseed, m2seed.
+// seedFlags là các cờ chung của fbseed, m2seed, m5key, m5sale.
 type seedFlags struct{ db, api, tokens, out *string }
 
 func addSeedFlags(fs *flag.FlagSet, outFile string) seedFlags {
@@ -402,14 +418,20 @@ func addSeedFlags(fs *flag.FlagSet, outFile string) seedFlags {
 	}
 }
 
-func (f seedFlags) check() error {
-	if *f.out == "" || *f.tokens == "" {
-		return fmt.Errorf("%w: thiếu -out hoặc -tokens", errUsage)
+// prepare đọc cờ args vào fs, đòi đủ -out, -tokens rồi prepareShop.
+func (f seedFlags) prepare(
+	ctx context.Context, fs *flag.FlagSet, args []string, extra func(context.Context, *db.DB) error,
+) (shopSetup, error) {
+	if err := fs.Parse(args); err != nil {
+		return shopSetup{}, fmt.Errorf("đọc cờ: %w", err)
 	}
-	return nil
+	if *f.out == "" || *f.tokens == "" {
+		return shopSetup{}, fmt.Errorf("%w: thiếu -out hoặc -tokens", errUsage)
+	}
+	return prepareShop(ctx, *f.db, *f.tokens, extra)
 }
 
-// shopSetup là phần chung của fbseed, m2seed: tenant thử, kho của người bán thử, token của nhân viên 1 (owner).
+// shopSetup là phần chung của fbseed, m2seed, m5key, m5sale: tenant thử, kho của người bán thử, token của nhân viên 1 (owner).
 type shopSetup struct {
 	tenantID, warehouse uuid.UUID
 	token               string
@@ -417,21 +439,16 @@ type shopSetup struct {
 
 // prepareShop mở chủ bảng dbURL, lấy tenant thử (của loadkit seed), dựng người bán, kho (seedShop), chạy extra trên chủ
 // bảng (nil: bỏ qua) rồi đọc token đầu của tokens; đóng chủ bảng trước khi trả.
-func prepareShop(ctx context.Context, dbURL, tokens string, extra func(*db.DB) error) (shopSetup, error) {
+func prepareShop(ctx context.Context, dbURL, tokens string, extra func(context.Context, *db.DB) error) (shopSetup, error) {
 	var sh shopSetup
-	owner, err := openOwner(ctx, dbURL)
+	owner, tenantID, wh, err := openLoadShop(ctx, dbURL)
 	if err != nil {
 		return sh, err
 	}
 	defer owner.Pool.Close()
-	if sh.tenantID, err = tenancy.SeedTenant(ctx, owner, loadTenantName); err != nil {
-		return sh, fmt.Errorf("đọc tenant thử: %w", err)
-	}
-	if sh.warehouse, err = seedShop(ctx, owner, sh.tenantID); err != nil {
-		return sh, err
-	}
+	sh.tenantID, sh.warehouse = tenantID, wh
 	if extra != nil {
-		if err := extra(owner); err != nil {
+		if err := extra(ctx, owner); err != nil {
 			return sh, err
 		}
 	}

@@ -37,6 +37,7 @@ type WebProduct struct {
 	CreatedAt        time.Time // ngày tạo mẫu (UTC), cho "Mới nhất" của website
 	Version          int64
 	MeasureMm        MeasureMm
+	Preview          bool // mẫu nháp trả cho khóa xem trước (Status draft; kế hoạch M7 Task 261)
 }
 
 // MeasureMm là số đo của mẫu (Task 516, 517; cùng nghĩa catalog.MeasureMm, gói này không nhập catalog): Dài, Rộng, Cao

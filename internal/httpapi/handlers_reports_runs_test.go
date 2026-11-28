@@ -13,6 +13,7 @@ import (
 	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/modules/reporting"
 	"elimaz.com.vn/crm/internal/platform/commands"
+	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/testkit"
 	"elimaz.com.vn/crm/internal/testkit/reportseed"
@@ -26,6 +27,7 @@ type runsHTTPEnv struct {
 	tenant uuid.UUID
 	srv    http.Handler
 	keys   *cfaccesstest.AccessKeys
+	files  files.FileStore // kho tệp của worker (nil: không có, lần chạy json)
 }
 
 func newRunsHTTPEnv(t *testing.T) runsHTTPEnv {
@@ -53,7 +55,7 @@ func (e runsHTTPEnv) do(method, path, email, key, body string) *httptest.Respons
 
 // drain chạy worker của lần chạy nền (kết quả đổi bằng ReportResultJSON như cmd/crm nối) tới hết việc.
 func (e runsHTTPEnv) drain() {
-	h := reporting.NewRunHandler(reporting.Deps{DB: e.staff.App, Result: ReportResultJSON})
+	h := reporting.NewRunHandler(reporting.Deps{DB: e.staff.App, Files: e.files, Result: ReportResultJSON})
 	w := queue.NewWorker(e.staff.App, nil, queue.WorkerOptions{Commands: commands.NewRunner(e.staff.App, []commands.Handler{h})})
 	testkit.DrainDue(e.t, e.staff.Owner, w)
 }

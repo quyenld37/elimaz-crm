@@ -5,6 +5,7 @@
 // của bộ e2e website.
 // `crm seed-staging …` (không production) dựng dữ liệu giả cho bản thử (khung Task 260, Task 275 làm).
 // `crm recompute-customer-stats <mã khách>` (mọi vai trò, bằng DATABASE_URL) tính lại chỉ số khách cho gốc hiện tại.
+// `crm verify-flash --sale <mã đợt>` (mọi vai trò, bằng DATABASE_URL) kiểm một đợt flash sale, thoát 1 khi sai.
 package main
 
 import (
@@ -109,12 +110,13 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 			_, _ = fmt.Fprintf(stderr, "mã khách %q không phải UUID; cách gọi: `crm %s <mã khách>`\n", args[1], recomputeCommand)
 			return exitConfig
 		}
-	case isServiceKeyCommand(args), isSeedFixtureCommand(args), isImportWebsiteCommand(args), isSeedStagingCommand(args):
+	case isOneOffCommand(args):
 	case len(args) > 0:
 		_, _ = fmt.Fprintf(stderr, "lệnh lạ %q; chỉ có `crm`, `crm healthcheck`, `crm seed-dev <email>`, "+
 			"`crm %s <mã khách>`, `crm %s create|revoke …`, `crm %s --file … --staff-email …` hoặc "+
-			"`crm %s --dir … --tenant … --dry-run|--apply`, `crm %s …`\n", args,
-			recomputeCommand, serviceKeyCommand, seedFixtureCommand, importWebsiteCommand, seedStagingCommand)
+			"`crm %s --dir … --tenant … --dry-run|--apply`, `crm %s …`, `crm %s --sale <mã đợt>`\n", args,
+			recomputeCommand, serviceKeyCommand, seedFixtureCommand, importWebsiteCommand, seedStagingCommand,
+			verifyFlashCommand)
 		return exitConfig
 	}
 
@@ -134,7 +136,7 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 			return exitFail
 		}
 		return exitOK
-	case isServiceKeyCommand(args), isSeedFixtureCommand(args), isImportWebsiteCommand(args), isSeedStagingCommand(args):
+	case isOneOffCommand(args):
 		return runOneOffCommand(ctx, cfg, args, stdout, stderr, logger)
 	case len(args) == 2 && args[0] == recomputeCommand:
 		if err := runRecompute(ctx, cfg, uuid.MustParse(args[1]), stdout, logger); err != nil {

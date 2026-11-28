@@ -35,6 +35,7 @@ import "./stocktake.css";
 export const TEXT_NO_COUNT_WAREHOUSE = "Bạn chưa được kiểm kho nào";
 const PERM_COUNT = "inventory.stocktake";
 const PERM_APPLY = "inventory.stocktake.apply";
+const PERM_OPENING = "inventory.stocktake.opening";
 /** Đọc tên mã của dòng đếm từ máy khác: tối đa bấy nhiêu trang Tồn kho (100 dòng một trang). */
 const NAME_PAGES = 20;
 const NAME_PAGE_SIZE = 100;
@@ -76,7 +77,7 @@ function PageHead() {
   );
 }
 
-function useMeAndWarehouses() {
+export function useMeAndWarehouses() {
   const me = useQuery({ queryKey: meKey, queryFn: () => unwrap(getMe()) });
   const warehouses = useQuery({ queryKey: warehousesKey, queryFn: () => unwrap(listWarehouses()) });
   return { me, warehouses };
@@ -169,6 +170,12 @@ export function StocktakeStart() {
             >
               {`Bắt đầu kiểm ${wh.name}`}
             </button>
+            {/* Task 273 (HV01 của docs/mockups/m7): kiểm kho mở sổ là màn riêng, vào từ đây khi có quyền mở sổ kho này. */}
+            {canAt(grants ?? [], PERM_OPENING, wh.id) && (
+              <Link className="btn btn-line btn-wide" style={{ marginTop: 8 }} to={`/kho/mo-so?kho=${wh.id}`}>
+                Mở sổ kho này
+              </Link>
+            )}
             <p className="hint" style={{ marginTop: 8 }}>
               Mỗi kho chỉ có một phiên mở. Trong lúc kiểm vẫn bán và giao hàng bình thường.
             </p>

@@ -37,6 +37,7 @@ type runsEnv struct {
 	st     *testkit.Staff
 	tenant uuid.UUID
 	sc     reportseed.Scenario
+	seed   *reportseed.Seed
 	hub    *realtime.PGHub
 }
 
@@ -45,7 +46,7 @@ func newRunsEnv(t *testing.T) *runsEnv {
 	st := testkit.OpenStaff(t)
 	tenant := st.Tenant(t, "a")
 	seed := reportseed.New(t, st.Owner, tenant)
-	e := &runsEnv{st: st, tenant: tenant, sc: reportseed.NineOrders(seed, runDay)}
+	e := &runsEnv{st: st, tenant: tenant, sc: reportseed.NineOrders(seed, runDay), seed: seed}
 	e.hub = realtime.NewPGHub(realtime.PGHubOptions{URL: st.App.Pool.Config().ConnString()})
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -78,6 +79,12 @@ func (e *runsEnv) user(t *testing.T, email string, perms []string, scopeType, sc
 	t.Helper()
 	id := e.st.User(t, e.tenant, email, "active")
 	e.st.Grant(t, e.tenant, id, perms, scopeType, scopeID)
+	return e.reload(t, id)
+}
+
+// reload nạp lại người dùng id như lúc yêu cầu (sau khi thêm grant).
+func (e *runsEnv) reload(t *testing.T, id uuid.UUID) identity.AuthUser {
+	t.Helper()
 	var u identity.AuthUser
 	e.st.Exec(t, e.tenant, func(tx pgx.Tx) error {
 		var err error
@@ -284,6 +291,24 @@ func jsonEqual(a, b []byte) bool {
 	return string(ax) == string(by)
 }
 
+// refusedRun là một lần tạo lần chạy phải bị từ chối với lỗi want.
+type refusedRun struct {
+	name string
+	u    identity.AuthUser
+	in   reporting.CreateRunInput
+	want error
+}
+
+// expectRefused tạo từng lần chạy của cases, đòi đúng lỗi của mỗi ca.
+func (e *runsEnv) expectRefused(t *testing.T, cases []refusedRun) {
+	t.Helper()
+	for _, c := range cases {
+		if _, err := e.create(t, c.u, c.in, runLimits()); !errors.Is(err, c.want) {
+			t.Errorf("%s: %v, mong %v", c.name, err, c.want)
+		}
+	}
+}
+
 // Lỗi khi tạo: xlsx không có report.export → ErrExportForbidden, không dòng, không lệnh; báo cáo của họ khác →
 // ErrUnknownReport; tham số lạ → ErrBadParams; products dạng json → ErrBadParams; không có quyền đọc hay phạm vi rỗng →
 // ErrForbidden; 5 lần đang chờ → lần 6 ErrTooManyRuns, người khác vẫn tạo được.
@@ -292,12 +317,7 @@ func TestRuns_CreateErrors(t *testing.T) {
 	e := newRunsEnv(t)
 	u := e.user(t, "an@elimaz.test", salesAll(), "all", "")
 	inv := e.user(t, "kho@elimaz.test", []string{"report.inventory.read"}, "all", "")
-	cases := []struct {
-		name string
-		u    identity.AuthUser
-		in   reporting.CreateRunInput
-		want error
-	}{
+	cases := []refusedRun{
 		{"xlsx không report.export", u, ordersInput("xlsx"), reporting.ErrExportForbidden},
 		{"họ khác", inv, reporting.CreateRunInput{
 			Family: reporting.FamilyInventory, Report: reporting.KeyOrders, Format: "json",
@@ -320,11 +340,7 @@ func TestRuns_CreateErrors(t *testing.T) {
 			Format: "json", Params: ordersInput("json").Params,
 		}, reporting.ErrForbidden},
 	}
-	for _, c := range cases {
-		if _, err := e.create(t, c.u, c.in, runLimits()); !errors.Is(err, c.want) {
-			t.Errorf("%s: %v, mong %v", c.name, err, c.want)
-		}
-	}
+	e.expectRefused(t, cases)
 	if n := e.st.CountIn(t, e.tenant, `SELECT count(*) FROM reporting.report_runs`); n != 0 {
 		t.Fatalf("có %d dòng report_runs sau các lần bị từ chối", n)
 	}

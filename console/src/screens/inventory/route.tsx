@@ -4,6 +4,8 @@ import { Balances } from "./Balances";
 import { DocumentEdit } from "./DocumentEdit";
 import { DocumentList } from "./DocumentList";
 import { StocktakeSession, StocktakeStart } from "./Stocktake";
+import { LegacyReturnPage } from "./legacy/LegacyReturnPage";
+import { OpeningSession, OpeningStart } from "./opening/OpeningStocktakePage";
 import { Suppliers } from "./Suppliers";
 
 // Kiểm kho còn gọi listWarehouses, getStocktake, listBalances (inventory.read) và searchVariants (catalog.read).
@@ -69,5 +71,38 @@ export const screens: readonly ScreenRoute[] = [
     permission: "inventory.read",
     order: 40,
     element: <Suppliers />,
+  },
+  // Task 273 (M7-28): Kiểm kho mở sổ (mockup docs/mockups/m7/kiem-kho-mo-so.html). Không có mục menu (HV01): vào từ nút
+  // "Mở sổ kho này" của Kiểm kho. Đếm bằng quét mã đòi inventory.stocktake, đọc kho và tên mã đòi inventory.read,
+  // catalog.read.
+  {
+    path: "/kho/mo-so",
+    label: "Kiểm kho mở sổ",
+    group: "Kho",
+    permission: "inventory.stocktake.opening",
+    alsoRequires: STOCKTAKE_ALSO,
+    order: 32,
+    hidden: true,
+    element: <OpeningStart />,
+  },
+  {
+    path: "/kho/mo-so/:id",
+    label: "Kiểm kho mở sổ",
+    group: "Kho",
+    permission: "inventory.stocktake.opening",
+    alsoRequires: [...STOCKTAKE_ALSO, "inventory.stocktake"],
+    order: 33,
+    hidden: true,
+    element: <OpeningSession />,
+  },
+  // Task 273 (M7-28): Hàng hoàn đơn cũ (mockup docs/mockups/m7/hang-hoan-don-cu.html), HV02: ngay sau "Nhận hàng hoàn".
+  {
+    path: "/kho/hang-hoan-cu",
+    label: "Hàng hoàn đơn cũ",
+    group: "Kho",
+    permission: "inventory.legacy_return.create",
+    alsoRequires: ["inventory.read", "catalog.read"],
+    order: 16,
+    element: <LegacyReturnPage />,
   },
 ];
