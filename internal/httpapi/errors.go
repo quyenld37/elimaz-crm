@@ -100,6 +100,8 @@ type errorBody struct {
 	Drafts []liveDraftBody `json:"drafts,omitempty"`
 	// Chỉ có ở insufficient_stock của lên lịch, thêm suất đợt flash sale (Task 200): mọi món thiếu (FlashShortage).
 	Shortages []flashShortageBody `json:"shortages,omitempty"`
+	// Chỉ có ở legacy_return_exists (M7, Task 264): phiếu hàng hoàn đã có cùng tham chiếu.
+	ExistingID *string `json:"existingId,omitempty"`
 }
 
 // writeError ghi lỗi theo dạng duy nhất {"error": "<mã>", "request_id": "<id>"}; không bao giờ có vết lỗi.
@@ -260,6 +262,9 @@ func detailedError(err error) (errorBody, int, bool) {
 		return errorBody{Error: codeTemplateVariableMissing, Name: &name}, http.StatusUnprocessableEntity, true
 	}
 	if body, status, ok := conversationDetail(err); ok {
+		return body, status, true
+	}
+	if body, status, ok := inventoryDetail(err); ok {
 		return body, status, true
 	}
 	if e, ok := errors.AsType[*order.SettingOutOfRangeError](err); ok {

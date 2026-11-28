@@ -4,6 +4,7 @@ package httpapi
 // này và x-error-codes của openapi.yaml khi có mã mới; thứ tự kiểm giữa các vùng ở domainErrorMappers, errors.go).
 
 import (
+	"errors"
 	"net/http"
 
 	"elimaz.com.vn/crm/internal/modules/inventory"
@@ -18,6 +19,7 @@ const (
 	codeSupplierNameTaken  = "supplier_name_taken"
 	codeSupplierArchived   = "supplier_archived"
 	codeSupplierNotForKind = "supplier_not_for_kind"
+	codeLegacyReturnExists = "legacy_return_exists"
 )
 
 // inventoryError đổi lỗi nghiệp vụ của kho (và thiếu quyền ở kho của yêu cầu) sang mã HTTP. ErrNotFound: phiếu, nhà
@@ -36,6 +38,18 @@ func inventoryError(err error) (status int, code string, ok bool) {
 		{inventory.ErrSupplierNameTaken, http.StatusConflict, codeSupplierNameTaken},
 		{inventory.ErrSupplierArchived, http.StatusUnprocessableEntity, codeSupplierArchived},
 		{inventory.ErrSupplierNotForKind, http.StatusUnprocessableEntity, codeSupplierNotForKind},
+		{inventory.ErrDuplicateReference, http.StatusConflict, codeLegacyReturnExists},
 		{inventory.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
 	})
+}
+
+// inventoryDetail: kiện hàng hoàn đã nhập (409 legacy_return_exists, Task 264) kèm existingId để màn hình liên kết
+// tới phiếu đã có.
+func inventoryDetail(err error) (errorBody, int, bool) {
+	e, ok := errors.AsType[*inventory.DuplicateReferenceError](err)
+	if !ok {
+		return errorBody{}, 0, false
+	}
+	id := e.ExistingID.String()
+	return errorBody{Error: codeLegacyReturnExists, ExistingID: &id}, http.StatusConflict, true
 }

@@ -12,9 +12,6 @@ checkOpeningStocktake
 incrementStocktakeLine
 createStocktakeCountImport
 getStocktakeCountImport
-createLegacyReturn
-listLegacyReturns
-getLegacyReturn
 listUnmatchedCarrierEvents
 getT2Report
 goLivePage

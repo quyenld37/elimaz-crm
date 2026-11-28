@@ -200,6 +200,15 @@ func ReplaceLines(ctx context.Context, tx pgx.Tx, id uuid.UUID, version int64, l
 // *InsufficientError (Is ErrInsufficient): bên gọi phải lùi transaction, không dòng nào được ghi. Lỗi khác:
 // ErrNotFound, ErrDocumentNotDraft, ErrVersionConflict, ErrInvalidInput (phiếu không dòng, dòng sai theo loại).
 func (w Writer) PostDocument(ctx context.Context, tx pgx.Tx, id uuid.UUID, version int64, a Actor) (Document, error) {
+	return w.postDocument(ctx, tx, id, version, a, movesFor)
+}
+
+// movesFunc trả các thay đổi số dư của một dòng phiếu loại kind số lượng q, kèm doc_type của sổ.
+type movesFunc func(kind string, q int32) ([]move, string)
+
+// postDocument là PostDocument với bảng thay đổi số dư moves (movesFor; hàng hoàn đơn cũ dùng legacyMoves).
+func (w Writer) postDocument(ctx context.Context, tx pgx.Tx, id uuid.UUID, version int64, a Actor, moves movesFunc,
+) (Document, error) {
 	if !a.valid() {
 		return Document{}, fmt.Errorf("%w: tác nhân %q", ErrInvalidInput, a.Type)
 	}
@@ -232,7 +241,7 @@ func (w Writer) PostDocument(ctx context.Context, tx pgx.Tx, id uuid.UUID, versi
 		}
 	}
 	for _, l := range dl {
-		if err := w.postLine(ctx, tx, row.Kind, row.WarehouseID, id, l, a); err != nil {
+		if err := w.postLine(ctx, tx, row.Kind, row.WarehouseID, id, l, a, moves); err != nil {
 			return Document{}, err
 		}
 	}
@@ -240,8 +249,10 @@ func (w Writer) PostDocument(ctx context.Context, tx pgx.Tx, id uuid.UUID, versi
 }
 
 // postLine áp các thay đổi số dư của một dòng phiếu rồi phát stock.changed cho dòng số dư đó.
-func (w Writer) postLine(ctx context.Context, tx pgx.Tx, kind string, warehouseID, docID uuid.UUID, l DocumentLine, a Actor) error {
-	moves, docType := movesFor(kind, l.Quantity)
+func (w Writer) postLine(ctx context.Context, tx pgx.Tx, kind string, warehouseID, docID uuid.UUID, l DocumentLine, a Actor,
+	movesOf movesFunc,
+) error {
+	moves, docType := movesOf(kind, l.Quantity)
 	qty := abs(l.Quantity)
 	var last balanceRow
 	for _, m := range moves {

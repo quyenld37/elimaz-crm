@@ -300,6 +300,7 @@ func domainErrorSnapshot() []snapshotCase {
 		{"inventory.ErrSupplierNameTaken", inventory.ErrSupplierNameTaken, http.StatusConflict, "supplier_name_taken"},
 		{"inventory.ErrSupplierArchived", inventory.ErrSupplierArchived, http.StatusUnprocessableEntity, "supplier_archived"},
 		{"inventory.ErrSupplierNotForKind", inventory.ErrSupplierNotForKind, http.StatusUnprocessableEntity, "supplier_not_for_kind"},
+		{"inventory.ErrDuplicateReference", inventory.ErrDuplicateReference, http.StatusConflict, "legacy_return_exists"},
 		{"inventory.ErrInvalidInput", inventory.ErrInvalidInput, http.StatusBadRequest, "invalid_input"},
 		{"order.ErrOutOfStock", order.ErrOutOfStock, http.StatusConflict, "out_of_stock"},
 		{"order.ErrNotForSale", order.ErrNotForSale, http.StatusUnprocessableEntity, "variant_not_for_sale"},
