@@ -1495,6 +1495,15 @@ type InventoryFlashSaleUnit struct {
 	UpdatedAt       time.Time
 }
 
+type InventoryFlashSaleUnitsV struct {
+	ID              uuid.UUID
+	TenantID        uuid.UUID
+	FlashSaleItemID uuid.UUID
+	Status          string
+	OrderItemID     pgtype.UUID
+	UpdatedAt       time.Time
+}
+
 type InventoryFlashUnitsSummaryV struct {
 	TenantID        uuid.UUID
 	FlashSaleItemID uuid.UUID
@@ -1763,6 +1772,14 @@ type OrdOrderDuplicateLink struct {
 	ResolvedAt   *time.Time
 	ResolvedBy   pgtype.UUID
 	Resolution   pgtype.Text
+}
+
+type OrdOrderFlashLinesV struct {
+	ID              uuid.UUID
+	TenantID        uuid.UUID
+	OrderID         uuid.UUID
+	FlashSaleItemID pgtype.UUID
+	Quantity        int32
 }
 
 type OrdOrderItem struct {
@@ -2389,6 +2406,14 @@ type PromotionFlashSale struct {
 }
 
 type PromotionFlashSaleClaim struct {
+	TenantID        uuid.UUID
+	FlashSaleItemID uuid.UUID
+	CustomerID      uuid.UUID
+	Quantity        int32
+	UpdatedAt       time.Time
+}
+
+type PromotionFlashSaleClaimsV struct {
 	TenantID        uuid.UUID
 	FlashSaleItemID uuid.UUID
 	CustomerID      uuid.UUID

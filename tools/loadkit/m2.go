@@ -66,13 +66,13 @@ func m2CouponCode(i int) string { return fmt.Sprintf("M2LT%02d", i+1) }
 func seedM2(ctx context.Context, c apiClient, wh uuid.UUID, now time.Time) (m2Fixture, error) {
 	f := m2Fixture{WarehouseID: wh}
 	var err error
-	if f.Variants, err = seedProduct(ctx, c, m2Variants); err != nil {
+	if _, f.Variants, err = seedProduct(ctx, c, m2Variants); err != nil {
 		return f, err
 	}
 	if err := seedStock(ctx, c, wh, f.Variants, m2StockEach); err != nil {
 		return f, err
 	}
-	if f.LowVariants, err = seedProduct(ctx, c, m2LowVariants); err != nil {
+	if _, f.LowVariants, err = seedProduct(ctx, c, m2LowVariants); err != nil {
 		return f, err
 	}
 	if err := seedStock(ctx, c, wh, f.LowVariants, m2LowStock); err != nil {
@@ -100,13 +100,7 @@ func seedM2(ctx context.Context, c apiClient, wh uuid.UUID, now time.Time) (m2Fi
 // viên); nhân viên 1 (owner) gọi API.
 func cmdM2Seed(ctx context.Context, fs *flag.FlagSet, args []string, logger *slog.Logger) error {
 	sf := addSeedFlags(fs, "m2.json")
-	if err := fs.Parse(args); err != nil {
-		return fmt.Errorf("đọc cờ: %w", err)
-	}
-	if err := sf.check(); err != nil {
-		return err
-	}
-	sh, err := prepareShop(ctx, *sf.db, *sf.tokens, func(owner *db.DB) error { return seedAdminUnits(ctx, owner) })
+	sh, err := sf.prepare(ctx, fs, args, seedAdminUnits)
 	if err != nil {
 		return err
 	}
@@ -150,11 +144,7 @@ func cmdM2Stats(ctx context.Context, fs *flag.FlagSet, args []string) error {
 	if f.TenantID == uuid.Nil {
 		return fmt.Errorf("%w: thiếu -fixture", errUsage)
 	}
-	from, err := parseTime(*fromS)
-	if err != nil {
-		return err
-	}
-	owner, err := openOwner(ctx, *dbURL)
+	owner, from, err := openOwnerFrom(ctx, *dbURL, *fromS)
 	if err != nil {
 		return err
 	}
@@ -192,6 +182,16 @@ func readM2Stats(ctx context.Context, owner *db.DB, f m2Fixture, from time.Time)
 		return s, fmt.Errorf("đọc số đo M2: %w", err)
 	}
 	return s, nil
+}
+
+// openOwnerFrom đọc mốc fromS (RFC 3339) rồi mở chủ bảng dbURL (bên gọi đóng pool).
+func openOwnerFrom(ctx context.Context, dbURL, fromS string) (*db.DB, time.Time, error) {
+	from, err := parseTime(fromS)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	owner, err := openOwner(ctx, dbURL)
+	return owner, from, err
 }
 
 // printJSONLine in v thành một dòng JSON ở stdout (một dòng của tệp series).

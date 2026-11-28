@@ -69,7 +69,7 @@ func cmdCarrierSeed(ctx context.Context, fs *flag.FlagSet, args []string, logger
 	for i, tok := range toks {
 		clients[i] = apiClient{base: *api, token: tok, hc: hc}
 	}
-	vars, err := seedProduct(ctx, clients[0], 1)
+	_, vars, err := seedProduct(ctx, clients[0], 1)
 	if err != nil {
 		return err
 	}
