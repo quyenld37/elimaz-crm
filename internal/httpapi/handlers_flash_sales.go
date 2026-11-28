@@ -98,7 +98,7 @@ func (h *handler) UpdateFlashSale(ctx context.Context, req *gen.UpdateFlashSaleR
 			return nil, err //nolint:wrapcheck // sentinel của promotion
 		}
 		after := ch.After
-		after.Items, after.ItemCount = cur.Items, cur.ItemCount
+		after.Items, after.ItemCount, after.Quantity, after.Sold = cur.Items, cur.ItemCount, cur.Quantity, cur.Sold
 		return flashSaleOut(after), h.audit(ctx, tx, u, "promotion.flash_sale.update", "promotion.flash_sale", id,
 			ch.Before.AuditFields(), ch.After.AuditFields())
 	})
@@ -302,6 +302,7 @@ func flashSummaryOut(s promotion.FlashSale) gen.FlashSaleSummary {
 	out := gen.FlashSaleSummary{
 		ID: s.ID, Name: s.Name, StartsAt: s.StartsAt, EndsAt: s.EndsAt, Status: gen.FlashSaleStatus(s.Status),
 		Version: int32(s.Version), ItemCount: int32(s.ItemCount), CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt, //nolint:gosec // G115: int4 của bảng
+		Quantity: int32(s.Quantity), Sold: int32(s.Sold), //nolint:gosec // G115: tổng int4 của câu SQL
 	}
 	if s.ClosedReason != "" {
 		out.ClosedReason = gen.NewOptString(s.ClosedReason)
@@ -322,5 +323,6 @@ func flashItemOut(it promotion.FlashItem) gen.FlashItem {
 		ID: it.ID, VariantId: it.VariantID, SellerId: it.SellerID, Sku: it.SKU, Name: it.Name,
 		ListPrice: gen.Money(it.ListPrice), SalePrice: gen.Money(it.SalePrice), Quantity: int32(it.Quantity), //nolint:gosec // G115: int4 của bảng
 		PerCustomerLimit: int32(it.PerCustomerLimit), HoldMinutes: int32(it.HoldMinutes), Version: int32(it.Version), //nolint:gosec // G115: int4 của bảng
+		Sellable: int32(it.Sellable), //nolint:gosec // G115: available là int4 của số dư
 	}
 }

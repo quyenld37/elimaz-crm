@@ -196,14 +196,7 @@ const futureFlashBody = `{"name":"Sale xa","startsAt":"2099-12-12T05:00:00Z","en
 func TestFlashSaleAPI_Lifecycle(t *testing.T) {
 	t.Parallel()
 	e := newFlashEnv(t)
-	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
-		wh, err := inventory.DefaultWarehouse(t.Context(), tx)
-		if err != nil {
-			return err //nolint:wrapcheck // test
-		}
-		invtest.SeedStock(t, tx, e.variant, wh, 10)
-		return nil
-	})
+	e.seedStock(t, 10)
 	s := e.ok("tạo", e.do(http.MethodPost, "/api/v1/flash-sales", couponManager, "l1", futureFlashBody), http.StatusCreated)
 	sale, _ := s["sale"].(map[string]any)
 	id, _ := sale["id"].(string)
@@ -264,6 +257,19 @@ func TestFlashSaleAPI_Lifecycle(t *testing.T) {
 			t.Errorf("audit %s: %d, mong %d", action, got, n)
 		}
 	}
+}
+
+// seedStock nạp n hàng có sẵn của biến thể của env vào kho MAIN.
+func (e *flashEnv) seedStock(t *testing.T, n int32) {
+	t.Helper()
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		wh, err := inventory.DefaultWarehouse(t.Context(), tx)
+		if err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		invtest.SeedStock(t, tx, e.variant, wh, n)
+		return nil
+	})
 }
 
 // checkLive đọc số liệu đợt (người chỉ có promotion.flash.read) và so các trường của món đầu.

@@ -27,11 +27,19 @@ WHERE id = @id AND version = @version AND status = 'draft'
 RETURNING id, name, starts_at, ends_at, status, closed_reason, created_by, created_at, updated_at, version;
 
 -- name: ListFlashSales :many
--- Mới nhất trước (id uuidv7 giảm dần), con trỏ là id của dòng cuối trang trước; status rỗng = mọi trạng thái.
+-- Mới nhất trước (id uuidv7 giảm dần), con trỏ là id của dòng cuối trang trước; status rỗng = mọi trạng thái. Kèm số
+-- món, tổng suất, số đơn vị đã bán (view inventory.flash_units_summary_v; Task 528).
 SELECT s.id, s.name, s.starts_at, s.ends_at, s.status, s.closed_reason, s.created_by, s.created_at, s.updated_at,
-       s.version,
-       (SELECT count(*) FROM promotion.flash_sale_items AS i WHERE i.flash_sale_id = s.id)::int AS item_count
+       s.version, t.item_count, t.quantity, t.sold
 FROM promotion.flash_sales AS s
+CROSS JOIN LATERAL (
+    SELECT count(*)::int AS item_count, coalesce(sum(i.quantity), 0)::int AS quantity,
+           coalesce(sum(u.sold), 0)::int AS sold
+    FROM promotion.flash_sale_items AS i
+    LEFT JOIN LATERAL (SELECT v.sold FROM inventory.flash_units_summary_v AS v WHERE v.flash_sale_item_id = i.id) AS u
+        ON true
+    WHERE i.flash_sale_id = s.id
+) AS t
 WHERE (sqlc.narg(status)::text IS NULL OR s.status = sqlc.narg(status)::text)
   AND (sqlc.narg(after)::uuid IS NULL OR s.id < sqlc.narg(after)::uuid)
 ORDER BY s.id DESC
@@ -78,3 +86,10 @@ FROM promotion.flash_sale_items AS i
 JOIN catalog.variants_v AS v ON v.variant_id = i.variant_id AND v.seller_id = i.seller_id
 WHERE i.flash_sale_id = @flash_sale_id
 ORDER BY i.id;
+
+-- name: FlashSaleSold :one
+-- Số đơn vị suất đã bán của mọi món trong đợt (view inventory.flash_units_summary_v; đợt chưa trải đơn vị: 0; Task 528).
+SELECT coalesce(sum(u.sold), 0)::int AS sold
+FROM promotion.flash_sale_items AS i
+JOIN inventory.flash_units_summary_v AS u ON u.flash_sale_item_id = i.id
+WHERE i.flash_sale_id = @flash_sale_id;

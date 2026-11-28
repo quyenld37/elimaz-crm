@@ -16789,6 +16789,9 @@ type FlashItem struct {
 	PerCustomerLimit int32  `json:"perCustomerLimit"`
 	HoldMinutes      int32  `json:"holdMinutes"`
 	Version          int32  `json:"version"`
+	// Có thể bán thường lúc này của biến thể ở kho của món (số dư available; chưa
+	// có dòng số dư 0) (Task 528).
+	Sellable int32 `json:"sellable"`
 }
 
 // GetID returns the value of ID.
@@ -16846,6 +16849,11 @@ func (s *FlashItem) GetVersion() int32 {
 	return s.Version
 }
 
+// GetSellable returns the value of Sellable.
+func (s *FlashItem) GetSellable() int32 {
+	return s.Sellable
+}
+
 // SetID sets the value of ID.
 func (s *FlashItem) SetID(val uuid.UUID) {
 	s.ID = val
@@ -16899,6 +16907,11 @@ func (s *FlashItem) SetHoldMinutes(val int32) {
 // SetVersion sets the value of Version.
 func (s *FlashItem) SetVersion(val int32) {
 	s.Version = val
+}
+
+// SetSellable sets the value of Sellable.
+func (s *FlashItem) SetSellable(val int32) {
+	s.Sellable = val
 }
 
 func (*FlashItem) addFlashItemRes()    {}
@@ -17234,8 +17247,13 @@ type FlashSaleSummary struct {
 	ClosedReason OptString       `json:"closedReason"`
 	Version      int32           `json:"version"`
 	ItemCount    int32           `json:"itemCount"`
-	CreatedAt    time.Time       `json:"createdAt"`
-	UpdatedAt    time.Time       `json:"updatedAt"`
+	// Tổng số suất của mọi món (Task 528).
+	Quantity int32 `json:"quantity"`
+	// Số đơn vị suất đã bán (đơn đã hoàn tất; đang giữ cho đơn nháp không tính),
+	// đếm trong PostgreSQL; đợt nháp 0 (Task 528).
+	Sold      int32     `json:"sold"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 // GetID returns the value of ID.
@@ -17276,6 +17294,16 @@ func (s *FlashSaleSummary) GetVersion() int32 {
 // GetItemCount returns the value of ItemCount.
 func (s *FlashSaleSummary) GetItemCount() int32 {
 	return s.ItemCount
+}
+
+// GetQuantity returns the value of Quantity.
+func (s *FlashSaleSummary) GetQuantity() int32 {
+	return s.Quantity
+}
+
+// GetSold returns the value of Sold.
+func (s *FlashSaleSummary) GetSold() int32 {
+	return s.Sold
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -17326,6 +17354,16 @@ func (s *FlashSaleSummary) SetVersion(val int32) {
 // SetItemCount sets the value of ItemCount.
 func (s *FlashSaleSummary) SetItemCount(val int32) {
 	s.ItemCount = val
+}
+
+// SetQuantity sets the value of Quantity.
+func (s *FlashSaleSummary) SetQuantity(val int32) {
+	s.Quantity = val
+}
+
+// SetSold sets the value of Sold.
+func (s *FlashSaleSummary) SetSold(val int32) {
+	s.Sold = val
 }
 
 // SetCreatedAt sets the value of CreatedAt.

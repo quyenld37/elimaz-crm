@@ -17788,7 +17788,7 @@ components:
           format: date-time
     FlashSaleSummary:
       type: object
-      required: [id, name, startsAt, endsAt, status, version, itemCount, createdAt, updatedAt]
+      required: [id, name, startsAt, endsAt, status, version, itemCount, quantity, sold, createdAt, updatedAt]
       properties:
         id:
           type: string
@@ -17811,6 +17811,14 @@ components:
         itemCount:
           type: integer
           format: int32
+        quantity:
+          type: integer
+          format: int32
+          description: Tổng số suất của mọi món (Task 528)
+        sold:
+          type: integer
+          format: int32
+          description: Số đơn vị suất đã bán (đơn đã hoàn tất; đang giữ cho đơn nháp không tính), đếm trong PostgreSQL; đợt nháp 0 (Task 528)
         createdAt:
           type: string
           format: date-time
@@ -17894,7 +17902,7 @@ components:
           maximum: 30
     FlashItem:
       type: object
-      required: [id, variantId, sellerId, sku, name, listPrice, salePrice, quantity, perCustomerLimit, holdMinutes, version]
+      required: [id, variantId, sellerId, sku, name, listPrice, salePrice, quantity, perCustomerLimit, holdMinutes, version, sellable]
       properties:
         id:
           type: string
@@ -17926,6 +17934,10 @@ components:
         version:
           type: integer
           format: int32
+        sellable:
+          type: integer
+          format: int32
+          description: Có thể bán thường lúc này của biến thể ở kho của món (số dư available; chưa có dòng số dư 0) (Task 528)
     FlashScheduleRequest:
       type: object
       required: [version]

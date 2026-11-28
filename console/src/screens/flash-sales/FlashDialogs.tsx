@@ -41,6 +41,7 @@ import {
   saleDraftOf,
   scheduleSummary,
   shortagesOf,
+  stockAfter,
   toItemChanges,
   toItemInput,
   toSaleInput,
@@ -570,7 +571,10 @@ export function ScheduleDialog(
         {sum.top.map((l) => (
           <li key={l.sku}>
             <b>{l.sku}</b>
-            {`: giữ ${num(l.quantity)}`}
+            {`: giữ ${num(l.quantity)} · `}
+            <span className={stockAfter(l.sellable, l.quantity).short ? "err-text" : undefined}>
+              {stockAfter(l.sellable, l.quantity).text}
+            </span>
           </li>
         ))}
         {sum.rest !== null && <li>{`và ${String(sum.rest.count)} món khác: giữ ${num(sum.rest.quantity)}`}</li>}
@@ -656,7 +660,18 @@ export function AddSlotsDialog(
       </fieldset>
       {valid && short === undefined && (
         <div className="box box-info">
-          {`Sau khi thêm: ${num(o.item.quantity + n)} suất${o.live === undefined ? "" : `, còn trống ${num(o.live.available + n)}`}. Số này được giữ khỏi bán thường ngay khi bấm.`}
+          {`Sau khi thêm: `}
+          <b>{`${num(o.item.quantity + n)} suất`}</b>
+          {`${o.live === undefined ? "" : `, còn trống ${num(o.live.available + n)}`}. `}
+          {n <= o.item.sellable ? (
+            <>
+              {"Có thể bán thường của mã này "}
+              <b>{`${num(o.item.sellable)} → ${num(o.item.sellable - n)}`}</b>
+              {" ngay khi bấm."}
+            </>
+          ) : (
+            `Chỉ còn ${num(o.item.sellable)} có thể bán thường, máy chủ sẽ báo thiếu hàng.`
+          )}
         </div>
       )}
     </Dialog>

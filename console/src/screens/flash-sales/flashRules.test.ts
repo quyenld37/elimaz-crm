@@ -13,6 +13,8 @@ import {
   remainingText,
   saleSub,
   scheduleSummary,
+  soldText,
+  stockAfter,
   shortagesOf,
   statusChip,
   toItemInput,
@@ -29,6 +31,8 @@ const sale = (p: Partial<FlashSaleSummary> = {}): FlashSaleSummary => ({
   status: "draft",
   version: 1,
   itemCount: 6,
+  quantity: 840,
+  sold: 0,
   createdAt: "2026-11-01T00:00:00Z",
   updatedAt: "2026-11-01T00:00:00Z",
   ...p,
@@ -46,6 +50,7 @@ const item = (sku: string, qty: number, p: Partial<FlashItem> = {}): FlashItem =
   perCustomerLimit: 1,
   holdMinutes: 10,
   version: 1,
+  sellable: 1000,
   ...p,
 });
 
@@ -163,6 +168,22 @@ describe("validateItem / toItemInput (HV31)", () => {
       perCustomerLimit: 1,
       holdMinutes: 10,
     });
+  });
+});
+
+describe("soldText, stockAfter (Task 528)", () => {
+  it("đã bán / suất: nháp là '— / suất', trạng thái khác có ngăn nghìn", () => {
+    expect(soldText(sale({ status: "draft", quantity: 840, sold: 0 }))).toBe("— / 840");
+    expect(soldText(sale({ status: "scheduled", quantity: 2400, sold: 0 }))).toBe("0 / 2.400");
+    expect(soldText(sale({ status: "open", quantity: 1200, sold: 948 }))).toBe("948 / 1.200");
+    expect(soldText(sale({ status: "closed", quantity: 1500, sold: 1500 }))).toBe("1.500 / 1.500");
+    expect(soldText(sale({ status: "closed", quantity: 0, sold: 0 }))).toBe("0 / 0");
+  });
+  it("có thể bán trước → sau; vừa đủ về 0; thiếu thì nêu số thiếu", () => {
+    expect(stockAfter(820, 300)).toEqual({ text: "bán thường còn 820 → 520", short: false });
+    expect(stockAfter(140, 140)).toEqual({ text: "bán thường còn 140 → 0", short: false });
+    expect(stockAfter(96, 150)).toEqual({ text: "bán thường chỉ còn 96, thiếu 54", short: true });
+    expect(stockAfter(1200, 1000).text).toBe("bán thường còn 1.200 → 200");
   });
 });
 
