@@ -132,6 +132,21 @@ order="$(api POST /api/v1/orders "$(jq -nc --arg var "$variant" --arg province "
 order_id="$(jq -r .id <<<"$order")"
 done_step "đơn $(jq -r .code <<<"$order") $(jq -r .status <<<"$order"), grandTotal $(jq -r .grandTotal <<<"$order"), available $(available)"
 
+# Hãng cần mã địa giới của hãng cho địa chỉ giao: đồng bộ (việc nền) rồi chờ hai mã hết "chưa khớp" (Task 526).
+# unmapped_ours: số mã của địa chỉ giao còn chưa khớp với hãng giả; đi hết mọi trang (còn nextCursor thì chưa phải hết).
+unmapped_ours() {
+  local cursor="" page n=0
+  while :; do
+    page="$(api GET "/api/v1/carrier-locations/unmapped?carrier=fake&limit=100${cursor:+&cursor=$cursor}" 200)"
+    n=$((n + $(jq -r --arg p "$province" --arg w "$ward" '[.items[] | select(.ourCode == $p or .ourCode == $w)] | length' <<<"$page")))
+    cursor="$(jq -r '.nextCursor // empty | @uri' <<<"$page")"
+    [[ -n "$cursor" ]] || break
+  done
+  echo "$n"
+}
+api POST "/api/v1/carrier-accounts/${CARRIER_ACCOUNT_ID}/locations/sync" 202 >/dev/null
+wait_until "địa giới khớp với hãng" "unmapped_ours" 0
+
 step "4. Tạo vận đơn ở hãng giả"
 shipment="$(api POST "/api/v1/orders/${order_id}/shipments" "$(jq -nc --arg a "$CARRIER_ACCOUNT_ID" '{carrierAccountId:$a}')" 202)"
 shipment_id="$(jq -r .id <<<"$shipment")"
