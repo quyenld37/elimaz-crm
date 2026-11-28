@@ -80,10 +80,52 @@ func nhanhIn(t *testing.T, r *os.Root, rel string, re *regexp.Regexp) bool {
 	return re.Match(b)
 }
 
-// skipRepo là luật bỏ qua của repo: docs/ ở gốc, mẫu vi phạm testdata/no_nhanh, chính tệp test này.
+// Ngoại lệ DUY NHẤT của ADR-48 (Task 540, 28/11/2026): lệnh `crm nhanh-snapshot` đọc Nhanh một chiều, chỉ trước và
+// trong đêm mở. Mã của nó nằm ở gói adapter và hai tệp lệnh dưới; mọi nơi khác vẫn cấm (MO07, TI06).
+const (
+	nhanhAdapterDir     = "internal/adapters/nhanh/"
+	nhanhCommandPrefix  = "cmd/crm/nhanh_snapshot"
+	nhanhAdapterImport  = `"elimaz.com.vn/crm/internal/adapters/nhanh"`
+	nhanhAdapterAllowed = "cmd/crm/nhanh_snapshot.go"
+)
+
+// skipRepo là luật bỏ qua của repo: docs/ ở gốc, mẫu vi phạm testdata/no_nhanh, chính tệp test này, và ngoại lệ ADR-48.
 func skipRepo(rel string) bool {
 	return strings.HasPrefix(rel, "docs/") || strings.HasPrefix(rel, "tests/arch/testdata/no_nhanh/") ||
-		rel == "tests/arch/no_nhanh_test.go"
+		rel == "tests/arch/no_nhanh_test.go" || strings.HasPrefix(rel, nhanhAdapterDir) ||
+		strings.HasPrefix(rel, nhanhCommandPrefix)
+}
+
+// ADR-48: gói adapter Nhanh chỉ được nhập bởi lệnh nhanh-snapshot (và chính nó); module, httpapi, worker không nhập.
+func TestNhanhAdapter_OnlySnapshotCommandImports(t *testing.T) {
+	t.Parallel()
+	root := repoRoot(t)
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = r.Close() }()
+	var importers []string
+	for _, rel := range trackedFiles(t, root) {
+		if !strings.HasSuffix(rel, ".go") || strings.HasPrefix(rel, nhanhAdapterDir) || rel == "tests/arch/no_nhanh_test.go" {
+			continue
+		}
+		b, err := r.ReadFile(rel)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			t.Fatalf("đọc %s: %v", rel, err)
+		}
+		if strings.Contains(string(b), nhanhAdapterImport) {
+			importers = append(importers, rel)
+		}
+	}
+	for _, rel := range importers {
+		if rel != nhanhAdapterAllowed && rel != "cmd/crm/nhanh_snapshot_test.go" {
+			t.Errorf("%s nhập gói adapter Nhanh; chỉ lệnh nhanh-snapshot được (ADR-48)", rel)
+		}
+	}
 }
 
 // Mã thật của repo: 0 tệp có chuỗi Nhanh bị cấm.
