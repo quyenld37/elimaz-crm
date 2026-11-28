@@ -30,6 +30,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
+	"elimaz.com.vn/crm/internal/modules/reporting"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
@@ -91,6 +92,9 @@ type stackOptions struct {
 	// m3: nối đủ hai module M3 (fulfillment, cash) và phần chạy nền của M2 như cmd/crm (đường trọn M3, Task M3-48);
 	// cần fakeCarrierURL. false: chỉ lệnh tạo, tra vận đơn và consumer sổ COD của M1.
 	m3 bool
+	// m6: nối thêm phần chạy nền của báo cáo M6 (lệnh command.report_run, việc chụp tồn và dọn) vào worker, trên kho
+	// tệp trong bộ nhớ của m3 như cmd/crm (Task 242); cần m3. api luôn có bộ chạy báo cáo tại chỗ mặc định.
+	m6 bool
 }
 
 func newStack(t *testing.T, o stackOptions) *stack {
@@ -180,6 +184,9 @@ func (s *stack) startAPI(o stackOptions, hub *realtime.PGHub, evs *events.Regist
 	} else if err := evs.Register(cash.Consumer{}); err != nil {
 		s.t.Fatal(err)
 	}
+	if o.m6 {
+		reporting.RegisterFilePurposes()
+	}
 	streamStop := make(chan struct{})
 	apiDeps := httpapi.Deps{
 		Config: config.Config{ConsoleOrigins: []string{stackOrigin}}, DB: s.app, Logger: logger, Events: evs,
@@ -224,6 +231,17 @@ func (s *stack) workerHandlers(o stackOptions, hub *realtime.PGHub, evs *events.
 		})
 		inboundHandlers = append(inboundHandlers, mod.InboundHandlers()...)
 		cmds = append(cmds, fulfillment.NewCreateCommand(co), fulfillment.NewRefreshCommand(mod.Service))
+	}
+	if o.m6 {
+		if s.m3 == nil {
+			s.t.Fatal("stackOptions.m6 cần m3")
+		}
+		d := reporting.Deps{
+			DB: s.app, Files: s.m3.files, Bus: hub, Queue: queue.NewQueue(), Metrics: reg, Now: time.Now,
+			Result: httpapi.ReportResultJSON, // như cmd/crm: kết quả lần chạy nền = JSON của GET báo cáo
+		}
+		cmds = append(cmds, reporting.JobHandlers(d)...)
+		jobs = append(jobs, reporting.TxHandlers(d)...)
 	}
 	split, err := webhooks.NewSplitHandler(webhooks.SplitOptions{Sources: sources, Metrics: reg})
 	if err != nil {
