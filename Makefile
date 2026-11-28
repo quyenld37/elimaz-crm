@@ -32,7 +32,7 @@ DEV_PROFILES := $(if $(wildcard docker/imager/Dockerfile),--profile imager) \
 	$(if $(wildcard docker/filesync/Dockerfile),--profile filesync) \
 	--profile valkey
 
-.PHONY: db-up db-down db-reset dev probe-test perf-test spike-test test-imager test-imager-compose image app-up app-down image-check verify-drill demo-mot-don
+.PHONY: db-up db-down db-reset dev probe-test perf-test perf-m2 spike-test test-imager test-imager-compose image app-up app-down image-check verify-drill demo-mot-don
 
 db-up: ## Dựng PostgreSQL 18, Jaeger, SeaweedFS (kho chính, kho ngoài giả, tạo bucket), chờ tới khi sẵn sàng
 	$(COMPOSE) up -d --wait
@@ -49,6 +49,12 @@ perf-test: ## Trần thời gian câu nhận việc ở 100.000 việc chờ (50
 	go test -tags perf -count=1 -run '^TestClaimLongQueueTimeBudget$$' -v ./internal/platform/queue/
 	go test -tags perf -count=1 -run '^TestReconcile_LargeTenantTimeBudget$$' -v ./internal/modules/inventory/
 	go test -tags perf -count=1 -run '^(TestImager_HangKilledTimeBudget|TestExecRunner_TimeoutTimeBudget)$$' -v ./internal/imager/
+
+# Thử tải M2 (kế hoạch M2 Task 88, ngoài make ci): 1 triệu khách, 5 triệu đơn nạp bằng tools/seedperf, tìm khách và lên
+# đơn 10× bằng k6; cần compose dev riêng (make db-up), database mới. Chủ shop 26/11: máy Mac không chạy tải nặng — chạy ở
+# bể từ xa: CRM_CI_LOADTEST=m2 scripts/ci/remote-test.sh … (loadtest/README.md, mục "Bộ thử tải M2").
+perf-m2: ## Thử tải M2: tìm khách trên 1 triệu khách (p95 < 300 ms) và lên đơn 10× (loadtest/m2_run.sh)
+	loadtest/m2_run.sh
 
 # Test của imager cần libvips: chạy trong stage `test` của docker/imager/Dockerfile (cùng bản libvips với image chạy).
 # --init: tini gặt tiến trình con mồ côi để test nhóm tiến trình bị giết thấy đúng. IMAGER_REQUIRE_VIPS=1: ca cần

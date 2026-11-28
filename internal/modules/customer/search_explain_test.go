@@ -175,3 +175,55 @@ func TestSearchPlans(t *testing.T) {
 		t.Fatalf("hàm %d dòng, câu thẳng %d (err %v)", viaFn, direct, err)
 	}
 }
+
+// indexCondsInFn chạy sql bằng crm_app trong ngữ cảnh tenant (auto_explain của explainFixture ghi kế hoạch của câu lồng
+// trong hàm) và trả "Index Cond" của mọi nút Bitmap Index Scan trên index indexName.
+func indexCondsInFn(t *testing.T, app *db.DB, tenant uuid.UUID, indexName, sql string, args ...any) []string {
+	t.Helper()
+	plans, err := testkit.AutoExplainPlansAsApp(t.Context(), app, tenant, sql, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var conds []string
+	var walk func(n map[string]any)
+	walk = func(n map[string]any) {
+		if n["Node Type"] == "Bitmap Index Scan" && n["Index Name"] == indexName {
+			c, _ := n["Index Cond"].(string)
+			conds = append(conds, c)
+		}
+		children, _ := n["Plans"].([]any)
+		for _, ch := range children {
+			if m, ok := ch.(map[string]any); ok {
+				walk(m)
+			}
+		}
+	}
+	for _, p := range plans {
+		walk(p)
+	}
+	return conds
+}
+
+// Task 88 (thử tải M2: tìm tên p95 580 ms trên 1 triệu khách, DH02 đòi < 0,3 s): hàm tên đưa mọi từ (tối đa ba từ dài
+// nhất) vào điều kiện của index trigram để GIN lấy giao các từ, không chỉ từ dài nhất (họ "nguyen" khớp ~38% khách, các
+// từ khác lọc sau khi đọc cả trăm nghìn dòng). Một từ, hai từ: điều kiện lặp lại từ dài nhất (không đổi kết quả).
+func TestSearchByName_AllWordsInIndexCond(t *testing.T) {
+	t.Parallel()
+	app, a := explainFixture(t)
+	for _, c := range []struct {
+		words []string
+		want  int // số điều kiện LIKE (~~) trên name_search trong Index Cond
+	}{
+		{[]string{"nguyen", "thi", "anh"}, 3},
+		{[]string{"nguyen", "thi", "anh", "12"}, 3},
+		{[]string{"nguyen", "anh"}, 3},
+	} {
+		conds := indexCondsInFn(t, app, a, "customers_name_search_trgm", storeSQL(t, "searchByName"), c.words, int32(200))
+		if len(conds) != 1 {
+			t.Fatalf("%v: %d lần quét index trigram (%v), muốn 1", c.words, len(conds), conds)
+		}
+		if got := strings.Count(conds[0], "name_search ~~"); got != c.want {
+			t.Errorf("%v: Index Cond có %d điều kiện LIKE, muốn %d: %s", c.words, got, c.want, conds[0])
+		}
+	}
+}

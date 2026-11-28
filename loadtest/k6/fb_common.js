@@ -182,7 +182,7 @@ const claimBad = new Counter('claim_bad');
 // ORIGIN: CONSOLE_ORIGINS của api trong bài thử (fb_lib.sh); yêu cầu ghi phải mang Origin của màn hình.
 const ORIGIN = __ENV.ORIGIN || 'http://localhost:4192';
 
-function auth(token, extra) {
+export function auth(token, extra) {
   return Object.assign({ 'Cf-Access-Jwt-Assertion': token, Origin: ORIGIN }, extra || {});
 }
 

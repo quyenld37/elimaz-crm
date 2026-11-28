@@ -363,11 +363,8 @@ func firstToken(path string) (string, error) {
 // cmdFBSeed: loadkit fbseed -db <chủ bảng> -api <gốc> -graph <gốc máy giả> -tokens F -out fb.json. Chạy sau
 // loadkit seed (tenant, nhân viên); nhân viên 1 (owner) gọi API.
 func cmdFBSeed(ctx context.Context, fs *flag.FlagSet, args []string, logger *slog.Logger) error {
-	dbURL := fs.String("db", "", "chuỗi kết nối chủ bảng (crm_owner)")
-	api := fs.String("api", "http://127.0.0.1:4290", "gốc api")
+	sf := addSeedFlags(fs, "fb.json")
 	graph := fs.String("graph", "http://127.0.0.1:4293", "gốc máy Meta giả")
-	tokens := fs.String("tokens", "", "tokens.json của loadkit access")
-	out := fs.String("out", "", "tệp fb.json")
 	o := fbSeedOptions{UserToken: devUserToken, PageBase: 100_000_000_000_001, VideoBase: 500_000_000_000_001}
 	fs.IntVar(&o.Pages, "pages", 2, "số Page")
 	fs.IntVar(&o.Variants, "variants", 20, "số biến thể")
@@ -375,35 +372,71 @@ func cmdFBSeed(ctx context.Context, fs *flag.FlagSet, args []string, logger *slo
 	if err := fs.Parse(args); err != nil {
 		return fmt.Errorf("đọc cờ: %w", err)
 	}
-	if *out == "" || *tokens == "" {
-		return fmt.Errorf("%w: thiếu -out hoặc -tokens", errUsage)
+	if err := sf.check(); err != nil {
+		return err
 	}
 	o.Graph = *graph
-	owner, err := openOwner(ctx, *dbURL)
-	if err != nil {
-		return err
-	}
-	defer owner.Pool.Close()
-	tenantID, err := tenancy.SeedTenant(ctx, owner, loadTenantName)
-	if err != nil {
-		return fmt.Errorf("đọc tenant thử: %w", err)
-	}
-	wh, err := seedShop(ctx, owner, tenantID)
-	if err != nil {
-		return err
-	}
-	tok, err := firstToken(*tokens)
+	sh, err := prepareShop(ctx, *sf.db, *sf.tokens, nil)
 	if err != nil {
 		return err
 	}
 	hc := &http.Client{Timeout: 30 * time.Second}
-	f, err := seedFB(ctx, apiClient{base: *api, token: tok, hc: hc}, hc, wh, o)
+	f, err := seedFB(ctx, apiClient{base: *sf.api, token: sh.token, hc: hc}, hc, sh.warehouse, o)
 	if err != nil {
 		return err
 	}
-	f.TenantID = tenantID
+	f.TenantID = sh.tenantID
 	logger.Info("fbseed xong", slog.Int("pages", len(f.Pages)), slog.Int("variants", len(f.Variants)))
-	return writeJSON(*out, f)
+	return writeJSON(*sf.out, f)
+}
+
+// seedFlags là các cờ chung của fbseed, m2seed.
+type seedFlags struct{ db, api, tokens, out *string }
+
+func addSeedFlags(fs *flag.FlagSet, outFile string) seedFlags {
+	return seedFlags{
+		db:     fs.String("db", "", "chuỗi kết nối chủ bảng (crm_owner)"),
+		api:    fs.String("api", "http://127.0.0.1:4290", "gốc api"),
+		tokens: fs.String("tokens", "", "tokens.json của loadkit access"),
+		out:    fs.String("out", "", "tệp "+outFile),
+	}
+}
+
+func (f seedFlags) check() error {
+	if *f.out == "" || *f.tokens == "" {
+		return fmt.Errorf("%w: thiếu -out hoặc -tokens", errUsage)
+	}
+	return nil
+}
+
+// shopSetup là phần chung của fbseed, m2seed: tenant thử, kho của người bán thử, token của nhân viên 1 (owner).
+type shopSetup struct {
+	tenantID, warehouse uuid.UUID
+	token               string
+}
+
+// prepareShop mở chủ bảng dbURL, lấy tenant thử (của loadkit seed), dựng người bán, kho (seedShop), chạy extra trên chủ
+// bảng (nil: bỏ qua) rồi đọc token đầu của tokens; đóng chủ bảng trước khi trả.
+func prepareShop(ctx context.Context, dbURL, tokens string, extra func(*db.DB) error) (shopSetup, error) {
+	var sh shopSetup
+	owner, err := openOwner(ctx, dbURL)
+	if err != nil {
+		return sh, err
+	}
+	defer owner.Pool.Close()
+	if sh.tenantID, err = tenancy.SeedTenant(ctx, owner, loadTenantName); err != nil {
+		return sh, fmt.Errorf("đọc tenant thử: %w", err)
+	}
+	if sh.warehouse, err = seedShop(ctx, owner, sh.tenantID); err != nil {
+		return sh, err
+	}
+	if extra != nil {
+		if err := extra(owner); err != nil {
+			return sh, err
+		}
+	}
+	sh.token, err = firstToken(tokens)
+	return sh, err
 }
 
 // cmdFBEnd: loadkit fbend -api <gốc> -graph <gốc máy giả> -tokens F -fixture fb.json — kết thúc các phiên live.
