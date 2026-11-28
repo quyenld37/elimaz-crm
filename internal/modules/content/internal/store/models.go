@@ -1094,6 +1094,7 @@ type CustomerCustomersV struct {
 	Version        int64
 	DoNotContact   bool
 	NameSource     string
+	ReturnRateBp   int32
 }
 
 type CustomerFeedback struct {

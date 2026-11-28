@@ -128,7 +128,8 @@ func TestM2Contract_ViewsDoc(t *testing.T) {
 	doc := readViewsDoc(t, repoRoot(t))
 	want := map[string]string{
 		"customer.customers_v": "id, root_id, full_name, created_at, tenant_id, code, lifecycle, birthday, order_count, " +
-			"delivered_count, returned_count, total_spent, last_order_at, updated_at, version, do_not_contact, name_source", // M4 Task 152 nối cuối (Q-X2)
+			"delivered_count, returned_count, total_spent, last_order_at, updated_at, version, do_not_contact, name_source, " +
+			"return_rate_bp", // M4 Task 152, M6 Task 238 (0605) nối cuối (Q-X2)
 		"ord.orders_v": "id, tenant_id, code, seller_id, customer_id, status, channel, grand_total, cod_amount, " +
 			"current_shipment_id, created_at, pending_reason, packing_status, payment_status, channel_account_id, " +
 			"traffic_source_id, conversation_id, external_ref, order_type, warehouse_id, ship_phone, address_complete, " +
