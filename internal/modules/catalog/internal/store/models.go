@@ -1506,6 +1506,22 @@ type IdentityUsersV struct {
 	Status      string
 }
 
+type InventoryCountImport struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	StocktakeID uuid.UUID
+	FileID      uuid.UUID
+	FileSha256  string
+	Mode        string
+	Status      string
+	PendingRows []byte
+	AppliedRows int32
+	ErrorRows   []byte
+	CreatedBy   uuid.UUID
+	CreatedAt   time.Time
+	FinishedAt  pgtype.Timestamptz
+}
+
 type InventoryFlashSaleUnit struct {
 	ID              uuid.UUID
 	TenantID        uuid.UUID

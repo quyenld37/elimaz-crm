@@ -99,3 +99,31 @@ func (e *UncountedLinesError) Error() string {
 
 // Is cho errors.Is(err, ErrUncountedLines).
 func (e *UncountedLinesError) Is(target error) bool { return target == ErrUncountedLines }
+
+// Lỗi của đếm cộng dồn và nhập số đếm bằng Excel (kế hoạch M7, Task 263).
+var (
+	// ErrUnknownCode: mã quét không khớp SKU hay barcode của biến thể nào (mẫu chưa xóa) trong tenant.
+	ErrUnknownCode = errors.New("inventory: mã quét không có")
+	// ErrAmbiguousCode: mã quét khớp nhiều biến thể (trùng giữa người bán); lỗi cụ thể là *AmbiguousCodeError.
+	ErrAmbiguousCode = errors.New("inventory: mã quét trùng nhiều biến thể")
+	// ErrNegativeCount: lần trừ làm số đếm âm, hoặc trừ dòng chưa đếm.
+	ErrNegativeCount = errors.New("inventory: số đếm không được âm")
+	// ErrImportAlreadyApplied: cùng tệp đã nhập chế độ add vào phiên này (cộng lần hai sẽ đếm đôi).
+	ErrImportAlreadyApplied = errors.New("inventory: tệp đã cộng vào phiên kiểm")
+)
+
+// CodeCandidate là một biến thể khớp mã quét: mã biến thể, người bán, SKU.
+type CodeCandidate struct {
+	VariantID, SellerID uuid.UUID
+	SKU                 string
+}
+
+// AmbiguousCodeError là chi tiết của ErrAmbiguousCode: mọi biến thể khớp mã (theo mã biến thể tăng dần).
+type AmbiguousCodeError struct{ Candidates []CodeCandidate }
+
+func (e *AmbiguousCodeError) Error() string {
+	return fmt.Sprintf("inventory: mã quét trùng %d biến thể", len(e.Candidates))
+}
+
+// Is cho errors.Is(err, ErrAmbiguousCode).
+func (e *AmbiguousCodeError) Is(target error) bool { return target == ErrAmbiguousCode }

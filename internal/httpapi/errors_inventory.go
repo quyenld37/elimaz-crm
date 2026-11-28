@@ -20,10 +20,14 @@ const (
 	codeSupplierNameTaken  = "supplier_name_taken"
 	codeSupplierArchived   = "supplier_archived"
 	codeSupplierNotForKind = "supplier_not_for_kind"
-	codeLegacyReturnExists = "legacy_return_exists"
 	codeOpeningExists      = "opening_exists"
 	codeWarehouseNotEmpty  = "warehouse_not_empty"
 	codeUncountedLines     = "uncounted_lines"
+	codeLegacyReturnExists = "legacy_return_exists"
+	codeAmbiguousCode      = "ambiguous_code"
+	codeUnknownCode        = "unknown_code"
+	codeNegativeCount      = "negative_count"
+	codeImportApplied      = "import_already_applied"
 )
 
 // inventoryError đổi lỗi nghiệp vụ của kho (và thiếu quyền ở kho của yêu cầu) sang mã HTTP. ErrNotFound: phiếu, nhà
@@ -43,6 +47,10 @@ func inventoryError(err error) (status int, code string, ok bool) {
 		{inventory.ErrWarehouseNotEmpty, http.StatusConflict, codeWarehouseNotEmpty},
 		{inventory.ErrOpeningNotPosted, http.StatusConflict, codeStocktakeOpen},
 		{inventory.ErrUncountedLines, http.StatusUnprocessableEntity, codeUncountedLines},
+		{inventory.ErrAmbiguousCode, http.StatusUnprocessableEntity, codeAmbiguousCode},
+		{inventory.ErrUnknownCode, http.StatusUnprocessableEntity, codeUnknownCode},
+		{inventory.ErrNegativeCount, http.StatusUnprocessableEntity, codeNegativeCount},
+		{inventory.ErrImportAlreadyApplied, http.StatusConflict, codeImportApplied},
 		{inventory.ErrSupplierNameTaken, http.StatusConflict, codeSupplierNameTaken},
 		{inventory.ErrSupplierArchived, http.StatusUnprocessableEntity, codeSupplierArchived},
 		{inventory.ErrSupplierNotForKind, http.StatusUnprocessableEntity, codeSupplierNotForKind},
@@ -51,16 +59,31 @@ func inventoryError(err error) (status int, code string, ok bool) {
 	})
 }
 
-// inventoryDetail: lỗi kho có trường chi tiết trong thân — kiện hàng hoàn đã nhập (409 legacy_return_exists,
-// Task 264) kèm existingId để màn hình liên kết tới phiếu đã có; uncounted_lines kèm count (Task 262).
+// ambiguousCandidateBody là một biến thể trùng mã quét (AmbiguousCodeCandidate của openapi).
+type ambiguousCandidateBody struct {
+	VariantID string `json:"variantId"`
+	SellerID  string `json:"sellerId"`
+	SKU       string `json:"sku"`
+}
+
+// inventoryDetail: lỗi kho có trường chi tiết trong thân — uncounted_lines kèm count (Task 262), ambiguous_code kèm
+// candidates (Task 263), kiện hàng hoàn đã nhập (409 legacy_return_exists, Task 264) kèm existingId để màn hình liên
+// kết tới phiếu đã có.
 func inventoryDetail(err error) (errorBody, int, bool) {
-	if e, ok := errors.AsType[*inventory.DuplicateReferenceError](err); ok {
-		id := e.ExistingID.String()
-		return errorBody{Error: codeLegacyReturnExists, ExistingID: &id}, http.StatusConflict, true
+	if e, ok := errors.AsType[*inventory.AmbiguousCodeError](err); ok {
+		cs := make([]ambiguousCandidateBody, 0, len(e.Candidates))
+		for _, c := range e.Candidates {
+			cs = append(cs, ambiguousCandidateBody{VariantID: c.VariantID.String(), SellerID: c.SellerID.String(), SKU: c.SKU})
+		}
+		return errorBody{Error: codeAmbiguousCode, Candidates: cs}, http.StatusUnprocessableEntity, true
 	}
 	if e, ok := errors.AsType[*inventory.UncountedLinesError](err); ok {
 		n := int32(min(e.N, math.MaxInt32)) //nolint:gosec // đã chặn trên
 		return errorBody{Error: codeUncountedLines, Count: &n}, http.StatusUnprocessableEntity, true
+	}
+	if e, ok := errors.AsType[*inventory.DuplicateReferenceError](err); ok {
+		id := e.ExistingID.String()
+		return errorBody{Error: codeLegacyReturnExists, ExistingID: &id}, http.StatusConflict, true
 	}
 	return errorBody{}, 0, false
 }
