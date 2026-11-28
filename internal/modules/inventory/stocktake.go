@@ -32,6 +32,12 @@ const (
 	StocktakeCancelled = "cancelled"
 )
 
+// Loại phiên kiểm (cột kind, Task 262): kiểm thường của M1, hay mở sổ trên kho trống (opening.go).
+const (
+	StocktakeKindRegular = "regular"
+	StocktakeKindOpening = "opening"
+)
+
 const (
 	docStocktake      = "stocktake"
 	stepApply         = "apply"
@@ -43,7 +49,7 @@ const (
 // Stocktake là một phiên kiểm kho.
 type Stocktake struct {
 	ID, WarehouseID      uuid.UUID
-	Code, Status         string
+	Code, Status, Kind   string
 	StartedBy, AppliedBy *uuid.UUID
 	AppliedAt            *time.Time
 	CreatedAt            time.Time
@@ -189,8 +195,13 @@ func RecordCount(ctx context.Context, tx pgx.Tx, stocktakeID, variantID uuid.UUI
 // on_hand − in_transit ≥ |delta| (hàng đang giao vẫn trừ được khi giao xong); không đủ → *InsufficientError (Available
 // = on_hand − in_transit), bên gọi lùi transaction. Không đụng held, in_transit, giữ hàng. Biến thể vừa chỉnh có
 // "có thể bán" âm vào Shortages và một lệnh ShortageAlertKind được ghi cùng tx. Lỗi khác: ErrNotFound,
-// ErrStocktakeNotOpen, ErrVersionConflict, ErrInvalidInput.
+// ErrStocktakeNotOpen, ErrVersionConflict, ErrInvalidInput (cả khi id là phiên mở sổ: chỉ đăng bằng PostOpening).
 func (w Writer) ApplyStocktake(ctx context.Context, tx pgx.Tx, id uuid.UUID, version int64, a Actor) (ApplyResult, error) {
+	return w.apply(ctx, tx, id, version, StocktakeKindRegular, a)
+}
+
+// apply là thân của ApplyStocktake cho phiên loại kind (PostOpening gọi với StocktakeKindOpening).
+func (w Writer) apply(ctx context.Context, tx pgx.Tx, id uuid.UUID, version int64, kind string, a Actor) (ApplyResult, error) {
 	if !a.valid() {
 		return ApplyResult{}, fmt.Errorf("%w: tác nhân %q", ErrInvalidInput, a.Type)
 	}
@@ -198,10 +209,13 @@ func (w Writer) ApplyStocktake(ctx context.Context, tx pgx.Tx, id uuid.UUID, ver
 		return ApplyResult{}, errNotWired
 	}
 	q := store.New(tx)
-	row, err := q.ApplyStocktake(ctx, store.ApplyStocktakeParams{AppliedBy: actorUUID(a), ID: id, Version: version})
+	row, err := q.ApplyStocktake(ctx, store.ApplyStocktakeParams{AppliedBy: actorUUID(a), ID: id, Version: version, Kind: kind})
 	if errors.Is(err, pgx.ErrNoRows) {
-		_, err := lockOpen(ctx, q, id, &version)
-		if err == nil {
+		s, err := lockOpen(ctx, q, id, &version)
+		switch {
+		case err == nil && s.Kind != kind:
+			err = fmt.Errorf("%w: phiên loại %s không áp dụng bằng đường %s", ErrInvalidInput, s.Kind, kind)
+		case err == nil:
 			err = ErrVersionConflict // đã khóa mà vẫn khớp: không xảy ra; giữ để an toàn
 		}
 		return ApplyResult{}, err
@@ -371,7 +385,8 @@ func getStocktake(ctx context.Context, q *store.Queries, id uuid.UUID) (Stocktak
 		return Stocktake{}, fmt.Errorf("đọc phiên kiểm: %w", err)
 	}
 	s := Stocktake{
-		ID: r.ID, WarehouseID: r.WarehouseID, Code: r.Code, Status: r.Status, CreatedAt: r.CreatedAt, Version: r.Version,
+		ID: r.ID, WarehouseID: r.WarehouseID, Code: r.Code, Status: r.Status, Kind: r.Kind, CreatedAt: r.CreatedAt,
+		Version:   r.Version,
 		StartedBy: fromPgUUID(r.StartedBy), AppliedBy: fromPgUUID(r.AppliedBy),
 	}
 	if r.AppliedAt.Valid {

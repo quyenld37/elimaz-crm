@@ -17,7 +17,7 @@ const applyStocktake = `-- name: ApplyStocktake :one
 UPDATE inventory.stocktakes
 SET status = 'applied', applied_by = $1::uuid, applied_at = now(), version = version + 1,
     updated_at = now()
-WHERE id = $2 AND status = 'open' AND version = $3
+WHERE id = $2 AND status = 'open' AND version = $3 AND kind = $4
 RETURNING warehouse_id, code
 `
 
@@ -25,6 +25,7 @@ type ApplyStocktakeParams struct {
 	AppliedBy pgtype.UUID
 	ID        uuid.UUID
 	Version   int64
+	Kind      string
 }
 
 type ApplyStocktakeRow struct {
@@ -32,9 +33,15 @@ type ApplyStocktakeRow struct {
 	Code        string
 }
 
-// Áp dụng: chỉ phiên mở đúng version; hai yêu cầu song song → một dòng đổi, bên kia 0 dòng (đọc lại sau khóa).
+// Áp dụng: chỉ phiên mở đúng version và đúng loại (kiểm thường qua ApplyStocktake, mở sổ qua PostOpening, Task 262);
+// hai yêu cầu song song → một dòng đổi, bên kia 0 dòng (đọc lại sau khóa).
 func (q *Queries) ApplyStocktake(ctx context.Context, arg ApplyStocktakeParams) (ApplyStocktakeRow, error) {
-	row := q.db.QueryRow(ctx, applyStocktake, arg.AppliedBy, arg.ID, arg.Version)
+	row := q.db.QueryRow(ctx, applyStocktake,
+		arg.AppliedBy,
+		arg.ID,
+		arg.Version,
+		arg.Kind,
+	)
 	var i ApplyStocktakeRow
 	err := row.Scan(&i.WarehouseID, &i.Code)
 	return i, err
@@ -62,7 +69,7 @@ func (q *Queries) CancelStocktake(ctx context.Context, arg CancelStocktakeParams
 }
 
 const getStocktake = `-- name: GetStocktake :one
-SELECT id, warehouse_id, code, status, started_by, applied_by, applied_at, created_at, version
+SELECT id, warehouse_id, code, status, started_by, applied_by, applied_at, created_at, version, kind
 FROM inventory.stocktakes
 WHERE id = $1
 `
@@ -77,6 +84,7 @@ type GetStocktakeRow struct {
 	AppliedAt   pgtype.Timestamptz
 	CreatedAt   time.Time
 	Version     int64
+	Kind        string
 }
 
 func (q *Queries) GetStocktake(ctx context.Context, id uuid.UUID) (GetStocktakeRow, error) {
@@ -92,6 +100,7 @@ func (q *Queries) GetStocktake(ctx context.Context, id uuid.UUID) (GetStocktakeR
 		&i.AppliedAt,
 		&i.CreatedAt,
 		&i.Version,
+		&i.Kind,
 	)
 	return i, err
 }
@@ -247,7 +256,7 @@ func (q *Queries) ListStocktakeLines(ctx context.Context, arg ListStocktakeLines
 }
 
 const lockStocktake = `-- name: LockStocktake :one
-SELECT id, warehouse_id, status, version
+SELECT id, warehouse_id, status, version, kind
 FROM inventory.stocktakes
 WHERE id = $1
 FOR UPDATE
@@ -258,6 +267,7 @@ type LockStocktakeRow struct {
 	WarehouseID uuid.UUID
 	Status      string
 	Version     int64
+	Kind        string
 }
 
 func (q *Queries) LockStocktake(ctx context.Context, id uuid.UUID) (LockStocktakeRow, error) {
@@ -268,6 +278,7 @@ func (q *Queries) LockStocktake(ctx context.Context, id uuid.UUID) (LockStocktak
 		&i.WarehouseID,
 		&i.Status,
 		&i.Version,
+		&i.Kind,
 	)
 	return i, err
 }

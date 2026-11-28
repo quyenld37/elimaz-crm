@@ -5,6 +5,7 @@ package httpapi
 
 import (
 	"errors"
+	"math"
 	"net/http"
 
 	"elimaz.com.vn/crm/internal/modules/inventory"
@@ -20,6 +21,9 @@ const (
 	codeSupplierArchived   = "supplier_archived"
 	codeSupplierNotForKind = "supplier_not_for_kind"
 	codeLegacyReturnExists = "legacy_return_exists"
+	codeOpeningExists      = "opening_exists"
+	codeWarehouseNotEmpty  = "warehouse_not_empty"
+	codeUncountedLines     = "uncounted_lines"
 )
 
 // inventoryError đổi lỗi nghiệp vụ của kho (và thiếu quyền ở kho của yêu cầu) sang mã HTTP. ErrNotFound: phiếu, nhà
@@ -35,6 +39,10 @@ func inventoryError(err error) (status int, code string, ok bool) {
 		{inventory.ErrDocumentNotDraft, http.StatusConflict, codeDocumentNotDraft},
 		{inventory.ErrStocktakeOpen, http.StatusConflict, codeStocktakeOpen},
 		{inventory.ErrStocktakeNotOpen, http.StatusConflict, codeStocktakeNotOpen},
+		{inventory.ErrOpeningExists, http.StatusConflict, codeOpeningExists},
+		{inventory.ErrWarehouseNotEmpty, http.StatusConflict, codeWarehouseNotEmpty},
+		{inventory.ErrOpeningNotPosted, http.StatusConflict, codeStocktakeOpen},
+		{inventory.ErrUncountedLines, http.StatusUnprocessableEntity, codeUncountedLines},
 		{inventory.ErrSupplierNameTaken, http.StatusConflict, codeSupplierNameTaken},
 		{inventory.ErrSupplierArchived, http.StatusUnprocessableEntity, codeSupplierArchived},
 		{inventory.ErrSupplierNotForKind, http.StatusUnprocessableEntity, codeSupplierNotForKind},
@@ -43,13 +51,16 @@ func inventoryError(err error) (status int, code string, ok bool) {
 	})
 }
 
-// inventoryDetail: kiện hàng hoàn đã nhập (409 legacy_return_exists, Task 264) kèm existingId để màn hình liên kết
-// tới phiếu đã có.
+// inventoryDetail: lỗi kho có trường chi tiết trong thân — kiện hàng hoàn đã nhập (409 legacy_return_exists,
+// Task 264) kèm existingId để màn hình liên kết tới phiếu đã có; uncounted_lines kèm count (Task 262).
 func inventoryDetail(err error) (errorBody, int, bool) {
-	e, ok := errors.AsType[*inventory.DuplicateReferenceError](err)
-	if !ok {
-		return errorBody{}, 0, false
+	if e, ok := errors.AsType[*inventory.DuplicateReferenceError](err); ok {
+		id := e.ExistingID.String()
+		return errorBody{Error: codeLegacyReturnExists, ExistingID: &id}, http.StatusConflict, true
 	}
-	id := e.ExistingID.String()
-	return errorBody{Error: codeLegacyReturnExists, ExistingID: &id}, http.StatusConflict, true
+	if e, ok := errors.AsType[*inventory.UncountedLinesError](err); ok {
+		n := int32(min(e.N, math.MaxInt32)) //nolint:gosec // đã chặn trên
+		return errorBody{Error: codeUncountedLines, Count: &n}, http.StatusUnprocessableEntity, true
+	}
+	return errorBody{}, 0, false
 }

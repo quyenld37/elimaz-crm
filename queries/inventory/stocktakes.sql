@@ -16,7 +16,7 @@ WHERE w.id = @warehouse_id
 RETURNING id;
 
 -- name: LockStocktake :one
-SELECT id, warehouse_id, status, version
+SELECT id, warehouse_id, status, version, kind
 FROM inventory.stocktakes
 WHERE id = @id
 FOR UPDATE;
@@ -28,7 +28,7 @@ SET version = version + 1, updated_at = now()
 WHERE id = @id AND status = 'open';
 
 -- name: GetStocktake :one
-SELECT id, warehouse_id, code, status, started_by, applied_by, applied_at, created_at, version
+SELECT id, warehouse_id, code, status, started_by, applied_by, applied_at, created_at, version, kind
 FROM inventory.stocktakes
 WHERE id = @id;
 
@@ -67,11 +67,12 @@ WHERE l.stocktake_id = @stocktake_id AND (sqlc.narg(variant_id)::uuid IS NULL OR
 ORDER BY l.variant_id;
 
 -- name: ApplyStocktake :one
--- Áp dụng: chỉ phiên mở đúng version; hai yêu cầu song song → một dòng đổi, bên kia 0 dòng (đọc lại sau khóa).
+-- Áp dụng: chỉ phiên mở đúng version và đúng loại (kiểm thường qua ApplyStocktake, mở sổ qua PostOpening, Task 262);
+-- hai yêu cầu song song → một dòng đổi, bên kia 0 dòng (đọc lại sau khóa).
 UPDATE inventory.stocktakes
 SET status = 'applied', applied_by = sqlc.narg(applied_by)::uuid, applied_at = now(), version = version + 1,
     updated_at = now()
-WHERE id = @id AND status = 'open' AND version = @version
+WHERE id = @id AND status = 'open' AND version = @version AND kind = @kind
 RETURNING warehouse_id, code;
 
 -- name: CancelStocktake :one
