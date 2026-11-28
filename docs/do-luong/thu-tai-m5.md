@@ -111,3 +111,29 @@ verify-flash`, đếm `external_ref` trùng. Máy như Lần 1 (runner `ubuntu-2
 - **Đề xuất cho quyết định của chủ shop (QĐ-220-1, tự chốt theo /goal 28/11):** giữ số bộ điều tiết mặc định (100 vé/giây
   một món, 300 cả shop, 64 lượt đang xử lý) và `web_key` 120.000/phút; chưa công bố flash sale cho tới khi (1) sửa mã trả
   503 khi PostgreSQL ngừng và (2) chạy lại M5-36, 37 trên bản thử.
+
+## Lần 3 — 28/11/2026, chạy lại hỏng giữa tải sau khi sửa mã 503 (Task 529)
+
+Nguyên nhân của bước e Lần 2 (tái hiện bằng test `TestDBUnavailable_WebRouteChain`: pool của api qua proxy cắt kết
+nối): lỗi nối database (`*pgconn.ConnectError`, 57P01 khi PostgreSQL tắt, kết nối đứt giữa câu, "conn closed") không
+phải `db.ErrRetryLater` nên lớp HTTP trả **500 `internal`** (kèm log lỗi và lần ghi `error_events` cũng hỏng). Sửa:
+`db.Unavailable` phân loại lỗi "database ngừng, quá tải, quá hạn"; `httpapi/errors.go` đổi thành 503 `retry_later` +
+`Retry-After: 1` (cả ở bước xác thực). k6 đếm thêm lỗi khác theo nhóm mã (500, 4xx, 5xx khác 503, mất kết nối).
+
+Cùng bộ thử, cùng máy (runner `ubuntu-24.04`, 4 vCPU, 16 GB), `CRM_CI_LOADTEST=m5:chaos`, run 46158491123, 15 phút máy.
+**Mọi bước ĐẠT.**
+
+| Bước | Lỗi gây (30 s) | bought | Lỗi khác 503/429 | 503 nhận | verify-flash | Đơn trùng |
+|---|---|---|---|---|---|---|
+| a | dừng `valkey-gate` | 500 | 0 / 113.752 | 93.953 (4.179 lượt bấm hết 10 lần gửi vẫn 503) | đạt | 0 |
+| b | dừng `valkey-cache` | 500 | 0 / 28.827 | 1.334 | đạt | 0 |
+| c | `FLUSHALL` cả hai | 500 | 0 / 28.832 | 1.339 | đạt | 0 |
+| d | SIGKILL `api`, chạy lại ngay | 500 | 30 (cả 30 là mất kết nối lúc api chết; d không chấm tỷ lệ) | 1.341 | đạt | 0 |
+| e | dừng PostgreSQL | 500 | **0 / 126.830: ĐẠT** (Lần 2: 15.168 / 28.865) | 113.586 (10.513 lượt bấm hết 10 lần gửi vẫn 503) | đạt | 0 |
+
+- Bước e: trong 30 s ngừng mọi lượt mua nhận 503 `retry_later` kèm `Retry-After: 1`, nên website có tín hiệu để hiện
+  "tạm ngưng" (website bản sao 4185 vẫn chờ server thử của hệ mới, QĐ-220-2). 10.513 lượt bấm gửi lại đủ 10 lần trong lúc
+  database ngừng (k6 chờ theo `Retry-After`, ~10 s) — đây là người bấm website sẽ báo "tạm ngưng"; sau khi PostgreSQL
+  trở lại, đợt bán tiếp đúng 500 suất.
+- Bảng chấm Lần 2 của bước e (KHÔNG ĐẠT) được thay bằng bảng này; QĐ-220-1 điều kiện (1) "sửa mã trả 503 khi PostgreSQL
+  ngừng" đã xong, còn điều kiện (2) chạy lại trên bản thử (server thật).

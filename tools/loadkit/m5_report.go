@@ -237,11 +237,12 @@ func renderM5(in m5Input, vs []verdict) string {
 		return "-"
 	}
 	fmt.Fprintf(&b, "- k6 lượt mua: bought %s, sold_out %s, over_limit %s, not_open %s; lần nhận 429 %s, 503 %s; "+
-		"lượt bấm hết 10 lần gửi vẫn 503 %s; lỗi khác %s; thời gian phía k6 p50 %s / p95 %s / p99 %s ms; "+
+		"lượt bấm hết 10 lần gửi vẫn 503 %s; lỗi khác %s (500: %s, 4xx: %s, 5xx khác 503: %s, mất kết nối: %s); thời gian phía k6 p50 %s / p95 %s / p99 %s ms; "+
 		"%s yêu cầu mua, %s lượt k6 (%s/s)\n",
 		k6("buy_bought", "count"), k6("buy_sold_out", "count"), k6("buy_over_limit", "count"),
 		k6("buy_not_open", "count"), k6("buy_429", "count"), k6("buy_503", "count"), k6("buy_gave_up", "count"),
-		k6("buy_err", "count"), k6("buy_ms", "med"), k6("buy_ms", "p(95)"), k6("buy_ms", "p(99)"),
+		k6("buy_err", "count"), k6("buy_err_500", "count"), k6("buy_err_4xx", "count"),
+		k6("buy_err_5xx_other", "count"), k6("buy_err_net", "count"), k6("buy_ms", "med"), k6("buy_ms", "p(95)"), k6("buy_ms", "p(99)"),
 		k6("buy_ms", "count"), k6("iterations", "count"), k6("iterations", "rate"))
 	fmt.Fprintf(&b, "- k6 hoàn tất đơn: %s đạt, %s hết hạn giữ, %s lỗi; p95 %s ms\n", k6("complete_ok", "count"),
 		k6("complete_expired", "count"), k6("complete_err", "count"), k6("complete_ms", "p(95)"))

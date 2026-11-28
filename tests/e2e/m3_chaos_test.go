@@ -60,9 +60,9 @@ func TestM3Chaos_CreateInDoubt(t *testing.T) {
 // mỗi vận đơn hai tin (lấy hàng, giao thành công) → mọi webhook 200 (giữ ở đĩa). Database về → mỗi vận đơn tới
 // delivered, xuất kho đúng một lần (tồn 25 → 0), COD hãng giữ đúng một lần; tổng sổ COD = 0, sổ kho = số dư.
 func TestM3Chaos_WebhooksDuringDatabaseOutage(t *testing.T) {
-	var proxy *switchProxy
+	var proxy *testkit.SwitchProxy
 	r := newOrderRunWith(t, stackOptions{m3: true, ingestURL: func(appURL string) string {
-		p, u := startSwitchProxy(t, appURL)
+		p, u := testkit.StartSwitchProxy(t, appURL)
 		proxy = p
 		return u
 	}})
@@ -94,9 +94,9 @@ func TestM3Chaos_WebhooksDuringDatabaseOutage(t *testing.T) {
 // api, worker qua proxy có công tắc — như tiến trình ghi chết sau vài lô): cắt khi đã có lô commit, chưa đủ dòng; nối
 // lại → lệnh chạy lại, bảng kê parsed đủ 30.000 dòng, mỗi số dòng một lần.
 func TestM3Chaos_StatementBatchRestart(t *testing.T) {
-	var proxy *switchProxy
+	var proxy *testkit.SwitchProxy
 	r := newOrderRunWith(t, stackOptions{m3: true, appURL: func(appURL string) string {
-		p, u := startSwitchProxy(t, appURL)
+		p, u := testkit.StartSwitchProxy(t, appURL)
 		proxy = p
 		return u
 	}})

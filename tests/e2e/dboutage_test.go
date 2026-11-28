@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // Database ngừng đúng lúc webhook đến (Review Focus 2): pool của ingest đi qua proxy có công tắc. Bật lỗi → 3 webhook
@@ -13,9 +15,9 @@ import (
 // eventId đúng 1 lần.
 func TestDatabaseOutageKeepsWebhooks(t *testing.T) {
 	// Không t.Parallel (Task 484): newStack đặt tracer provider của cả tiến trình (telemetry.Setup).
-	var proxy *switchProxy
+	var proxy *testkit.SwitchProxy
 	s := newStack(t, stackOptions{ingestURL: func(appURL string) string {
-		p, u := startSwitchProxy(t, appURL)
+		p, u := testkit.StartSwitchProxy(t, appURL)
 		proxy = p
 		return u
 	}})

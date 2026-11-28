@@ -209,8 +209,9 @@ func releaseClaim(ctx context.Context, d Deps, c idempotency.Claim) {
 // lại") thì lùi và trả lại khóa, WriteTx trả nil và handler tự ghi câu trả lời đó. fn có thể chạy tới 4 lần
 // (ADR-46): không gọi mạng, gán lại kết quả ở mỗi lần.
 //
-// Lỗi: db.ErrRetryLater → lùi, trả lại khóa, trả lỗi (writeHandlerError: 503 retry_later, Retry-After: 1; không lưu).
-// Lỗi khác của fn → lùi, dòng khóa giữ running tới hết 60 s. Yêu cầu không có khóa (route exempt), gọi lần hai, hay
+// Lỗi: db.ErrRetryLater hay db.Unavailable (database ngừng, quá hạn; Task 529) → lùi, trả lại khóa, trả lỗi
+// (writeHandlerError: 503 retry_later, Retry-After: 1; không lưu). Lỗi khác của fn → lùi, dòng khóa giữ running tới
+// hết 60 s. Yêu cầu không có khóa (route exempt), gọi lần hai, hay
 // tenantID khác tenant của người gọi → ErrNoClaim.
 func WriteTx(ctx context.Context, d Deps, tenantID uuid.UUID, fn func(tx pgx.Tx) (status int, body any, final bool, err error)) error {
 	return WriteTxWith(ctx, d, tenantID, writeTxOptions(d), fn)
@@ -262,7 +263,9 @@ func WriteTxWith(ctx context.Context, d Deps, tenantID uuid.UUID, o db.TxOptions
 	case errors.Is(err, errNotFinal):
 		releaseClaim(ctx, d, st.claim)
 		return nil
-	case errors.Is(err, db.ErrRetryLater):
+	case errors.Is(err, db.ErrRetryLater), db.Unavailable(err):
+		// 503 retry_later mời gửi lại cùng khóa: trả lại khóa ngay. An toàn cả khi COMMIT đã xong mà mất câu trả lời
+		// (dòng khóa đã done, Release không xóa); database ngừng hẳn thì Release cũng hỏng, khóa hết giữ chỗ sau 60 s.
 		releaseClaim(ctx, d, st.claim)
 	}
 	return err //nolint:wrapcheck // lỗi của fn và của RetryTx trả nguyên cho writeHandlerError

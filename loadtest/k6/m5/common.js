@@ -28,6 +28,25 @@ const results = {
 const buy429 = new Counter('buy_429');
 const buy503 = new Counter('buy_503');
 const buyErr = new Counter('buy_err');
+// Lỗi khác theo mã (Task 529: biết mã thật khi PostgreSQL ngừng): 500, mã 4xx, 5xx khác 503, 0 (mất kết nối, quá hạn k6).
+const buyErrBy = {
+  500: new Counter('buy_err_500'),
+  '4xx': new Counter('buy_err_4xx'),
+  '5xx': new Counter('buy_err_5xx_other'),
+  0: new Counter('buy_err_net'),
+};
+
+// countBuyErr đếm một lượt bấm kết thúc bằng lỗi khác, kèm nhóm mã.
+function countBuyErr(status) {
+  buyErr.add(1);
+  if (status === 500 || status === 0) {
+    buyErrBy[status].add(1);
+  } else if (status >= 400 && status < 500) {
+    buyErrBy['4xx'].add(1);
+  } else if (status >= 500) {
+    buyErrBy['5xx'].add(1);
+  }
+}
 // Lượt bấm nhận 503 cả 10 lần gửi: không phải mã lỗi khác (chỉ 503 retry_later), website báo khách thử lại.
 const buyGaveUp = new Counter('buy_gave_up');
 const arrival = new Trend('arrival_s');
@@ -95,7 +114,7 @@ export function buy(n, ref, opts) {
         }
         return r;
       }
-      buyErr.add(1);
+      countBuyErr(res.status);
       return 'err';
     }
     if (res.status === 503) {
@@ -111,7 +130,7 @@ export function buy(n, ref, opts) {
       sleep(waitFor(res));
       continue;
     }
-    buyErr.add(1);
+    countBuyErr(res.status);
     if (__ENV.DEBUG) {
       console.warn(`buy ${res.status} ${res.body}`);
     }

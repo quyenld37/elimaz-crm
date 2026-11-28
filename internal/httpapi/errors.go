@@ -164,22 +164,35 @@ func writeHandlerError(d Deps, w http.ResponseWriter, r *http.Request, err error
 	case errors.Is(err, idempotency.ErrKeyReused):
 		writeError(w, r, http.StatusUnprocessableEntity, codeIdempotencyKeyReused)
 		return
-	case errors.Is(err, db.ErrRetryLater), errors.Is(err, cache.ErrBusy):
-		// Lỗi tạm hết lượt chạy lại (ADR-46), hay bộ đệm đọc đang dự phòng đã đủ lượt tải (Task 190): không lưu, bên gọi
-		// gửi lại sau 1 s với cùng khóa.
-		w.Header().Set("Retry-After", "1")
-		writeError(w, r, http.StatusServiceUnavailable, codeRetryLater)
+	case errors.Is(err, db.ErrRetryLater), errors.Is(err, cache.ErrBusy), db.Unreachable(err):
+		// Lỗi tạm hết lượt chạy lại (ADR-46), bộ đệm đọc đang dự phòng đã đủ lượt tải (Task 190), hay không tới được
+		// database (Task 529; không log, không ghi error_events: bảng đó cũng không ghi được, bộ kiểm từ ngoài báo):
+		// không lưu, bên gọi gửi lại sau 1 s với cùng khóa (website hiện "tạm ngưng" khi kéo dài).
+		writeRetryLater(w, r)
+		return
+	case db.Unavailable(err):
+		// Database còn sống nhưng quá tải hay quá hạn (57014, lớp 53, hạn ctx; Task 529): vẫn 503 thử lại, và vẫn ghi
+		// như lỗi ứng dụng (câu chậm, đầy đĩa phải có cảnh báo; spec 04 "Gom lỗi").
+		logHandlerError(d, r, err)
+		writeRetryLater(w, r)
 		return
 	}
-	if r.Context().Err() == nil { // client đã đóng kết nối thì không phải lỗi của máy chủ
-		fp := recordError(r.Context(), d, err, nil)
-		d.Logger.LogAttrs(r.Context(), slog.LevelError, "lỗi xử lý yêu cầu",
-			slog.String("request_id", RequestID(r.Context())),
-			slog.String("route", r.Pattern),
-			slog.String("fingerprint", fp),
-			logging.Err(err))
-	}
+	logHandlerError(d, r, err)
 	writeError(w, r, http.StatusInternalServerError, codeInternal)
+}
+
+// logHandlerError ghi lỗi không lường trước của một yêu cầu một lần ở mép HTTP (error_events và log), trừ khi client
+// đã đóng kết nối (không phải lỗi của máy chủ).
+func logHandlerError(d Deps, r *http.Request, err error) {
+	if r.Context().Err() != nil {
+		return
+	}
+	fp := recordError(r.Context(), d, err, nil)
+	d.Logger.LogAttrs(r.Context(), slog.LevelError, "lỗi xử lý yêu cầu",
+		slog.String("request_id", RequestID(r.Context())),
+		slog.String("route", r.Pattern),
+		slog.String("fingerprint", fp),
+		logging.Err(err))
 }
 
 // writeDomainError ghi lỗi nghiệp vụ của các module: thiếu hàng có thân chi tiết (variantId, available), rồi bảng đổi
@@ -305,9 +318,15 @@ func writeAuthError(d Deps, w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, r, http.StatusUnauthorized, codeUnauthenticated)
 	case errors.Is(err, identity.ErrUnknownUser), errors.Is(err, identity.ErrLocked):
 		writeError(w, r, http.StatusForbidden, codeForbidden)
-	case errors.Is(err, db.ErrRetryLater):
-		writeError(w, r, http.StatusServiceUnavailable, codeRetryLater)
+	case errors.Is(err, db.ErrRetryLater), db.Unreachable(err):
+		writeRetryLater(w, r)
 	default:
 		writeHandlerError(d, w, r, err)
 	}
+}
+
+// writeRetryLater ghi 503 retry_later kèm Retry-After: 1 (lỗi tạm, không lưu theo khóa chống trùng).
+func writeRetryLater(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Retry-After", "1")
+	writeError(w, r, http.StatusServiceUnavailable, codeRetryLater)
 }

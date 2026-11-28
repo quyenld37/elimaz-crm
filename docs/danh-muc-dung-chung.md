@@ -372,6 +372,8 @@ func Migrate(ctx context.Context, ownerURL string) (applied []string, err error)
 func NullUUID(id *uuid.UUID) pgtype.UUID
 func Savepoint(ctx context.Context, tx pgx.Tx, fn func(pgx.Tx) error) error
 func TransientCode(err error) (code string, ok bool)
+func Unavailable(err error) bool
+func Unreachable(err error) bool
 type DB struct {
 	Pool *pgxpool.Pool
 
