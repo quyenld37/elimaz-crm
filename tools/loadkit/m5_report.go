@@ -23,6 +23,15 @@ const (
 	m5Close       = "flash_close_with_holds"
 	m5WebRead     = "web_read"
 
+	// Bài hỏng giữa tải (Task 220, M5-37): ba nhóm bước của chaos-m5.sh.
+	m5ChaosValkey = "chaos_valkey" // (a) dừng valkey-gate, (b) dừng valkey-cache, (c) FLUSHALL cả hai
+	m5ChaosAPI    = "chaos_api"    // (d) giết api
+	m5ChaosPG     = "chaos_pg"     // (e) dừng PostgreSQL
+
+	critM5ChaosErrRate = "Lỗi không phải 503/429 dưới 0,1% yêu cầu mua (không 500 hàng loạt)"
+	critM5NoDupRef     = "Không đơn trùng external_ref"
+	critM5ChaosSaw503  = "Trong lúc ngừng lượt mua nhận 503 retry_later"
+
 	critM5Bought         = "Đúng số suất bought (không thiếu, không vượt)"
 	critM5OneBought      = "Một SĐT, 100 yêu cầu song song, giới hạn 1: đúng 1 bought"
 	critM5BuyP95         = "Lượt mua p95 phía máy chủ (mọi kết quả) ≤ 300 ms"
@@ -46,6 +55,7 @@ const (
 	m5ReadP95LimitMs   = 200
 	m5ReadP99LimitMs   = 500
 	m5ExhaustedMax     = 0.01
+	m5ChaosErrMax      = 0.001
 	m5CacheHitMin      = 0.95
 	m5PercentileP95    = 95
 	m5MaxPercent       = 100
@@ -58,6 +68,7 @@ type m5Input struct {
 	K6         k6Metrics
 	Before     m5Stats
 	After      m5Stats
+	Dups       int // số external_ref có từ hai đơn (bài hỏng giữa tải)
 	VerifyExit int // mã thoát của crm verify-flash (bài web_read không chạy: bỏ qua)
 }
 
@@ -138,8 +149,39 @@ func evaluateM5(in m5Input) []verdict {
 			countZero(critM5ReadErr, in.k6Count("read_err"), true),
 			m5CacheVerdict(in),
 		}
+	case m5ChaosValkey:
+		return []verdict{
+			equalCount(critM5Bought, in.k6Count("buy_bought"), float64(in.Slots)),
+			m5ChaosErrRate(in), m5Verify(in), m5Dups(in),
+		}
+	case m5ChaosAPI:
+		// Lượt đang bay lúc giết api mất kết nối (k6 đếm lỗi): không chấm tỷ lệ, chỉ chấm nhất quán.
+		return []verdict{m5Verify(in), m5Dups(in)}
+	case m5ChaosPG:
+		saw := in.k6Count("buy_503")
+		return []verdict{
+			{Name: critM5ChaosSaw503, Want: "> 0", Got: fmt.Sprintf("%.0f", saw), Status: passIf(saw > 0)},
+			equalCount(critM5Bought, in.k6Count("buy_bought"), float64(in.Slots)),
+			m5ChaosErrRate(in), m5Verify(in), m5Dups(in),
+		}
 	}
-	return []verdict{na("Bài "+in.Mode, "một trong sáu bài M5")}
+	return []verdict{na("Bài "+in.Mode, "một trong các bài M5")}
+}
+
+func m5Dups(in m5Input) verdict {
+	return verdict{Name: critM5NoDupRef, Want: "0", Got: fmt.Sprintf("%d", in.Dups), Status: passIf(in.Dups == 0)}
+}
+
+func m5ChaosErrRate(in m5Input) verdict {
+	v := verdict{Name: critM5ChaosErrRate, Want: "< 0,1%", Status: statusNA, Got: "không có yêu cầu mua"}
+	reqs := in.k6Count("buy_ms")
+	if reqs <= 0 {
+		return v
+	}
+	r := in.k6Count("buy_err") / reqs
+	v.Got = fmt.Sprintf("%.0f / %.0f (%.3f%%)", in.k6Count("buy_err"), reqs, r*m5MaxPercent)
+	v.Status = passIf(r < m5ChaosErrMax)
+	return v
 }
 
 func equalCount(name string, got, want float64) verdict {
@@ -265,9 +307,10 @@ func cmdM5Report(fs *flag.FlagSet, args []string) error {
 	in := m5Input{}
 	fs.StringVar(&in.Mode, "mode", "", "bài: "+strings.Join([]string{
 		m5Spike, m5PerCustomer, m5Sustained, m5Abandon,
-		m5Close, m5WebRead,
+		m5Close, m5WebRead, m5ChaosValkey, m5ChaosAPI, m5ChaosPG,
 	}, ", "))
 	fs.IntVar(&in.Slots, "slots", 0, "số suất của đợt")
+	fs.IntVar(&in.Dups, "dups", 0, "số external_ref có từ hai đơn (bài chaos_*)")
 	fs.IntVar(&in.VerifyExit, "verify-exit", 0, "mã thoát của crm verify-flash")
 	k6File := fs.String("k6", "", "tóm tắt k6 (SUMMARY_OUT)")
 	before := fs.String("before", "", "m5stats trước bài")

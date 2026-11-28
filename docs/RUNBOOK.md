@@ -387,6 +387,31 @@ khách không có ở tenant nào hay database lỗi (chạy lại); 2 khi thi�
 cmd` không còn chỗ gọi ngoài test thì xóa trong một task thu hẹp (cùng test của nó). Mã đơn và mã phiếu trả dùng
 sequence (`ord.order_code_seq`, `ord.return_code_seq`), không có bảng bộ đếm phải xóa (R2).
 
+## Flash sale: Valkey ngừng, đóng đợt khẩn cấp, số liệu lệch (Task M5-37; FS10, FS11, FS12, HT27)
+
+Kết quả thử hỏng giữa tải: `docs/do-luong/thu-tai-m5.md` (chạy lại: `CRM_CI_LOADTEST=m5:chaos scripts/ci/remote-test.sh …`,
+hay `loadtest/m5_run.sh chaos` trên máy có compose dev riêng; không bao giờ trên bộ chung `crm-shared`).
+
+- **Valkey ngừng hay bị xóa sạch** (`valkey-cache` hay `valkey-gate`): không cần làm gì. Cầu dao mở, `api` chạy dự phòng
+  (chậm hơn, không sai: số suất do PostgreSQL giữ), cờ và bộ đếm dựng lại từ PostgreSQL khi Valkey trở lại. Chỉ theo dõi
+  cảnh báo `valkey-down:cache|gate` (mở quá 2 phút). Quá 30 phút vẫn còn: khởi động lại container
+  (`docker compose -p <dự án> --profile valkey up -d valkey-gate valkey-cache`), không xóa volume `valkey-gate`.
+- **Đóng đợt khẩn cấp** (bán nhầm giá, lỗi dữ liệu): màn Flash sale → Đóng đợt (nhân viên có `promotion.flash.manage`), hoặc
+  `POST /api/v1/flash-sales/{id}/close`. Suất còn trống trả về tồn; người đang giữ suất vẫn hoàn tất được tới hết hạn giữ.
+  Đợt đã đóng không mở lại: tạo đợt mới.
+- **`crm verify-flash --sale <id>` báo lệch** (đã bán + đang giữ + còn lại ≠ số suất, hay suất `held` không có đơn): dừng, KHÔNG sửa
+  tay số dư. Đóng đợt (bước trên), chờ hết hạn giữ (tối đa số phút giữ của đợt), chạy lại `verify-flash`; còn lệch thì
+  giữ nguyên dữ liệu, gửi kết quả `verify-flash` kèm giờ cho người viết mã. Ghi vào "Mẫu bản ghi sau sự cố".
+- **Đổi số của bộ điều tiết** (cổng nhận vào): biến môi trường của vai trò `api` rồi khởi động lại `api`:
+  `FLASH_ADMIT_PER_SECOND` (100 vé/giây một món), `FLASH_ADMIT_GLOBAL_PER_SECOND` (300 cả shop), `FLASH_MAX_INFLIGHT` (64 lượt
+  đang xử lý); giới hạn khóa dịch vụ `RATE_LIMITS_JSON` (`web_key`, số khuyến nghị ở `thu-tai-m5.md`). Tăng vé/giây thì tăng
+  `FLASH_MAX_INFLIGHT` theo và xem `tx_retry` trong `thu-tai-m5.md` trước; đổi xong thử một đợt nhỏ.
+- **PostgreSQL ngừng giữa đợt**: số đo M5-37 (run 46135866042) cho thấy chỉ ~5% yêu cầu mua nhận 503 `retry_later`, phần lớn
+  nhận mã lỗi khác (chưa rõ mã): website CHƯA hiện "tạm ngưng" đúng như kế hoạch, việc sửa mã đang chờ (xem "Việc phát hiện
+  thêm" của `docs/tasks/task-220.md`). Dữ liệu vẫn đúng: bật lại PostgreSQL rồi chạy `verify-flash` cho đợt đang mở và
+  kiểm không đơn trùng; nếu đang bán, cân nhắc đóng đợt trong lúc PostgreSQL ngừng.
+- **`api` chết giữa đợt**: compose khởi động lại; đơn đang tạo dở lùi trọn; chạy `verify-flash` cho đợt đang mở.
+
 ## Chạy dev ba vai trò (Task 3, Task 21; soát lại ở Task 23)
 
 - `make db-up` dựng PostgreSQL 18, Jaeger, SeaweedFS (kho chính, kho ngoài giả). Phiên song song: đặt
