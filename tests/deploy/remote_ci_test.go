@@ -1023,6 +1023,26 @@ func TestRemoteWorkflow_LoadtestJob(t *testing.T) {
 	}
 }
 
+// Task 88 (thử tải M2): input loadtest=m2 chạy make perf-m2 trong cùng job loadtest (compose dev dựng trong job, k6
+// ghim), bảng chấm của thư mục m2-* vào tóm tắt; hạn job là trần 60 phút của mọi job (TestRemoteWorkflow_PinnedAndTimeouts), đủ cho nạp 13 triệu dòng
+// cộng 10 phút tải.
+func TestRemoteWorkflow_LoadtestM2(t *testing.T) {
+	w := readWorkflowFile(t, remoteWorkflow)
+	j := needJob(t, w, "loadtest")
+	run := indexOf(j, regexp.MustCompile(`(?m)^\s*make perf-m2\b`))
+	dbUp := indexOf(j, regexp.MustCompile(`^make db-up\b`))
+	if run < 0 || dbUp < 0 || dbUp > run {
+		t.Fatalf("job loadtest: make db-up (%d) rồi make perf-m2 (%d)", dbUp, run)
+	}
+	if st := j.Steps[run].Run; !strings.Contains(st, `[ "$MODE" = m2 ]`) || !strings.Contains(st, "loadtest/out/m2-") ||
+		!strings.Contains(st, "GITHUB_STEP_SUMMARY") {
+		t.Errorf("bước thử tải: m2 → make perf-m2, đọc loadtest/out/m2-*, ghi tóm tắt:\n%s", st)
+	}
+	if j.Timeout != 60 {
+		t.Errorf("job loadtest: hạn %d phút, bài m2 cần cả 60 phút", j.Timeout)
+	}
+}
+
 func TestRemoteTest_LoadtestInput(t *testing.T) {
 	r := newRemoteEnv(t)
 	base := git(t, r.dir, "rev-parse", "HEAD")
@@ -1039,6 +1059,16 @@ func TestRemoteTest_LoadtestInput(t *testing.T) {
 	log, _ := os.ReadFile(r.log)
 	if last := string(log)[strings.LastIndex(string(log), "workflow run"):]; !regexp.MustCompile(`-f loadtest=(\s|$)`).MatchString(last) {
 		t.Errorf("mặc định loadtest rỗng:\n%s", last)
+	}
+	// Task 88: bài thử tải M2 (make perf-m2), cả chạy khói.
+	for _, spec := range []string{"m2", "m2:1m"} {
+		if out, code := r.run(t, []string{"CRM_CI_LOADTEST=" + spec, "CRM_CI_STATIC=false"}, "HEAD", base, empty); code != 0 {
+			t.Fatalf("%s: %d\n%s", spec, code, out)
+		}
+		log, _ := os.ReadFile(r.log)
+		if last := string(log)[strings.LastIndex(string(log), "workflow run"):]; !regexp.MustCompile(`-f loadtest=` + regexp.QuoteMeta(spec) + `(\s|$)`).MatchString(last) {
+			t.Errorf("phải gửi loadtest=%s:\n%s", spec, last)
+		}
 	}
 	if out, code := r.run(t, []string{"CRM_CI_LOADTEST=soak"}, "HEAD", base, empty); code != 2 {
 		t.Errorf("CRM_CI_LOADTEST lạ: mã 2, có %d:\n%s", code, out)

@@ -52,28 +52,19 @@ END $$`)
 // sâu, cộng các nút của câu lồng trong hàm mà auto_explain ghi (cần EnableAutoExplain). Câu thật sự chạy: chỉ dùng cho
 // câu đọc trong test.
 func ExplainAsApp(ctx context.Context, appDB *db.DB, tenantID uuid.UUID, sql string, args ...any) ([]string, error) {
-	cfg := appDB.Pool.Config().ConnConfig.Copy()
-	var mu sync.Mutex
-	var notices []string
-	cfg.OnNotice = func(_ *pgconn.PgConn, n *pgconn.Notice) {
-		mu.Lock()
-		notices = append(notices, n.Message)
-		mu.Unlock()
-	}
-	conn, err := pgx.ConnectConfig(ctx, cfg)
+	nc, err := dialNotices(ctx, appDB)
 	if err != nil {
-		return nil, fmt.Errorf("testkit: nối crm_app: %w", err)
+		return nil, err
 	}
-	defer func() { _ = conn.Close(context.WithoutCancel(ctx)) }()
+	defer nc.close(ctx)
+	conn := nc.conn
 
 	var nested string
 	if err := conn.QueryRow(ctx, "SELECT set_config('app.tenant_id', $1, false), coalesce(current_setting('auto_explain.log_nested_statements', true), '')",
 		tenantID.String()).Scan(new(string), &nested); err != nil {
 		return nil, fmt.Errorf("testkit: đặt ngữ cảnh tenant: %w", err)
 	}
-	mu.Lock()
-	notices = nil
-	mu.Unlock()
+	nc.take()
 	var raw []byte
 	if err := conn.QueryRow(ctx, "EXPLAIN (ANALYZE, FORMAT JSON, COSTS OFF, TIMING OFF, BUFFERS OFF) "+sql, args...).Scan(&raw); err != nil {
 		return nil, fmt.Errorf("testkit: EXPLAIN: %w", err)
@@ -92,10 +83,8 @@ func ExplainAsApp(ctx context.Context, appDB *db.DB, tenantID uuid.UUID, sql str
 	if hasFunction && nested != "on" {
 		return nil, errNoAutoExplain
 	}
-	mu.Lock()
-	defer mu.Unlock()
 	logged := 0
-	for _, msg := range notices {
+	for _, msg := range nc.take() {
 		_, body, ok := strings.Cut(msg, "plan:")
 		if !ok {
 			continue
@@ -135,4 +124,79 @@ func RequireNoSeqScan(t testing.TB, nodes []string) {
 	if slices.Contains(nodes, "Seq Scan") {
 		t.Errorf("kế hoạch có Seq Scan: %v", nodes)
 	}
+}
+
+// noticeConn là một kết nối riêng của crm_app (dựng từ cấu hình pool) giữ lại mọi NOTICE nó nhận (auto_explain ghi kế
+// hoạch ở mức NOTICE).
+type noticeConn struct {
+	conn    *pgx.Conn
+	mu      sync.Mutex
+	notices []string
+}
+
+func dialNotices(ctx context.Context, appDB *db.DB) (*noticeConn, error) {
+	nc := &noticeConn{}
+	cfg := appDB.Pool.Config().ConnConfig.Copy()
+	cfg.OnNotice = func(_ *pgconn.PgConn, n *pgconn.Notice) {
+		nc.mu.Lock()
+		nc.notices = append(nc.notices, n.Message)
+		nc.mu.Unlock()
+	}
+	conn, err := pgx.ConnectConfig(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("testkit: nối crm_app: %w", err)
+	}
+	nc.conn = conn
+	return nc, nil
+}
+
+// take trả các NOTICE đã nhận từ lần take trước và xóa chúng.
+func (nc *noticeConn) take() []string {
+	nc.mu.Lock()
+	defer nc.mu.Unlock()
+	out := nc.notices
+	nc.notices = nil
+	return out
+}
+
+func (nc *noticeConn) close(ctx context.Context) { _ = nc.conn.Close(context.WithoutCancel(ctx)) }
+
+// AutoExplainPlansAsApp chạy sql với args bằng crm_app trong ngữ cảnh tenantID trên một kết nối riêng (bỏ các dòng kết
+// quả), rồi trả nút gốc ("Plan", JSON đã giải) của mọi kế hoạch mà auto_explain ghi trong lúc chạy, kể cả câu lồng trong
+// hàm. Cần EnableAutoExplain trước khi mở pool; câu thật sự chạy: chỉ dùng cho câu đọc trong test.
+func AutoExplainPlansAsApp(ctx context.Context, appDB *db.DB, tenantID uuid.UUID, sql string, args ...any) ([]map[string]any, error) {
+	nc, err := dialNotices(ctx, appDB)
+	if err != nil {
+		return nil, err
+	}
+	defer nc.close(ctx)
+	if _, err := nc.conn.Exec(ctx, "SELECT set_config('app.tenant_id', $1, false)", tenantID.String()); err != nil {
+		return nil, fmt.Errorf("testkit: đặt ngữ cảnh tenant: %w", err)
+	}
+	nc.take()
+	rows, err := nc.conn.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("testkit: chạy câu: %w", err)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("testkit: chạy câu: %w", err)
+	}
+	var plans []map[string]any
+	for _, msg := range nc.take() {
+		_, body, ok := strings.Cut(msg, "plan:")
+		if !ok {
+			continue
+		}
+		var entry struct {
+			Plan map[string]any `json:"Plan"`
+		}
+		if err := json.Unmarshal([]byte(body), &entry); err != nil {
+			return nil, fmt.Errorf("testkit: đọc kế hoạch của auto_explain: %w", err)
+		}
+		if entry.Plan != nil {
+			plans = append(plans, entry.Plan)
+		}
+	}
+	return plans, nil
 }

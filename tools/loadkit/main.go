@@ -14,6 +14,13 @@
 //	loadkit fbstats -db <chủ bảng> -fixture fb.json -run R -from T [-graph <máy giả>]   một dòng JSON số đo
 //	loadkit fbreport -mode fb|fbchaos -live F -staff F -sse F -series F …   chấm ngưỡng M4; KHÔNG ĐẠT thì thoát 1
 //
+// Bộ thử tải M2 (kế hoạch M2 Task 88, loadtest/m2_run.sh; dữ liệu lớn do tools/seedperf nạp):
+//
+//	loadkit m2seed   -db <chủ bảng> -api <gốc> -tokens F -out m2.json     biến thể có tồn, biến thể ít hàng, 10 mã giảm giá
+//	loadkit m2stats  -db <chủ bảng> -fixture m2.json -from T              một dòng JSON số đo (tồn, mã, deadlock, thử lại)
+//	loadkit m2slow   -log <log PostgreSQL> -top 3                         kế hoạch auto_explain của các câu chậm nhất
+//	loadkit m2report -search F -orders F -series F -sample F [-slow F]    chấm ngưỡng M2; KHÔNG ĐẠT thì thoát 1
+//
 // Chỉ cho máy dev và máy thử: không bao giờ chạy với database production.
 package main
 
@@ -40,7 +47,7 @@ import (
 	"elimaz.com.vn/crm/internal/testkit/loadstats"
 )
 
-var errUsage = errors.New("cách dùng: loadkit seed|access|sse|stats|report|fbseed|fbend|fbstats|fbreport [cờ]")
+var errUsage = errors.New("cách dùng: loadkit seed|access|sse|stats|report|fbseed|fbend|fbstats|fbreport|m2seed|m2stats|m2report|m2slow [cờ]")
 
 // errFailed: report có tiêu chí KHÔNG ĐẠT (thoát 1, bảng vẫn in ra).
 var errFailed = errors.New("có tiêu chí không đạt")
@@ -82,6 +89,14 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		return cmdFBStats(ctx, fs, args[1:])
 	case "fbreport":
 		return cmdFBReport(fs, args[1:])
+	case "m2seed":
+		return cmdM2Seed(ctx, fs, args[1:], logger)
+	case "m2stats":
+		return cmdM2Stats(ctx, fs, args[1:])
+	case "m2report":
+		return cmdM2Report(fs, args[1:])
+	case "m2slow":
+		return cmdM2Slow(fs, args[1:])
 	}
 	return errUsage
 }

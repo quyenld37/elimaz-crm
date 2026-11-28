@@ -122,3 +122,57 @@ gửi là đúng thiết kế, CH18); mọi tiêu chí "đúng một lần", "kh
 - Mọi nhân viên là owner phạm vi toàn shop (mỗi client SSE nhận báo hiệu của cả hai Page): nặng hơn kế hoạch "mỗi người
   một phạm vi Page".
 - Máy Meta giả không phải Meta: độ trễ, giới hạn tốc độ, cách cắt luồng thật đo ở Task 181 (E4).
+
+# Bộ thử tải M2 — tìm khách trên 1 triệu khách, lên đơn 10× (kế hoạch M2 Task 88, M2-31)
+
+Đo tìm khách (DH02) trên dữ liệu cỡ năm thứ hai và đường lên đơn dưới tải 10× của 04 mục 1. Kết quả ghi vào
+`docs/do-luong/m2.md`. Ngoài `make ci`.
+
+## Chạy
+
+Chủ shop 26/11: máy Mac không chạy tải nặng. Bài chạy ở bể từ xa (job `loadtest` của `.github/workflows/test-remote.yml`,
+runner `ubuntu-24.04` 4 vCPU, PostgreSQL 18 của compose dev cấu hình mặc định như production):
+
+```sh
+CRM_CI_RUNNER=github CRM_CI_STATIC=false CRM_CI_LOADTEST=m2   CRM_CI_LABEL=<nhãn> scripts/ci/remote-test.sh <tree|commit> <base> <tệp gói rỗng>
+CRM_CI_LOADTEST=m2:1m …     # chạy khói: tải 1 phút, cỡ nhỏ (20.000 khách, 50.000 đơn)
+```
+
+Trên một máy có compose dev riêng (không phải bộ chung `crm-shared`: script từ chối): `make db-up` rồi `make perf-m2`
+(biến ở đầu `loadtest/m2_run.sh`).
+
+## Tải gồm gì
+
+| Phần | Ở đâu | Làm gì |
+|---|---|---|
+| Vai trò CRM | `m2_run.sh`, `fb_lib.sh` | `api`, `worker` dựng từ mã đang thử, chạy như tiến trình trên máy |
+| Dữ liệu qua API | `loadkit m2seed` | tenant "Thử tải", 50 nhân viên owner (`loadkit seed`); 20 biến thể × 100.000 tồn, 5 biến thể × 10 tồn (để tranh), 10 mã giảm 10.000đ (2 mã tối đa 100 lượt); một tỉnh, một xã thử (`T01`, `T01001`) |
+| Dữ liệu lớn | `tools/seedperf` | COPY bằng người quản trị: 1.000.000 khách, 1.300.000 SĐT giả `+8490xxxxxxx` không trùng, 5.000.000 đơn đã kết thúc (giao 85%, hoàn 7%, hủy 8%) với 8.000.000 dòng rải trong 24 tháng, chỉ số khách tính từ đơn; tenant "Thử tải B" 100.000 khách cùng các SĐT đó (RLS thật); rồi `VACUUM (ANALYZE)` |
+| Tìm khách | `k6/m2-search.js` | 20 lượt/giây trong 5 phút `GET /api/v1/customers?q=`: đuôi SĐT 4–6 số 60%, SĐT đủ 20%, tên 15% (nửa họ tên đủ, nửa hai chữ cuối), mã khách 5% |
+| Lên đơn | `k6/m2-orders.js` | 2 đơn/giây trong 5 phút + đợt 20 đơn/giây trong 30 giây (phút thứ 2), 30% dùng mã, 10% tranh 5 biến thể ít hàng, 50% khách có sẵn; song song danh sách đơn trang đầu 10 lượt/giây |
+| Câu chậm | auto_explain của `crm_app` trong database đo | câu từ 50 ms ghi kế hoạch (`log_analyze`, `log_buffers`, `log_timing off`, không ghi giá trị tham số) vào log PostgreSQL; `loadkit m2slow` lấy ba câu chậm nhất |
+| Số đo, chấm | `loadkit m2stats`, `loadkit m2report` | tồn, sổ giữ, mã, deadlock, `tx_retry_exhausted` trước và sau bài lên đơn; dung lượng database, bốn bảng lớn |
+
+## Ngưỡng và cách đo
+
+| Tiêu chí | Ngưỡng | Đo bằng |
+|---|---|---|
+| Tìm khách | p95 < 300 ms (DH02) | k6 `search_ms` (mọi loại); từng loại `search_{tail,phone,name,code}_ms` ở "Số đo khác" |
+| Tìm khách lỗi | < 0,1% | k6 `search_bad` (mã khác 200) / `search_req` |
+| Tìm SĐT đủ, mã: luôn thấy | không thấy = 0 | k6 `search_miss` (mọi SĐT, mã tìm đều đã nạp) |
+| createOrder | p95 < 400 ms | k6 `create_ms` |
+| listOrders | p95 < 200 ms | k6 `list_ms` |
+| createOrder: có đơn tạo được, lỗi ngoài nghiệp vụ | < 0,1% (thêm so với kế hoạch: chạy khói 27/11 cho thấy mọi lượt lỗi mà các tiêu chí khác vẫn đạt) | k6 `create_bad` (không phải 201, 409 `out_of_stock`/`insufficient_stock`, 422 `coupon_*`) |
+| listOrders lỗi | < 0,1% (thêm như trên) | k6 `list_bad` |
+| Không bán vượt | mỗi dòng held ≤ on_hand; sổ giữ = tổng held | `inventory.stock_balances`, `stock_reservations` sau bài |
+| Mã giảm giá | `used_count` = số lượt `active`, ≤ `max_uses` | `promotion.coupons`, `coupon_redemptions` |
+| deadlocks | không tăng | `pg_stat_database` |
+| `tx_retry_exhausted` | < 1% số lượt createOrder | `platform.metrics_minute` từ lúc bắt đầu bài lên đơn |
+| Không việc dead | 0 | `platform.jobs` |
+
+## Giới hạn
+
+- Số đo trên bể GitHub là **số đo tạm**: đo lại trên server thử trước chạy thật.
+- Nạp bằng COPY với `session_replication_role = replica` (trigger kiểm tổng, khóa ngoại tắt trong phiên nạp); dữ liệu tự
+  đúng do seedperf dựng và test `internal/testkit/perfseed` kiểm lại bằng SQL. Không có vận đơn, lịch sử trạng thái, nhóm khách gộp.
+- auto_explain bật trong lúc tải (đếm dòng, buffers ở mọi câu của crm_app): số đo có thể chậm hơn bản không đo một chút.
