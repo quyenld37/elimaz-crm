@@ -1504,6 +1504,18 @@ type InventoryFlashUnitsSummaryV struct {
 	Released        int64
 }
 
+type InventoryLegacyReturn struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	WarehouseID      uuid.UUID
+	Reference        string
+	ReferenceNorm    string
+	StockDocumentID  uuid.UUID
+	DamageDocumentID pgtype.UUID
+	CreatedBy        uuid.UUID
+	CreatedAt        time.Time
+}
+
 type InventoryReconcileRun struct {
 	ID         uuid.UUID
 	TenantID   uuid.UUID
