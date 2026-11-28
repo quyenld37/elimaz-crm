@@ -88,6 +88,7 @@ func (r BestSellersReport) ReportRows() int { return len(r.Rows) }
 func bestSellersDef() Def {
 	d := newDef[BestSellersParams](KeyBestSellers, FamilySales, permSalesRead)
 	d.JSON = bestSellersJSON
+	d.Rows, d.Columns, d.FileName = bestSellersRows, bestSellersColumns, periodFile("ban-chay")
 	return d
 }
 

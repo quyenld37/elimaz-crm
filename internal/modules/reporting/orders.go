@@ -136,6 +136,7 @@ func ordersDef() Def {
 		}
 		return ordersReport(ctx, tx, s, op)
 	}
+	d.Rows, d.Columns, d.FileName = ordersRows, ordersColumns, periodFile("bao-cao-don")
 	return d
 }
 

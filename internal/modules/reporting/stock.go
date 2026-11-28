@@ -175,6 +175,7 @@ func stockDef() Def {
 		}
 		return stockReport(ctx, tx, s, sp, time.Now())
 	}
+	d.Rows, d.Columns, d.FileName = stockExportRows, stockColumns, stockFileName
 	return d
 }
 
@@ -276,6 +277,7 @@ func movementsDef() Def {
 		}
 		return movementsReport(ctx, tx, s, mp)
 	}
+	d.Rows, d.Columns, d.FileName = movementsExportRows, movementsColumns, periodFile("xuat-nhap-ton")
 	return d
 }
 

@@ -256,8 +256,14 @@ func (e *idemEnv) keyRows() []keyRow {
 // ownerSQL chạy câu sửa dòng khóa bằng chủ bảng trong ngữ cảnh tenant (giả lập thời gian trôi, tiến trình chết).
 func (e *idemEnv) ownerSQL(q string, args ...any) {
 	e.t.Helper()
-	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
-		_, err := tx.Exec(e.t.Context(), q, args...)
+	tenantSQL(e.t, e.staff, e.tenant, q, args...)
+}
+
+// tenantSQL chạy một câu q trong ngữ cảnh tenant của staff (chủ bảng sửa dòng cho test).
+func tenantSQL(t *testing.T, staff *testkit.Staff, tenant uuid.UUID, q string, args ...any) {
+	t.Helper()
+	staff.Exec(t, tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(t.Context(), q, args...)
 		return err //nolint:wrapcheck // test
 	})
 }

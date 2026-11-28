@@ -54,6 +54,7 @@ func carriersDef() Def {
 		}
 		return carriersReport(ctx, tx, s, *cp)
 	}
+	d.Rows, d.Columns, d.FileName = carriersRows, carriersColumns, periodFile("hang-van-chuyen")
 	return d
 }
 

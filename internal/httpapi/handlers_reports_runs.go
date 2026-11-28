@@ -7,12 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	ht "github.com/ogen-go/ogen/http"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/modules/reporting"
@@ -23,13 +23,14 @@ import (
 
 // Vùng báo cáo: lần chạy nền và tệp xuất (BC04, BC05, Task M6-12 = 235, M6-14 = 237). Tạo lần chạy trong WriteTx
 // (chống trùng, một transaction: lần chạy, lệnh, audit); xem, liệt kê theo luật của module (người tạo hoặc
-// report.exports.manage). …/file (Task 237) còn trả 501 (tests/arch/testdata/m6_pending.txt).
+// report.exports.manage). …/file (Task 237): đường dẫn tải ký sẵn có hạn, ghi audit mỗi lần gọi.
 
 // Giá trị mặc định khi cấu hình rỗng (test): như mặc định của config (REPORT_MAX_PENDING_PER_USER 5, REPORT_FILE_TTL
 // 168h, CUSTOMER_EXPORT_TTL 24h).
 const (
 	defaultRunsPending = 5
 	defaultRunsLimit   = 50
+	defaultLinkTTL     = 5 * time.Minute
 )
 
 // CreateSalesReportRun (POST /api/v1/reports/sales/runs).
@@ -56,8 +57,8 @@ func (h *handler) GetSalesReportRun(ctx context.Context, params gen.GetSalesRepo
 // GetSalesReportRunFile (GET /api/v1/reports/sales/runs/{id}/file).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
-func (*handler) GetSalesReportRunFile(_ context.Context, _ gen.GetSalesReportRunFileParams) (gen.GetSalesReportRunFileRes, error) {
-	return nil, ht.ErrNotImplemented
+func (h *handler) GetSalesReportRunFile(ctx context.Context, params gen.GetSalesReportRunFileParams) (gen.GetSalesReportRunFileRes, error) {
+	return h.reportRunFile(ctx, reporting.FamilySales, params.ID)
 }
 
 // CreateInventoryReportRun (POST /api/v1/reports/inventory/runs).
@@ -84,8 +85,38 @@ func (h *handler) GetInventoryReportRun(ctx context.Context, params gen.GetInven
 // GetInventoryReportRunFile (GET /api/v1/reports/inventory/runs/{id}/file).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
-func (*handler) GetInventoryReportRunFile(_ context.Context, _ gen.GetInventoryReportRunFileParams) (gen.GetInventoryReportRunFileRes, error) {
-	return nil, ht.ErrNotImplemented
+func (h *handler) GetInventoryReportRunFile(ctx context.Context, params gen.GetInventoryReportRunFileParams) (gen.GetInventoryReportRunFileRes, error) {
+	return h.reportRunFile(ctx, reporting.FamilyInventory, params.ID)
+}
+
+// reportRunFile trả đường dẫn tải ký sẵn (REPORT_LINK_TTL, mặc định 5 phút) tới tệp của lần chạy họ f: một transaction
+// tenant ghi audit tải tệp rồi ký (reporting.FileLink; mỗi lần gọi một dòng audit, không cần Idempotency-Key). Không
+// gọi mạng (ký tại chỗ).
+func (h *handler) reportRunFile(ctx context.Context, f reporting.Family, id uuid.UUID) (*gen.ReportFileLink, error) {
+	u, ok := authUser(ctx)
+	if !ok {
+		return nil, errNoAuthUser
+	}
+	if h.d.Files == nil {
+		return nil, errNoFileStore
+	}
+	var (
+		link    string
+		expires time.Time
+	)
+	err := tenancy.WithTenant(ctx, h.d.DB, u.TenantID, func(tx pgx.Tx) error {
+		var err error
+		link, expires, err = reporting.FileLink(ctx, tx, u, f, id, h.d.Files, cmp.Or(h.d.Config.Report.LinkTTL, defaultLinkTTL), h.now())
+		return err //nolint:wrapcheck // lỗi đã bọc trong module
+	}, db.TxAPI)
+	if err != nil {
+		return nil, fmt.Errorf("đường dẫn tải tệp của lần chạy: %w", err)
+	}
+	parsed, err := url.Parse(link)
+	if err != nil {
+		return nil, fmt.Errorf("đường dẫn tải tệp của lần chạy: %w", err)
+	}
+	return &gen.ReportFileLink{URL: *parsed, ExpiresAt: expires}, nil
 }
 
 // runLimits là giới hạn tạo lần chạy từ cấu hình của api.

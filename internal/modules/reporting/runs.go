@@ -26,7 +26,7 @@ import (
 // Lần chạy nền (BC05, phần nền của BC04; kế hoạch M6 Task 235 = M6-12; vùng cao: quyền xem lần chạy). Tạo lần chạy
 // ghi report_runs + lệnh command.report_run + audit trong transaction của yêu cầu; worker chạy lệnh ngoài transaction
 // ghi (RunHandler.Execute), lệnh có tra lại (Lookup) nên worker chết giữa chừng không chạy hai lần một kết quả; mọi
-// lần kết thúc phát báo hiệu report.run_finished; lịch reporting.cleanup dọn theo hạn. Dạng tệp (xlsx) nối ở Task 237.
+// lần kết thúc phát báo hiệu report.run_finished; lịch reporting.cleanup dọn theo hạn. Dạng tệp (xlsx): exports.go (Task 237).
 
 // Tên loại lệnh, việc, lịch, chủ đề báo hiệu của lần chạy nền (Global Constraints M6).
 const (
@@ -138,6 +138,8 @@ type Run struct {
 	ExpiresAt       time.Time
 	RequestedBy     uuid.UUID
 	RequestedByName string
+	// FileID là dòng platform.files của tệp xlsx đã xong (nil khi chưa có, dạng json); không có trong API.
+	FileID *uuid.UUID
 }
 
 // CreateRun tạo lần chạy nền cho u trong tx của bên gọi (ngữ cảnh tenant của u): kiểm báo cáo thuộc họ, định dạng,
@@ -270,6 +272,10 @@ func GetRun(ctx context.Context, tx pgx.Tx, u identity.AuthUser, f Family, id uu
 	})
 	if r.Status == RunReady && len(r.Result) > 0 {
 		out.Result = r.Result
+	}
+	if r.FileID.Valid {
+		fid := uuid.UUID(r.FileID.Bytes)
+		out.FileID = &fid
 	}
 	return out, nil
 }
@@ -554,19 +560,11 @@ func (h *RunHandler) executeJSON(ctx context.Context, rj runJob, def Def) (comma
 	return doneOutcome(rows), nil
 }
 
-// executeXLSX: dạng tệp nối ở Task 237; tới đó lần chạy xlsx hỏng với lý do error.
-func (h *RunHandler) executeXLSX(ctx context.Context, rj runJob, _ Def) (commands.Outcome, error) {
-	return h.fail(ctx, rj.tenant, rj.row.ID, ReasonError)
-}
-
-// runReport chạy Def.JSON trong transaction chỉ đọc của chạy nền (TxReport(timeout, 5 s)), hạn ctx riêng timeout +
-// ctxMargin. Kết quả chỉ lấy khi transaction xong không lỗi.
+// runReport chạy Def.JSON trong transaction chỉ đọc của chạy nền (readTx). Kết quả chỉ lấy khi transaction xong không
+// lỗi.
 func (h *RunHandler) runReport(ctx context.Context, rj runJob, def Def, p Params) (any, error) {
-	rctx, cancel := context.WithTimeout(ctx, h.timeout+ctxMargin)
-	defer cancel()
-	start := time.Now()
 	var res any
-	err := tenancy.WithTenant(rctx, h.d.DB, rj.tenant, func(tx pgx.Tx) error {
+	err := h.readTx(ctx, rj, def, func(rctx context.Context, tx pgx.Tx) error {
 		res = nil // RetryTx có thể chạy lại hàm: gán lại kết quả mỗi lần
 		v, err := def.JSON(rctx, tx, ScopeFor(rj.user, rj.row.SellerID), p)
 		if err != nil {
@@ -574,17 +572,32 @@ func (h *RunHandler) runReport(ctx context.Context, rj runJob, def Def, p Params
 		}
 		res = v
 		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// readTx chạy fn trong transaction chỉ đọc của chạy nền (TxReport(timeout, 5 s)) của tenant lần chạy, hạn ctx riêng
+// timeout + ctxMargin (fn nhận ctx đó); ghi thời gian vào report_ms. Quá hạn ctx riêng (ctx của lệnh còn) → errTooHeavy.
+func (h *RunHandler) readTx(ctx context.Context, rj runJob, def Def, fn func(ctx context.Context, tx pgx.Tx) error) error {
+	rctx, cancel := context.WithTimeout(ctx, h.timeout+ctxMargin)
+	defer cancel()
+	start := time.Now()
+	err := tenancy.WithTenant(rctx, h.d.DB, rj.tenant, func(tx pgx.Tx) error {
+		return fn(rctx, tx)
 	}, TxReport(h.timeout, backgroundLockTimeout))
 	if h.d.Metrics != nil {
 		h.d.Metrics.Observe("report_ms", float64(time.Since(start).Milliseconds()), string(def.Key))
 	}
 	if err != nil {
 		if ctx.Err() == nil && errors.Is(rctx.Err(), context.DeadlineExceeded) {
-			return nil, fmt.Errorf("báo cáo %s quá hạn: %w", def.Key, errTooHeavy)
+			return fmt.Errorf("báo cáo %s quá hạn: %w", def.Key, errTooHeavy)
 		}
-		return nil, err //nolint:wrapcheck // đã bọc trong hàm
+		return err //nolint:wrapcheck // lỗi của fn đã bọc
 	}
-	return res, nil
+	return nil
 }
 
 // errTooHeavy: báo cáo chạy nền quá hạn giờ.
@@ -794,8 +807,10 @@ func signalScope(p identity.Permission, grants []identity.Grant) *identity.Scope
 }
 
 // CleanupHandler dọn lần chạy theo hạn (việc reporting.cleanup, theo tenant): (a) kết quả bảng quá hạn → expired, bỏ
-// kết quả; (b) lần chạy còn queued/running quá hạn + 1 giờ mà lệnh đã kết thúc → failed/error (lưới an toàn); (c) dòng
-// tạo quá 90 ngày bị xóa. Mỗi phần tối đa 500 dòng mỗi lần, khóa theo id tăng dần, bỏ qua dòng đang bị khóa.
+// kết quả; (d) tệp xlsx ready quá hạn → expired và dòng platform.files đánh dấu xóa (đối tượng trên kho do luật hết
+// hạn theo tiền tố của bucket xóa, ứng dụng không xóa vĩnh viễn); (b) lần chạy còn queued/running quá hạn + 1 giờ mà
+// lệnh đã kết thúc → failed/error (lưới an toàn); (c) dòng tạo quá 90 ngày bị xóa. Mỗi phần tối đa 500 dòng mỗi lần,
+// khóa theo id tăng dần, bỏ qua dòng đang bị khóa.
 type CleanupHandler struct{}
 
 // NewCleanupHandler dựng việc dọn lần chạy.
@@ -808,13 +823,14 @@ func (*CleanupHandler) Kind() queue.Kind {
 
 // cleanupOutput là kết quả của một lượt dọn (chỉ số đếm).
 type cleanupOutput struct {
-	Expired int   `json:"expired"`
-	Failed  int   `json:"failed"`
-	Deleted int64 `json:"deleted"`
+	Expired      int   `json:"expired"`
+	ExpiredFiles int   `json:"expiredFiles"`
+	Failed       int   `json:"failed"`
+	Deleted      int64 `json:"deleted"`
 }
 
-// Handle chạy một lượt dọn trong tx của việc (ngữ cảnh tenant). Chỉ khóa report_runs (ADR-46 12a); trạng thái lệnh
-// đọc không khóa (commands.Status).
+// Handle chạy một lượt dọn trong tx của việc (ngữ cảnh tenant). Khóa report_runs (ADR-46 12a) trước (mọi phần),
+// rồi dòng tệp (12b, phần d, cuối lượt) theo file_id tăng dần; trạng thái lệnh đọc không khóa (commands.Status).
 func (*CleanupHandler) Handle(ctx context.Context, j queue.Job, tx pgx.Tx) (json.RawMessage, error) {
 	if j.TenantID == nil {
 		return nil, fmt.Errorf("việc %s: thiếu tenant: %w", j.ID, queue.ErrPermanent)
@@ -844,6 +860,10 @@ func (*CleanupHandler) Handle(ctx context.Context, j queue.Job, tx pgx.Tx) (json
 	}
 	if out.Deleted, err = st.DeleteOldRuns(ctx, cleanupBatch); err != nil {
 		return nil, fmt.Errorf("xóa lần chạy quá 90 ngày: %w", err)
+	}
+	// Phần (d) cuối cùng: mọi khóa report_runs (12a) của lượt dọn đứng trước khóa platform.files (12b).
+	if out.ExpiredFiles, err = expireFiles(ctx, tx); err != nil {
+		return nil, err
 	}
 	res, err := json.Marshal(out)
 	if err != nil {

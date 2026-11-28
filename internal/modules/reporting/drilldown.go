@@ -197,5 +197,6 @@ func drilldownDef() Def {
 		}
 		return &page, nil
 	}
+	d.Rows, d.Columns, d.FileName = drilldownRows, drilldownColumns, periodFile("chi-tiet-don")
 	return d
 }
