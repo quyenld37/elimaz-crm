@@ -550,7 +550,9 @@ SELECT g.customer_id, g.gift_year, c.code::text AS code, c.value, c.min_subtotal
 FROM promotion.birthday_gifts AS g
 JOIN promotion.coupons AS c ON c.tenant_id = g.tenant_id AND c.id = g.coupon_id
 JOIN customer.birthday_profiles_v AS p ON p.tenant_id = g.tenant_id AND p.customer_id = g.customer_id
+JOIN customer.customers_v AS root ON root.tenant_id = p.tenant_id AND root.id = p.root_id
 WHERE c.given_at IS NULL AND c.used_count = 0 AND c.valid_to > $1 AND p.stopped_at IS NULL
+  AND NOT root.do_not_contact
   AND (NOT $2::bool OR (
         (p.consent_zalo OR (p.consent_mail AND p.email IS NOT NULL))
         AND g.send_failures < $3::int AND (g.retry_at IS NULL OR g.retry_at <= $1)))
@@ -589,7 +591,8 @@ type PendingBirthdayGiftsRow struct {
 	SendFailures int32
 }
 
-// Quà chưa trao (chưa nhắn tay, website chưa gửi), chưa dùng, còn hạn lúc now, của khách chưa dừng nhận tin.
+// Quà chưa trao (chưa nhắn tay, website chưa gửi), chưa dùng, còn hạn lúc now, của khách chưa dừng nhận tin và gốc không
+// có cờ do_not_contact (gửi quà là liên hệ; Task 521).
 // outbox (của website): chỉ khách đồng ý Zalo hay email, bỏ quà đang chờ thử lại (retry_at > now) hay đã hết lượt tự
 // gửi (send_failures ≥ max_failures), sau con trỏ (after_created, after_code) nếu có; thứ tự (lúc phát, mã) (Task 491).
 func (q *Queries) PendingBirthdayGifts(ctx context.Context, arg PendingBirthdayGiftsParams) ([]PendingBirthdayGiftsRow, error) {

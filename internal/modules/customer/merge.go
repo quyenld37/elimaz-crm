@@ -140,6 +140,9 @@ func (w Writer) mergeOnce(ctx context.Context, tx pgx.Tx, survivorID, mergedID u
 	if err != nil {
 		return Merge{}, fmt.Errorf("ghi lần gộp: %w", err)
 	}
+	if err := w.carryDoNotContact(ctx, tx, q, locked, s, m, row.ID, a, now); err != nil {
+		return Merge{}, err
+	}
 	after := map[string]any{
 		"survivor_id": s.String(), "merged_id": m.String(), "moved_count": len(moved), "matched_by": matchedBy,
 	}
@@ -156,6 +159,39 @@ func (w Writer) mergeOnce(ctx context.Context, tx pgx.Tx, survivorID, mergedID u
 		ID: row.ID, SurvivorID: s, MergedID: m, MovedIDs: moved, MatchedBy: matchedBy, ActorID: a.ID,
 		CreatedAt: row.CreatedAt,
 	}, nil
+}
+
+// carryDoNotContact giữ cờ "không liên hệ" qua lần gộp (Task 521): cờ chỉ đọc ở gốc, nên gốc bị gộp có cờ mà gốc giữ lại
+// chưa có thì chép sang gốc giữ lại (giữ mốc lúc khách yêu cầu), nếu không khách đã từ chối sẽ bị nhắn. Gốc bị gộp giữ
+// nguyên cờ của nó để hoàn tác trả đúng trạng thái; gốc giữ lại sau hoàn tác vẫn giữ cờ (thiên về an toàn). locked là
+// các hàng đã khóa của mergeOnce, nên cờ đọc ở đây là cờ dưới khóa. Ghi audit customer.do_not_contact kèm mã lần gộp.
+func (w Writer) carryDoNotContact(ctx context.Context, tx pgx.Tx, q *store.Queries, locked []store.LockCustomersRow,
+	s, m, mergeID uuid.UUID, a Actor, now time.Time,
+) error {
+	var sr, mr *store.LockCustomersRow
+	for i := range locked {
+		switch locked[i].ID {
+		case s:
+			sr = &locked[i]
+		case m:
+			mr = &locked[i]
+		}
+	}
+	if sr == nil || mr == nil {
+		return fmt.Errorf("chép cờ không liên hệ khi gộp: thiếu hồ sơ gốc đã khóa: %w", errRootChurn)
+	}
+	if !mr.DoNotContact || sr.DoNotContact {
+		return nil
+	}
+	at := mr.DoNotContactAt
+	if !at.Valid {
+		at = pgtype.Timestamptz{Time: now, Valid: true}
+	}
+	if _, err := q.SetDoNotContact(ctx, store.SetDoNotContactParams{Enabled: true, At: at, Now: now, ID: s}); err != nil {
+		return fmt.Errorf("chép cờ không liên hệ khi gộp: %w", err)
+	}
+	return w.audit(ctx, tx, sr.TenantID, a, "customer.do_not_contact", s,
+		map[string]any{"do_not_contact": false}, map[string]any{"do_not_contact": true, "merge_id": mergeID.String()})
 }
 
 // stableGroups: dưới khóa, s vẫn là gốc và mọi hồ sơ của nhóm bị gộp vẫn trỏ m.

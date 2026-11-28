@@ -197,3 +197,42 @@ func (e *env) failThreeTimes(all []string) time.Time {
 	}
 	return at
 }
+
+// Task 521: khách có cờ "không liên hệ" (ở gốc) không có quà trong "Cần nhắn" lẫn outbox của website (gửi quà là liên
+// hệ); tắt cờ thì quà quay lại, khách khác không bị ảnh hưởng.
+func TestBirthdayGifts_SkipDoNotContact(t *testing.T) {
+	t.Parallel()
+	e := newGiftEnv(t)
+	d60 := 60 * 24 * time.Hour
+	var cs []*bdCustomer
+	for _, phone := range []string{"0912000021", "0912000022"} {
+		c := &bdCustomer{phone: phone, day: 28, month: 11, savedAgo: d60, delivered: 1, zalo: true}
+		e.seedBirthday(c)
+		cs = append(cs, c)
+	}
+	a := cs[0]
+	if r, err := e.runGifts(promotion.BirthdayTriggerManual, bdNow()); err != nil || r.Given != 2 {
+		t.Fatalf("lượt phát: %+v %v", r, err)
+	}
+	setFlag := func(on bool) {
+		t.Helper()
+		if err := e.app(func(tx pgx.Tx) error {
+			return e.customerWriter().SetDoNotContact(t.Context(), tx, a.customerID, on,
+				customer.Actor{Type: customer.ActorStaff, ID: e.user}, bdNow())
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(e.pendingGifts(false)) != 2 || len(e.outboxCodes(bdNow(), 100)) != 2 {
+		t.Fatal("trước khi bật cờ phải thấy 2 quà")
+	}
+	setFlag(true)
+	todo := e.pendingGifts(false)
+	if _, ok := todo[a.customerID]; ok || len(todo) != 1 || len(e.outboxCodes(bdNow(), 100)) != 1 {
+		t.Fatalf("bật cờ: Cần nhắn %d, outbox %d, muốn 1 và 1", len(todo), len(e.outboxCodes(bdNow(), 100)))
+	}
+	setFlag(false)
+	if len(e.pendingGifts(false)) != 2 || len(e.outboxCodes(bdNow(), 100)) != 2 {
+		t.Fatal("tắt cờ phải thấy lại 2 quà")
+	}
+}
