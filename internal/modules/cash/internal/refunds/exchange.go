@@ -94,6 +94,80 @@ func (c Consumer) receivedExchange(ctx context.Context, tx pgx.Tx, tenantID uuid
 // exchangeRef là phiếu đổi (id) và đơn gốc của nó (orig).
 type exchangeRef struct{ id, orig uuid.UUID }
 
+// creditRef là mã tham chiếu của phiếu cấn trừ của phiếu đổi id.
+func creditRef(id uuid.UUID) string { return "exchange:" + id.String() }
+
+// due là kết quả creditDue: have là số đã cấn trừ (phiếu đã có), amount là số còn phải cấn trừ (> 0 chỉ khi chưa có
+// phiếu), paid là tổng mọi phiếu của đơn (chỉ đọc khi cần tính amount).
+type due struct{ have, amount, paid int64 }
+
+// creditDue là luật cấn trừ của phiếu đổi ret (tiền hoàn refund) trên đơn thay thế orderID có ảnh chụp snap (bên gọi
+// đã khóa đơn): đơn đã hủy → không gì; đã có phiếu exchange:<phiếu> → have; kho đã nhận phiếu đổi (đã có nghĩa vụ
+// exchange) → không gì; đơn không còn ở draft, new, confirmed → không gì; ngược lại amount = min(refund, tổng − đã thu),
+// không âm. Không xét vận đơn (bên gọi quyết). Một nguồn cho consumer (applyCredit) và kiểm lúc gửi hãng (CreditPending).
+func creditDue(ctx context.Context, q *store.Queries, ret exchangeRef, orderID uuid.UUID, refund int64,
+	snap order.Snapshot,
+) (due, error) {
+	if snap.Status == order.StatusCancelled {
+		return due{}, nil
+	}
+	have, err := q.ExchangeCredit(ctx, store.ExchangeCreditParams{OrderID: orderID, Reference: creditRef(ret.id)})
+	if err != nil {
+		return due{}, fmt.Errorf("đọc phiếu cấn trừ: %w", err)
+	}
+	if have > 0 {
+		return due{have: have}, nil
+	}
+	settled, err := q.ExchangeObligationExists(ctx, store.ExchangeObligationExistsParams{
+		OrderID: ret.orig, ReturnID: ret.id,
+	})
+	if err != nil {
+		return due{}, fmt.Errorf("đọc nghĩa vụ hoàn của phiếu đổi: %w", err)
+	}
+	if settled || (snap.Status != order.StatusDraft && snap.Status != order.StatusNew &&
+		snap.Status != order.StatusConfirmed) {
+		return due{}, nil
+	}
+	paid, err := q.PaymentsTotal(ctx, orderID)
+	if err != nil {
+		return due{}, fmt.Errorf("đọc tổng phiếu của đơn thay thế: %w", err)
+	}
+	return due{amount: creditAmount(refund, snap.GrandTotal, paid), paid: paid}, nil
+}
+
+// CreditPending báo đơn orderID là đơn đổi còn phải cấn trừ tiền món trả (creditDue > 0): đơn không phải đơn thay
+// thế của phiếu đổi nào → false. Khóa đơn (order.LockSnapshot, ADR-46 nhóm 7; bên gọi đã khóa thì khóa lại không chờ)
+// nên đọc nối tiếp với lần cấn trừ của consumer. Đơn không có → false (bên gọi đã báo lỗi của nó).
+func CreditPending(ctx context.Context, tx pgx.Tx, orderID uuid.UUID) (bool, error) {
+	q := store.New(tx)
+	r, err := q.ExchangeReturnOfReplacement(ctx, orderID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("đọc phiếu đổi của đơn: %w", err)
+	}
+	o, err := q.OrderForPayment(ctx, orderID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("đọc đơn: %w", err)
+	}
+	snap, err := order.LockSnapshot(ctx, tx, o.SellerID, orderID)
+	if errors.Is(err, order.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("khóa đơn đổi: %w", err)
+	}
+	d, err := creditDue(ctx, q, exchangeRef{id: r.ID, orig: r.OrderID}, orderID, r.RefundAmount, snap)
+	if err != nil {
+		return false, err
+	}
+	return d.have == 0 && d.amount > 0, nil
+}
+
 // applyCredit khóa đơn thay thế orderID (ADR-46 nhóm 7) rồi ghi phiếu cấn trừ của phiếu đổi ret (tiền hoàn refund) nếu
 // chưa có; trả số đã cấn trừ còn tính cho khách. Đơn đã hủy → 0 (phiếu cấn trừ cũ không còn tính, không ghi gì); đã có
 // phiếu → số của phiếu đó (giao lại không ghi thêm); kho đã nhận phiếu đổi (đã có nghĩa vụ exchange: phần tiền đã chốt
@@ -113,39 +187,18 @@ func (c Consumer) applyCredit(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID
 	if err != nil {
 		return 0, fmt.Errorf("khóa đơn thay thế: %w", err)
 	}
-	if snap.Status == order.StatusCancelled {
-		return 0, nil
-	}
-	ref := "exchange:" + ret.id.String()
-	have, err := q.ExchangeCredit(ctx, store.ExchangeCreditParams{OrderID: orderID, Reference: ref})
-	if err != nil {
-		return 0, fmt.Errorf("đọc phiếu cấn trừ: %w", err)
-	}
-	if have > 0 {
-		return have, nil
-	}
-	settled, err := q.ExchangeObligationExists(ctx, store.ExchangeObligationExistsParams{
-		OrderID: ret.orig, ReturnID: ret.id,
-	})
-	if err != nil {
-		return 0, fmt.Errorf("đọc nghĩa vụ hoàn của phiếu đổi: %w", err)
-	}
+	d, err := creditDue(ctx, q, ret, orderID, refund, snap)
 	switch {
-	case settled:
-		return 0, nil
-	case snap.Status != order.StatusDraft && snap.Status != order.StatusNew && snap.Status != order.StatusConfirmed:
+	case err != nil:
+		return 0, err
+	case d.have > 0:
+		return d.have, nil
+	case d.amount <= 0:
 		return 0, nil
 	case snap.CurrentShipmentID != nil:
 		return 0, fmt.Errorf("đơn thay thế %s: %w", orderID, ErrCODLockedByShipment)
 	}
-	total, err := q.PaymentsTotal(ctx, orderID)
-	if err != nil {
-		return 0, fmt.Errorf("đọc tổng phiếu của đơn thay thế: %w", err)
-	}
-	amount := creditAmount(refund, snap.GrandTotal, total)
-	if amount <= 0 {
-		return 0, nil
-	}
+	amount, ref, total := d.amount, creditRef(ret.id), d.paid
 	if _, err := q.InsertPayment(ctx, store.InsertPaymentParams{
 		OrderID: orderID, Method: methodExchangeCredit, Amount: amount, Reference: ref, ReceivedAt: now, ActorID: uuid.Nil,
 	}); err != nil {

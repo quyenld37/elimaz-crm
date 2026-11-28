@@ -6,7 +6,9 @@
 // lệnh tạo (CreateStateBanner, kèm "Hủy để đổi hãng" khi lệnh tạo đã kết thúc); đã gửi → ShipmentCard (Task 134). Nút
 // theo quyền ở kho của đơn; máy chủ vẫn kiểm. Đơn web có hãng khách chọn (Task 490): dòng "Khách chọn: …" và chọn sẵn
 // tài khoản đó trong bảng so phí (không có trong bảng thì rẻ nhất như cũ); không tự gửi hãng. Đơn đổi (Task 116, 138):
-// chỉ gửi hãng sau khi CRM đã ghi phiếu cấn trừ tiền món trả (đã thu > 0), vì COD khóa khi đơn đã gửi hãng.
+// chỉ gửi hãng sau khi CRM đã ghi phiếu cấn trừ tiền món trả (đã thu > 0), vì COD khóa khi đơn đã gửi hãng; máy chủ
+// cũng chặn (409 exchange_credit_pending, Task 524). Chờ mãi không có phiếu: tích "Gửi không cấn trừ" (khách trả đủ
+// COD, tiền món trả hoàn qua Nghĩa vụ hoàn khi kho nhận hàng; thân skipExchangeCredit).
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
@@ -61,7 +63,10 @@ const TEXT_EXPIRED = "Giá đã cũ. Báo phí lại trước khi gửi; tài kh
 const percent = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 });
 
 export const TEXT_WAIT_CREDIT =
-  "Đang chờ CRM cấn trừ tiền món trả vào đơn đổi này; gửi hãng sau khi có phiếu cấn trừ (COD khóa khi đã gửi hãng)";
+  "Đang chờ CRM cấn trừ tiền món trả vào đơn đổi này (thường vài giây); gửi hãng sau khi có phiếu cấn trừ (COD khóa khi đã gửi hãng). Chờ lâu mà chưa có: tải lại trang, hoặc tích Gửi không cấn trừ";
+
+export const TEXT_SKIP_CREDIT =
+  "Gửi không cấn trừ: khách trả đủ COD, tiền món trả hoàn cho khách qua Nghĩa vụ hoàn khi kho nhận hàng";
 
 /**
  * Lý do chưa gửi hãng được của đơn đổi o (null: gửi được): phiếu đổi có tiền hoàn mà đơn chưa có phiếu cấn trừ (đã thu
@@ -113,7 +118,13 @@ interface Quote {
 }
 
 /** Lỗi làm đơn đã khác bản đang xem (đã có vận đơn, không còn gửi được): đọc lại đơn. */
-const ORDER_MOVED = new Set(["shipment_exists", "order_not_shippable", "create_in_progress", "invalid_transition"]);
+const ORDER_MOVED = new Set([
+  "shipment_exists",
+  "order_not_shippable",
+  "create_in_progress",
+  "invalid_transition",
+  "exchange_credit_pending",
+]);
 
 function Compose({
   o,
@@ -127,6 +138,12 @@ function Compose({
   const qc = useQueryClient();
   const { loaded, grants } = useGrants();
   const exchangeWait = useExchangeWait(o);
+  const [skipCredit, setSkipCredit] = useState(false);
+  // Máy chủ vừa báo 409 exchange_credit_pending (luật của máy chủ thắng dấu hiệu "đã thu > 0" của màn, vd. đơn có phiếu
+  // thu khác mà chưa có phiếu cấn trừ): hiện ô bỏ qua cả khi màn tưởng đã cấn trừ.
+  const [serverWait, setServerWait] = useState(false);
+  const offerSkip = exchangeWait === TEXT_WAIT_CREDIT || serverWait;
+  const skipping = skipCredit && offerSkip;
   const wh = o.warehouseId ?? "";
   const canQuote = canAt(grants, "fulfillment.quote", wh);
   const canShip = canAt(grants, "fulfillment.ship", wh);
@@ -212,12 +229,14 @@ function Compose({
         ...(fee === null ? {} : { feeActual: fee }),
       };
     }
+    if (skipping) body = { ...body, skipExchangeCredit: true };
     const r = await shipAct.run({ orderId: o.id, body });
     if (r.ok) {
       onCreated(r.data);
       return;
     }
     if (!(r.error instanceof ApiError)) return;
+    if (r.error.code === "exchange_credit_pending") setServerWait(true);
     if (r.error.code === "quote_stale" && params !== null) {
       shipAct.reset();
       setPicked(row.key);
@@ -270,7 +289,7 @@ function Compose({
     onClick = () => void send(pick);
   }
 
-  if (exchangeWait !== null && onClick !== null && label !== "Báo phí lại") why = exchangeWait;
+  if (exchangeWait !== null && !skipping && onClick !== null && label !== "Báo phí lại") why = exchangeWait;
 
   const st = stats.data;
   const priced = rows.find(isPriced);
@@ -351,6 +370,19 @@ function Compose({
             st.hint === undefined || st.hint === "" ? "Nên xin cọc hoặc gọi xác nhận trước khi gửi." : st.hint
           }`}
         </div>
+      )}
+      {offerSkip && (
+        <label className="check small">
+          <input
+            type="checkbox"
+            checked={skipCredit}
+            disabled={busy}
+            onChange={(ev) => {
+              setSkipCredit(ev.target.checked);
+            }}
+          />
+          <span>{TEXT_SKIP_CREDIT}</span>
+        </label>
       )}
       <Act wide reason={why}>
         <button

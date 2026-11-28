@@ -46,6 +46,15 @@ func reversalReason(source string) string {
 	return reasonCarrierCorrected
 }
 
+// stepActor là tác nhân của bút toán do bước p sinh ra: bước của nhân viên (nguồn staff, có actorId, Task 524) →
+// staff là người đó; khác (hãng, hệ thống, sự kiện cũ) → carrier.
+func stepActor(p fulfillment.StatusChanged) Actor {
+	if p.Source == sourceStaff && p.ActorID != uuid.Nil {
+		return Actor{Type: ActorStaff, ID: p.ActorID}
+	}
+	return Actor{Type: ActorCarrier}
+}
+
 // Consumer ghi sổ COD theo shipment.status_changed (events.Consumer; cmd/crm đăng ký qua Module.Consumers). Mỗi sự
 // kiện: khóa tư vấn sổ COD của vận đơn (LockShipmentCOD), đọc COD X qua fulfillment.shipments_v, số dư và bút toán của
 // vận đơn trong cùng tx, rồi ghi theo luật postings.Rules (tác động trong payload; sự kiện M1 không có effects thì suy
@@ -107,11 +116,11 @@ func apply(ctx context.Context, tx pgx.Tx, e events.StoredEvent, p fulfillment.S
 	a postings.Action,
 ) error {
 	shipmentID := p.ShipmentID
-	carrier := Actor{Type: ActorCarrier}
+	actor := stepActor(p)
 	switch {
 	case a.Post != nil:
 		t := Transfer{
-			ShipmentID: shipmentID, Kind: a.Post.Kind, IdempotencyKey: a.Post.Key, Actor: carrier,
+			ShipmentID: shipmentID, Kind: a.Post.Kind, IdempotencyKey: a.Post.Key, Actor: actor,
 			Entries: make([]Entry, len(a.Post.Entries)),
 		}
 		for i, en := range a.Post.Entries {
@@ -121,7 +130,7 @@ func apply(ctx context.Context, tx pgx.Tx, e events.StoredEvent, p fulfillment.S
 			return fmt.Errorf("ghi bút toán %s: %w", a.Post.Kind, err)
 		}
 	case a.Reverse != uuid.Nil:
-		if _, err := Reverse(ctx, tx, a.Reverse, reversalReason(p.Source), carrier); err != nil {
+		if _, err := Reverse(ctx, tx, a.Reverse, reversalReason(p.Source), actor); err != nil {
 			return fmt.Errorf("đảo bút toán collected: %w", err)
 		}
 	case a.Finding != "":

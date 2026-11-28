@@ -720,7 +720,8 @@ func (UnimplementedHandler) CreateServiceKey(ctx context.Context, req *CreateSer
 // CreateShipment implements createShipment operation.
 //
 // Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa
-// hủy → shipment_exists.
+// hủy → shipment_exists. Đơn đổi chưa có phiếu cấn trừ tiền món trả → 409
+// exchange_credit_pending (bỏ qua bằng skipExchangeCredit, Task 524).
 //
 // POST /api/v1/orders/{id}/shipments
 func (UnimplementedHandler) CreateShipment(ctx context.Context, req *CreateShipmentRequest, params CreateShipmentParams) (r CreateShipmentRes, _ error) {

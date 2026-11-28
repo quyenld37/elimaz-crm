@@ -29,7 +29,7 @@ import {
   shipment,
   type Fake,
 } from "./shippingTestkit";
-import { TEXT_WAIT_CREDIT } from "./ShippingPanel";
+import { TEXT_SKIP_CREDIT, TEXT_WAIT_CREDIT } from "./ShippingPanel";
 
 let fake: Fake;
 beforeEach(() => {
@@ -314,18 +314,7 @@ describe("Gửi hãng (VC03, HV10)", () => {
 
   it("đơn đổi chưa có phiếu cấn trừ: nút gửi mờ kèm lý do; có phiếu (đã thu > 0) thì gửi được (Task 116)", async () => {
     latestQuotes();
-    const R9 = "0195f3b2-0000-7000-8000-00000000a199";
-    fake.returns.set(R9, {
-      id: R9,
-      code: "TH0000031",
-      orderId: "0195f3b2-0000-7000-8000-00000000d0ff",
-      kind: "exchange",
-      status: "requested",
-      refundAmount: 177_049,
-      items: [],
-      createdAt: "2026-11-20T00:00:00Z",
-      version: 1,
-    });
+    const R9 = exchangeReturn();
     const ex = { orderType: "exchange" as const, replacedReturnId: R9, grandTotal: 180_000 };
     const view = renderPanel(confirmedOrder({ ...ex, prepaidTotal: 0, codAmount: 180_000 }));
     const btn = await sendButton("Gửi hãng · Viettel Post · 32.000 ₫");
@@ -341,6 +330,76 @@ describe("Gửi hãng (VC03, HV10)", () => {
     });
   });
 
+  it("đơn đổi chờ cấn trừ: tích Gửi không cấn trừ thì gửi được, thân có skipExchangeCredit (Task 524)", async () => {
+    latestQuotes();
+    const R9 = exchangeReturn();
+    renderPanel(
+      confirmedOrder({
+        orderType: "exchange",
+        replacedReturnId: R9,
+        grandTotal: 180_000,
+        prepaidTotal: 0,
+        codAmount: 180_000,
+      }),
+    );
+    const btn = await sendButton("Gửi hãng · Viettel Post · 32.000 ₫");
+    await waitFor(() => {
+      expect(btn).toHaveProperty("disabled", true);
+    });
+    const skip = within(panel()).getByRole("checkbox", { name: TEXT_SKIP_CREDIT });
+    fireEvent.click(skip);
+    await waitFor(() => {
+      expect(btn).toHaveProperty("disabled", false);
+    });
+    fireEvent.click(btn);
+    await waitFor(() => {
+      expect(shipWrites()).toHaveLength(1);
+    });
+    expect(shipWrites()[0]?.body).toMatchObject({ skipExchangeCredit: true });
+  });
+
+  it("đơn đổi đã có phiếu thu khác nhưng máy chủ trả 409 exchange_credit_pending: hiện ô bỏ qua, gửi lại có cờ", async () => {
+    latestQuotes();
+    const R9 = exchangeReturn();
+    renderPanel(
+      confirmedOrder({
+        orderType: "exchange",
+        replacedReturnId: R9,
+        grandTotal: 180_000,
+        prepaidTotal: 50_000,
+        codAmount: 130_000,
+      }),
+    );
+    const btn = await sendButton("Gửi hãng · Viettel Post · 32.000 ₫");
+    await waitFor(() => {
+      expect(btn).toHaveProperty("disabled", false);
+    });
+    expect(within(panel()).queryByRole("checkbox", { name: TEXT_SKIP_CREDIT })).toBeNull();
+    fake.replies.push({ status: 409, body: { error: "exchange_credit_pending", request_id: "t" } });
+    fireEvent.click(btn);
+    const skip = await within(panel()).findByRole("checkbox", { name: TEXT_SKIP_CREDIT });
+    expect(panel().textContent).toContain("Đơn đổi chưa có phiếu cấn trừ tiền món trả");
+    fireEvent.click(skip);
+    fireEvent.click(await sendButton("Gửi hãng · Viettel Post · 32.000 ₫"));
+    await waitFor(() => {
+      expect(shipWrites()).toHaveLength(2);
+    });
+    expect(shipWrites()[0]?.body).not.toHaveProperty("skipExchangeCredit");
+    expect(shipWrites()[1]?.body).toMatchObject({ skipExchangeCredit: true });
+  });
+
+  it("đơn thường: không có ô Gửi không cấn trừ, thân không có skipExchangeCredit", async () => {
+    latestQuotes();
+    renderPanel(confirmedOrder());
+    const btn = await sendButton("Gửi hãng · Viettel Post · 32.000 ₫");
+    expect(within(panel()).queryByRole("checkbox", { name: TEXT_SKIP_CREDIT })).toBeNull();
+    fireEvent.click(btn);
+    await waitFor(() => {
+      expect(shipWrites()).toHaveLength(1);
+    });
+    expect(shipWrites()[0]?.body).not.toHaveProperty("skipExchangeCredit");
+  });
+
   it("không có quyền gửi hãng ở kho của đơn: nút mờ kèm lý do (trạng thái H)", async () => {
     latestQuotes();
     fake.grants = grantsAt(WH2, ...SENDER);
@@ -351,6 +410,23 @@ describe("Gửi hãng (VC03, HV10)", () => {
     expect(quoteWrites()).toHaveLength(0);
   });
 });
+
+/** Phiếu đổi có tiền hoàn 177.049 của đơn gốc khác (đơn đổi trỏ tới bằng replacedReturnId); trả mã phiếu. */
+function exchangeReturn(): string {
+  const R9 = "0195f3b2-0000-7000-8000-00000000a199";
+  fake.returns.set(R9, {
+    id: R9,
+    code: "TH0000031",
+    orderId: "0195f3b2-0000-7000-8000-00000000d0ff",
+    kind: "exchange",
+    status: "requested",
+    refundAmount: 177_049,
+    items: [],
+    createdAt: "2026-11-20T00:00:00Z",
+    version: 1,
+  });
+  return R9;
+}
 
 describe("Tài khoản nhập mã tay, tự giao (VC14, HV16)", () => {
   it("chọn tài khoản nhập tay: dán mã, phí; Lưu mã vận đơn gửi trackingCode, feeActual, không quoteId", async () => {

@@ -28870,9 +28870,15 @@ func (s *CreateShipmentRequest) encodeFields(e *jx.Encoder) {
 			s.FeeActual.Encode(e)
 		}
 	}
+	{
+		if s.SkipExchangeCredit.Set {
+			e.FieldStart("skipExchangeCredit")
+			s.SkipExchangeCredit.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfCreateShipmentRequest = [11]string{
+var jsonFieldsNameOfCreateShipmentRequest = [12]string{
 	0:  "carrierAccountId",
 	1:  "service",
 	2:  "quoteId",
@@ -28884,6 +28890,7 @@ var jsonFieldsNameOfCreateShipmentRequest = [11]string{
 	8:  "options",
 	9:  "trackingCode",
 	10: "feeActual",
+	11: "skipExchangeCredit",
 }
 
 // Decode decodes CreateShipmentRequest from json.
@@ -29006,6 +29013,16 @@ func (s *CreateShipmentRequest) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"feeActual\"")
+			}
+		case "skipExchangeCredit":
+			if err := func() error {
+				s.SkipExchangeCredit.Reset()
+				if err := s.SkipExchangeCredit.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"skipExchangeCredit\"")
 			}
 		default:
 			return d.Skip()
