@@ -77,3 +77,25 @@ func (e *StockShortError) Error() string {
 
 // Is cho errors.Is(err, ErrStockShort).
 func (e *StockShortError) Is(target error) bool { return target == ErrStockShort }
+
+// Lỗi của kiểm kho mở sổ (kế hoạch M7, Task 262 = M7-17).
+var (
+	// ErrOpeningExists: kho đã có phiên mở sổ chưa hủy (đang mở hoặc đã đăng); mỗi kho mở sổ một lần.
+	ErrOpeningExists = errors.New("inventory: kho đã có phiên kiểm kho mở sổ")
+	// ErrWarehouseNotEmpty: kho đã có dòng sổ, số dư khác 0 hay giữ hàng chưa xong; mở sổ chỉ làm trên kho trống.
+	ErrWarehouseNotEmpty = errors.New("inventory: kho không còn trống")
+	// ErrUncountedLines: còn biến thể phải đếm chưa có dòng đếm; lỗi cụ thể là *UncountedLinesError.
+	ErrUncountedLines = errors.New("inventory: còn biến thể chưa đếm")
+	// ErrOpeningNotPosted: kiểm lại một phiên mở sổ chưa đăng (đang mở hoặc đã hủy).
+	ErrOpeningNotPosted = errors.New("inventory: phiên mở sổ chưa đăng")
+)
+
+// UncountedLinesError là chi tiết của ErrUncountedLines: N biến thể phải đếm mà chưa có dòng.
+type UncountedLinesError struct{ N int }
+
+func (e *UncountedLinesError) Error() string {
+	return fmt.Sprintf("inventory: còn %d biến thể chưa đếm", e.N)
+}
+
+// Is cho errors.Is(err, ErrUncountedLines).
+func (e *UncountedLinesError) Is(target error) bool { return target == ErrUncountedLines }

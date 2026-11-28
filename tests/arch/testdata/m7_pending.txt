@@ -4,11 +4,6 @@
 getCatalogLaunchReadiness
 publishProducts
 unpublishProducts
-createOpeningStocktake
-listOpeningStocktakes
-getOpeningStocktake
-postOpeningStocktake
-checkOpeningStocktake
 incrementStocktakeLine
 createStocktakeCountImport
 getStocktakeCountImport

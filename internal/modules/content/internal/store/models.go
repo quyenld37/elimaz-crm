@@ -1488,6 +1488,16 @@ type InventoryFlashUnitsSummaryV struct {
 	Released        int64
 }
 
+type InventoryOpeningStatusV struct {
+	WarehouseID   uuid.UUID
+	StocktakeID   uuid.UUID
+	Status        string
+	LinesExpected int32
+	LinesCounted  int32
+	UnitsCounted  int64
+	AppliedAt     *time.Time
+}
+
 type InventoryReconcileRun struct {
 	ID         uuid.UUID
 	TenantID   uuid.UUID
@@ -1617,6 +1627,7 @@ type InventoryStocktake struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	Version     int64
+	Kind        string
 }
 
 type InventoryStocktakeLine struct {
