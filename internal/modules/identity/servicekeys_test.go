@@ -60,6 +60,7 @@ func TestServiceKeyPermissions(t *testing.T) {
 	for _, p := range []identity.Permission{
 		"web.catalog.read", "web.orders.create", "web.orders.read", "web.orders.cancel", "web.requests.write",
 		"web.coupons.issue", "web.birthdays.write", "web.feedback.write", "web.shipping.quote", "web.flash.buy",
+		"web.catalog.preview", // M7 (Task 260): website thử xem trước sản phẩm nháp
 	} {
 		if !slices.Contains(identity.ServiceKeyPermissions, p) || !identity.IsServiceKeyPermission(p) {
 			t.Errorf("thiếu quyền khóa %s", p)

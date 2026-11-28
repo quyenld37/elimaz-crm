@@ -62,6 +62,8 @@ var ServiceKeyPermissions = []Permission{ //nolint:gochecknoglobals // danh sác
 	"web.feedback.write",
 	"web.shipping.quote",
 	"web.flash.buy",
+	// M7 (Task 260; Task 261 dùng): khóa của website thử đọc thêm sản phẩm nháp kèm preview: true.
+	"web.catalog.preview",
 }
 
 // IsServiceKeyPermission cho biết p là quyền của khóa dịch vụ (ServiceKeyPermissions).

@@ -786,7 +786,7 @@ func (Secret) LogValue() slog.Value
 
 Package metrics gom chỉ số của tiến trình trong bộ nhớ và ghi mỗi phút một lần vào platform.metrics_minute (spec 04 mục "Đo lường"; không có /metrics, ADR C6), ghi nhịp sống vào platform.process_heartbeats và gửi nhịp sống ra dịch vụ bên ngoài (ADR-38).
 
-**Khi nào không dùng:** Không mở endpoint /metrics hay thêm thư viện chỉ số (ADR C6); không tạo Registry thứ hai trong một tiến trình (cmd/crm tạo một cái và truyền xuống). Không đặt đường dẫn thật, tham số, SĐT hay mã khách vào tên hoặc nhãn chỉ số (nhãn route dùng mẫu của ServeMux). Không dùng Flusher cho dữ liệu nghiệp vụ hay số phải chính xác tuyệt đối: lỗi commit không rõ kết quả có thể ghi một lô hai lần.
+**Khi nào không dùng:** Không mở endpoint /metrics hay thêm thư viện chỉ số (ADR C6); không tạo Registry thứ hai trong một tiến trình (cmd/crm tạo một cái và truyền xuống). Không đặt đường dẫn thật, tham số, SĐT hay mã khách vào tên hoặc nhãn chỉ số (nhãn route dùng mẫu của ServeMux). Không dùng Flusher cho dữ liệu nghiệp vụ hay số phải chính xác tuyệt đối: lỗi commit không rõ kết quả có thể ghi một lô hai lần. DailyP95 (Task 266, M7) chỉ để báo cáo theo ngày (T2, theo dõi sau mở bán): không dùng để quyết định nghiệp vụ hay cảnh báo theo phút, không tự cộng mảng hist ở module (gọi DailyP95 hoặc QuantileFromHist).
 
 ```go
 func DiskUsedPct(path string) (float64, error)
@@ -833,7 +833,7 @@ type Row struct {
 
 Package observability phục vụ các điểm kiểm sức khỏe của tiến trình (/health/live, /health/ready, báo cáo /health/deep), cảnh báo vận hành qua Telegram (Alerter, chống lặp theo platform.alert_events), luật cảnh báo trên hàng đợi, chỉ số theo phút, nhịp sống, sao lưu, lỗi ứng dụng và thống kê PostgreSQL (CheckRules), tin tổng kết hằng ngày (SendDailyDigest) (Task 19); gom lỗi ứng dụng và tóm tắt sức khỏe (Task 20).
 
-**Khi nào không dùng:** Không đặt kiểm tra nghiệp vụ hay dữ liệu khách vào /health/*. Không gọi Notify trong RetryTx hay handler transactional của hàng đợi (gọi mạng): gửi cảnh báo từ lệnh (commands.Handler) như alertjobs.NewAlertsCommand (gói con: observability không được nhập commands, queue vì queue nhập observability). Văn bản cảnh báo chỉ mang tên luật, số lượng, kind, mã bản ghi: không đọc payload, last_error. Không dùng Alerter để báo cho khách (C7).
+**Khi nào không dùng:** Không đặt kiểm tra nghiệp vụ hay dữ liệu khách vào /health/*. Không gọi Notify trong RetryTx hay handler transactional của hàng đợi (gọi mạng): gửi cảnh báo từ lệnh (commands.Handler) như alertjobs.NewAlertsCommand (gói con: observability không được nhập commands, queue vì queue nhập observability). Văn bản cảnh báo chỉ mang tên luật, số lượng, kind, mã bản ghi: không đọc payload, last_error. Không dùng Alerter để báo cho khách (C7). TenantOpsSummary (Task 271, M7) là đường duy nhất module đọc số việc nền in_doubt, dead và cảnh báo gấp: module không đọc bảng platform.jobs, platform.alert_events trực tiếp; không dùng nó cho màn sức khỏe hệ thống (đã có /health và màn nền tảng).
 
 ```go
 func AlertSentWithin(ctx context.Context, d *db.DB, key string, window time.Duration) (bool, error)

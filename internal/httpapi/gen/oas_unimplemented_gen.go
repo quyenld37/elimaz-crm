@@ -295,6 +295,16 @@ func (UnimplementedHandler) CheckCoupon(ctx context.Context, params CheckCouponP
 	return r, ht.ErrNotImplemented
 }
 
+// CheckOpeningStocktake implements checkOpeningStocktake operation.
+//
+// Kiểm lại phiên mở sổ đã đăng: số đếm khớp sổ và số dư (mốc A của đêm
+// mở; Task 262).
+//
+// GET /api/v1/inventory/opening-stocktakes/{id}/check
+func (UnimplementedHandler) CheckOpeningStocktake(ctx context.Context, params CheckOpeningStocktakeParams) (r CheckOpeningStocktakeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CheckOrderDuplicates implements checkOrderDuplicates operation.
 //
 // Kiểm trước ở form: đơn có thể trùng (cùng khách hay cùng SĐT, có biến thể
@@ -342,6 +352,15 @@ func (UnimplementedHandler) CloseFlashSale(ctx context.Context, params CloseFlas
 //
 // POST /api/v1/returns/{returnId}/close
 func (UnimplementedHandler) CloseReturn(ctx context.Context, req *VersionRequest, params CloseReturnParams) (r CloseReturnRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CloseWatch implements closeWatch operation.
+//
+// Chưa đủ → 409 exit_not_met; không phải người quyết → 403 not_decider.
+//
+// POST /api/v1/reports/watch/close
+func (UnimplementedHandler) CloseWatch(ctx context.Context, req *CloseWatchRequest, params CloseWatchParams) (r CloseWatchRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -540,6 +559,15 @@ func (UnimplementedHandler) CreateCustomerTag(ctx context.Context, req *CreateCu
 	return r, ht.ErrNotImplemented
 }
 
+// CreateFallbackImport implements createFallbackImport operation.
+//
+// Cùng tệp (sha256) đã nhập → 409 import_exists (kèm existingId).
+//
+// POST /api/v1/order-fallback/imports
+func (UnimplementedHandler) CreateFallbackImport(ctx context.Context, req *CreateFallbackImportRequest, params CreateFallbackImportParams) (r CreateFallbackImportRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateFlashSale implements createFlashSale operation.
 //
 // Tạo đợt nháp; kết thúc không sau bắt đầu hay dài quá 7 ngày → 422
@@ -566,6 +594,39 @@ func (UnimplementedHandler) CreateInventoryReportRun(ctx context.Context, req *C
 //
 // POST /api/v1/label-batches
 func (UnimplementedHandler) CreateLabelBatch(ctx context.Context, req *CreateLabelBatchRequest, params CreateLabelBatchParams) (r CreateLabelBatchRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateLaunchRun implements createLaunchRun operation.
+//
+// DeciderUserId phải là nhân viên active có reporting.launch.decide → không thì 422
+// decider_invalid; đang có lượt running → 409 run_in_progress; đã có lượt live hoàn
+// tất → 409 live_already_completed.
+//
+// POST /api/v1/reports/launch-runs
+func (UnimplementedHandler) CreateLaunchRun(ctx context.Context, req *CreateLaunchRunRequest, params CreateLaunchRunParams) (r CreateLaunchRunRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateLegacyReturn implements createLegacyReturn operation.
+//
+// Quyền theo kho warehouseId. Tham chiếu đã dùng (so sau khi bỏ khoảng trắng, viết hoa)
+// → 409 legacy_return_exists (kèm existingId); qty ngoài 1–1000 → 400.
+//
+// POST /api/v1/inventory/legacy-returns
+func (UnimplementedHandler) CreateLegacyReturn(ctx context.Context, req *CreateLegacyReturnRequest, params CreateLegacyReturnParams) (r CreateLegacyReturnRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateOpeningStocktake implements createOpeningStocktake operation.
+//
+// Quyền theo kho (inventory.stocktake.opening ở kho warehouseId). Kho đã có dòng sổ, số
+// dư khác 0 hay giữ hàng → 409 warehouse_not_empty; kho đã có phiên mở sổ chưa hủy
+// → 409 opening_exists; kho đang có phiên kiểm thường mở → 409 stocktake_open. Đếm
+// từng dòng dùng recordStocktakeCount, incrementStocktakeLine.
+//
+// POST /api/v1/inventory/opening-stocktakes
+func (UnimplementedHandler) CreateOpeningStocktake(ctx context.Context, req *CreateOpeningStocktakeRequest, params CreateOpeningStocktakeParams) (r CreateOpeningStocktakeRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -685,6 +746,16 @@ func (UnimplementedHandler) CreateStockDocument(ctx context.Context, req *Create
 	return r, ht.ErrNotImplemented
 }
 
+// CreateStocktakeCountImport implements createStocktakeCountImport operation.
+//
+// Cùng tệp, cùng phiên, mode add lần hai → 409 import_already_applied; mode replace lần hai
+// trả lại bản nhập cũ.
+//
+// POST /api/v1/inventory/stocktakes/{id}/count-imports
+func (UnimplementedHandler) CreateStocktakeCountImport(ctx context.Context, req *CreateStocktakeCountImportRequest, params CreateStocktakeCountImportParams) (r CreateStocktakeCountImportRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateSupplier implements createSupplier operation.
 //
 // Tạo nhà cung cấp (tên không trùng trong shop).
@@ -729,6 +800,16 @@ func (UnimplementedHandler) CreateUpload(ctx context.Context, req *CreateUploadR
 //
 // POST /api/v1/web-campaigns
 func (UnimplementedHandler) CreateWebCampaign(ctx context.Context, req *WebCampaignInput, params CreateWebCampaignParams) (r CreateWebCampaignRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// DecideLaunchRun implements decideLaunchRun operation.
+//
+// Không phải người quyết của lượt → 403 not_decider (dù có quyền); lượt đã
+// dừng hay hoàn tất → 409 run_closed.
+//
+// POST /api/v1/reports/launch-runs/{id}/decision
+func (UnimplementedHandler) DecideLaunchRun(ctx context.Context, req *DecideLaunchRunRequest, params DecideLaunchRunParams) (r DecideLaunchRunRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -807,6 +888,16 @@ func (UnimplementedHandler) EndLiveSessionManually(ctx context.Context, params E
 	return r, ht.ErrNotImplemented
 }
 
+// EvaluateLaunchCheckpoint implements evaluateLaunchCheckpoint operation.
+//
+// Đánh giá mốc readiness, A (mở sổ), B (năm việc trước khi mở bán); mỗi lần
+// một dòng kết quả (Task 270).
+//
+// POST /api/v1/reports/launch-runs/{id}/checkpoints/{key}/evaluate
+func (UnimplementedHandler) EvaluateLaunchCheckpoint(ctx context.Context, params EvaluateLaunchCheckpointParams) (r EvaluateLaunchCheckpointRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ExchangeFacebookOAuth implements exchangeFacebookOAuth operation.
 //
 // Đổi mã đăng nhập lấy danh sách Page người dùng quản trị; state sai, hết hạn,
@@ -825,6 +916,16 @@ func (UnimplementedHandler) ExchangeFacebookOAuth(ctx context.Context, req *Exch
 //
 // POST /api/v1/birthday-customers/export
 func (UnimplementedHandler) ExportBirthdayCustomers(ctx context.Context, req *BirthdayExportRequest, params ExportBirthdayCustomersParams) (r ExportBirthdayCustomersRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FinishLaunchStep implements finishLaunchStep operation.
+//
+// Bước 2, 6, 7 không được skipped → 422 step_not_skippable; lượt đã dừng hay hoàn
+// tất → 409 run_closed.
+//
+// POST /api/v1/reports/launch-runs/{id}/steps/{no}/finish
+func (UnimplementedHandler) FinishLaunchStep(ctx context.Context, req *FinishLaunchStepRequest, params FinishLaunchStepParams) (r FinishLaunchStepRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -884,6 +985,16 @@ func (UnimplementedHandler) GetCatalogImport(ctx context.Context, params GetCata
 //
 // GET /api/v1/catalog/imports/template
 func (UnimplementedHandler) GetCatalogImportTemplate(ctx context.Context) (r GetCatalogImportTemplateRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetCatalogLaunchReadiness implements getCatalogLaunchReadiness operation.
+//
+// Sản phẩm nháp, đang bán kèm điều kiện lên kệ và lý do chưa đủ (view
+// catalog.product_readiness_v; Task 261).
+//
+// GET /api/v1/catalog/launch/readiness
+func (UnimplementedHandler) GetCatalogLaunchReadiness(ctx context.Context, params GetCatalogLaunchReadinessParams) (r GetCatalogLaunchReadinessRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1020,6 +1131,26 @@ func (UnimplementedHandler) GetCustomerTimeline(ctx context.Context, params GetC
 	return r, ht.ErrNotImplemented
 }
 
+// GetFallbackImport implements getFallbackImport operation.
+//
+// Kết quả một lần nhập đơn dự phòng: số đơn tạo, trùng, lỗi; từng Mã dòng
+// (Task 268).
+//
+// GET /api/v1/order-fallback/imports/{id}
+func (UnimplementedHandler) GetFallbackImport(ctx context.Context, params GetFallbackImportParams) (r GetFallbackImportRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetFallbackTemplate implements getFallbackTemplate operation.
+//
+// Tải mẫu bảng tính đơn dự phòng (.xlsx ba trang: Đơn có sẵn Mã dòng, Mã hàng,
+// Hướng dẫn; Task 268).
+//
+// GET /api/v1/order-fallback/template
+func (UnimplementedHandler) GetFallbackTemplate(ctx context.Context) (r GetFallbackTemplateRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetFile implements getFile operation.
 //
 // Trạng thái tệp và các biến thể ảnh công khai.
@@ -1096,6 +1227,34 @@ func (UnimplementedHandler) GetLabelBatch(ctx context.Context, params GetLabelBa
 	return r, ht.ErrNotImplemented
 }
 
+// GetLaunchReadiness implements getLaunchReadiness operation.
+//
+// Chỉ số đếm và mã; không tên nhân viên, tên khách.
+//
+// GET /api/v1/reports/launch-readiness
+func (UnimplementedHandler) GetLaunchReadiness(ctx context.Context) (r GetLaunchReadinessRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetLaunchRun implements getLaunchRun operation.
+//
+// Một lượt chạy: từng bước dự kiến, thực tế, chênh; mốc đi/dừng; drillPassed
+// (MO04, Task 270).
+//
+// GET /api/v1/reports/launch-runs/{id}
+func (UnimplementedHandler) GetLaunchRun(ctx context.Context, params GetLaunchRunParams) (r GetLaunchRunRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetLegacyReturn implements getLegacyReturn operation.
+//
+// Một phiếu hàng hoàn của đơn cũ (liên kết từ lỗi legacy_return_exists; Task 264).
+//
+// GET /api/v1/inventory/legacy-returns/{id}
+func (UnimplementedHandler) GetLegacyReturn(ctx context.Context, params GetLegacyReturnParams) (r GetLegacyReturnRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetLiveCommentContext implements getLiveCommentContext operation.
 //
 // Bối cảnh chốt một comment live: khách rút gọn, đơn nháp đang mở, SĐT tách từ
@@ -1123,6 +1282,16 @@ func (UnimplementedHandler) GetLooks(ctx context.Context) (r GetLooksRes, _ erro
 //
 // GET /api/v1/me
 func (UnimplementedHandler) GetMe(ctx context.Context) (r GetMeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetOpeningStocktake implements getOpeningStocktake operation.
+//
+// Một phiên kiểm kho mở sổ: số dòng phải đếm, đã đếm, số đơn vị (màn
+// "còn N dòng chưa đếm"; Task 262).
+//
+// GET /api/v1/inventory/opening-stocktakes/{id}
+func (UnimplementedHandler) GetOpeningStocktake(ctx context.Context, params GetOpeningStocktakeParams) (r GetOpeningStocktakeRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1348,6 +1517,25 @@ func (UnimplementedHandler) GetStocktake(ctx context.Context, params GetStocktak
 	return r, ht.ErrNotImplemented
 }
 
+// GetStocktakeCountImport implements getStocktakeCountImport operation.
+//
+// Trạng thái và lỗi từng dòng của một bản nhập số đếm (Task 263).
+//
+// GET /api/v1/inventory/count-imports/{id}
+func (UnimplementedHandler) GetStocktakeCountImport(ctx context.Context, params GetStocktakeCountImportParams) (r GetStocktakeCountImportRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetT2Report implements getT2Report operation.
+//
+// Quyền theo Page (conversation.t2.read ở Page id). Khoảng from–to tối đa 31 ngày → quá
+// thì 400 range_too_long.
+//
+// GET /api/v1/channels/{id}/t2-report
+func (UnimplementedHandler) GetT2Report(ctx context.Context, params GetT2ReportParams) (r GetT2ReportRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetWarehousePickup implements getWarehousePickup operation.
 //
 // Địa chỉ lấy hàng đang lưu của kho và version để ghi (chưa ghi lần nào: chỉ
@@ -1355,6 +1543,16 @@ func (UnimplementedHandler) GetStocktake(ctx context.Context, params GetStocktak
 //
 // GET /api/v1/inventory/warehouses/{id}/pickup
 func (UnimplementedHandler) GetWarehousePickup(ctx context.Context, params GetWarehousePickupParams) (r GetWarehousePickupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetWatch implements getWatch operation.
+//
+// Theo dõi sát 14 ngày sau mở bán: từng ngày xanh/đỏ, số ngày xanh liền, exitReady
+// (Task 271).
+//
+// GET /api/v1/reports/watch
+func (UnimplementedHandler) GetWatch(ctx context.Context) (r GetWatchRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1397,6 +1595,18 @@ func (UnimplementedHandler) GetWebCarrierSettings(ctx context.Context) (r GetWeb
 //
 // GET /api/v1/web-intake
 func (UnimplementedHandler) GetWebIntake(ctx context.Context) (r GetWebIntakeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GoLivePage implements goLivePage operation.
+//
+// Quyền theo Page. oldToolAutomationsOff khác true → 422 old_tool_not_confirmed; Page không ở
+// read_only → 409 mode_mismatch; loại quy tắc chưa cấu hình cho Page → 422
+// rule_not_configured. Từ M7 bật gửi chỉ qua đây (setChannelSendMode sang enabled → 409
+// use_go_live).
+//
+// POST /api/v1/channels/{id}/go-live
+func (UnimplementedHandler) GoLivePage(ctx context.Context, req *GoLivePageRequest, params GoLivePageParams) (r GoLivePageRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1444,6 +1654,17 @@ func (UnimplementedHandler) HideComment(ctx context.Context, params HideCommentP
 //
 // POST /api/v1/cod-statements
 func (UnimplementedHandler) ImportCodStatement(ctx context.Context, req *ImportCodStatementRequest, params ImportCodStatementParams) (r ImportCodStatementRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// IncrementStocktakeLine implements incrementStocktakeLine operation.
+//
+// Mã lạ → 422 unknown_code; mã trùng giữa hai người bán → 422 ambiguous_code (kèm
+// candidates); số đếm âm → 422 negative_count; phiên không mở → 409 stocktake_not_open.
+// Mỗi lần quét một khóa chống trùng riêng.
+//
+// POST /api/v1/inventory/stocktakes/{id}/increments
+func (UnimplementedHandler) IncrementStocktakeLine(ctx context.Context, req *IncrementStocktakeLineRequest, params IncrementStocktakeLineParams) (r IncrementStocktakeLineRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1791,6 +2012,25 @@ func (UnimplementedHandler) ListJobs(ctx context.Context, params ListJobsParams)
 	return r, ht.ErrNotImplemented
 }
 
+// ListLaunchRuns implements listLaunchRuns operation.
+//
+// Các lượt chạy đêm mở, mới nhất trước (Task 270).
+//
+// GET /api/v1/reports/launch-runs
+func (UnimplementedHandler) ListLaunchRuns(ctx context.Context, params ListLaunchRunsParams) (r ListLaunchRunsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListLegacyReturns implements listLegacyReturns operation.
+//
+// Phiếu hàng hoàn của đơn cũ theo khoảng ngày (giờ Việt Nam), mới nhất trước
+// (Task 264).
+//
+// GET /api/v1/inventory/legacy-returns
+func (UnimplementedHandler) ListLegacyReturns(ctx context.Context, params ListLegacyReturnsParams) (r ListLegacyReturnsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListLiveComments implements listLiveComments operation.
 //
 // Comment của phiên live theo thời gian; lọc có SĐT, chưa xử lý (Task 172).
@@ -1844,6 +2084,16 @@ func (UnimplementedHandler) ListMessages(ctx context.Context, params ListMessage
 //
 // GET /api/v1/me/reminders
 func (UnimplementedHandler) ListMyReminders(ctx context.Context, params ListMyRemindersParams) (r ListMyRemindersRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListOpeningStocktakes implements listOpeningStocktakes operation.
+//
+// Phiên kiểm kho mở sổ của các kho được giao, kèm số dòng phải đếm, đã đếm
+// (view inventory.opening_status_v; Task 262).
+//
+// GET /api/v1/inventory/opening-stocktakes
+func (UnimplementedHandler) ListOpeningStocktakes(ctx context.Context, params ListOpeningStocktakesParams) (r ListOpeningStocktakesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2138,6 +2388,16 @@ func (UnimplementedHandler) ListUnmappedLocations(ctx context.Context, params Li
 	return r, ht.ErrNotImplemented
 }
 
+// ListUnmatchedCarrierEvents implements listUnmatchedCarrierEvents operation.
+//
+// Sự kiện hãng của vận đơn ngoài hệ thống (đơn cũ còn đang giao): mã vận
+// đơn, hãng, số lần, lần cuối (MO07, Task 265).
+//
+// GET /api/v1/fulfillment/unmatched-events
+func (UnimplementedHandler) ListUnmatchedCarrierEvents(ctx context.Context, params ListUnmatchedCarrierEventsParams) (r ListUnmatchedCarrierEventsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListWarehouses implements listWarehouses operation.
 //
 // Các kho người gọi được xem (có inventory.read ở kho đó hoặc toàn shop), kho chính
@@ -2197,12 +2457,42 @@ func (UnimplementedHandler) MergeCustomer(ctx context.Context, req *MergeCustome
 	return r, ht.ErrNotImplemented
 }
 
+// OpenSales implements openSales operation.
+//
+// Không phải người quyết → 403 not_decider; mốc chưa đạt → 409
+// checkpoint_not_passed; lần đạt cũ hơn 30 phút → 409 checkpoint_stale; lượt đã dừng
+// hay hoàn tất → 409 run_closed.
+//
+// POST /api/v1/reports/launch-runs/{id}/open-sales
+func (UnimplementedHandler) OpenSales(ctx context.Context, params OpenSalesParams) (r OpenSalesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// PageBackToReadOnly implements pageBackToReadOnly operation.
+//
+// Page không ở enabled → 409 mode_mismatch.
+//
+// POST /api/v1/channels/{id}/back-to-read-only
+func (UnimplementedHandler) PageBackToReadOnly(ctx context.Context, req *PageBackToReadOnlyRequest, params PageBackToReadOnlyParams) (r PageBackToReadOnlyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // PayRefundObligation implements payRefundObligation operation.
 //
 // Ghi một lần hoàn tiền cho khách; vượt số còn phải hoàn → 409 (Task M3-30).
 //
 // POST /api/v1/refund-obligations/{id}/payments
 func (UnimplementedHandler) PayRefundObligation(ctx context.Context, req *PayRefundObligationRequest, params PayRefundObligationParams) (r PayRefundObligationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// PostOpeningStocktake implements postOpeningStocktake operation.
+//
+// Còn biến thể chưa đếm → 422 uncounted_lines (kèm count); kho không còn trống → 409
+// warehouse_not_empty; phiên đã đăng hay hủy → 409 stocktake_not_open.
+//
+// POST /api/v1/inventory/opening-stocktakes/{id}/post
+func (UnimplementedHandler) PostOpeningStocktake(ctx context.Context, params PostOpeningStocktakeParams) (r PostOpeningStocktakeRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2263,6 +2553,16 @@ func (UnimplementedHandler) PreviewShipmentCorrection(ctx context.Context, req *
 //
 // POST /api/v1/web-campaigns/{campaignId}/preview
 func (UnimplementedHandler) PreviewWebCampaign(ctx context.Context, req *WebCampaignRevision, params PreviewWebCampaignParams) (r PreviewWebCampaignRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// PublishProducts implements publishProducts operation.
+//
+// Gửi productIds (tối đa 500) hoặc allReady = true (mọi sản phẩm nháp đủ điều
+// kiện); thiếu cả hai → 400 invalid_input.
+//
+// POST /api/v1/catalog/launch/publish
+func (UnimplementedHandler) PublishProducts(ctx context.Context, req *PublishProductsRequest, params PublishProductsParams) (r PublishProductsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2729,8 +3029,8 @@ func (UnimplementedHandler) SetChannelHumanAgent(ctx context.Context, req *SetCh
 
 // SetChannelSendMode implements setChannelSendMode operation.
 //
-// Đổi chế độ gửi của Page (read_only = chỉ xem, enabled = gửi thật); kiểm version,
-// ghi nhật ký (Task 145).
+// Từ M7 (Task 267) chuyển sang enabled → 409 use_go_live (bật gửi chỉ qua goLivePage);
+// về read_only vẫn được.
 //
 // PUT /api/v1/channels/{id}/send-mode
 func (UnimplementedHandler) SetChannelSendMode(ctx context.Context, req *SetChannelSendModeRequest, params SetChannelSendModeParams) (r SetChannelSendModeRes, _ error) {
@@ -2882,6 +3182,16 @@ func (UnimplementedHandler) StartFacebookOAuth(ctx context.Context, params Start
 	return r, ht.ErrNotImplemented
 }
 
+// StartLaunchStep implements startLaunchStep operation.
+//
+// Bước trước chưa done hay skipped → 409 step_out_of_order; lượt đã dừng hay hoàn
+// tất → 409 run_closed.
+//
+// POST /api/v1/reports/launch-runs/{id}/steps/{no}/start
+func (UnimplementedHandler) StartLaunchStep(ctx context.Context, params StartLaunchStepParams) (r StartLaunchStepRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // StartLiveSessionManually implements startLiveSessionManually operation.
 //
 // Theo dõi live bằng tay theo mã video hay đường dẫn video (Q5, Task 170).
@@ -2956,10 +3266,19 @@ func (UnimplementedHandler) UnlockStaff(ctx context.Context, params UnlockStaffP
 	return r, ht.ErrNotImplemented
 }
 
+// UnpublishProducts implements unpublishProducts operation.
+//
+// Ẩn lại sản phẩm đang bán (về nháp); đơn cũ giữ giá, tên lúc đặt (Task 261).
+//
+// POST /api/v1/catalog/launch/unpublish
+func (UnimplementedHandler) UnpublishProducts(ctx context.Context, req *UnpublishProductsRequest, params UnpublishProductsParams) (r UnpublishProductsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // UpdateAutomationRule implements updateAutomationRule operation.
 //
-// Bật, tắt, sửa một quy tắc tự động của Page; config.kind phải trùng kind trên
-// đường dẫn; kiểm version (Task 165).
+// Từ M7 (Task 267) bật quy tắc khi Page còn read_only → 409 page_read_only; tắt vẫn
+// được.
 //
 // PUT /api/v1/channels/{id}/automation-rules/{kind}
 func (UnimplementedHandler) UpdateAutomationRule(ctx context.Context, req *UpdateAutomationRuleRequest, params UpdateAutomationRuleParams) (r UpdateAutomationRuleRes, _ error) {

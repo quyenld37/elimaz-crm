@@ -136,6 +136,12 @@ func TestPermissionsList(t *testing.T) {
 		"report.sales.read": identity.ScopeByTarget, "report.inventory.read": identity.ScopeByTarget,
 		"report.export": identity.ScopeShop, "report.exports.manage": identity.ScopeShop,
 		"customer.export": identity.ScopeShop,
+		// M7 (Task 260): khởi động; lượt chạy và quyết đêm mở là chính sách toàn shop (QĐ-260-2).
+		"catalog.launch.publish": identity.ScopeNone, "inventory.stocktake.opening": identity.ScopeByTarget,
+		"inventory.legacy_return.create": identity.ScopeByTarget, "fulfillment.unmatched.read": identity.ScopeNone,
+		"conversation.t2.read": identity.ScopeByTarget, "channel.golive": identity.ScopeByTarget,
+		"order.fallback.import": identity.ScopeNone, "reporting.launch.read": identity.ScopeNone,
+		"reporting.launch.run": identity.ScopeShop, "reporting.launch.decide": identity.ScopeShop,
 	}
 	seen := map[identity.Permission]bool{}
 	for _, d := range identity.Permissions {

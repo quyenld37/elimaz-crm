@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"unicode"
@@ -39,6 +40,8 @@ func defaultRoles() []RoleDef {
 	notManager := []Permission{
 		"identity.users.manage", "identity.roles.manage", "identity.service_keys.manage",
 		"cash.statements.import", "cash.statements.confirm", "cash.adjust", "cash.refunds.record", "cash.refunds.waive",
+		// M7 (Task 260): quyết đêm mở (tạo lượt, đi/dừng, mở bán, đóng theo dõi) chỉ Chủ (Q25).
+		"reporting.launch.decide",
 	}
 	for _, d := range Permissions {
 		all = append(all, d.Key)
@@ -63,6 +66,8 @@ func defaultRoles() []RoleDef {
 			"conversation.read", "conversation.reply", "live.operate", "files.upload",
 			// M6 (Task 225): báo cáo bán hàng của Page được gán.
 			"report.sales.read",
+			// M7 (Task 260): báo cáo T2 của Page được gán.
+			"conversation.t2.read",
 		}},
 		{Key: "warehouse", Name: "Kho", Permissions: []Permission{
 			"catalog.read", "inventory.read", "inventory.documents.create", "inventory.stocktake", "fulfillment.read",
@@ -74,6 +79,8 @@ func defaultRoles() []RoleDef {
 			"fulfillment.pack", "fulfillment.manual_status", "inventory.aged.read",
 			// M6 (Task 225): báo cáo tồn của kho được gán.
 			"report.inventory.read",
+			// M7 (Task 260): kiểm kho mở sổ, nhập hàng hoàn của đơn cũ ở kho được gán.
+			"inventory.stocktake.opening", "inventory.legacy_return.create",
 		}},
 		{Key: "accountant", Name: "Kế toán", Permissions: []Permission{
 			"catalog.read", "inventory.read", "order.read", "fulfillment.read", "realtime.subscribe",
@@ -84,6 +91,8 @@ func defaultRoles() []RoleDef {
 			"cash.refunds.record", "files.upload",
 			// M6 (Task 225): báo cáo bán hàng và xuất Excel (gán toàn shop mới xuất được).
 			"report.sales.read", "report.export",
+			// M7 (Task 260): sự kiện hãng của đơn ngoài hệ thống, báo cáo sẵn sàng và đêm mở (chỉ xem).
+			"fulfillment.unmatched.read", "reporting.launch.read",
 		}},
 	}
 }
@@ -499,7 +508,7 @@ func permissionGroups() []string {
 // permissionLabels là bảng nhãn của mọi quyền: nhóm, nhãn, đích của quyền theo đích (warehouse, page). Quyền mới của
 // mốc sau thêm một dòng ở đây (test TestPermissionCatalog_Complete đỏ khi thiếu).
 func permissionLabels() map[Permission][3]string {
-	return map[Permission][3]string{
+	labels := map[Permission][3]string{
 		"catalog.read":               {groupCatalog, "Xem sản phẩm", ""},
 		"catalog.manage":             {groupCatalog, "Sửa sản phẩm, ảnh, phân loại", ""},
 		"catalog.import":             {groupCatalog, "Nhập sản phẩm từ Excel", ""},
@@ -579,6 +588,24 @@ func permissionLabels() map[Permission][3]string {
 		"identity.users.manage":        {groupAdmin, "Quản lý nhân viên", ""},
 		"identity.roles.manage":        {groupAdmin, "Quản lý vai trò", ""},
 		"identity.service_keys.manage": {groupAdmin, "Quản lý khóa cho website", ""},
+	}
+	maps.Copy(labels, launchPermissionLabels())
+	return labels
+}
+
+// launchPermissionLabels là nhãn của quyền phần khởi động M7 (Task 260).
+func launchPermissionLabels() map[Permission][3]string {
+	return map[Permission][3]string{
+		"catalog.launch.publish":         {groupCatalog, "Hiện, ẩn sản phẩm hàng loạt (mở bán)", ""},
+		"inventory.stocktake.opening":    {groupInventory, "Kiểm kho mở sổ", ScopeWarehouse},
+		"inventory.legacy_return.create": {groupInventory, "Nhập hàng hoàn của đơn cũ", ScopeWarehouse},
+		"fulfillment.unmatched.read":     {groupShipping, "Xem sự kiện hãng của đơn ngoài hệ thống", ""},
+		"conversation.t2.read":           {groupChat, "Xem báo cáo đối chiếu tin (chạy chỉ xem)", ScopePage},
+		"channel.golive":                 {groupChat, "Mở gửi Page, trả Page về chỉ xem", ScopePage},
+		"order.fallback.import":          {groupOrder, "Tải mẫu, nhập lại bảng tính đơn dự phòng", ""},
+		"reporting.launch.read":          {groupPromo, "Xem báo cáo sẵn sàng, đêm mở, theo dõi sau mở", ""},
+		"reporting.launch.run":           {groupPromo, "Chạy các bước của đêm mở", ""},
+		"reporting.launch.decide":        {groupPromo, "Quyết đi/dừng, mở bán đêm mở", ""},
 	}
 }
 

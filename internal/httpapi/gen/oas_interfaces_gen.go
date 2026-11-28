@@ -117,6 +117,10 @@ type CheckCouponRes interface {
 	checkCouponRes()
 }
 
+type CheckOpeningStocktakeRes interface {
+	checkOpeningStocktakeRes()
+}
+
 type CheckOrderDuplicatesRes interface {
 	checkOrderDuplicatesRes()
 }
@@ -135,6 +139,10 @@ type CloseFlashSaleRes interface {
 
 type CloseReturnRes interface {
 	closeReturnRes()
+}
+
+type CloseWatchRes interface {
+	closeWatchRes()
 }
 
 type CompleteReminderRes interface {
@@ -217,6 +225,10 @@ type CreateCustomerTagRes interface {
 	createCustomerTagRes()
 }
 
+type CreateFallbackImportRes interface {
+	createFallbackImportRes()
+}
+
 type CreateFlashSaleRes interface {
 	createFlashSaleRes()
 }
@@ -227,6 +239,18 @@ type CreateInventoryReportRunRes interface {
 
 type CreateLabelBatchRes interface {
 	createLabelBatchRes()
+}
+
+type CreateLaunchRunRes interface {
+	createLaunchRunRes()
+}
+
+type CreateLegacyReturnRes interface {
+	createLegacyReturnRes()
+}
+
+type CreateOpeningStocktakeRes interface {
+	createOpeningStocktakeRes()
 }
 
 type CreateOrderRes interface {
@@ -273,6 +297,10 @@ type CreateStockDocumentRes interface {
 	createStockDocumentRes()
 }
 
+type CreateStocktakeCountImportRes interface {
+	createStocktakeCountImportRes()
+}
+
 type CreateSupplierRes interface {
 	createSupplierRes()
 }
@@ -291,6 +319,10 @@ type CreateUploadRes interface {
 
 type CreateWebCampaignRes interface {
 	createWebCampaignRes()
+}
+
+type DecideLaunchRunRes interface {
+	decideLaunchRunRes()
 }
 
 type DeleteConversationTagRes interface {
@@ -325,12 +357,20 @@ type EndLiveSessionManuallyRes interface {
 	endLiveSessionManuallyRes()
 }
 
+type EvaluateLaunchCheckpointRes interface {
+	evaluateLaunchCheckpointRes()
+}
+
 type ExchangeFacebookOAuthRes interface {
 	exchangeFacebookOAuthRes()
 }
 
 type ExportBirthdayCustomersRes interface {
 	exportBirthdayCustomersRes()
+}
+
+type FinishLaunchStepRes interface {
+	finishLaunchStepRes()
 }
 
 type FlashSaleLiveRes interface {
@@ -355,6 +395,10 @@ type GetCatalogImportRes interface {
 
 type GetCatalogImportTemplateRes interface {
 	getCatalogImportTemplateRes()
+}
+
+type GetCatalogLaunchReadinessRes interface {
+	getCatalogLaunchReadinessRes()
 }
 
 type GetCodStatementRes interface {
@@ -413,6 +457,14 @@ type GetCustomerTimelineRes interface {
 	getCustomerTimelineRes()
 }
 
+type GetFallbackImportRes interface {
+	getFallbackImportRes()
+}
+
+type GetFallbackTemplateRes interface {
+	getFallbackTemplateRes()
+}
+
 type GetFileRes interface {
 	getFileRes()
 }
@@ -445,6 +497,18 @@ type GetLabelBatchRes interface {
 	getLabelBatchRes()
 }
 
+type GetLaunchReadinessRes interface {
+	getLaunchReadinessRes()
+}
+
+type GetLaunchRunRes interface {
+	getLaunchRunRes()
+}
+
+type GetLegacyReturnRes interface {
+	getLegacyReturnRes()
+}
+
 type GetLiveCommentContextRes interface {
 	getLiveCommentContextRes()
 }
@@ -455,6 +519,10 @@ type GetLooksRes interface {
 
 type GetMeRes interface {
 	getMeRes()
+}
+
+type GetOpeningStocktakeRes interface {
+	getOpeningStocktakeRes()
 }
 
 type GetOrderRequestRes interface {
@@ -545,12 +613,24 @@ type GetStockDocumentRes interface {
 	getStockDocumentRes()
 }
 
+type GetStocktakeCountImportRes interface {
+	getStocktakeCountImportRes()
+}
+
 type GetStocktakeRes interface {
 	getStocktakeRes()
 }
 
+type GetT2ReportRes interface {
+	getT2ReportRes()
+}
+
 type GetWarehousePickupRes interface {
 	getWarehousePickupRes()
+}
+
+type GetWatchRes interface {
+	getWatchRes()
 }
 
 type GetWebCampaignRes interface {
@@ -569,6 +649,10 @@ type GetWebIntakeRes interface {
 	getWebIntakeRes()
 }
 
+type GoLivePageRes interface {
+	goLivePageRes()
+}
+
 type HealthDeepRes interface {
 	healthDeepRes()
 }
@@ -583,6 +667,10 @@ type HideCommentRes interface {
 
 type ImportCodStatementRes interface {
 	importCodStatementRes()
+}
+
+type IncrementStocktakeLineRes interface {
+	incrementStocktakeLineRes()
 }
 
 type ListAdminUnitsRes interface {
@@ -725,6 +813,14 @@ type ListJobsRes interface {
 	listJobsRes()
 }
 
+type ListLaunchRunsRes interface {
+	listLaunchRunsRes()
+}
+
+type ListLegacyReturnsRes interface {
+	listLegacyReturnsRes()
+}
+
 type ListLiveCommentsRes interface {
 	listLiveCommentsRes()
 }
@@ -747,6 +843,10 @@ type ListMessagesRes interface {
 
 type ListMyRemindersRes interface {
 	listMyRemindersRes()
+}
+
+type ListOpeningStocktakesRes interface {
+	listOpeningStocktakesRes()
 }
 
 type ListOrderDuplicatesRes interface {
@@ -869,6 +969,10 @@ type ListUnmappedLocationsRes interface {
 	listUnmappedLocationsRes()
 }
 
+type ListUnmatchedCarrierEventsRes interface {
+	listUnmatchedCarrierEventsRes()
+}
+
 type ListWarehousesRes interface {
 	listWarehousesRes()
 }
@@ -893,8 +997,20 @@ type MergeCustomerRes interface {
 	mergeCustomerRes()
 }
 
+type OpenSalesRes interface {
+	openSalesRes()
+}
+
+type PageBackToReadOnlyRes interface {
+	pageBackToReadOnlyRes()
+}
+
 type PayRefundObligationRes interface {
 	payRefundObligationRes()
+}
+
+type PostOpeningStocktakeRes interface {
+	postOpeningStocktakeRes()
 }
 
 type PostStockDocumentRes interface {
@@ -919,6 +1035,10 @@ type PreviewShipmentCorrectionRes interface {
 
 type PreviewWebCampaignRes interface {
 	previewWebCampaignRes()
+}
+
+type PublishProductsRes interface {
+	publishProductsRes()
 }
 
 type PutCarrierCredentialsRes interface {
@@ -1161,6 +1281,10 @@ type StartFacebookOAuthRes interface {
 	startFacebookOAuthRes()
 }
 
+type StartLaunchStepRes interface {
+	startLaunchStepRes()
+}
+
 type StartLiveSessionManuallyRes interface {
 	startLiveSessionManuallyRes()
 }
@@ -1191,6 +1315,10 @@ type UnhideCommentRes interface {
 
 type UnlockStaffRes interface {
 	unlockStaffRes()
+}
+
+type UnpublishProductsRes interface {
+	unpublishProductsRes()
 }
 
 type UpdateAutomationRuleRes interface {

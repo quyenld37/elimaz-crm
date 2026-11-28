@@ -38,7 +38,7 @@ type PermissionDef struct {
 }
 
 // Permissions là mọi quyền của CRM: M0 (kế hoạch M0 Task 7), M1 (kế hoạch M1 Task M1-26), M2 (Task M2-01), M3
-// (Task M3-04), M4 (Task 143), M5 và M6 (Task 225). Bảng chuẩn kèm việc
+// (Task M3-04), M4 (Task 143), M5, M6 (Task 225) và M7 (Task 260). Bảng chuẩn kèm việc
 // của từng quyền: docs/quyen.md (test giữ hai bên khớp). Mốc sau chỉ thêm quyền, không đổi loại phạm vi của quyền
 // đã có (ngoại lệ đã duyệt: Task 315 lượt 2 chuyển sáu quyền quản trị sang ScopeShop). Quyền mới ghi chính sách
 // toàn shop hay quản trị là ScopeShop. Route khai quyền ngoài danh sách này thì tests/arch đỏ.
@@ -137,6 +137,18 @@ var Permissions = []PermissionDef{ //nolint:gochecknoglobals // danh sách hằn
 	{"report.export", ScopeShop},
 	{"report.exports.manage", ScopeShop},
 	{"customer.export", ScopeShop},
+	// M7 (kế hoạch M7 Task M7-15 = Task 260): phần khởi động. Kiểm kho mở sổ, hàng hoàn của đơn cũ theo kho; báo cáo
+	// T2, mở gửi theo Page; lượt chạy và quyết đêm mở là chính sách toàn shop: ScopeShop (luật Task 315, QĐ-260-2).
+	{"catalog.launch.publish", ScopeNone},
+	{"inventory.stocktake.opening", ScopeByTarget},
+	{"inventory.legacy_return.create", ScopeByTarget},
+	{"fulfillment.unmatched.read", ScopeNone},
+	{"conversation.t2.read", ScopeByTarget},
+	{"channel.golive", ScopeByTarget},
+	{"order.fallback.import", ScopeNone},
+	{"reporting.launch.read", ScopeNone},
+	{"reporting.launch.run", ScopeShop},
+	{"reporting.launch.decide", ScopeShop},
 }
 
 // Loại phạm vi của một grant (cột user_role_grants.scope_type).

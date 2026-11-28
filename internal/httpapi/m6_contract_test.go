@@ -52,7 +52,12 @@ func m6Body(operationID string) string {
 	return ""
 }
 
-// Mọi route M6 (dưới /api/v1/reports) qua đúng auth và guard (kế hoạch Task M6-02 Step 1): không thẻ → 401; thẻ có
+// m7ReportPath: đường dưới /api/v1/reports của phần khởi động M7 (Task 260; kiểm ở TestM7Contract_StatusCodes).
+func m7ReportPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/reports/launch-") || strings.HasPrefix(path, "/api/v1/reports/watch")
+}
+
+// Mọi route M6 (dưới /api/v1/reports, trừ đường M7) qua đúng auth và guard (kế hoạch Task M6-02 Step 1): không thẻ → 401; thẻ có
 // audit.read mà không có quyền báo cáo → 403 forbidden; thẻ owner (route ghi kèm Idempotency-Key) → operation còn
 // trong m6_pending.txt trả 501 not_implemented. Operation đã làm (không còn trong danh sách) mà vẫn 501 thì đỏ.
 func TestM6Contract_StatusCodes(t *testing.T) {
@@ -67,7 +72,7 @@ func TestM6Contract_StatusCodes(t *testing.T) {
 	n, key := 0, 0
 	for _, r := range Routes {
 		_, path, _ := strings.Cut(r.Pattern, " ")
-		if !strings.HasPrefix(path, "/api/v1/reports/") {
+		if !strings.HasPrefix(path, "/api/v1/reports/") || m7ReportPath(path) {
 			continue
 		}
 		n++
