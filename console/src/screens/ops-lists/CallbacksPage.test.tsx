@@ -45,6 +45,13 @@ async function openOutcome(row: HTMLElement) {
   return { dlg, save: within(dlg).getByRole<HTMLButtonElement>("button", { name: "Lưu kết quả", hidden: true }) };
 }
 
+/** Dựng màn với một việc, mở hộp "Ghi kết quả" của nó. */
+async function openFresh() {
+  const fake = installFake({ tasks: [task(1, -3)] });
+  renderAt("/ops/callbacks");
+  return { fake, ...(await openOutcome(await rowOf("DH0001001"))) };
+}
+
 describe("Cần gọi lại", () => {
   it("việc quá hạn đứng đầu có nhãn 'Quá hạn 3 giờ'; việc chưa quá hạn không có nhãn; tên dài không tràn", async () => {
     installFake({
@@ -152,7 +159,7 @@ describe("Cần gọi lại", () => {
     expect(save.disabled).toBe(true);
   });
 
-  it("409 version_conflict: giữ hộp, hiện câu tiếng Việt, tải lại danh sách", async () => {
+  it("409 version_conflict: giữ hộp, hiện câu tiếng Việt, tải lại danh sách, lưu lại gửi version mới", async () => {
     const fake = installFake({ tasks: [task(1, -3)] });
     fake.replies.push({ status: 409, body: { error: "version_conflict", request_id: "t" } });
     renderAt("/ops/callbacks");
@@ -161,10 +168,52 @@ describe("Cần gọi lại", () => {
     fireEvent.click(within(row).getByRole("button", { name: "Ghi kết quả" }));
     const dlg = await screen.findByRole("dialog", { hidden: true });
     fireEvent.click(within(dlg).getByLabelText("Khách nhận, giao lại"));
+    // Người khác vừa sửa việc này: máy chủ đã ở version 2 (Task 519).
+    const t = fake.tasks[0];
+    if (t === undefined) throw new Error("thiếu việc");
+    t.version = 2;
     fireEvent.click(within(dlg).getByRole("button", { name: "Lưu kết quả", hidden: true }));
     await within(dlg).findByText(/Người khác vừa sửa mục này/);
     await waitFor(() => {
       expect(fake.listCalls.length).toBeGreaterThan(before);
+    });
+    // Danh sách đã tải lại: hộp còn mở gửi version mới, không 409 lặp lại.
+    await waitFor(() => {
+      fireEvent.click(within(dlg).getByRole("button", { name: "Lưu kết quả", hidden: true }));
+      expect(fake.writes).toHaveLength(2);
+    });
+    expect(fake.writes[0]?.body).toMatchObject({ version: 1 });
+    expect(fake.writes[1]?.body).toMatchObject({ version: 2 });
+  });
+
+  it("'Giao lại tới địa chỉ mới': thân gửi newAddress gồm người nhận, SĐT của đơn, địa chỉ, tỉnh, xã (Task 519)", async () => {
+    const { fake, dlg, save } = await openFresh();
+    fireEvent.click(within(dlg).getByLabelText("Giao lại tới địa chỉ mới"));
+    fireEvent.change(await within(dlg).findByLabelText("Địa chỉ mới *"), { target: { value: "Tầng 5, 89 Láng Hạ" } });
+    const province = within(dlg).getByLabelText("Tỉnh *");
+    await within(province).findByRole("option", { name: "Hà Nội" });
+    fireEvent.change(province, { target: { value: "01" } });
+    const ward = within(dlg).getByLabelText("Xã/phường *");
+    fireEvent.focus(ward);
+    fireEvent.change(ward, { target: { value: "Láng" } });
+    fireEvent.click(await within(dlg).findByRole("option", { name: "Phường Láng Hạ" }));
+    await waitFor(() => {
+      expect(save.disabled).toBe(false);
+    });
+    fireEvent.click(save);
+    await waitFor(() => {
+      expect(fake.writes).toHaveLength(1);
+    });
+    expect(fake.writes[0]?.body).toEqual({
+      outcome: "redeliver_new_address",
+      version: 1,
+      newAddress: {
+        name: "Trần Thị Thu Hà",
+        phone: fake.orderPhone,
+        line: "Tầng 5, 89 Láng Hạ",
+        provinceCode: "01",
+        wardCode: "00163",
+      },
     });
   });
 
