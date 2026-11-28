@@ -22,6 +22,18 @@ describe("route.tsx của màn Báo cáo", () => {
     ]);
   });
 
+  it("Tệp xuất: vai kho (chỉ report.inventory.read) cũng thấy, vai không có quyền báo cáo thì không (Task 519)", () => {
+    const files = screens.find((s) => s.path === "/bao-cao/tep-xuat");
+    if (files === undefined) throw new Error("thiếu màn");
+    expect(files.orPermissions).toEqual(["report.inventory.read"]);
+    expect(canSee(grantsOf("report.inventory.read"), files)).toBe(true);
+    expect(canSee(grantsOf("report.sales.read"), files)).toBe(true);
+    expect(canSee(grantsOf("customer.export"), files)).toBe(false);
+    expect(navSections(screens, grantsOf("report.inventory.read")).flatMap((g) => g.items.map((i) => i.label))).toEqual(
+      ["Tồn và xuất nhập tồn", "Tệp xuất"],
+    );
+  });
+
   it("nhóm Báo cáo nằm giữa Kho và Hệ thống", () => {
     expect(NAV_GROUPS.indexOf("Báo cáo")).toBe(NAV_GROUPS.indexOf("Kho") + 1);
     expect(NAV_GROUPS.indexOf("Hệ thống")).toBe(NAV_GROUPS.indexOf("Báo cáo") + 1);
