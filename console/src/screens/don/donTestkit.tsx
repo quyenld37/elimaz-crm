@@ -12,6 +12,7 @@ import type {
   OrderItem,
   OrderListItem,
   Payment,
+  RefundObligation,
   Return,
   StaffMember,
   TimelineItem,
@@ -195,6 +196,10 @@ export interface Fake {
   deliveryStats: DeliveryStats | null;
   /** Phiếu thu, cọc, hoàn của đơn (listOrderPayments, Task 138); null → 403 như người thiếu cash.payments.record. */
   payments: Payment[] | null;
+  /** Nghĩa vụ hoàn (listRefundObligations, Task 524): lọc theo orderId của truy vấn; null → 403. */
+  obligations: RefundObligation[] | null;
+  /** Tham số truy vấn của mỗi lần đọc nghĩa vụ hoàn. */
+  obligationCalls: URLSearchParams[];
 }
 
 const json = (b: unknown, status = 200) =>
@@ -223,6 +228,8 @@ export function installFake(): Fake {
     couponChecks: 0,
     deliveryStats: null,
     payments: [],
+    obligations: [],
+    obligationCalls: [],
   };
   // Yêu cầu ghi: ghi lại khóa, thân; trả câu trả lời xếp sẵn hoặc đối tượng hiện tại.
   const onWrite = async (req: Request, p: string): Promise<Response> => {
@@ -277,6 +284,13 @@ export function installFake(): Fake {
       }
       if (/^\/api\/v1\/customers\/[^/]+\/delivery-stats$/.test(p)) {
         return fake.deliveryStats === null ? json(NOT_FOUND, 404) : json(fake.deliveryStats);
+      }
+      if (p === "/api/v1/refund-obligations") {
+        fake.obligationCalls.push(q);
+        const id = q.get("orderId");
+        return fake.obligations === null
+          ? json({ error: "forbidden", request_id: "t" }, 403)
+          : json({ items: fake.obligations.filter((o) => id === null || o.orderId === id) });
       }
       if (/^\/api\/v1\/orders\/[^/]+\/payments$/.test(p)) {
         return fake.payments === null

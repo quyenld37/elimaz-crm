@@ -71,6 +71,9 @@ type StatusChanged struct {
 	// Source là nguồn của bước khi bước đi qua luồng áp tin (carrier_api, staff, system; rỗng ở sự kiện cũ và luồng
 	// khác): sổ COD ghi lý do bút toán đảo theo nguồn (Task 138).
 	Source string `json:"source,omitempty"`
+	// ActorID là người dùng làm bước khi Source = staff (đảo "Thành công", sửa tay của nhân viên; rỗng ở sự kiện cũ và
+	// bước của hãng, hệ thống): sổ COD ghi tác nhân staff là người đó cho bút toán của bước (Task 524).
+	ActorID uuid.UUID `json:"actorId,omitzero"`
 }
 
 // CreateCommandKind là loại lệnh fulfillment.create_shipment của M1 (giữ tên): không hết hạn khi chờ, mỗi lần gửi tối

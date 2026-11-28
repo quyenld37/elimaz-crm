@@ -52,6 +52,7 @@ function DraftTable(o: {
             <th className="r">Suất</th>
             <th className="r">Mỗi khách</th>
             <th className="r">Hạn giữ</th>
+            <th className="r">Có thể bán lúc này</th>
             <th className="c-act">Thao tác</th>
           </tr>
         </thead>
@@ -80,6 +81,9 @@ function DraftTable(o: {
               </td>
               <td data-label="Hạn giữ" className="r num">
                 {`${String(i.holdMinutes)} phút`}
+              </td>
+              <td data-label="Có thể bán lúc này" className={i.sellable < i.quantity ? "r num err-text" : "r num"}>
+                {num(i.sellable)}
               </td>
               <td className="c-act">
                 <div className="row">
@@ -298,8 +302,8 @@ export function FlashSaleEditor() {
             />
           )}
           <p className="small muted fs-gap">
-            Mỗi lượt mua flash là một đơn riêng chỉ có món đó, không vào giỏ chung, không dùng kèm mã giảm giá. Số suất
-            được giữ khỏi bán thường khi bấm Lên lịch; thiếu hàng thì báo mọi mã thiếu và không giữ món nào.
+            "Có thể bán lúc này" là tồn bán thường hiện tại của biến thể (chữ đỏ: ít hơn số suất, Lên lịch sẽ bị từ
+            chối). Mỗi lượt mua flash là một đơn riêng chỉ có món đó, không vào giỏ chung, không dùng kèm mã giảm giá.
           </p>
         </>
       ) : (

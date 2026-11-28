@@ -59,6 +59,22 @@ describe("Đợt nháp", () => {
     expect(within(row).getByRole("button", { name: "Bỏ" })).toBeTruthy();
   });
 
+  it("cột Có thể bán lúc này: số tồn bán thường của biến thể; ít hơn số suất thì chữ đỏ (Task 528)", async () => {
+    fake.items[S1] = [item(1, { quantity: 300, sellable: 820 }), item(2, { quantity: 140, sellable: 96 })];
+    await open();
+    expect(screen.getByRole("columnheader", { name: "Có thể bán lúc này" })).toBeTruthy();
+    const cell = (sku: string) => {
+      const td = rowOf(sku).querySelector('td[data-label="Có thể bán lúc này"]');
+      if (td === null) throw new Error(`không có ô Có thể bán của ${sku}`);
+      return td;
+    };
+    expect(cell("SP0001-DEN-M").textContent).toBe("820");
+    expect(cell("SP0001-DEN-M").className).not.toContain("err-text");
+    expect(cell("SP0002-DEN-M").textContent).toBe("96");
+    expect(cell("SP0002-DEN-M").className).toContain("err-text");
+    expect(screen.getByText(/"Có thể bán lúc này" là tồn bán thường hiện tại của biến thể/)).toBeTruthy();
+  });
+
   it("không có promotion.flash.manage → không một nút ghi nào, vẫn xem được món", async () => {
     fake.grants = grantsOf();
     await open();
@@ -203,6 +219,21 @@ describe("Lên lịch", () => {
     expect(within(d).getByText("SP0001-DEN-M")).toBeTruthy();
     expect(fake.writes).toHaveLength(0);
     expect(within(d).getByRole("button", { name: "Lên lịch, giữ 240 suất" })).toBeTruthy();
+  });
+
+  it("mỗi món nêu có thể bán thường trước → sau khi giữ; thiếu hàng nêu số thiếu bằng chữ đỏ (Task 528)", async () => {
+    fake.items[S1] = [
+      item(1, { quantity: 300, sellable: 820 }),
+      item(2, { quantity: 140, sellable: 140 }),
+      item(3, { quantity: 150, sellable: 96 }),
+    ];
+    const d = await openSchedule();
+    expect(within(d).getByText("SP0001-DEN-M").closest("li")?.textContent).toBe(
+      "SP0001-DEN-M: giữ 300 · bán thường còn 820 → 520",
+    );
+    expect(within(d).getByText("bán thường còn 140 → 0")).toBeTruthy();
+    const short = within(d).getByText("bán thường chỉ còn 96, thiếu 54");
+    expect(short.className).toContain("err-text");
   });
 
   it("nhiều món: nêu ba món đầu, còn lại gộp một dòng", async () => {
@@ -390,10 +421,25 @@ describe("Đợt đang mở", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("thêm suất: có thể bán thường trước → sau khi bấm; nhập quá số có thể bán thì báo trước (Task 528)", async () => {
+    const [a, b] = fake.items[S1] ?? [];
+    if (a === undefined || b === undefined) throw new Error("thiếu món");
+    fake.items[S1] = [{ ...a, quantity: 400, sellable: 118 }, b];
+    const d = await openSlots();
+    type(within(d).getByLabelText("Thêm *"), "50");
+    const box = () => d.querySelector(".box-info")?.textContent;
+    expect(box()).toBe("Sau khi thêm: 450 suất, còn trống 76. Có thể bán thường của mã này 118 → 68 ngay khi bấm.");
+    expect(within(d).getByText("118 → 68").tagName).toBe("B");
+    type(within(d).getByLabelText("Thêm *"), "200");
+    expect(box()).toBe(
+      "Sau khi thêm: 600 suất, còn trống 226. Chỉ còn 118 có thể bán thường, máy chủ sẽ báo thiếu hàng.",
+    );
+  });
+
   it("thêm suất: hiện số sau khi thêm, gửi add; thiếu hàng hiện 'cần 600, có thể bán 85' và không thêm", async () => {
     const d = await openSlots();
     type(within(d).getByLabelText("Thêm *"), "600");
-    expect(within(d).getByText(/Sau khi thêm: 700 suất/)).toBeTruthy();
+    expect(d.querySelector(".box-info")?.textContent).toMatch(/^Sau khi thêm: 700 suất/);
     fake.replies.push({
       status: 409,
       body: {

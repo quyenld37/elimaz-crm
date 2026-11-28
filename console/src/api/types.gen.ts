@@ -621,6 +621,10 @@ export type CreateShipmentRequest = {
      */
     trackingCode?: string;
     feeActual?: Money;
+    /**
+     * Đơn đổi chưa có phiếu cấn trừ tiền món trả → 409 exchange_credit_pending (Task 524). true: người gửi chọn gửi không cấn trừ (khách trả đủ COD; tiền món trả thành nghĩa vụ hoàn khi kho nhận hàng), ghi audit.
+     */
+    skipExchangeCredit?: boolean;
 };
 
 export type Shipment = {
@@ -4532,6 +4536,14 @@ export type FlashSaleSummary = {
     closedReason?: string;
     version: number;
     itemCount: number;
+    /**
+     * Tổng số suất của mọi món (Task 528)
+     */
+    quantity: number;
+    /**
+     * Số đơn vị suất đã bán (đơn đã hoàn tất; đang giữ cho đơn nháp không tính), đếm trong PostgreSQL; đợt nháp 0 (Task 528)
+     */
+    sold: number;
     createdAt: string;
     updatedAt: string;
 };
@@ -4583,6 +4595,10 @@ export type FlashItem = {
     perCustomerLimit: number;
     holdMinutes: number;
     version: number;
+    /**
+     * Có thể bán thường lúc này của biến thể ở kho của món (số dư available; chưa có dòng số dư 0) (Task 528)
+     */
+    sellable: number;
 };
 
 export type FlashScheduleRequest = {
@@ -14097,6 +14113,10 @@ export type ListRefundObligationsData = {
     path?: never;
     query?: {
         status?: 'open' | 'paid' | 'waived';
+        /**
+         * Chỉ nghĩa vụ của đơn này (thẻ Nghĩa vụ hoàn trên chi tiết đơn, Task 524)
+         */
+        orderId?: string;
         /**
          * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
          */

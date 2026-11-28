@@ -114,6 +114,8 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
     "Tài khoản hãng chưa sẵn sàng (chưa kết nối, tạm dừng hoặc lỗi khóa). Chọn tài khoản khác hoặc báo quản lý",
   cod_locked_by_shipment: "Đơn đã gửi hãng, không đổi được tiền thu hộ. Ghi tiền sau khi vận đơn kết thúc hoặc đã hủy",
   correction_blocked: "Chưa sửa được: vận đơn đã có tiền về trong bảng kê đã chốt. Kế toán điều chỉnh tiền trước",
+  exchange_credit_pending:
+    "Đơn đổi chưa có phiếu cấn trừ tiền món trả. Chờ vài giây rồi gửi lại; chờ lâu mà chưa có thì tích Gửi không cấn trừ (khách trả đủ COD, tiền món trả hoàn qua Nghĩa vụ hoàn)",
   create_in_progress: "Đang gửi hãng hoặc chưa rõ hãng đã tạo vận đơn. Chờ kết quả hoặc xử lý mục Không rõ trước",
   order_not_shippable: "Đơn chưa ở trạng thái gửi hãng được (phải Đã xác nhận và chưa có vận đơn)",
   payment_exceeds_total: "Tổng tiền đã thu sẽ vượt tổng đơn. Kiểm lại số tiền",

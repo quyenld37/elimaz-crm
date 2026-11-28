@@ -66,7 +66,8 @@ type FlashItemInput struct {
 	Quantity, PerCustomerLimit, HoldMinutes int
 }
 
-// FlashSale là một đợt. ItemCount có ở danh sách và khi đọc một đợt; Items chỉ có khi đọc một đợt (GetFlashSale).
+// FlashSale là một đợt. ItemCount, Quantity (tổng suất các món), Sold (số đơn vị suất đã bán) có ở danh sách và khi đọc
+// một đợt; Items chỉ có khi đọc một đợt (GetFlashSale).
 type FlashSale struct {
 	ID                   uuid.UUID
 	Name                 string
@@ -76,11 +77,12 @@ type FlashSale struct {
 	CreatedAt, UpdatedAt time.Time
 	Version              int
 	ItemCount            int
+	Quantity, Sold       int
 	Items                []FlashItem
 }
 
 // FlashItem là một món của đợt. SKU, Name (tên bán "<mẫu> - <màu> / <cỡ>"), ListPrice (giá thường hiện tại) đọc từ
-// biến thể.
+// biến thể; Sellable là số có thể bán thường lúc này của biến thể ở kho của món (inventory.Availability).
 type FlashItem struct {
 	ID, FlashSaleID, SellerID, VariantID, WarehouseID uuid.UUID
 	SalePrice                                         int64
@@ -88,6 +90,7 @@ type FlashItem struct {
 	Version                                           int
 	SKU, Name                                         string
 	ListPrice                                         int64
+	Sellable                                          int
 }
 
 // FlashSaleChange là đợt trước và sau một lần sửa (cho audit).
@@ -191,7 +194,11 @@ func AddFlashItem(ctx context.Context, tx pgx.Tx, saleID uuid.UUID, in FlashItem
 	}
 	it := flashItemFrom(store.FlashItemForUpdateRow(row))
 	it.SKU, it.Name, it.ListPrice = sv.SKU, sv.Name, sv.Price
-	return it, nil
+	items := []FlashItem{it}
+	if err := fillSellable(ctx, tx, items); err != nil {
+		return FlashItem{}, err
+	}
+	return items[0], nil
 }
 
 // UpdateFlashItem sửa giá, số suất, giới hạn mỗi khách, phút giữ của món itemID trong đợt nháp saleID khi version của
@@ -226,7 +233,11 @@ func UpdateFlashItem(ctx context.Context, tx pgx.Tx, saleID, itemID uuid.UUID, i
 	after := flashItemFrom(store.FlashItemForUpdateRow(row))
 	after.SKU, after.Name, after.ListPrice = sv.SKU, sv.Name, sv.Price
 	before.SKU, before.Name, before.ListPrice = sv.SKU, sv.Name, sv.Price
-	return FlashItemChange{Before: before, After: after}, nil
+	items := []FlashItem{after}
+	if err := fillSellable(ctx, tx, items); err != nil {
+		return FlashItemChange{}, err
+	}
+	return FlashItemChange{Before: before, After: items[0]}, nil
 }
 
 // RemoveFlashItem bỏ món itemID khỏi đợt nháp saleID (khóa đợt rồi món); trả món đã bỏ. Không có → ErrNotFound; đợt
@@ -243,7 +254,8 @@ func RemoveFlashItem(ctx context.Context, tx pgx.Tx, saleID, itemID uuid.UUID) (
 	return before, nil
 }
 
-// GetFlashSale đọc đợt id kèm món (theo thứ tự thêm); không có → ErrNotFound.
+// GetFlashSale đọc đợt id kèm món (theo thứ tự thêm), tổng suất, số đã bán, có thể bán của từng món; không có →
+// ErrNotFound. Chỉ đọc, không khóa dòng nào.
 func GetFlashSale(ctx context.Context, tx pgx.Tx, id uuid.UUID) (FlashSale, error) {
 	q := store.New(tx)
 	row, err := q.FlashSaleByID(ctx, id)
@@ -267,9 +279,42 @@ func GetFlashSale(ctx context.Context, tx pgx.Tx, id uuid.UUID) (FlashSale, erro
 		})
 		it.SKU, it.Name, it.ListPrice = r.Sku, r.ProductName+" - "+r.Color+" / "+r.Size, r.ListPrice
 		s.Items = append(s.Items, it)
+		s.Quantity += it.Quantity
 	}
 	s.ItemCount = len(s.Items)
+	sold, err := q.FlashSaleSold(ctx, id)
+	if err != nil {
+		return FlashSale{}, fmt.Errorf("đọc số đã bán của đợt flash sale: %w", err)
+	}
+	s.Sold = int(sold)
+	if err := fillSellable(ctx, tx, s.Items); err != nil {
+		return FlashSale{}, err
+	}
 	return s, nil
+}
+
+// fillSellable điền Sellable của từng món: số available của dòng số dư (biến thể, kho của món) qua
+// inventory.Availability, một lần đọc cho mỗi kho; chưa có dòng số dư → 0.
+func fillSellable(ctx context.Context, tx pgx.Tx, items []FlashItem) error {
+	byWarehouse := map[uuid.UUID][]uuid.UUID{}
+	for _, it := range items {
+		byWarehouse[it.WarehouseID] = append(byWarehouse[it.WarehouseID], it.VariantID)
+	}
+	for wh, variants := range byWarehouse {
+		bs, err := inventory.Availability(ctx, tx, wh, variants)
+		if err != nil {
+			return fmt.Errorf("đọc có thể bán của món flash sale: %w", err)
+		}
+		for i := range items {
+			if items[i].WarehouseID != wh {
+				continue
+			}
+			if j := slices.IndexFunc(bs, func(b inventory.Balance) bool { return b.VariantID == items[i].VariantID }); j >= 0 {
+				items[i].Sellable = int(bs[j].Available)
+			}
+		}
+	}
+	return nil
 }
 
 // ListFlashSales trả một trang đợt (mới nhất trước) và con trỏ trang sau (nil: hết). Status lạ → ErrInvalidInput.
@@ -293,7 +338,7 @@ func ListFlashSales(ctx context.Context, tx pgx.Tx, f FlashSaleFilter) ([]FlashS
 			ID: r.ID, Name: r.Name, StartsAt: r.StartsAt, EndsAt: r.EndsAt, Status: r.Status, ClosedReason: r.ClosedReason,
 			CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, Version: r.Version,
 		})
-		s.ItemCount = int(r.ItemCount)
+		s.ItemCount, s.Quantity, s.Sold = int(r.ItemCount), int(r.Quantity), int(r.Sold)
 		out = append(out, s)
 	}
 	if len(rows) > limit {

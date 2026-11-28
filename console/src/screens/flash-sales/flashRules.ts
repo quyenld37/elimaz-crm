@@ -235,12 +235,28 @@ export function toItemChanges(
 export interface ScheduleSummary {
   total: number;
   count: number;
-  top: { sku: string; name: string; quantity: number }[];
+  top: { sku: string; name: string; quantity: number; sellable: number }[];
   /** Các món sau ba món đầu gộp một dòng; null khi không có. */
   rest: { count: number; quantity: number } | null;
 }
 
 const TOP_LINES = 3;
+
+const fmt = (n: number) => new Intl.NumberFormat("vi-VN").format(n);
+
+/** Cột "Đã bán / suất" của danh sách (mockup A): đợt nháp chưa giữ suất nên "— / suất". */
+export function soldText(s: FlashSaleSummary): string {
+  return `${s.status === "draft" ? "—" : fmt(s.sold)} / ${fmt(s.quantity)}`;
+}
+
+/** Có thể bán thường của mã hàng trước → sau khi giữ thêm hold suất (mockup D "820 → 520", F "118 → 68"); không đủ
+ * hàng → short (Lên lịch, Thêm suất sẽ bị từ chối). */
+export function stockAfter(sellable: number, hold: number): { text: string; short: boolean } {
+  if (sellable < hold) {
+    return { text: `bán thường chỉ còn ${fmt(sellable)}, thiếu ${fmt(hold - sellable)}`, short: true };
+  }
+  return { text: `bán thường còn ${fmt(sellable)} → ${fmt(sellable - hold)}`, short: false };
+}
 
 export function scheduleSummary(items: readonly FlashItem[]): ScheduleSummary {
   const total = items.reduce((n, i) => n + i.quantity, 0);
@@ -248,7 +264,9 @@ export function scheduleSummary(items: readonly FlashItem[]): ScheduleSummary {
   return {
     total,
     count: items.length,
-    top: items.slice(0, TOP_LINES).map((i) => ({ sku: i.sku, name: i.name, quantity: i.quantity })),
+    top: items
+      .slice(0, TOP_LINES)
+      .map((i) => ({ sku: i.sku, name: i.name, quantity: i.quantity, sellable: i.sellable })),
     rest: rest.length === 0 ? null : { count: rest.length, quantity: rest.reduce((n, i) => n + i.quantity, 0) },
   };
 }

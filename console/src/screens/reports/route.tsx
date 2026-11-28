@@ -53,10 +53,12 @@ export const screens: readonly ScreenRoute[] = [
   },
   {
     // Quyền chính report.sales.read: mọi vai có report.export (chủ, quản lý, kế toán) đều có (quyết định Task 241).
+    // Vai kho chỉ có report.inventory.read vẫn thấy menu để tải tệp tồn của mình (Task 519); trang chỉ hiện họ có quyền.
     path: "/bao-cao/tep-xuat",
     label: "Tệp xuất",
     group: "Báo cáo",
     permission: "report.sales.read",
+    orPermissions: ["report.inventory.read"],
     order: 60,
     badge: <ExportsNavCount />,
     element: <RunsPage />,

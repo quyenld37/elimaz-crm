@@ -38,7 +38,14 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-15-crm-m0-nen-tang-ban-5.md`
 
 | Tiêu chí | Test | Lệnh | Kết quả |
 |---|---|---|---|
-| Nhánh gộp main không vỡ build | (chưa có test riêng) | `go build ./...` | qua, không lỗi |
+| Mục đỏ rồi xanh theo dữ liệu (kho, sản phẩm, Page, mã, hãng…) | `TestLaunchReadiness_FailThenOK` | `go test -race -count=1 -run '^TestLaunchReadiness_FailThenOK$' ./internal/modules/reporting/` | ok |
+| Mục nền tảng (sao lưu, khôi phục, cảnh báo gấp) | `TestLaunchReadiness_Platform` | cùng lệnh, đổi tên test | ok |
+| Shop rỗng (ca tập rỗng, không NULL) | `TestLaunchReadiness_EmptyShop` | cùng lệnh | ok |
+| JSON không chứa dữ liệu cá nhân | `TestLaunchReadiness_NoPersonalData` | cùng lệnh | ok |
+| Mục thiếu nguồn trả warn, không giả ok; đường HTTP + quyền | `TestLaunchReadiness_API` | `go test -race -count=1 -run '^TestLaunchReadiness_API$' ./internal/httpapi/` | ok |
+| 3.000 biến thể đo ~18 ms | `TestLaunchReadinessPerf_3000Variants` (nhãn perf, không chạy ở ci) | `make perf-test` (đã chạy tay) | ~18 ms |
+| Cổng tĩnh + test theo gói (lint, jscpd, gitleaks, kiến trúc: luật SQL đọc view, đếm view 57) | cổng ci-task | chạy ci-task trên github, run 46161846007 | CI-TASK XANH, 6/6 phần test, static xanh |
+| Nhánh gộp main không vỡ build | (không có test riêng) | `go build ./... && go vet ./internal/modules/reporting/ ./internal/httpapi/` | qua |
 
 ## Test bị xóa hoặc tắt
 

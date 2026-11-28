@@ -178,15 +178,25 @@ func TestPostings_ReversalBeforeRemit(t *testing.T) {
 	})
 }
 
-// Lý do bút toán đảo theo nguồn của bước (Task 118 → 138): nhân viên đảo (source staff) ghi "Nhân viên sửa…", hãng sửa
-// (carrier_api hay sự kiện cũ không có source) ghi "Hãng sửa…".
+// Lý do và người làm bút toán đảo theo nguồn của bước (Task 118 → 138 → 524): nhân viên đảo (source staff, actorId)
+// ghi "Nhân viên sửa…" với tác nhân staff là đúng người đó; hãng sửa (carrier_api hay sự kiện cũ không có source) ghi
+// "Hãng sửa…" với tác nhân carrier; nguồn staff mà không có actorId (sự kiện trước Task 524) → carrier như cũ.
 func TestPostings_ReversalReasonBySource(t *testing.T) {
 	t.Parallel()
 	e := newCODEnv(t)
-	for _, c := range []struct{ source, want string }{
-		{"staff", "Nhân viên sửa trạng thái từ Thành công sang Đang chuyển hoàn"},
-		{"carrier_api", "Hãng sửa trạng thái từ Thành công sang Đang chuyển hoàn"},
-		{"", "Hãng sửa trạng thái từ Thành công sang Đang chuyển hoàn"},
+	staffID := uuid.New()
+	for _, c := range []struct {
+		source    string
+		actorID   uuid.UUID
+		want      string
+		wantType  string
+		wantActor *uuid.UUID
+	}{
+		{"staff", staffID, "Nhân viên sửa trạng thái từ Thành công sang Đang chuyển hoàn", cash.ActorStaff, &staffID},
+		{"staff", uuid.Nil, "Nhân viên sửa trạng thái từ Thành công sang Đang chuyển hoàn", cash.ActorCarrier, nil},
+		{"carrier_api", uuid.Nil, "Hãng sửa trạng thái từ Thành công sang Đang chuyển hoàn", cash.ActorCarrier, nil},
+		{"carrier_api", staffID, "Hãng sửa trạng thái từ Thành công sang Đang chuyển hoàn", cash.ActorCarrier, nil},
+		{"", uuid.Nil, "Hãng sửa trạng thái từ Thành công sang Đang chuyển hoàn", cash.ActorCarrier, nil},
 	} {
 		s := e.v1(fulfillment.StatusDelivered, effPickedUp, effDelivered)
 		rev := e.fx(s, 4, fulfillment.StatusReturning, nil, effReversed, effReturning)
@@ -194,7 +204,7 @@ func TestPostings_ReversalReasonBySource(t *testing.T) {
 		if err := json.Unmarshal(rev.Payload, &p); err != nil {
 			t.Fatal(err)
 		}
-		p.Source = c.source
+		p.Source, p.ActorID = c.source, c.actorID
 		raw, err := json.Marshal(p)
 		if err != nil {
 			t.Fatal(err)
@@ -202,8 +212,10 @@ func TestPostings_ReversalReasonBySource(t *testing.T) {
 		rev.Payload = raw
 		e.mustHandle(rev)
 		if got := e.count(`SELECT count(*) FROM cash.cod_transfers WHERE shipment_id = $1 AND kind = 'reversal'
-			AND reason = $2`, s, c.want); got != 1 {
-			t.Errorf("nguồn %q: %d bút toán đảo lý do %q, muốn 1", c.source, got, c.want)
+			AND reason = $2 AND actor_type = $3 AND actor_id IS NOT DISTINCT FROM $4`, s, c.want, c.wantType,
+			c.wantActor); got != 1 {
+			t.Errorf("nguồn %q người %s: %d bút toán đảo lý do %q tác nhân %s %v, muốn 1", c.source, c.actorID, got,
+				c.want, c.wantType, c.wantActor)
 		}
 	}
 }

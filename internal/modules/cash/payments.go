@@ -50,7 +50,18 @@ var (
 	ErrPaymentNotAllowed = errors.New("cash: đơn ở trạng thái không ghi phiếu thu")
 	// ErrPaymentExceedsTotal: tổng phiếu của đơn sẽ vượt tổng đơn.
 	ErrPaymentExceedsTotal = errors.New("cash: tổng phiếu vượt tổng đơn")
+	// ErrExchangeCreditPending: đơn đổi chưa có phiếu cấn trừ tiền món trả, chưa gửi hãng được (COD khóa khi đã gửi;
+	// Task 524). Bên gọi (gửi hãng) trả lỗi này khi ExchangeCreditPending báo true.
+	ErrExchangeCreditPending = errors.New("cash: đơn đổi chưa cấn trừ tiền món trả")
 )
+
+// ExchangeCreditPending báo đơn orderID là đơn đổi còn phải cấn trừ tiền món trả (cùng luật với consumer
+// cash_refunds: phiếu đổi có tiền hoàn, chưa có phiếu exchange_credit của phiếu đó, kho chưa chốt nghĩa vụ exchange,
+// đơn chưa hủy, min(tiền hoàn, tổng − đã thu) > 0). Khóa đơn (ADR-46 nhóm 7) trong tx của bên gọi: gửi hãng gọi sau
+// khi đã khóa đơn, nên nối tiếp với lần cấn trừ. Đơn thường hay không có → false. Không ghi gì.
+func ExchangeCreditPending(ctx context.Context, tx pgx.Tx, orderID uuid.UUID) (bool, error) {
+	return refunds.CreditPending(ctx, tx, orderID) //nolint:wrapcheck // refunds đã bọc
+}
 
 // PaymentInput là một phiếu thu nhân viên ghi: phương thức bank_transfer | deposit | cash, số tiền > 0, mã tham chiếu
 // (mã giao dịch, tối đa 200 ký tự), lúc nhận (zero: lúc ghi).

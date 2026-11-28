@@ -1819,7 +1819,9 @@ paths:
     post:
       operationId: createShipment
       summary: Tạo vận đơn cho đơn bằng một tài khoản hãng (vận đơn creating, lệnh tạo ở hãng chạy nền)
-      description: Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa hủy → shipment_exists.
+      description: >-
+        Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa hủy → shipment_exists. Đơn đổi
+        chưa có phiếu cấn trừ tiền món trả → 409 exchange_credit_pending (bỏ qua bằng skipExchangeCredit, Task 524).
       x-permission: fulfillment.ship
       parameters:
         - $ref: "#/components/parameters/OrderID"
@@ -5086,6 +5088,13 @@ paths:
           schema:
             type: string
             enum: [open, paid, waived]
+        - name: orderId
+          in: query
+          required: false
+          description: Chỉ nghĩa vụ của đơn này (thẻ Nghĩa vụ hoàn trên chi tiết đơn, Task 524)
+          schema:
+            type: string
+            format: uuid
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/Limit"
       responses:
@@ -9691,6 +9700,7 @@ components:
         - carrier_account_unavailable
         - cod_locked_by_shipment
         - correction_blocked
+        - exchange_credit_pending
         - create_in_progress
         - order_not_shippable
         - payment_exceeds_total
@@ -10897,6 +10907,11 @@ components:
           description: Mã hãng nhập tay (chỉ tài khoản mode manual); trùng vận đơn khác → 409 tracking_code_conflict
         feeActual:
           $ref: "#/components/schemas/Money"
+        skipExchangeCredit:
+          type: boolean
+          description: >-
+            Đơn đổi chưa có phiếu cấn trừ tiền món trả → 409 exchange_credit_pending (Task 524). true: người gửi chọn
+            gửi không cấn trừ (khách trả đủ COD; tiền món trả thành nghĩa vụ hoàn khi kho nhận hàng), ghi audit.
     Shipment:
       type: object
       required: [id, orderId, code, carrierKey, carrierAccountId, status, codAmount, createdAt]
@@ -17773,7 +17788,7 @@ components:
           format: date-time
     FlashSaleSummary:
       type: object
-      required: [id, name, startsAt, endsAt, status, version, itemCount, createdAt, updatedAt]
+      required: [id, name, startsAt, endsAt, status, version, itemCount, quantity, sold, createdAt, updatedAt]
       properties:
         id:
           type: string
@@ -17796,6 +17811,14 @@ components:
         itemCount:
           type: integer
           format: int32
+        quantity:
+          type: integer
+          format: int32
+          description: Tổng số suất của mọi món (Task 528)
+        sold:
+          type: integer
+          format: int32
+          description: Số đơn vị suất đã bán (đơn đã hoàn tất; đang giữ cho đơn nháp không tính), đếm trong PostgreSQL; đợt nháp 0 (Task 528)
         createdAt:
           type: string
           format: date-time
@@ -17879,7 +17902,7 @@ components:
           maximum: 30
     FlashItem:
       type: object
-      required: [id, variantId, sellerId, sku, name, listPrice, salePrice, quantity, perCustomerLimit, holdMinutes, version]
+      required: [id, variantId, sellerId, sku, name, listPrice, salePrice, quantity, perCustomerLimit, holdMinutes, version, sellable]
       properties:
         id:
           type: string
@@ -17911,6 +17934,10 @@ components:
         version:
           type: integer
           format: int32
+        sellable:
+          type: integer
+          format: int32
+          description: Có thể bán thường lúc này của biến thể ở kho của món (số dư available; chưa có dòng số dư 0) (Task 528)
     FlashScheduleRequest:
       type: object
       required: [version]

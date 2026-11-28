@@ -254,6 +254,13 @@ type CatalogCategory struct {
 	Version   int64
 }
 
+type CatalogImagesProcessingV struct {
+	ImageID    uuid.UUID
+	ProductID  uuid.UUID
+	FileStatus string
+	Since      time.Time
+}
+
 type CatalogImport struct {
 	ID          uuid.UUID
 	TenantID    uuid.UUID

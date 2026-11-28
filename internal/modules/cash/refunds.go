@@ -185,11 +185,19 @@ func (s *Service) WaiveRefund(ctx context.Context, tx pgx.Tx, _ uuid.UUID, oblig
 	return getObligation(ctx, q, obligationID)
 }
 
-// ListRefundObligations đọc nghĩa vụ mới nhất trước, lọc status (rỗng: mọi trạng thái; khác open, paid, waived →
+// RefundFilter là bộ lọc danh sách nghĩa vụ hoàn: Status rỗng là mọi trạng thái; OrderID nil là mọi đơn (Task 524:
+// thẻ Nghĩa vụ hoàn trên chi tiết đơn).
+type RefundFilter struct {
+	Status  string
+	OrderID *uuid.UUID
+}
+
+// ListRefundObligations đọc nghĩa vụ mới nhất trước theo bộ lọc f (trạng thái khác open, paid, waived →
 // ErrInvalidInput), limit dòng sau mã before; next là mã của dòng cuối khi còn trang sau.
-func (*Service) ListRefundObligations(ctx context.Context, tx pgx.Tx, status string, before *uuid.UUID, limit int) (
+func (*Service) ListRefundObligations(ctx context.Context, tx pgx.Tx, f RefundFilter, before *uuid.UUID, limit int) (
 	items []RefundObligation, next *uuid.UUID, err error,
 ) {
+	status := f.Status
 	st := pgtype.Text{String: status, Valid: status != ""}
 	switch status {
 	case "", RefundOpen, RefundPaid, RefundWaived:
@@ -198,7 +206,7 @@ func (*Service) ListRefundObligations(ctx context.Context, tx pgx.Tx, status str
 	}
 	limit = min(max(limit, 1), maxListLimit)
 	rows, err := store.New(tx).ListRefundObligations(ctx, store.ListRefundObligationsParams{
-		Status: st, Before: db.NullUUID(before), Lim: int32(limit + 1),
+		Status: st, OrderID: db.NullUUID(f.OrderID), Before: db.NullUUID(before), Lim: int32(limit + 1),
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("đọc nghĩa vụ hoàn: %w", err)

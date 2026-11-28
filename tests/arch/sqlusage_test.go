@@ -230,6 +230,9 @@ func viewReadExceptions() map[string][]string {
 			"customer.customer_tags_v",
 			"fulfillment.shipments_v", "fulfillment.carrier_accounts_v",
 			"channel.channel_accounts_v",
+			// Báo cáo sẵn sàng dữ liệu (Task 269, M7-24): chỉ đếm, đọc view công bố của module chủ.
+			"catalog.product_readiness_v", "catalog.images_processing_v", "conversation.automation_rules_v",
+			"conversation.reply_templates_v", "conversation.tags_v", "promotion.coupons_v",
 		},
 	}
 }

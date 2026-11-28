@@ -52,12 +52,13 @@ LEFT JOIN ord.orders_v o ON o.id = r.order_id
 WHERE r.id = @id;
 
 -- name: ListRefundObligations :many
--- Nghĩa vụ mới nhất trước (mã uuidv7 giảm dần), lọc theo trạng thái (NULL: mọi trạng thái); trang sau bắt đầu sau mã
--- before.
+-- Nghĩa vụ mới nhất trước (mã uuidv7 giảm dần), lọc theo trạng thái (NULL: mọi trạng thái) và đơn (NULL: mọi đơn;
+-- dùng chỉ mục refund_obligations_source_key); trang sau bắt đầu sau mã before.
 SELECT r.*, coalesce(o.code, '')::text AS order_code
 FROM cash.refund_obligations r
 LEFT JOIN ord.orders_v o ON o.id = r.order_id
 WHERE (sqlc.narg(status)::text IS NULL OR r.status = sqlc.narg(status)::text)
+  AND (sqlc.narg(order_id)::uuid IS NULL OR r.order_id = sqlc.narg(order_id)::uuid)
   AND (sqlc.narg(before)::uuid IS NULL OR r.id < sqlc.narg(before)::uuid)
 ORDER BY r.id DESC
 LIMIT @lim;

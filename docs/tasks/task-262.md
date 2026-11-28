@@ -98,3 +98,16 @@ Kết luận: ĐẠT (hai lượt trên phần đã stage; lượt 2 sau khi b�
 - Phát hiện phải sửa: không có.
 - Ghi chú không bắt buộc, giữ nguyên: `ListOpenings` lấy tối đa 200 dòng rồi mới lọc quyền kho ở handler (shop nhỏ, khó chạm); gửi `version` cũ vào `applyStocktake` trên phiên mở sổ nhận `version_conflict` thay vì `invalid_input` (chấp nhận được); kế hoạch ghi giữ hàng "chưa released/consumed", mã dùng `state IN ('held','in_transit')` — tương đương theo CHECK của `0115_inventory.sql`.
 - Đã sửa theo ghi chú: số tệp `models.go` sinh lại là 15 (không phải 16).
+
+## Gộp vào main
+
+Xung đột khi gộp `task-262` vào main (sau Task 264, 260/263, 265, 219, 524):
+- `internal/httpapi/errors.go`: `errorBody` — giữ cả `ExistingID` (Task 264) và `Count` (Task 262).
+- `internal/httpapi/errors_inventory.go`: giữ import `math`, const của cả hai bên; `inventoryDetail` kiểm `DuplicateReferenceError` (409 legacy_return_exists + existingId) rồi `UncountedLinesError` (422 uncounted_lines + count). Thứ tự `errorMapping` (tự gộp) giữ nguyên, `ErrInvalidInput` cuối.
+- `tests/arch/testdata/m7_pending.txt`: bỏ 5 thao tác mở sổ (nhánh làm) và getCatalogLaunchReadiness/publishProducts/unpublishProducts (main đã làm). Còn 20 dòng, đều trả 501.
+- `internal/modules/inventory/opening_test.go`: bỏ `secondWarehouse` của nhánh (trùng tên, giống hệt bản trong `env_test.go` của Task 264).
+- 15 tệp `**/internal/store/models.go` (mã sinh): lấy bản main, `make gen` (thêm `InventoryOpeningStatusV`, cột `Kind`). Migration 0704 nằm trước 0706/0707 của main, không phụ thuộc lẫn nhau (runner cho thứ tự lệch).
+
+Kiểm trên máy: `go build ./...`, `go vet ./internal/httpapi/ ./internal/modules/inventory/... ./cmd/crm/ ./tests/arch/` → qua.
+Reviewer (phần giải xung đột): **ĐẠT**, không phát hiện phải sửa; ghi chú: xác nhận migration lệch thứ tự bằng test từ xa.
+Test từ xa: `CRM_CI_POOL_SLOTS=vps=0 CRM_CI_LABEL=integrate-main-262 scripts/ci/merge-test.sh <tree f85eca53> HEAD` (gói: ./cmd/crm, ./internal/httpapi, ./internal/modules/inventory/..., ./tests/arch; -race: httpapi, inventory) → run 46158968816 trên github: static success, plan success, test (1)–(5) success, 40 phút máy, `MERGE-TEST XANH (github)`. Không có test chập chờn.

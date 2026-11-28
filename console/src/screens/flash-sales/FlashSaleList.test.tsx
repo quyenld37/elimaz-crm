@@ -65,6 +65,30 @@ describe("Danh sách", () => {
     expect(name.className).toContain("clamp2");
   });
 
+  it("cột Đã bán / suất ở cả bốn trạng thái: nháp '— / suất', còn lại đã bán / suất có ngăn nghìn (Task 528)", async () => {
+    fake.sales = [
+      sale({ id: S1, name: "Đợt trưa", status: "open", quantity: 1200, sold: 948, endsAt: "2099-01-01T00:00:00Z" }),
+      sale({ id: S2, name: "Đợt tối", status: "scheduled", quantity: 2400, sold: 0 }),
+      sale({ id: S3, name: "Đợt đêm", status: "draft", quantity: 840, sold: 0 }),
+      sale({ id: S4, name: "Đợt cũ", status: "closed", closedReason: "ended", quantity: 1500, sold: 1500 }),
+    ];
+    renderAt("/khuyen-mai/flash-sale");
+    await screen.findByText("Đợt trưa");
+    expect(screen.getByRole("columnheader", { name: "Đã bán / suất" })).toBeTruthy();
+    const cell = (name: string) => {
+      const td = rowOf(name).querySelector('td[data-label="Đã bán / suất"]');
+      if (td === null) throw new Error(`không có ô Đã bán / suất của ${name}`);
+      return td;
+    };
+    const want: [string, string][] = [
+      ["Đợt trưa", "948 / 1.200"],
+      ["Đợt tối", "0 / 2.400"],
+      ["Đợt đêm", "— / 840"],
+      ["Đợt cũ", "1.500 / 1.500"],
+    ];
+    for (const [name, text] of want) expect(cell(name).textContent).toBe(text);
+  });
+
   it("30 đợt: trang đầu 20, Xem thêm tải nốt 10", async () => {
     fake.sales = Array.from({ length: 30 }, (_, i) =>
       sale({ id: `0195f3b2-0000-7000-8000-00000000a${String(i).padStart(3, "0")}`, name: `Đợt số ${String(i + 1)}` }),

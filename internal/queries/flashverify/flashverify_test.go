@@ -14,13 +14,10 @@ import (
 	"elimaz.com.vn/crm/internal/modules/inventory/invtest"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/modules/promotion/flashtest"
-	"elimaz.com.vn/crm/internal/platform/db"
-	"elimaz.com.vn/crm/internal/platform/events"
-	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/queries/flashverify"
 	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/testkit/flashbuytest"
 )
 
 // Lệnh kiểm đợt flash sale (kế hoạch M5, Task 219 / M5-36): đợt 5 suất, giới hạn 2 mỗi khách; khách 1 mua 1, khách 2
@@ -69,20 +66,7 @@ func newEnv(t *testing.T) *env {
 
 func (e *env) buy(c uuid.UUID, qty int, ref string) uuid.UUID {
 	e.t.Helper()
-	w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{}}
-	a := order.Actor{TenantID: e.tenant, UserID: uuid.New(), Type: order.ActorService}
-	var res order.FlashBuyResult
-	err := tenancy.WithTenant(e.t.Context(), e.s.App, e.tenant, func(tx pgx.Tx) error {
-		var err error
-		res, err = w.BuyFlash(e.t.Context(), tx, order.FlashBuyInput{
-			ItemID: e.sale.Item, CustomerID: c, Qty: qty, ExternalRef: ref, Now: time.Now().UTC(),
-		}, a)
-		return err //nolint:wrapcheck // test
-	}, db.TxFlashBuy)
-	if err != nil || res.Result != order.FlashBought {
-		e.t.Fatalf("mua %d: %v %+v", qty, err, res)
-	}
-	return res.OrderID
+	return flashbuytest.Buy(e.t, e.s.App, e.tenant, e.sale.Item, c, qty, ref)
 }
 
 // verify chạy các câu sửa (chủ bảng) rồi Verify trong cùng transaction tenant, rồi lùi.

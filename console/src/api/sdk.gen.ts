@@ -669,7 +669,7 @@ export const listOrderShipments = <ThrowOnError extends boolean = false>(options
 /**
  * Tạo vận đơn cho đơn bằng một tài khoản hãng (vận đơn creating, lệnh tạo ở hãng chạy nền)
  *
- * Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa hủy → shipment_exists.
+ * Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa hủy → shipment_exists. Đơn đổi chưa có phiếu cấn trừ tiền món trả → 409 exchange_credit_pending (bỏ qua bằng skipExchangeCredit, Task 524).
  */
 export const createShipment = <ThrowOnError extends boolean = false>(options: Options<CreateShipmentData, ThrowOnError>): RequestResult<CreateShipmentResponses, CreateShipmentErrors, ThrowOnError> => (options.client ?? client).post<CreateShipmentResponses, CreateShipmentErrors, ThrowOnError>({
     url: '/api/v1/orders/{id}/shipments',

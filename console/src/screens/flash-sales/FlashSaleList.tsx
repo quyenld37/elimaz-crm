@@ -13,7 +13,7 @@ import { MoreBar } from "../ma-giam-gia/MoreBar";
 import { FLASH_TOPIC, PERM_MANAGE, usePerms } from "./flashData";
 import { SaleFormDialog } from "./FlashDialogs";
 import { RetryBox } from "./RetryBox";
-import { IDLE_MS, STATUS_FILTERS, filterText, periodText, saleSub, statusChip } from "./flashRules";
+import { IDLE_MS, STATUS_FILTERS, filterText, periodText, saleSub, soldText, statusChip } from "./flashRules";
 import "../don/don.css";
 import "./flash-sales.css";
 
@@ -37,6 +37,9 @@ function Row({ s, now }: { s: FlashSaleSummary; now: number }) {
       </td>
       <td data-label="Trạng thái">
         <span className={chip.className}>{chip.label}</span>
+      </td>
+      <td data-label="Đã bán / suất" className="r num">
+        {soldText(s)}
       </td>
       <ActCell>
         <ActLink to={`/khuyen-mai/flash-sale/${s.id}`}>{go}</ActLink>
@@ -111,6 +114,7 @@ export function FlashSaleList() {
                 <th>Đợt</th>
                 <th>Giờ mở → giờ đóng (giờ VN)</th>
                 <th>Trạng thái</th>
+                <th className="r">Đã bán / suất</th>
                 <th className="c-act">Thao tác</th>
               </tr>
             </thead>

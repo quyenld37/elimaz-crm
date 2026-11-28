@@ -78,3 +78,36 @@ Run 46106941415 chấm KHÔNG ĐẠT ở hai bài do cách đếm của k6/m5rep
 - `flash_spike`: 127 lượt bấm nhận 503 cả 10 lần bị đếm là "lỗi khác" (máy chủ ghi đủ 70.161 yêu cầu, chỉ 200 và 503) →
   tách bộ đếm `buy_gave_up`.
 - `flash_abandon`: `buy_bought` đếm cả đợt hai (750) → đợt một = tổng − đợt hai.
+
+## Lần 2 — 28/11/2026, hỏng giữa tải (Task 220, M5-37; bể GitHub, số đo tạm)
+
+Bộ thử: `loadtest/m5_run.sh chaos` → `loadtest/k6/m5/chaos-m5.sh` (cách chạy: `CRM_CI_LOADTEST=m5:chaos`). Mỗi bước một đợt
+mới 500 suất, k6 `flash_spike.js` (đỉnh 500 lượt bấm/giây, giữ 50 s), lỗi gây ở giây 15 sau giờ mở; sau bước: `crm
+verify-flash`, đếm `external_ref` trùng. Máy như Lần 1 (runner `ubuntu-24.04`, 4 vCPU, 16 GB, mọi thứ cùng máy), run
+46135866042, 15 phút máy. Run chạy với bản chấm cũ của bước e (chỉ đòi có 503, verify-flash đạt, không đơn trùng) nên báo "mọi bài ĐẠT"; sau review bản chấm của bước e thêm "đúng 500 bought" và "lỗi khác 503/429 < 0,1%" (như bước a–c). **Chấm lại theo số của run: bước a–d ĐẠT (d chỉ chấm nhất quán: verify-flash, đơn trùng), bước e KHÔNG ĐẠT** (15.168 / 28.865 yêu cầu lỗi khác 503 = 52,5%).
+
+| Bước | Lỗi gây (30 s) | bought | Lỗi khác 503/429 | 503 nhận | verify-flash | Đơn trùng |
+|---|---|---|---|---|---|---|
+| a | dừng `valkey-gate` | 500 | 0 / 109.724 yêu cầu | 88.921 (2.929 lượt bấm hết 10 lần gửi vẫn 503) | đạt | 0 |
+| b | dừng `valkey-cache` | 500 | 0 / 28.857 | 1.364 | đạt | 0 |
+| c | `FLUSHALL` cả hai | 500 | 0 / 28.831 | 1.338 | đạt | 0 |
+| d | SIGKILL `api`, chạy lại ngay | 500 | 29 (mất kết nối lúc api chết) | 1.343 | đạt (không `held` mồ côi) | 0 |
+| e | dừng PostgreSQL | 500 | **15.168 / 28.865 (52,5%): KHÔNG ĐẠT** | 1.372 | đạt | 0 |
+
+### Tóm tắt cho chủ shop (Điểm dừng D)
+
+- **Đạt:** Valkey ngừng hay bị xóa sạch không làm bán sai (đúng 500, không 500 hàng loạt, k6 p95 ≤ 13,5 ms). Giết `api`
+  giữa đợt không để suất `held` nào mất đơn (verify-flash đạt). Ngắt PostgreSQL rồi bật lại: dữ liệu vẫn đúng (500, verify-flash đạt, không đơn trùng) nhưng cách báo lỗi chưa đạt (xem dưới).
+- **Bên nào chạm trần:** khi `valkey-gate` ngừng (bước a), cổng nhận vào chạy dự phòng và trả 503 `retry_later` nhiều
+  hơn hẳn (88.921 so với ~1.350 ở bước khác): cổng dự phòng chặt hơn, đúng thiết kế (chậm hơn, không sai); 2.929 lượt bấm
+  hết 10 lần gửi vẫn 503 (website báo khách thử lại).
+- **Phát hiện chưa đạt kỳ vọng của kế hoạch (bước e):** trong 30 s PostgreSQL ngừng, phần lớn yêu cầu mua (15.168) nhận
+  mã KHÁC 503 (k6 đếm là "lỗi khác"; chưa ghi mã cụ thể), chỉ 1.372 nhận 503. Kế hoạch muốn 503 để website hiện "tạm ngưng"
+  và xếp hàng đợi. Chưa sửa (đổi cách phân loại lỗi kết nối database nằm ở vùng rủi ro cao `platform/db`, `httpapi/errors`,
+  cần task riêng): ghi ở "Việc phát hiện thêm" của `docs/tasks/task-220.md`. Verify-flash vẫn đạt nên không sai dữ liệu.
+- **Chưa đo được:** (1) cờ hết suất dựng lại ≤ 2 s sau khi Valkey trở lại (chỉ chấm gián tiếp: đúng 500, 0 lỗi); (2) website
+  bản sao 4185 ("tạm ngưng", hàng đợi cục bộ, tự chạy tiếp ≤ 2 phút): không có trong bể; (3) k6 từ máy khác, Valkey và
+  PostgreSQL ở server thật: chờ server thử của hệ mới (Task 221 Step 4).
+- **Đề xuất cho quyết định của chủ shop (QĐ-220-1, tự chốt theo /goal 28/11):** giữ số bộ điều tiết mặc định (100 vé/giây
+  một món, 300 cả shop, 64 lượt đang xử lý) và `web_key` 120.000/phút; chưa công bố flash sale cho tới khi (1) sửa mã trả
+  503 khi PostgreSQL ngừng và (2) chạy lại M5-36, 37 trên bản thử.

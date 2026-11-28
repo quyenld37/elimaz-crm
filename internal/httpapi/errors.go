@@ -100,10 +100,10 @@ type errorBody struct {
 	Drafts []liveDraftBody `json:"drafts,omitempty"`
 	// Chỉ có ở insufficient_stock của lên lịch, thêm suất đợt flash sale (Task 200): mọi món thiếu (FlashShortage).
 	Shortages []flashShortageBody `json:"shortages,omitempty"`
-	// Chỉ có ở uncounted_lines (M7, Task 262): số biến thể phải đếm mà chưa có dòng.
-	Count *int32 `json:"count,omitempty"`
 	// Chỉ có ở legacy_return_exists (M7, Task 264): phiếu hàng hoàn đã có cùng tham chiếu.
 	ExistingID *string `json:"existingId,omitempty"`
+	// Chỉ có ở uncounted_lines (M7, Task 262): số biến thể phải đếm mà chưa có dòng.
+	Count *int32 `json:"count,omitempty"`
 }
 
 // writeError ghi lỗi theo dạng duy nhất {"error": "<mã>", "request_id": "<id>"}; không bao giờ có vết lỗi.

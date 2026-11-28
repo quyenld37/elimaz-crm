@@ -48,7 +48,7 @@ func (e *payEnv) obligations(id uuid.UUID) []cash.RefundObligation {
 	e.t.Helper()
 	var out []cash.RefundObligation
 	if err := e.app(func(tx pgx.Tx) error {
-		all, _, err := e.svc.ListRefundObligations(e.t.Context(), tx, "", nil, 100)
+		all, _, err := e.svc.ListRefundObligations(e.t.Context(), tx, cash.RefundFilter{}, nil, 100)
 		for _, r := range all {
 			if r.OrderID == id {
 				out = append(out, r)
@@ -133,7 +133,7 @@ func checkCancelOpened(t *testing.T, e *payEnv, o order.Order, ob cash.RefundObl
 	}
 	var open []cash.RefundObligation
 	if err := e.app(func(tx pgx.Tx) (err error) {
-		open, _, err = e.svc.ListRefundObligations(t.Context(), tx, cash.RefundOpen, nil, 100)
+		open, _, err = e.svc.ListRefundObligations(t.Context(), tx, cash.RefundFilter{Status: cash.RefundOpen}, nil, 100)
 		return err //nolint:wrapcheck // test
 	}); err != nil || len(open) != 1 || open[0].ID != ob.ID {
 		t.Errorf("danh sách mở: %+v %v", open, err)
@@ -366,5 +366,52 @@ func (e *payEnv) returnEvent(orderID, returnID uuid.UUID, kind string) events.St
 	return events.StoredEvent{
 		ID: uuid.New(), TenantID: e.tenant, AggregateType: "order", AggregateID: orderID.String(), Seq: 9,
 		Topic: order.TopicOrderPartiallyReturned, Payload: p,
+	}
+}
+
+// listObligations đọc nghĩa vụ theo bộ lọc f, trang limit sau before.
+func (e *payEnv) listObligations(f cash.RefundFilter, before *uuid.UUID, limit int) ([]cash.RefundObligation, *uuid.UUID) {
+	e.t.Helper()
+	var out []cash.RefundObligation
+	var next *uuid.UUID
+	if err := e.app(func(tx pgx.Tx) (err error) {
+		out, next, err = e.svc.ListRefundObligations(e.t.Context(), tx, f, before, limit)
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		e.t.Fatalf("đọc nghĩa vụ: %v", err)
+	}
+	return out, next
+}
+
+// Task 524: lọc nghĩa vụ theo đơn — chỉ nghĩa vụ của đúng đơn (đơn khác có nghĩa vụ không lẫn vào); ghép với trạng
+// thái; đơn không có nghĩa vụ → rỗng; trang theo con trỏ vẫn đúng khi lọc.
+func TestRefund_FilterByOrder(t *testing.T) {
+	t.Parallel()
+	e := newPayEnv(t)
+	a, obA := e.cancelledD2()
+	b, obB := e.cancelledD2()
+	got, next := e.listObligations(cash.RefundFilter{OrderID: &a.ID}, nil, 100)
+	if len(got) != 1 || got[0].ID != obA.ID || next != nil {
+		t.Errorf("lọc đơn A: %+v next %v; muốn chỉ %s", got, next, obA.ID)
+	}
+	got, _ = e.listObligations(cash.RefundFilter{OrderID: &b.ID, Status: cash.RefundOpen}, nil, 100)
+	if len(got) != 1 || got[0].ID != obB.ID {
+		t.Errorf("lọc đơn B mở: %+v", got)
+	}
+	got, _ = e.listObligations(cash.RefundFilter{OrderID: &b.ID, Status: cash.RefundPaid}, nil, 100)
+	if len(got) != 0 {
+		t.Errorf("lọc đơn B đã chi: %+v; muốn rỗng", got)
+	}
+	none := e.orderD2().ID
+	if got, _ = e.listObligations(cash.RefundFilter{OrderID: &none}, nil, 100); len(got) != 0 {
+		t.Errorf("đơn không có nghĩa vụ: %+v", got)
+	}
+	all, next := e.listObligations(cash.RefundFilter{}, nil, 1)
+	if len(all) != 1 || next == nil {
+		t.Fatalf("trang 1 không lọc: %+v next %v", all, next)
+	}
+	rest, _ := e.listObligations(cash.RefundFilter{OrderID: &a.ID}, next, 100)
+	if (all[0].ID == obA.ID) != (len(rest) == 0) {
+		t.Errorf("trang sau theo con trỏ lọc đơn A: %+v (trang 1 %s)", rest, all[0].ID)
 	}
 }

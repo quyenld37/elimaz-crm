@@ -248,3 +248,62 @@ func TestM5RenderHasEveryVerdict(t *testing.T) {
 		t.Fatalf("bảng thiếu tx_retry theo SQLSTATE:\n%s", out)
 	}
 }
+
+func goodChaos(mode string) m5Input {
+	in := goodSpike()
+	in.Mode = mode
+	in.K6["buy_ms"] = counts(map[string]float64{"x": 20000})["x"]
+	in.K6["buy_503"] = counts(map[string]float64{"x": 400})["x"]
+	return in
+}
+
+func TestM5ChaosPasses(t *testing.T) {
+	t.Parallel()
+	for _, mode := range []string{m5ChaosValkey, m5ChaosAPI, m5ChaosPG} {
+		if vs := evaluateM5(goodChaos(mode)); !m5Passed(vs) {
+			t.Fatalf("%s: bài đạt mà không đạt: %+v", mode, vs)
+		}
+	}
+}
+
+func TestM5ChaosFailures(t *testing.T) {
+	t.Parallel()
+	one := func(v float64) struct {
+		Values map[string]float64 `json:"values"`
+	} {
+		return counts(map[string]float64{"x": v})["x"]
+	}
+	cases := []struct {
+		name, mode, crit string
+		mod              func(*m5Input)
+	}{
+		{"valkey bán thiếu", m5ChaosValkey, critM5Bought, func(in *m5Input) { in.K6["buy_bought"] = one(499) }},
+		{"valkey 500 hàng loạt", m5ChaosValkey, critM5ChaosErrRate, func(in *m5Input) { in.K6["buy_err"] = one(21) }},
+		{"valkey verify sai", m5ChaosValkey, critM5Verify, func(in *m5Input) { in.VerifyExit = 1 }},
+		{"valkey đơn trùng", m5ChaosValkey, critM5NoDupRef, func(in *m5Input) { in.Dups = 1 }},
+		{"api verify sai", m5ChaosAPI, critM5Verify, func(in *m5Input) { in.VerifyExit = 1 }},
+		{"api đơn trùng", m5ChaosAPI, critM5NoDupRef, func(in *m5Input) { in.Dups = 2 }},
+		{"pg không thấy 503", m5ChaosPG, critM5ChaosSaw503, func(in *m5Input) { in.K6["buy_503"] = one(0) }},
+		{"pg lỗi khác 503", m5ChaosPG, critM5ChaosErrRate, func(in *m5Input) { in.K6["buy_err"] = one(15168) }},
+		{"pg bán thiếu", m5ChaosPG, critM5Bought, func(in *m5Input) { in.K6["buy_bought"] = one(499) }},
+		{"pg verify sai", m5ChaosPG, critM5Verify, func(in *m5Input) { in.VerifyExit = 1 }},
+		{"pg đơn trùng", m5ChaosPG, critM5NoDupRef, func(in *m5Input) { in.Dups = 1 }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			in := goodChaos(tc.mode)
+			tc.mod(&in)
+			expectOnlyFails(t, in, tc.crit)
+		})
+	}
+}
+
+// expectOnlyFails: tiêu chí crit KHÔNG ĐẠT và cả bài không đạt.
+func expectOnlyFails(t *testing.T, in m5Input, crit string) {
+	t.Helper()
+	vs := evaluateM5(in)
+	if got := statusOf(t, vs, crit); got != statusFail || m5Passed(vs) {
+		t.Fatalf("%q = %s (bài đạt: %v), muốn %s và bài không đạt", crit, got, m5Passed(vs), statusFail)
+	}
+}

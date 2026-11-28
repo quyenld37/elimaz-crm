@@ -298,6 +298,55 @@ func TestFlashSale_List(t *testing.T) {
 	}
 }
 
+// Tổng suất, đã bán của đợt và có thể bán của món (Task 528): đợt hai món (tồn 12 và 0, suất 5 và 3) → Quantity 8,
+// Sold 0 (nháp chưa trải đơn vị), Sellable 12 và 0 (biến thể chưa có hàng); đợt không món → 0, 0 (sum trên tập rỗng);
+// danh sách trả cùng Quantity, Sold; thêm và sửa món cũng trả Sellable.
+func TestFlashSale_Counts(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	var v1 uuid.UUID
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		v1 = e.shop.Variant(t, tx, e.shop.Seller, 350000, 12)
+		return nil
+	})
+	v2 := e.variant(e.shop.Seller, 350000)
+	full, empty := e.mustFlash("Hai món"), e.mustFlash("Không món")
+	it1, err := e.addFlashItem(full.ID, flashItem(v1, 100000, 5))
+	if err != nil || it1.Sellable != 12 {
+		t.Fatalf("thêm món 1: %+v %v", it1, err)
+	}
+	if _, err := e.addFlashItem(full.ID, flashItem(v2, 100000, 3)); err != nil {
+		t.Fatal(err)
+	}
+	var upd promotion.FlashItemChange
+	if err := e.app(func(tx pgx.Tx) (err error) {
+		upd, err = promotion.UpdateFlashItem(t.Context(), tx, full.ID, it1.ID, flashItem(v1, 100000, 4), it1.Version)
+		return err //nolint:wrapcheck // test
+	}); err != nil || upd.After.Sellable != 12 || upd.After.Quantity != 4 {
+		t.Fatalf("sửa món: %+v %v", upd.After, err)
+	}
+	got := e.getFlash(full.ID)
+	if got.Quantity != 7 || got.Sold != 0 || len(got.Items) != 2 || got.Items[0].Sellable != 12 || got.Items[1].Sellable != 0 {
+		t.Fatalf("đợt hai món: Quantity %d Sold %d món %+v", got.Quantity, got.Sold, got.Items)
+	}
+	if g := e.getFlash(empty.ID); g.Quantity != 0 || g.Sold != 0 || g.ItemCount != 0 {
+		t.Fatalf("đợt không món: %+v", g)
+	}
+	var page []promotion.FlashSale
+	if err := e.app(func(tx pgx.Tx) (err error) {
+		page, _, err = promotion.ListFlashSales(t.Context(), tx, promotion.FlashSaleFilter{})
+		return err //nolint:wrapcheck // test
+	}); err != nil || len(page) != 2 {
+		t.Fatalf("danh sách: %+v %v", page, err)
+	}
+	for _, s := range page {
+		want := map[uuid.UUID][3]int{full.ID: {2, 7, 0}, empty.ID: {0, 0, 0}}[s.ID]
+		if [3]int{s.ItemCount, s.Quantity, s.Sold} != want {
+			t.Errorf("danh sách %s: món %d suất %d bán %d, mong %v", s.Name, s.ItemCount, s.Quantity, s.Sold, want)
+		}
+	}
+}
+
 // Bốn bảng mới đúng luật schema; CHECK và khóa ngoại của database: đơn vị held không có dòng đơn → CHECK; số đã lấy
 // -1 → CHECK; món trỏ biến thể của người bán B với seller_id của A → khóa ngoại (ADR-29); đợt dài 8 ngày ghi thẳng →
 // CHECK; crm_app không sửa được created_by của đợt.
