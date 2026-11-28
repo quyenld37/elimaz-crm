@@ -4532,6 +4532,14 @@ export type FlashSaleSummary = {
     closedReason?: string;
     version: number;
     itemCount: number;
+    /**
+     * Tổng số suất của mọi món (Task 528)
+     */
+    quantity: number;
+    /**
+     * Số đơn vị suất đã bán (đơn đã hoàn tất; đang giữ cho đơn nháp không tính), đếm trong PostgreSQL; đợt nháp 0 (Task 528)
+     */
+    sold: number;
     createdAt: string;
     updatedAt: string;
 };
@@ -4583,6 +4591,10 @@ export type FlashItem = {
     perCustomerLimit: number;
     holdMinutes: number;
     version: number;
+    /**
+     * Có thể bán thường lúc này của biến thể ở kho của món (số dư available; chưa có dòng số dư 0) (Task 528)
+     */
+    sellable: number;
 };
 
 export type FlashScheduleRequest = {

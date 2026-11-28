@@ -37351,9 +37351,13 @@ func (s *FlashItem) encodeFields(e *jx.Encoder) {
 		e.FieldStart("version")
 		e.Int32(s.Version)
 	}
+	{
+		e.FieldStart("sellable")
+		e.Int32(s.Sellable)
+	}
 }
 
-var jsonFieldsNameOfFlashItem = [11]string{
+var jsonFieldsNameOfFlashItem = [12]string{
 	0:  "id",
 	1:  "variantId",
 	2:  "sellerId",
@@ -37365,6 +37369,7 @@ var jsonFieldsNameOfFlashItem = [11]string{
 	8:  "perCustomerLimit",
 	9:  "holdMinutes",
 	10: "version",
+	11: "sellable",
 }
 
 // Decode decodes FlashItem from json.
@@ -37504,6 +37509,18 @@ func (s *FlashItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"version\"")
 			}
+		case "sellable":
+			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int32()
+				s.Sellable = int32(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sellable\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -37515,7 +37532,7 @@ func (s *FlashItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -38490,6 +38507,14 @@ func (s *FlashSaleSummary) encodeFields(e *jx.Encoder) {
 		e.Int32(s.ItemCount)
 	}
 	{
+		e.FieldStart("quantity")
+		e.Int32(s.Quantity)
+	}
+	{
+		e.FieldStart("sold")
+		e.Int32(s.Sold)
+	}
+	{
 		e.FieldStart("createdAt")
 		json.EncodeDateTime(e, s.CreatedAt)
 	}
@@ -38499,17 +38524,19 @@ func (s *FlashSaleSummary) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFlashSaleSummary = [10]string{
-	0: "id",
-	1: "name",
-	2: "startsAt",
-	3: "endsAt",
-	4: "status",
-	5: "closedReason",
-	6: "version",
-	7: "itemCount",
-	8: "createdAt",
-	9: "updatedAt",
+var jsonFieldsNameOfFlashSaleSummary = [12]string{
+	0:  "id",
+	1:  "name",
+	2:  "startsAt",
+	3:  "endsAt",
+	4:  "status",
+	5:  "closedReason",
+	6:  "version",
+	7:  "itemCount",
+	8:  "quantity",
+	9:  "sold",
+	10: "createdAt",
+	11: "updatedAt",
 }
 
 // Decode decodes FlashSaleSummary from json.
@@ -38613,8 +38640,32 @@ func (s *FlashSaleSummary) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"itemCount\"")
 			}
-		case "createdAt":
+		case "quantity":
 			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int32()
+				s.Quantity = int32(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"quantity\"")
+			}
+		case "sold":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int32()
+				s.Sold = int32(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sold\"")
+			}
+		case "createdAt":
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CreatedAt = v
@@ -38626,7 +38677,7 @@ func (s *FlashSaleSummary) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"createdAt\"")
 			}
 		case "updatedAt":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -38648,7 +38699,7 @@ func (s *FlashSaleSummary) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11011111,
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

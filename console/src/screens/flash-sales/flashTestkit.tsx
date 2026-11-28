@@ -47,6 +47,8 @@ export function sale(p: Partial<FlashSaleSummary> = {}): FlashSaleSummary {
     status: "draft",
     version: 3,
     itemCount: 2,
+    quantity: 240,
+    sold: 0,
     createdAt: "2026-11-20T00:00:00Z",
     updatedAt: "2026-11-20T00:00:00Z",
     ...p,
@@ -67,6 +69,7 @@ export function item(i: number, p: Partial<FlashItem> = {}): FlashItem {
     perCustomerLimit: 1,
     holdMinutes: 10,
     version: 1,
+    sellable: 820,
     ...p,
   };
 }

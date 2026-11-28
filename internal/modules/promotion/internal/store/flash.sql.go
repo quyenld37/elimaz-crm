@@ -217,6 +217,21 @@ func (q *Queries) FlashSaleByIDForUpdate(ctx context.Context, id uuid.UUID) (Fla
 	return i, err
 }
 
+const flashSaleSold = `-- name: FlashSaleSold :one
+SELECT coalesce(sum(u.sold), 0)::int AS sold
+FROM promotion.flash_sale_items AS i
+JOIN inventory.flash_units_summary_v AS u ON u.flash_sale_item_id = i.id
+WHERE i.flash_sale_id = $1
+`
+
+// Số đơn vị suất đã bán của mọi món trong đợt (view inventory.flash_units_summary_v; đợt chưa trải đơn vị: 0; Task 528).
+func (q *Queries) FlashSaleSold(ctx context.Context, flashSaleID uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, flashSaleSold, flashSaleID)
+	var sold int32
+	err := row.Scan(&sold)
+	return sold, err
+}
+
 const insertFlashItem = `-- name: InsertFlashItem :one
 INSERT INTO promotion.flash_sale_items (tenant_id, flash_sale_id, seller_id, variant_id, warehouse_id, sale_price,
                                         quantity, per_customer_limit, hold_minutes)
@@ -332,9 +347,16 @@ func (q *Queries) InsertFlashSale(ctx context.Context, arg InsertFlashSaleParams
 
 const listFlashSales = `-- name: ListFlashSales :many
 SELECT s.id, s.name, s.starts_at, s.ends_at, s.status, s.closed_reason, s.created_by, s.created_at, s.updated_at,
-       s.version,
-       (SELECT count(*) FROM promotion.flash_sale_items AS i WHERE i.flash_sale_id = s.id)::int AS item_count
+       s.version, t.item_count, t.quantity, t.sold
 FROM promotion.flash_sales AS s
+CROSS JOIN LATERAL (
+    SELECT count(*)::int AS item_count, coalesce(sum(i.quantity), 0)::int AS quantity,
+           coalesce(sum(u.sold), 0)::int AS sold
+    FROM promotion.flash_sale_items AS i
+    LEFT JOIN LATERAL (SELECT v.sold FROM inventory.flash_units_summary_v AS v WHERE v.flash_sale_item_id = i.id) AS u
+        ON true
+    WHERE i.flash_sale_id = s.id
+) AS t
 WHERE ($1::text IS NULL OR s.status = $1::text)
   AND ($2::uuid IS NULL OR s.id < $2::uuid)
 ORDER BY s.id DESC
@@ -359,9 +381,12 @@ type ListFlashSalesRow struct {
 	UpdatedAt    time.Time
 	Version      int32
 	ItemCount    int32
+	Quantity     int32
+	Sold         int32
 }
 
-// Mới nhất trước (id uuidv7 giảm dần), con trỏ là id của dòng cuối trang trước; status rỗng = mọi trạng thái.
+// Mới nhất trước (id uuidv7 giảm dần), con trỏ là id của dòng cuối trang trước; status rỗng = mọi trạng thái. Kèm số
+// món, tổng suất, số đơn vị đã bán (view inventory.flash_units_summary_v; Task 528).
 func (q *Queries) ListFlashSales(ctx context.Context, arg ListFlashSalesParams) ([]ListFlashSalesRow, error) {
 	rows, err := q.db.Query(ctx, listFlashSales, arg.Status, arg.After, arg.RowLimit)
 	if err != nil {
@@ -383,6 +408,8 @@ func (q *Queries) ListFlashSales(ctx context.Context, arg ListFlashSalesParams) 
 			&i.UpdatedAt,
 			&i.Version,
 			&i.ItemCount,
+			&i.Quantity,
+			&i.Sold,
 		); err != nil {
 			return nil, err
 		}
