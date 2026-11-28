@@ -18,6 +18,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/content"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/files"
+	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 )
 
@@ -135,24 +136,36 @@ func imageType(b []byte) string {
 }
 
 func (im *websiteImporter) uploadBannerImage(ctx context.Context, name, ct string, data []byte) (uuid.UUID, error) {
+	id, err := uploadFile(ctx, im.DB, im.Files, im.Queue, im.Tenant, content.BannerPurposeKey, name, ct, data)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if err := im.WaitImage(ctx, id); err != nil {
+		return uuid.Nil, err
+	}
+	return id, nil
+}
+
+// uploadFile tải data lên kho tệp theo đường tải lên (CreateUpload trong tx ngắn, Put ngoài tx, CompleteUpload xếp
+// file.process) với mục đích purpose và trả mã tệp; việc chờ xử lý xong (ảnh) là của bên gọi.
+func uploadFile(ctx context.Context, d *db.DB, store files.FileStore, q queue.JobQueue, tenant uuid.UUID,
+	purpose, name, ct string, data []byte,
+) (uuid.UUID, error) {
 	var f files.File
-	if err := tenancy.WithTenant(ctx, im.DB, im.Tenant, func(tx pgx.Tx) error {
+	if err := tenancy.WithTenant(ctx, d, tenant, func(tx pgx.Tx) error {
 		var err error
-		f, _, err = files.CreateUpload(ctx, tx, im.Files, files.UploadInput{
-			TenantID: im.Tenant, Purpose: content.BannerPurposeKey, FileName: name, ContentType: ct, SizeBytes: int64(len(data)),
+		f, _, err = files.CreateUpload(ctx, tx, store, files.UploadInput{
+			TenantID: tenant, Purpose: purpose, FileName: name, ContentType: ct, SizeBytes: int64(len(data)),
 		}, importSystemID())
 		return err //nolint:wrapcheck // files đã bọc
 	}); err != nil {
 		return uuid.Nil, fmt.Errorf("tạo tệp tải lên: %w", err)
 	}
-	if err := im.Files.Put(ctx, f.Bucket, f.Key, bytes.NewReader(data), int64(len(data)), ct); err != nil {
-		return uuid.Nil, fmt.Errorf("ghi ảnh lên kho: %w", err)
+	if err := store.Put(ctx, f.Bucket, f.Key, bytes.NewReader(data), int64(len(data)), ct); err != nil {
+		return uuid.Nil, fmt.Errorf("ghi tệp lên kho: %w", err)
 	}
-	if _, err := files.CompleteUpload(ctx, im.DB, im.Files, im.Queue, im.Tenant, f.ID); err != nil {
+	if _, err := files.CompleteUpload(ctx, d, store, q, tenant, f.ID); err != nil {
 		return uuid.Nil, fmt.Errorf("hoàn tất tải lên: %w", err)
-	}
-	if err := im.WaitImage(ctx, f.ID); err != nil {
-		return uuid.Nil, err
 	}
 	return f.ID, nil
 }

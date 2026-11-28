@@ -118,7 +118,7 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 	case len(args) > 0:
 		_, _ = fmt.Fprintf(stderr, "lệnh lạ %q; chỉ có `crm`, `crm healthcheck`, `crm seed-dev <email>`, "+
 			"`crm %s <mã khách>`, `crm %s create|revoke …`, `crm %s --file … --staff-email …` hoặc "+
-			"`crm %s --dir … --tenant … --dry-run|--apply`, `crm %s …`, `crm %s --sale <mã đợt>`, `crm nhanh-snapshot …`\n", args,
+			"`crm %s --dir … --tenant … --dry-run|--apply`, `crm %s …`, `crm %s --sale <mã đợt>`, `crm nhanh-snapshot …`, `crm nhanh-import-products prepare|finish …`\n", args,
 			recomputeCommand, serviceKeyCommand, seedFixtureCommand, importWebsiteCommand, seedStagingCommand,
 			verifyFlashCommand)
 		return exitConfig

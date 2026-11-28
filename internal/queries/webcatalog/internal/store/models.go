@@ -280,6 +280,16 @@ type CatalogImport struct {
 	Version     int64
 }
 
+type CatalogLegacyRef struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Source    string
+	Kind      string
+	LegacyID  string
+	EntityID  uuid.UUID
+	CreatedAt time.Time
+}
+
 type CatalogProduct struct {
 	ID          uuid.UUID
 	TenantID    uuid.UUID
@@ -1543,6 +1553,17 @@ type InventoryLegacyReturn struct {
 	DamageDocumentID pgtype.UUID
 	CreatedBy        uuid.UUID
 	CreatedAt        time.Time
+}
+
+type InventoryOpeningExpected struct {
+	TenantID    uuid.UUID
+	WarehouseID uuid.UUID
+	VariantID   uuid.UUID
+	SellerID    uuid.UUID
+	Expected    int32
+	Source      string
+	TakenAt     time.Time
+	UpdatedAt   time.Time
 }
 
 type InventoryOpeningStatusV struct {

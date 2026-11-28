@@ -382,14 +382,17 @@ func isImportWebsiteCommand(args []string) bool {
 // isOneOffCommand: args là một lệnh chạy một lần mà runOneOffCommand nhận.
 func isOneOffCommand(args []string) bool {
 	return isServiceKeyCommand(args) || isSeedFixtureCommand(args) || isImportWebsiteCommand(args) ||
-		isSeedStagingCommand(args) || isVerifyFlashCommand(args)
+		isSeedStagingCommand(args) || isVerifyFlashCommand(args) || isNhanhImportProductsCommand(args)
 }
 
 // runOneOffCommand chạy một lệnh chạy một lần rồi thoát: import-website-data, seed-staging, verify-flash (vận hành),
-// còn lại là lệnh dev (runDevCommand: service-key, seed-web-fixture); trả mã thoát.
+// nhanh-import-products (ADR-48), còn lại là lệnh dev (runDevCommand: service-key, seed-web-fixture); trả mã thoát.
 func runOneOffCommand(ctx context.Context, cfg config.Config, args []string, stdout, stderr io.Writer, logger *slog.Logger) int {
 	if isImportWebsiteCommand(args) {
 		return importWebsiteExit(runImportWebsite(ctx, cfg, args[1:], stdout, logger), stderr)
+	}
+	if isNhanhImportProductsCommand(args) {
+		return nhanhImportExit(runNhanhImportProducts(ctx, cfg, args[1:], os.Getenv, stdout, logger), stderr)
 	}
 	if isSeedStagingCommand(args) {
 		return seedStagingExit(runSeedStaging(ctx, cfg, args[1:]), stderr)

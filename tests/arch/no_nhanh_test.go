@@ -81,12 +81,11 @@ func nhanhIn(t *testing.T, r *os.Root, rel string, re *regexp.Regexp) bool {
 }
 
 // Ngoại lệ DUY NHẤT của ADR-48 (Task 540, 28/11/2026): lệnh `crm nhanh-snapshot` đọc Nhanh một chiều, chỉ trước và
-// trong đêm mở. Mã của nó nằm ở gói adapter và hai tệp lệnh dưới; mọi nơi khác vẫn cấm (MO07, TI06).
+// trong đêm mở; lệnh `crm nhanh-import-products` (Task 541) chỉ đọc tệp bản chụp đó và tải ảnh công khai. Mã của nó nằm ở gói adapter và các tệp lệnh cmd/crm/nhanh_*; mọi nơi khác vẫn cấm (MO07, TI06).
 const (
-	nhanhAdapterDir     = "internal/adapters/nhanh/"
-	nhanhCommandPrefix  = "cmd/crm/nhanh_snapshot"
-	nhanhAdapterImport  = `"elimaz.com.vn/crm/internal/adapters/nhanh"`
-	nhanhAdapterAllowed = "cmd/crm/nhanh_snapshot.go"
+	nhanhAdapterDir    = "internal/adapters/nhanh/"
+	nhanhCommandPrefix = "cmd/crm/nhanh_" // nhanh_snapshot*.go (Task 540), nhanh_import_products*.go (Task 541)
+	nhanhAdapterImport = `"elimaz.com.vn/crm/internal/adapters/nhanh"`
 )
 
 // skipRepo là luật bỏ qua của repo: docs/ ở gốc, mẫu vi phạm testdata/no_nhanh, chính tệp test này, và ngoại lệ ADR-48.
@@ -96,7 +95,7 @@ func skipRepo(rel string) bool {
 		strings.HasPrefix(rel, nhanhCommandPrefix)
 }
 
-// ADR-48: gói adapter Nhanh chỉ được nhập bởi lệnh nhanh-snapshot (và chính nó); module, httpapi, worker không nhập.
+// ADR-48: gói adapter Nhanh chỉ được nhập bởi các lệnh nhanh-snapshot, nhanh-import-products (và chính nó); module, httpapi, worker không nhập.
 func TestNhanhAdapter_OnlySnapshotCommandImports(t *testing.T) {
 	t.Parallel()
 	root := repoRoot(t)
@@ -122,8 +121,8 @@ func TestNhanhAdapter_OnlySnapshotCommandImports(t *testing.T) {
 		}
 	}
 	for _, rel := range importers {
-		if rel != nhanhAdapterAllowed && rel != "cmd/crm/nhanh_snapshot_test.go" {
-			t.Errorf("%s nhập gói adapter Nhanh; chỉ lệnh nhanh-snapshot được (ADR-48)", rel)
+		if !strings.HasPrefix(rel, nhanhCommandPrefix) {
+			t.Errorf("%s nhập gói adapter Nhanh; chỉ các lệnh nhanh-snapshot, nhanh-import-products được (ADR-48)", rel)
 		}
 	}
 }
