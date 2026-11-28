@@ -74,6 +74,32 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 	return i, err
 }
 
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, tenant_id, email::text AS email, status
+FROM identity.users
+WHERE id = $1
+`
+
+type GetUserByIDRow struct {
+	ID       uuid.UUID
+	TenantID uuid.UUID
+	Email    string
+	Status   string
+}
+
+// Nhân viên theo mã (worker nạp lại người tạo một lần chạy nền, kế hoạch M6 Task 235): trạng thái và email đọc lúc chạy.
+func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error) {
+	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i GetUserByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Email,
+		&i.Status,
+	)
+	return i, err
+}
+
 const listUserGrants = `-- name: ListUserGrants :many
 SELECT DISTINCT rp.permission, g.scope_type, g.scope_id
 FROM identity.user_role_grants AS g

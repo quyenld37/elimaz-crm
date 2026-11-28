@@ -26,21 +26,31 @@ func (h *handler) GetSalesCarriersReport(ctx context.Context, params gen.GetSale
 		r := gen.NewRunInBackgroundSalesCarriersReportResponse(*bg)
 		return &r, nil
 	}
+	out, err := carriersOut(res)
+	if err != nil {
+		return nil, err
+	}
+	r := gen.NewSalesCarriersReportSalesCarriersReportResponse(out)
+	return &r, nil
+}
+
+// carriersOut đổi báo cáo hãng sang kiểu của hợp đồng (GET và lần chạy nền dùng chung); kỳ là kỳ module đã đọc từ
+// tham số.
+func carriersOut(res any) (gen.SalesCarriersReport, error) {
 	rep, ok := res.(reporting.CarriersReport)
 	if !ok {
-		return nil, fmt.Errorf("báo cáo hãng: kết quả kiểu %T", res)
+		return gen.SalesCarriersReport{}, fmt.Errorf("báo cáo hãng: kết quả kiểu %T", res)
 	}
 	out := gen.SalesCarriersReport{
 		Status: gen.SalesCarriersReportStatusReady,
-		Period: gen.ReportPeriod(params),
+		Period: reportPeriod(rep.Period),
 		Rows:   make([]gen.SalesCarrierRow, 0, len(rep.Rows)),
 		Totals: carrierRowOut(rep.Totals),
 	}
 	for _, row := range rep.Rows {
 		out.Rows = append(out.Rows, carrierRowOut(row))
 	}
-	r := gen.NewSalesCarriersReportSalesCarriersReportResponse(out)
-	return &r, nil
+	return out, nil
 }
 
 // carrierRowOut đổi một dòng sang kiểu của hợp đồng: dòng tổng (mã tài khoản rỗng) không có carrierAccountId,

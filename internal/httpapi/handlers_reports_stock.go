@@ -32,13 +32,23 @@ func (h *handler) GetInventoryStock(ctx context.Context, params gen.GetInventory
 		r := gen.NewRunInBackgroundInventoryStockResponse(*bg)
 		return &r, nil
 	}
+	out, err := stockOut(res)
+	if err != nil {
+		return nil, err
+	}
+	r := gen.NewInventoryStockInventoryStockResponse(out)
+	return &r, nil
+}
+
+// stockOut đổi báo cáo tồn sang kiểu của hợp đồng (GET và lần chạy nền dùng chung).
+func stockOut(res any) (gen.InventoryStock, error) {
 	rep, ok := res.(reporting.StockReport)
 	if !ok {
-		return nil, fmt.Errorf("báo cáo tồn: kết quả kiểu %T", res)
+		return gen.InventoryStock{}, fmt.Errorf("báo cáo tồn: kết quả kiểu %T", res)
 	}
 	day, err := time.Parse(reportDayLayout, rep.Date)
 	if err != nil {
-		return nil, fmt.Errorf("báo cáo tồn: ngày %q: %w", rep.Date, err)
+		return gen.InventoryStock{}, fmt.Errorf("báo cáo tồn: ngày %q: %w", rep.Date, err)
 	}
 	out := gen.InventoryStock{
 		Status: gen.InventoryStockStatusReady, Date: day, Source: gen.InventoryStockSource(rep.Source),
@@ -47,7 +57,7 @@ func (h *handler) GetInventoryStock(ctx context.Context, params gen.GetInventory
 	if rep.FirstSnapshotDay != nil {
 		first, err := time.Parse(reportDayLayout, *rep.FirstSnapshotDay)
 		if err != nil {
-			return nil, fmt.Errorf("báo cáo tồn: ngày chụp đầu %q: %w", *rep.FirstSnapshotDay, err)
+			return gen.InventoryStock{}, fmt.Errorf("báo cáo tồn: ngày chụp đầu %q: %w", *rep.FirstSnapshotDay, err)
 		}
 		out.FirstSnapshotDay = gen.NewOptDate(first)
 	}
@@ -58,8 +68,7 @@ func (h *handler) GetInventoryStock(ctx context.Context, params gen.GetInventory
 			OnHand: r.OnHand, Held: r.Held, InTransit: r.InTransit, Damaged: r.Damaged, Available: r.Available,
 		})
 	}
-	r := gen.NewInventoryStockInventoryStockResponse(out)
-	return &r, nil
+	return out, nil
 }
 
 // GetInventoryMovements (GET /api/v1/reports/inventory/movements).
@@ -78,12 +87,22 @@ func (h *handler) GetInventoryMovements(ctx context.Context, params gen.GetInven
 		r := gen.NewRunInBackgroundInventoryMovementsResponse(*bg)
 		return &r, nil
 	}
+	out, err := movementsOut(res)
+	if err != nil {
+		return nil, err
+	}
+	r := gen.NewInventoryMovementsInventoryMovementsResponse(out)
+	return &r, nil
+}
+
+// movementsOut đổi xuất nhập tồn sang kiểu của hợp đồng (GET và lần chạy nền dùng chung); kỳ là kỳ module đã đọc.
+func movementsOut(res any) (gen.InventoryMovements, error) {
 	rep, ok := res.(reporting.MovementsReport)
 	if !ok {
-		return nil, fmt.Errorf("xuất nhập tồn: kết quả kiểu %T", res)
+		return gen.InventoryMovements{}, fmt.Errorf("xuất nhập tồn: kết quả kiểu %T", res)
 	}
 	out := gen.InventoryMovements{
-		Status: gen.InventoryMovementsStatusReady, Period: gen.ReportPeriod{From: params.From, To: params.To},
+		Status: gen.InventoryMovementsStatusReady, Period: reportPeriod(rep.Period),
 		Rows: make([]gen.InventoryMovementRow, 0, len(rep.Rows)), NextCursor: nextCursor(rep.Next),
 	}
 	for _, r := range rep.Rows {
@@ -93,8 +112,7 @@ func (h *handler) GetInventoryMovements(ctx context.Context, params gen.GetInven
 			ExportedOther: r.ExportedOther, Adjusted: r.Adjusted, Closing: r.Closing, DamagedClosing: r.DamagedClosing,
 		})
 	}
-	r := gen.NewInventoryMovementsInventoryMovementsResponse(out)
-	return &r, nil
+	return out, nil
 }
 
 // stockPage đọc phần lọc kho, tiền tố SKU, con trỏ, limit chung của hai GET tồn (limit vắng → 0: module lấy mặc định).
