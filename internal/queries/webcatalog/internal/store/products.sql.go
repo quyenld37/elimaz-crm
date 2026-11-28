@@ -114,13 +114,15 @@ SELECT p.product_id, p.seller_id, p.code, p.name, p.description, p.article, p.st
        p.version, p.created_at, p.length_mm, p.width_mm, p.height_mm
 FROM catalog.products_v AS p
 WHERE p.product_id > $1::uuid AND p.deleted_at IS NULL AND p.seller_id = ANY($2::uuid[])
+  AND ($3::bool OR p.status <> 'draft')
 ORDER BY p.product_id
-LIMIT $3::int
+LIMIT $4::int
 `
 
 type ProductPageParams struct {
 	After   uuid.UUID
 	Sellers []uuid.UUID
+	Preview bool
 	Lim     int32
 }
 
@@ -142,8 +144,14 @@ type ProductPageRow struct {
 }
 
 // Trang mẫu theo khóa product_id tăng dần (keyset), mẫu chưa xóa của các người bán sellers (đang hoạt động, ADR-29).
+// Mẫu nháp chỉ có khi preview (khóa có web.catalog.preview, kế hoạch M7 Task 261).
 func (q *Queries) ProductPage(ctx context.Context, arg ProductPageParams) ([]ProductPageRow, error) {
-	rows, err := q.db.Query(ctx, productPage, arg.After, arg.Sellers, arg.Lim)
+	rows, err := q.db.Query(ctx, productPage,
+		arg.After,
+		arg.Sellers,
+		arg.Preview,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -182,12 +190,14 @@ SELECT p.product_id, p.seller_id, p.code, p.name, p.description, p.article, p.st
        p.version, p.created_at, p.length_mm, p.width_mm, p.height_mm
 FROM catalog.products_v AS p
 WHERE p.product_id = ANY($1::uuid[]) AND p.deleted_at IS NULL AND p.seller_id = ANY($2::uuid[])
+  AND ($3::bool OR p.status <> 'draft')
 ORDER BY p.product_id
 `
 
 type ProductsByIDsParams struct {
 	Ids     []uuid.UUID
 	Sellers []uuid.UUID
+	Preview bool
 }
 
 type ProductsByIDsRow struct {
@@ -207,9 +217,10 @@ type ProductsByIDsRow struct {
 	HeightMm    pgtype.Int4
 }
 
-// Mẫu theo danh sách mã (cùng điều kiện với ProductPage): mã không có, đã xóa, của người bán ngừng thì không có dòng.
+// Mẫu theo danh sách mã (cùng điều kiện với ProductPage): mã không có, đã xóa, của người bán ngừng, nháp khi không
+// preview thì không có dòng.
 func (q *Queries) ProductsByIDs(ctx context.Context, arg ProductsByIDsParams) ([]ProductsByIDsRow, error) {
-	rows, err := q.db.Query(ctx, productsByIDs, arg.Ids, arg.Sellers)
+	rows, err := q.db.Query(ctx, productsByIDs, arg.Ids, arg.Sellers, arg.Preview)
 	if err != nil {
 		return nil, err
 	}
