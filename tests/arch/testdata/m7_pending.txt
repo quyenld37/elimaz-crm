@@ -10,7 +10,6 @@ pageBackToReadOnly
 getFallbackTemplate
 createFallbackImport
 getFallbackImport
-getLaunchReadiness
 createLaunchRun
 listLaunchRuns
 getLaunchRun

@@ -24,6 +24,7 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 | `catalog.variants_v` (M5 Task 190 nối `weight_grams` vào cuối, QĐ30; Task 513 nối `position` — thứ tự nhân viên đặt, đọc theo `position, variant_id`) | `variant_id, seller_id, product_id, sku, barcode, product_code, product_name, color, color_hex, size, price, cost_price, variant_status, product_status, sellable, updated_at, weight_grams, position` | 27, 190, 513 | M2–M7 |
 | `catalog.categories_v` | `category_id, parent_id, name, slug, depth, position, status` | 34 | M5–M7 |
 | `catalog.product_readiness_v` (M7: Task 260 viết trước, Task 261 tạo ở 0703; một dòng mỗi sản phẩm `draft` hoặc `active`; `reasons` là mã lý do chưa đủ điều kiện lên kệ: `no_variant`, `no_price`, `no_image`, `image_processing`, `no_category`, `missing_attr:<mã>`, `no_tag`) | `product_id, status, ready, reasons` | 260, 261 | M7 (`reporting`: báo cáo sẵn sàng, Task 269; đêm mở, Task 270) |
+| `catalog.images_processing_v` (M7, Task 269, migration 0711; ảnh sản phẩm chưa xóa mà tệp còn `uploaded` hay `processing`; `since` = mốc đổi trạng thái cuối của tệp; đọc `platform.files.status` — ngoại lệ ADR-27 mục 4 như `product_readiness_v`) | `image_id, product_id, file_status, since` | 269 | M7 (`reporting`: báo cáo sẵn sàng đếm ảnh kẹt quá 30 phút) |
 | `catalog.attributes_v` | `attribute_id, code, name, position` | 34 | M5–M7 |
 | `catalog.attribute_values_v` | `attribute_value_id, attribute_id, value, position` | 34 | M5–M7 |
 | `catalog.tags_v` | `tag_id, code, name` | 34 | M5–M7 |
