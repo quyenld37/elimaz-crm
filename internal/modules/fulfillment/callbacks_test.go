@@ -22,6 +22,9 @@ func listCallbacks(e *shipEnv, svc *fulfillment.Service, f fulfillment.CallbackF
 	e.t.Helper()
 	var p fulfillment.CallbackPage
 	if err := e.app(func(tx pgx.Tx) (err error) {
+		if f.SellerID == uuid.Nil { // người bán của đơn trong test (ADR-29: bộ lọc bắt buộc có người bán)
+			f.SellerID = e.seller
+		}
 		p, err = svc.ListCallbacks(e.t.Context(), tx, f)
 		return err //nolint:wrapcheck // test
 	}); err != nil {
@@ -485,8 +488,8 @@ func TestCallbacks_PlanUsesIndexes(t *testing.T) {
 	)
 	e.ownerBulkExec(`ANALYZE fulfillment.callback_tasks, fulfillment.shipments`)
 	e.requireNoSeqScan("callbacks",
-		explainCase{"listCallbackTasks", []any{[]string{"open", "in_progress"}, nil, nil, nil, nil, int32(51)}},
-		explainCase{"countOpenCallbacks", nil},
+		explainCase{"listCallbackTasks", []any{[]string{"open", "in_progress"}, e.seller, nil, nil, nil, nil, int32(51)}},
+		explainCase{"countOpenCallbacks", []any{e.seller}},
 	)
 	if p := listCallbacks(e, te.mod.Service, fulfillment.CallbackFilter{}); p.OpenCount != 1000 || len(p.Items) != 50 {
 		t.Fatalf("đếm có trần = %d, trang = %d; muốn 1000, 50", p.OpenCount, len(p.Items))

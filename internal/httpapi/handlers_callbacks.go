@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
+	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
@@ -41,6 +42,11 @@ func (h *handler) ListCallbackTasks(ctx context.Context, params gen.ListCallback
 	}
 	var out *gen.CallbackTaskPage
 	if err := h.inventoryRead(ctx, func(tx pgx.Tx, u identity.AuthUser) error {
+		seller, err := catalog.DefaultSeller(ctx, tx)
+		if err != nil {
+			return err //nolint:wrapcheck // sentinel của catalog
+		}
+		f.SellerID = seller
 		if params.Assignee.Or(gen.ListCallbackTasksAssigneeAny) == gen.ListCallbackTasksAssigneeMe {
 			f.AssigneeID = &u.UserID
 		}
@@ -196,6 +202,9 @@ func (h *handler) RecordCallbackOutcome(ctx context.Context, req *gen.RecordCall
 	}
 	out, err := h.refusableWrite(ctx, http.StatusOK, isAddressChangeRefusal, "ghi kết quả gọi lại",
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
+			if err := sellerOwns(ctx, tx, fulfillment.ScopeCallback, params.ID); err != nil {
+				return nil, err
+			}
 			in.Authorize = shipAuthorize(u, permShip, nil)
 			r, err := svc.RecordCallbackOutcome(ctx, tx, params.ID, in, orderActor(u))
 			if err != nil {
@@ -237,6 +246,9 @@ func (h *handler) AssignCallbackTask(ctx context.Context, req *gen.AssignCallbac
 	}
 	out, err := h.refusableWrite(ctx, http.StatusOK, isShipmentRefusal, "giao việc gọi lại",
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
+			if err := sellerOwns(ctx, tx, fulfillment.ScopeCallback, params.ID); err != nil {
+				return nil, err
+			}
 			ok, err := identity.StaffHas(ctx, tx, req.AssigneeId, permCallbacksWork)
 			if err != nil {
 				return nil, fmt.Errorf("kiểm quyền người được giao: %w", err)

@@ -37,7 +37,7 @@ func (h *handler) SetShipmentManualStatus(ctx context.Context, req *gen.SetShipm
 	if v, ok := req.Version.Get(); ok {
 		in.Version = &v
 	}
-	out, err := h.refusableWrite(ctx, http.StatusOK, isShipmentRefusal, "ghi tay trạng thái vận đơn",
+	out, err := h.sellerShipmentWrite(ctx, http.StatusOK, isShipmentRefusal, "ghi tay trạng thái vận đơn", params.ID,
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
 			in.Authorize = shipAuthorize(u, permManualStatus, nil)
 			v, err := svc.SetManualStatus(ctx, tx, params.ID, in, orderActor(u))

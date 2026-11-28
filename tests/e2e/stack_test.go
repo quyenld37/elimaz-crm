@@ -446,12 +446,29 @@ func (s *stack) spansSnapshot() []sdktrace.ReadOnlySpan {
 // waitFor chờ cond đúng trong timeout, không thì test đỏ với what.
 func waitFor(t *testing.T, timeout time.Duration, what string, cond func() bool) {
 	t.Helper()
+	waitEvery(t, timeout, 20*time.Millisecond, what, cond)
+}
+
+// apiPoll là nhịp hỏi lại của vòng chờ đọc qua API của console (Task 527): giới hạn mỗi nhân viên 300 yêu cầu / 60 s
+// (spec 04 mục 11, ADR-30) và màn hình thật không hỏi 50 lần mỗi giây; 300 ms = tối đa 200 lượt/phút cho một vòng chờ,
+// còn chỗ cho các lệnh khác của test trong cùng phút.
+const apiPoll = 300 * time.Millisecond
+
+// waitForAPI như waitFor cho điều kiện gọi API của console bằng thẻ của một nhân viên: hỏi lại mỗi apiPoll.
+func waitForAPI(t *testing.T, timeout time.Duration, what string, cond func() bool) {
+	t.Helper()
+	waitEvery(t, timeout, apiPoll, what, cond)
+}
+
+// waitEvery chờ cond đúng, hỏi lại mỗi every; quá timeout → test dừng.
+func waitEvery(t *testing.T, timeout, every time.Duration, what string, cond func() bool) {
+	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for !cond() {
 		if time.Now().After(deadline) {
 			t.Fatalf("quá %v chờ %s", timeout, what)
 		}
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(every)
 	}
 }
 

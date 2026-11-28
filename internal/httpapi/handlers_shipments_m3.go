@@ -43,6 +43,9 @@ func (h *handler) ListOrderShipments(ctx context.Context, params gen.ListOrderSh
 	if err := h.inventoryRead(ctx, func(tx pgx.Tx, u identity.AuthUser) error {
 		var wh uuid.UUID
 		var err error
+		if err := sellerOrder(ctx, tx, params.ID, fulfillment.ErrOrderNotFound); err != nil {
+			return err
+		}
 		views, wh, more, err = svc.OrderShipments(ctx, tx, params.ID, after, limit)
 		if err != nil {
 			return err //nolint:wrapcheck // sentinel của fulfillment
@@ -73,7 +76,7 @@ func (h *handler) ResendShipment(ctx context.Context, params gen.ResendShipmentP
 	if err != nil {
 		return nil, err
 	}
-	out, err := h.refusableWrite(ctx, statusCreated, isShipmentRefusal, "gửi lại vận đơn",
+	out, err := h.sellerShipmentWrite(ctx, statusCreated, isShipmentRefusal, "gửi lại vận đơn", params.ID,
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
 			v, err := svc.Resend(ctx, tx, params.ID, orderActor(u), shipAuthorize(u, permShip, nil))
 			if err != nil {
@@ -97,7 +100,7 @@ func (h *handler) ResolveShipmentCreate(ctx context.Context, req *gen.ResolveShi
 		return nil, err
 	}
 	in := fulfillment.ResolveInput{Result: string(req.Result), TrackingCode: req.TrackingCode.Or(""), Reason: req.Reason}
-	out, err := h.refusableWrite(ctx, http.StatusOK, isShipmentRefusal, "xử lý vận đơn không rõ",
+	out, err := h.sellerShipmentWrite(ctx, http.StatusOK, isShipmentRefusal, "xử lý vận đơn không rõ", params.ID,
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
 			v, err := svc.ResolveCreate(ctx, tx, params.ID, in, orderActor(u), shipAuthorize(u, permShip, nil))
 			if err != nil {

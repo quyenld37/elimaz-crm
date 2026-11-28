@@ -35,6 +35,9 @@ func (h *handler) GetShipmentCod(ctx context.Context, params gen.GetShipmentCodP
 	}
 	var out *gen.ShipmentCod
 	err := h.catalogRead(ctx, func(tx pgx.Tx) error {
+		if err := sellerShipmentCOD(ctx, tx, params.ID); err != nil {
+			return err
+		}
 		c, err := h.d.Cash.ShipmentCOD(ctx, tx, params.ID)
 		if err != nil {
 			return err //nolint:wrapcheck // cash đã bọc; sentinel đổi ở errors.go

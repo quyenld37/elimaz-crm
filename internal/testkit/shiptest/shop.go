@@ -151,3 +151,37 @@ func CODBalances(ctx context.Context, tx pgx.Tx, shipmentID uuid.UUID) (map[stri
 	}
 	return out, nil
 }
+
+// Children là mã các việc con của một vận đơn mà API gọi theo mã riêng (Task 527, kiểm người bán ADR-29).
+type Children struct {
+	Callback, Anomaly, AddressChange, LabelBatch uuid.UUID
+}
+
+// ChildrenOf chèn (chủ bảng, trong tx tenancy.WithTenant của tenant) một việc gọi lại mở, một việc cần xem
+// invalid_edge mở, một yêu cầu đổi địa chỉ tay pending (người yêu cầu userID) và một lô nhãn pending của tài khoản hãng
+// của vận đơn shipmentID (đơn orderID); trả mã từng việc. Lỗi làm test dừng.
+func ChildrenOf(t testing.TB, tx pgx.Tx, tenantID, shipmentID, orderID, userID uuid.UUID) Children {
+	t.Helper()
+	ctx := t.Context()
+	var c Children
+	for _, r := range []struct {
+		dst  *uuid.UUID
+		sql  string
+		args []any
+	}{
+		{&c.Callback, `INSERT INTO fulfillment.callback_tasks (tenant_id, shipment_id, order_id, attempt_no, failed_at, due_at)
+			VALUES ($1, $2, $3, 1, now(), now()) RETURNING id`, []any{tenantID, shipmentID, orderID}},
+		{&c.Anomaly, `INSERT INTO fulfillment.shipment_anomalies (tenant_id, shipment_id, kind)
+			VALUES ($1, $2, 'invalid_edge') RETURNING id`, []any{tenantID, shipmentID}},
+		{&c.AddressChange, `INSERT INTO fulfillment.address_change_requests (tenant_id, shipment_id, new_address, mode,
+			status, requested_by) VALUES ($1, $2, '{}', 'manual', 'pending', $3) RETURNING id`, []any{tenantID, shipmentID, userID}},
+		{&c.LabelBatch, `INSERT INTO fulfillment.label_batches (tenant_id, carrier_account_id, shipment_ids, status,
+			created_by) SELECT $1, carrier_account_id, ARRAY[$2::uuid], 'pending', $3 FROM fulfillment.shipments
+			WHERE id = $2 RETURNING id`, []any{tenantID, shipmentID, userID}},
+	} {
+		if err := tx.QueryRow(ctx, r.sql, r.args...).Scan(r.dst); err != nil {
+			t.Fatalf("shiptest: việc con của vận đơn: %v", err)
+		}
+	}
+	return c
+}

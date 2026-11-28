@@ -35,12 +35,9 @@ func (h *handler) ListShipmentEvents(ctx context.Context, params gen.ListShipmen
 		next *uuid.UUID
 	)
 	if err := h.inventoryRead(ctx, func(tx pgx.Tx, u identity.AuthUser) (err error) {
-		s, err := fulfillment.Get(ctx, tx, params.ID)
+		s, err := readableShipment(ctx, tx, u, params.ID)
 		if err != nil {
-			return err //nolint:wrapcheck // sentinel của fulfillment
-		}
-		if canAt(u, s.WarehouseID, permShipRead) != nil {
-			return fulfillment.ErrNotFound
+			return err
 		}
 		evs, next, err = fulfillment.ShipmentEvents(ctx, tx, s.ID, page)
 		return err //nolint:wrapcheck // fulfillment đã bọc

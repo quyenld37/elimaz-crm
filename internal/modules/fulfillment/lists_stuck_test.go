@@ -115,6 +115,9 @@ func (r *stuckRunner) list(f fulfillment.StuckFilter) ([]fulfillment.StuckShipme
 		next string
 	}
 	p := readAs(r.e, func(ctx context.Context, tx pgx.Tx) (page, error) {
+		if f.SellerID == uuid.Nil { // người bán của đơn trong test (ADR-29: bộ lọc bắt buộc có người bán)
+			f.SellerID = r.e.seller
+		}
 		rows, next, err := r.mod.Service.ListStuck(ctx, tx, f)
 		return page{rows, next}, err //nolint:wrapcheck // test
 	})
@@ -459,10 +462,10 @@ func TestStuck_PlanUsesIndexes(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.requireNoSeqScan("lists",
-		explainCase{"listStuckShipments", []any{nil, nil, true, []uuid.UUID{}, nil, nil, int32(51)}},
+		explainCase{"listStuckShipments", []any{e.seller, nil, nil, true, []uuid.UUID{}, nil, nil, int32(51)}},
 		explainCase{"countStuckByStatus", nil},
-		explainCase{"listOpenAnomalies", []any{true, []uuid.UUID{}, nil, nil, int32(51)}},
-		explainCase{"reviewCounts", []any{true, []uuid.UUID{}, time.Now(), []string{"in_doubt_create", "in_doubt_cancel"}}},
+		explainCase{"listOpenAnomalies", []any{e.seller, true, []uuid.UUID{}, nil, nil, int32(51)}},
+		explainCase{"reviewCounts", []any{e.seller, true, []uuid.UUID{}, time.Now(), []string{"in_doubt_create", "in_doubt_cancel"}}},
 		explainCase{"syncStuckShipments", []any{time.Now(), hours, []uuid.UUID{}}}, // chạy thật: để cuối
 	)
 }

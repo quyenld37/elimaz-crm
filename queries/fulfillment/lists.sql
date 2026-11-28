@@ -52,7 +52,7 @@ GROUP BY s.status
 ORDER BY s.status;
 
 -- name: ListStuckShipments :many
--- Một trang đơn kẹt (vận đơn mở có stuck_since) trong phạm vi kho, kẹt lâu nhất trước (stuck_since, id); lọc trạng thái,
+-- Một trang đơn kẹt (vận đơn mở có stuck_since) của người bán seller_id trong phạm vi kho, kẹt lâu nhất trước (stuck_since, id); lọc trạng thái,
 -- tài khoản hãng; after_at/after_id: con trỏ trang trước. lim = cỡ trang + 1 (bên gọi biết còn trang sau).
 SELECT s.id, s.order_id, o.code AS order_code, s.carrier_key, a.name AS account_name, s.tracking_code, s.status,
        s.sub_status, s.stuck_since::timestamptz AS stuck_since, s.last_carrier_event_at, s.last_status_at,
@@ -61,6 +61,7 @@ FROM fulfillment.shipments s
 JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
 JOIN ord.orders_v o ON o.tenant_id = s.tenant_id AND o.id = s.order_id
 WHERE s.stuck_since IS NOT NULL
+  AND s.seller_id = @seller_id
   AND s.status IN ('creating', 'awaiting_pickup', 'shipping', 'delivery_failed', 'returning', 'cancel_requested')
   AND (sqlc.narg(status)::text IS NULL OR s.status = sqlc.narg(status)::text)
   AND (sqlc.narg(account_id)::uuid IS NULL OR s.carrier_account_id = sqlc.narg(account_id)::uuid)
@@ -71,7 +72,7 @@ ORDER BY s.stuck_since, s.id
 LIMIT sqlc.arg(lim)::int;
 
 -- name: ListOpenAnomalies :many
--- Một trang việc "Cần xem" (anomaly mở) trong phạm vi kho, cũ nhất trước (created_at, id); con trỏ như
+-- Một trang việc "Cần xem" (anomaly mở) của người bán seller_id trong phạm vi kho, cũ nhất trước (created_at, id); con trỏ như
 -- ListStuckShipments. detail chỉ mang mã, trạng thái, số tiền.
 SELECT x.id, x.shipment_id, s.order_id, o.code AS order_code, x.kind, x.detail, x.created_at
 FROM fulfillment.shipment_anomalies x
@@ -79,6 +80,7 @@ JOIN fulfillment.shipments s ON s.tenant_id = x.tenant_id AND s.id = x.shipment_
 JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
 JOIN ord.orders_v o ON o.tenant_id = s.tenant_id AND o.id = s.order_id
 WHERE x.status = 'open'
+  AND s.seller_id = @seller_id
   AND (sqlc.arg(all_warehouses)::bool OR a.warehouse_id = ANY (sqlc.arg(warehouse_ids)::uuid[]))
   AND (sqlc.narg(after_at)::timestamptz IS NULL
        OR (x.created_at, x.id) > (sqlc.narg(after_at)::timestamptz, sqlc.narg(after_id)::uuid))
@@ -86,35 +88,35 @@ ORDER BY x.created_at, x.id
 LIMIT sqlc.arg(lim)::int;
 
 -- name: ReviewCounts :one
--- Số đếm của các danh sách vận hành trong phạm vi kho: anomaly mở, vận đơn mở kẹt, việc gọi lại mở (open, in_progress),
+-- Số đếm của các danh sách vận hành của người bán seller_id trong phạm vi kho: anomaly mở, vận đơn mở kẹt, việc gọi lại mở (open, in_progress),
 -- trong đó quá hạn (due_at < now), anomaly "không rõ" mở (loại thuộc in_doubt_kinds: lists.InDoubtKinds). Mỗi số đi
 -- từ tập nhỏ (anomaly mở, vận đơn có stuck_since, việc gọi lại mở) qua index rồi mới nối vận đơn, tài khoản hãng.
 SELECT
     (SELECT count(*) FROM fulfillment.shipment_anomalies x
      JOIN fulfillment.shipments s ON s.tenant_id = x.tenant_id AND s.id = x.shipment_id
      JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
-     WHERE x.status = 'open'
+     WHERE x.status = 'open' AND s.seller_id = sqlc.arg(seller_id)::uuid
        AND (sqlc.arg(all_warehouses)::bool OR a.warehouse_id = ANY (sqlc.arg(warehouse_ids)::uuid[]))) AS review,
     (SELECT count(*) FROM fulfillment.shipments s
      JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
-     WHERE s.stuck_since IS NOT NULL
+     WHERE s.stuck_since IS NOT NULL AND s.seller_id = sqlc.arg(seller_id)::uuid
        AND s.status IN ('creating', 'awaiting_pickup', 'shipping', 'delivery_failed', 'returning', 'cancel_requested')
        AND (sqlc.arg(all_warehouses)::bool OR a.warehouse_id = ANY (sqlc.arg(warehouse_ids)::uuid[]))) AS stuck,
     (SELECT count(*) FROM fulfillment.callback_tasks c
      JOIN fulfillment.shipments s ON s.tenant_id = c.tenant_id AND s.id = c.shipment_id
      JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
-     WHERE c.status IN ('open', 'in_progress')
+     WHERE c.status IN ('open', 'in_progress') AND s.seller_id = sqlc.arg(seller_id)::uuid
        AND (sqlc.arg(all_warehouses)::bool OR a.warehouse_id = ANY (sqlc.arg(warehouse_ids)::uuid[]))) AS callbacks_open,
     (SELECT count(*) FROM fulfillment.callback_tasks c
      JOIN fulfillment.shipments s ON s.tenant_id = c.tenant_id AND s.id = c.shipment_id
      JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
-     WHERE c.status IN ('open', 'in_progress') AND c.due_at < sqlc.arg(now)::timestamptz
+     WHERE c.status IN ('open', 'in_progress') AND s.seller_id = sqlc.arg(seller_id)::uuid AND c.due_at < sqlc.arg(now)::timestamptz
        AND (sqlc.arg(all_warehouses)::bool OR a.warehouse_id = ANY (sqlc.arg(warehouse_ids)::uuid[])))
         AS callbacks_overdue,
     (SELECT count(*) FROM fulfillment.shipment_anomalies x
      JOIN fulfillment.shipments s ON s.tenant_id = x.tenant_id AND s.id = x.shipment_id
      JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
-     WHERE x.status = 'open' AND x.kind = ANY (sqlc.arg(in_doubt_kinds)::text[])
+     WHERE x.status = 'open' AND s.seller_id = sqlc.arg(seller_id)::uuid AND x.kind = ANY (sqlc.arg(in_doubt_kinds)::text[])
        AND (sqlc.arg(all_warehouses)::bool OR a.warehouse_id = ANY (sqlc.arg(warehouse_ids)::uuid[]))) AS in_doubt;
 
 -- name: AnomalyForResolve :one

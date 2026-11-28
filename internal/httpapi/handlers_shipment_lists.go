@@ -31,7 +31,9 @@ func (h *handler) ListStuckShipments(ctx context.Context, params gen.ListStuckSh
 	var rows []fulfillment.StuckShipment
 	var next string
 	if err := h.inventoryRead(ctx, func(tx pgx.Tx, u identity.AuthUser) (err error) {
-		f.AllWarehouses, f.WarehouseIDs = readableWarehouses(u, permShipRead)
+		if f.SellerID, f.AllWarehouses, f.WarehouseIDs, err = listScope(ctx, tx, u); err != nil {
+			return err
+		}
 		rows, next, err = svc.ListStuck(ctx, tx, f)
 		return err //nolint:wrapcheck // sentinel của fulfillment
 	}); err != nil {
@@ -76,7 +78,9 @@ func (h *handler) ListShipmentsForReview(ctx context.Context, params gen.ListShi
 	f := fulfillment.ReviewFilter{Cursor: params.Cursor.Or(""), Limit: int(params.Limit.Or(0))}
 	var p fulfillment.ReviewPage
 	if err := h.inventoryRead(ctx, func(tx pgx.Tx, u identity.AuthUser) (err error) {
-		f.AllWarehouses, f.WarehouseIDs = readableWarehouses(u, permShipRead)
+		if f.SellerID, f.AllWarehouses, f.WarehouseIDs, err = listScope(ctx, tx, u); err != nil {
+			return err
+		}
 		p, err = svc.ListForReview(ctx, tx, f)
 		return err //nolint:wrapcheck // sentinel của fulfillment
 	}); err != nil {
@@ -117,6 +121,9 @@ func (h *handler) ResolveShipmentAnomaly(ctx context.Context, req *gen.ResolveSh
 	}
 	out, err := h.refusableWrite(ctx, http.StatusOK, isShipmentRefusal, "đóng việc cần xem",
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
+			if err := sellerOwns(ctx, tx, fulfillment.ScopeAnomaly, params.ID); err != nil {
+				return nil, err
+			}
 			a, err := svc.ResolveAnomaly(ctx, tx, params.ID, fulfillment.AnomalyResolveInput{
 				Resolution: req.Resolution, Authorize: shipAuthorize(u, permShipRead, fulfillment.ErrAnomalyNotFound),
 			}, fulfillment.Actor{TenantID: u.TenantID, UserID: u.UserID})

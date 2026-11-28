@@ -85,11 +85,17 @@ func (c *memCarrier) LookupByCode(_ context.Context, _ fulfillment.Account, code
 // shipServer dựng máy chủ thử có fulfillment.Service (sổ sự kiện riêng) cho e.
 func shipServer(t *testing.T, e *orderAPIEnv) http.Handler {
 	t.Helper()
+	return NewServer(shipDeps(t, e))
+}
+
+// shipDeps là Deps của máy chủ thử cho e có fulfillment.Service (sổ sự kiện riêng).
+func shipDeps(t *testing.T, e *orderAPIEnv) Deps {
+	t.Helper()
 	d := testServerDeps(t, e.staff, e.keys, 0)
 	d.Fulfillment = fulfillment.New(fulfillment.Deps{
 		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &realtimetest.RecordingBus{}, Events: events.NewRegistry(),
 	}).Service
-	return NewServer(d)
+	return d
 }
 
 type shipAPIEnv struct {

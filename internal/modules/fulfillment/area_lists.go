@@ -257,6 +257,8 @@ func (a stuckAlert) Execute(ctx context.Context, j queue.Job) (commands.Outcome,
 // đúng các kho WarehouseIDs (rỗng: không kho nào). Cursor: NextCursor của trang trước ("" trang đầu). Limit ≤ 0 → 50,
 // tối đa 100.
 type StuckFilter struct {
+	// SellerID: chỉ vận đơn của người bán này (ADR-29; bắt buộc, uuid.Nil không khớp vận đơn nào).
+	SellerID         uuid.UUID
 	Status           string
 	CarrierAccountID *uuid.UUID
 	AllWarehouses    bool
@@ -285,15 +287,13 @@ func (s *Service) ListStuck(ctx context.Context, tx pgx.Tx, f StuckFilter) ([]St
 	}
 	limit := pageLimit(f.Limit)
 	p := store.ListStuckShipmentsParams{
-		AccountID: db.NullUUID(f.CarrierAccountID), AllWarehouses: f.AllWarehouses,
+		SellerID: f.SellerID, AccountID: db.NullUUID(f.CarrierAccountID), AllWarehouses: f.AllWarehouses,
 		WarehouseIds: f.WarehouseIDs, Lim: int32(limit + 1), //nolint:gosec // limit ≤ listMax
 	}
 	if f.Status != "" {
 		p.Status = pgtype.Text{String: f.Status, Valid: true}
 	}
-	if after != nil {
-		p.AfterAt, p.AfterID = pgtype.Timestamptz{Time: after.At, Valid: true}, pgtype.UUID{Bytes: after.ID, Valid: true}
-	}
+	p.AfterAt, p.AfterID = cursorAfter(after)
 	rows, err := store.New(tx).ListStuckShipments(ctx, p)
 	if err != nil {
 		return nil, "", fmt.Errorf("đọc đơn kẹt: %w", err)
@@ -325,6 +325,8 @@ func (s *Service) ListStuck(ctx context.Context, tx pgx.Tx, f StuckFilter) ([]St
 
 // ReviewFilter là trang Cần xem cần đọc (phạm vi kho, con trỏ, cỡ trang như StuckFilter).
 type ReviewFilter struct {
+	// SellerID: chỉ việc của vận đơn của người bán này, cả số đếm (ADR-29; bắt buộc).
+	SellerID      uuid.UUID
 	AllWarehouses bool
 	WarehouseIDs  []uuid.UUID
 	Cursor        string
@@ -360,18 +362,19 @@ func (s *Service) ListForReview(ctx context.Context, tx pgx.Tx, f ReviewFilter) 
 		return ReviewPage{}, err
 	}
 	limit := pageLimit(f.Limit)
-	ids := f.WarehouseIDs                                                                                        // nil: "= ANY (NULL)" không khớp kho nào
-	p := store.ListOpenAnomaliesParams{AllWarehouses: f.AllWarehouses, WarehouseIds: ids, Lim: int32(limit + 1)} //nolint:gosec // limit ≤ listMax
-	if after != nil {
-		p.AfterAt, p.AfterID = pgtype.Timestamptz{Time: after.At, Valid: true}, pgtype.UUID{Bytes: after.ID, Valid: true}
+	ids := f.WarehouseIDs // nil: "= ANY (NULL)" không khớp kho nào
+	p := store.ListOpenAnomaliesParams{
+		SellerID: f.SellerID, AllWarehouses: f.AllWarehouses, WarehouseIds: ids,
+		Lim: int32(limit + 1), //nolint:gosec // limit ≤ listMax
 	}
+	p.AfterAt, p.AfterID = cursorAfter(after)
 	q := store.New(tx)
 	rows, err := q.ListOpenAnomalies(ctx, p)
 	if err != nil {
 		return ReviewPage{}, fmt.Errorf("đọc việc cần xem: %w", err)
 	}
 	c, err := q.ReviewCounts(ctx, store.ReviewCountsParams{
-		Now: s.d.Now().UTC(), AllWarehouses: f.AllWarehouses, WarehouseIds: ids, InDoubtKinds: lists.InDoubtKinds(),
+		SellerID: f.SellerID, Now: s.d.Now().UTC(), AllWarehouses: f.AllWarehouses, WarehouseIds: ids, InDoubtKinds: lists.InDoubtKinds(),
 	})
 	if err != nil {
 		return ReviewPage{}, fmt.Errorf("đếm việc vận hành: %w", err)
@@ -456,6 +459,14 @@ func (s *Service) ResolveAnomaly(ctx context.Context, tx pgx.Tx, id uuid.UUID, i
 		ID: r.ID, ShipmentID: r.ShipmentID, Kind: r.Kind, Status: r.Status, Resolution: r.Resolution,
 		ResolvedAt: &at, CreatedAt: r.CreatedAt.UTC(),
 	}, nil
+}
+
+// cursorAfter đổi con trỏ trang trước thành tham số after_at, after_id của câu danh sách (nil: trang đầu, cả hai NULL).
+func cursorAfter(c *lists.Cursor) (at pgtype.Timestamptz, id pgtype.UUID) {
+	if c != nil {
+		at, id = pgtype.Timestamptz{Time: c.At, Valid: true}, pgtype.UUID{Bytes: c.ID, Valid: true}
+	}
+	return at, id
 }
 
 // parseListCursor: "" → nil; hỏng → ErrInvalidPage.

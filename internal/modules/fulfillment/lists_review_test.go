@@ -75,6 +75,9 @@ func newListsModule(e *shipEnv, now func() time.Time) *fulfillment.Module {
 func (e *shipEnv) review(m *fulfillment.Module, f fulfillment.ReviewFilter) fulfillment.ReviewPage {
 	e.t.Helper()
 	return readAs(e, func(ctx context.Context, tx pgx.Tx) (fulfillment.ReviewPage, error) {
+		if f.SellerID == uuid.Nil { // người bán của đơn trong test (ADR-29: bộ lọc bắt buộc có người bán)
+			f.SellerID = e.seller
+		}
 		return m.Service.ListForReview(ctx, tx, f)
 	})
 }

@@ -27,7 +27,7 @@ func (h *handler) PreviewShipmentCorrection(ctx context.Context, req *gen.Shipme
 		return nil, err
 	}
 	in := fulfillment.CorrectionInput{To: fulfillment.Status(req.To), Reason: logging.ScrubText(req.Reason)}
-	out, err := h.refusableWrite(ctx, http.StatusOK, isShipmentRefusal, "xem trước đảo Thành công",
+	out, err := h.sellerShipmentWrite(ctx, http.StatusOK, isShipmentRefusal, "xem trước đảo Thành công", params.ID,
 		func(tx pgx.Tx, _ identity.AuthUser) (any, error) {
 			p, err := svc.PreviewCorrection(ctx, tx, params.ID, in)
 			if err != nil {
@@ -57,7 +57,7 @@ func (h *handler) ApplyShipmentCorrection(ctx context.Context, req *gen.ApplyShi
 	}
 	reason := logging.ScrubText(req.Reason)
 	in := fulfillment.CorrectionInput{To: fulfillment.Status(req.To), Reason: reason, PreviewToken: req.PreviewToken}
-	out, err := h.refusableWrite(ctx, http.StatusOK, isShipmentRefusal, "đảo Thành công",
+	out, err := h.sellerShipmentWrite(ctx, http.StatusOK, isShipmentRefusal, "đảo Thành công", params.ID,
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
 			v, err := svc.ApplyCorrection(ctx, tx, params.ID, in, orderActor(u))
 			if err != nil {

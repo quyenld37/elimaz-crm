@@ -56,6 +56,8 @@ var (
 // đó (open, in_progress, done). DueBefore: chỉ việc có hạn trước mốc đó. AssigneeID: chỉ việc giao cho người đó.
 // Cursor: Next của trang trước ("" trang đầu). Limit ≤ 0 → 50, tối đa 100.
 type CallbackFilter struct {
+	// SellerID: chỉ việc của vận đơn của người bán này, cả số việc còn mở (ADR-29; bắt buộc).
+	SellerID   uuid.UUID
 	Status     string
 	DueBefore  *time.Time
 	AssigneeID *uuid.UUID
@@ -102,20 +104,18 @@ func (s *Service) ListCallbacks(ctx context.Context, tx pgx.Tx, f CallbackFilter
 	}
 	limit := pageLimit(f.Limit)
 	p := store.ListCallbackTasksParams{
-		Statuses: statuses, AssigneeID: db.NullUUID(f.AssigneeID), Lim: int32(limit + 1), //nolint:gosec // limit ≤ listMax
+		SellerID: f.SellerID, Statuses: statuses, AssigneeID: db.NullUUID(f.AssigneeID), Lim: int32(limit + 1), //nolint:gosec // limit ≤ listMax
 	}
 	if f.DueBefore != nil {
 		p.DueBefore = pgtype.Timestamptz{Time: *f.DueBefore, Valid: true}
 	}
-	if after != nil {
-		p.AfterAt, p.AfterID = pgtype.Timestamptz{Time: after.At, Valid: true}, pgtype.UUID{Bytes: after.ID, Valid: true}
-	}
+	p.AfterAt, p.AfterID = cursorAfter(after)
 	q := store.New(tx)
 	rows, err := q.ListCallbackTasks(ctx, p)
 	if err != nil {
 		return CallbackPage{}, fmt.Errorf("đọc việc gọi lại: %w", err)
 	}
-	n, err := q.CountOpenCallbacks(ctx)
+	n, err := q.CountOpenCallbacks(ctx, f.SellerID)
 	if err != nil {
 		return CallbackPage{}, fmt.Errorf("đếm việc gọi lại còn mở: %w", err)
 	}

@@ -56,10 +56,12 @@ func TestM3FullFlow(t *testing.T) {
 	csv := fmt.Sprintf("ma_van_don,tien_cod,phi_van_chuyen,phi_khac,thuc_nhan\n%s,280000,%d,0,%d\n",
 		tracking, int64(fee), 280000-int64(fee))
 	statementID := r.confirmStatement(csv, 1)
-	c := r.cod(shipmentID)
-	if c["carrier_holding"] != 0 || c["shop_received"] != 280000-int64(fee) || c["carrier_fee"] != int64(fee) {
-		t.Fatalf("sổ COD sau chốt bảng kê %s = %v, phí %v", statementID, c, fee)
-	}
+	// Chốt chỉ phát cod_statement.confirmed; lô ghi tiền chạy ở consumer sau commit (cash.ConfirmStatement, Task 527).
+	var c map[string]int64
+	waitFor(t, 3*stepBudget, "lô ghi tiền của bảng kê "+statementID, func() bool {
+		c = r.cod(shipmentID)
+		return c["carrier_holding"] == 0 && c["shop_received"] == 280000-int64(fee) && c["carrier_fee"] == int64(fee)
+	})
 	r.codLedgerZero()
 
 	r.nightlyReconcileOK()
@@ -80,7 +82,7 @@ func TestM3FullFlow_CancelAwaitingPickup(t *testing.T) {
 	o = r.mustCall(http.MethodGet, "/api/v1/orders/"+orderID, nil, http.StatusOK)
 	r.mustCall(http.MethodPost, "/api/v1/orders/"+orderID+"/cancel",
 		map[string]any{"version": o["version"], "reason": "customer_changed_mind"}, http.StatusOK)
-	waitFor(t, stepBudget, "đơn cancelled, vận đơn cancelled order_cancel", func() bool {
+	waitForAPI(t, stepBudget, "đơn cancelled, vận đơn cancelled order_cancel", func() bool {
 		got := r.mustCall(http.MethodGet, "/api/v1/orders/"+orderID, nil, http.StatusOK)
 		sh := r.mustCall(http.MethodGet, "/api/v1/shipments/"+shipmentID, nil, http.StatusOK)
 		return got["status"] == "cancelled" && sh["status"] == "cancelled" && sh["cancelKind"] == "order_cancel"
@@ -93,8 +95,8 @@ func TestM3FullFlow_CancelAwaitingPickup(t *testing.T) {
 	r.noDeadJobs()
 }
 
-// Đơn hoàn (TD02): hãng lấy hàng → đang hoàn → đã hoàn → phiếu hoàn carrier_return chờ kho → kho bấm nhận → đơn
-// returned, tồn tăng lại đúng một lần; sổ COD mọi ngăn về 0.
+// Đơn hoàn (TD02): hãng lấy hàng → đang hoàn → hãng báo đã hoàn (Q-9: chỉ ghi mốc) → phiếu hoàn carrier_return chờ kho
+// → kho bấm nhận → đơn, vận đơn returned, tồn tăng lại đúng một lần; sổ COD mọi ngăn về 0.
 func TestM3FullFlow_CarrierReturn(t *testing.T) {
 	r := newM3Run(t)
 	v := r.productWithStock("M3RETURN", 5)
@@ -103,12 +105,17 @@ func TestM3FullFlow_CarrierReturn(t *testing.T) {
 	r.advance(tracking, fake.RawReturning)
 	r.shipmentIs(shipmentID, "returning")
 	r.advance(tracking, fake.RawReturned)
-	r.shipmentIs(shipmentID, "returned")
+	// Q-9: hãng báo "đã hoàn" chỉ ghi mốc carrier_reported_returned_at, vận đơn vẫn returning tới khi kho nhận (TD02).
+	waitFor(t, stepBudget, "mốc hãng báo đã hoàn", func() bool {
+		return r.count(`SELECT count(*) FROM fulfillment.shipments WHERE id = $1 AND status = 'returning'
+			AND carrier_reported_returned_at IS NOT NULL`, shipmentID) == 1
+	})
 	// Hàng về chưa vào tồn bán được tới khi kho bấm nhận (TD02).
 	if got := r.stock(v); got.onHand != 5 || got.available != 4 {
 		t.Fatalf("trước khi kho nhận: tồn %+v, muốn on_hand 5 (in_transit 1), available 4", got)
 	}
 	r.receiveReturn(orderID, shipmentID)
+	r.shipmentIs(shipmentID, "returned")
 	r.stockIs(v, stock{onHand: 5, available: 5})
 	for k, b := range r.cod(shipmentID) {
 		if b != 0 {
@@ -147,7 +154,7 @@ func TestM3FullFlow_CustomerReturnRefund(t *testing.T) {
 	r.stockIs(v, stock{onHand: 4, available: 4})
 
 	var obligation map[string]any
-	waitFor(t, stepBudget, "nghĩa vụ hoàn tiền mở của phiếu trả", func() bool {
+	waitForAPI(t, stepBudget, "nghĩa vụ hoàn tiền mở của phiếu trả", func() bool {
 		page := r.mustCall(http.MethodGet, "/api/v1/refund-obligations?status=open", nil, http.StatusOK)
 		list, _ := page["items"].([]any)
 		for _, it := range list {
@@ -178,7 +185,7 @@ func (r *orderRun) quote(orderID string) string {
 		map[string]any{"carrierAccountIds": []any{r.s.shop.Account}}, http.StatusAccepted)
 	reqID := str(acc["requestId"])
 	var id string
-	waitFor(r.t, stepBudget, "báo phí ok", func() bool {
+	waitForAPI(r.t, stepBudget, "báo phí ok", func() bool {
 		page := r.mustCall(http.MethodGet, "/api/v1/orders/"+orderID+"/shipping-quotes?requestId="+reqID, nil, http.StatusOK)
 		list, _ := page["items"].([]any)
 		for _, it := range list {
@@ -211,7 +218,7 @@ func (r *orderRun) pickedUp(orderID string) (shipmentID, tracking string) {
 // shipmentIs chờ vận đơn sang trạng thái status.
 func (r *orderRun) shipmentIs(shipmentID, status string) {
 	r.t.Helper()
-	waitFor(r.t, stepBudget, "vận đơn "+status, func() bool {
+	waitForAPI(r.t, stepBudget, "vận đơn "+status, func() bool {
 		return r.mustCall(http.MethodGet, "/api/v1/shipments/"+shipmentID, nil, http.StatusOK)["status"] == status
 	})
 }
@@ -221,7 +228,7 @@ func (r *orderRun) shipmentIs(shipmentID, status string) {
 func (r *orderRun) redeliver(shipmentID string) {
 	r.t.Helper()
 	var task map[string]any
-	waitFor(r.t, stepBudget, "việc gọi lại mở", func() bool {
+	waitForAPI(r.t, stepBudget, "việc gọi lại mở", func() bool {
 		page := r.mustCall(http.MethodGet, "/api/v1/callback-tasks?status=open", nil, http.StatusOK)
 		list, _ := page["items"].([]any)
 		for _, it := range list {
@@ -273,7 +280,7 @@ func (r *orderRun) importStatement(csv string) string {
 func (r *orderRun) waitStatement(id, status string, budget time.Duration) map[string]any {
 	r.t.Helper()
 	var head map[string]any
-	waitFor(r.t, budget, "bảng kê "+status, func() bool {
+	waitForAPI(r.t, budget, "bảng kê "+status, func() bool {
 		got := r.mustCall(http.MethodGet, "/api/v1/cod-statements/"+id+"?limit=1", nil, http.StatusOK)
 		head, _ = got["statement"].(map[string]any)
 		return head["status"] == status
@@ -287,7 +294,7 @@ func (r *orderRun) nightlyReconcileOK() {
 	r.t.Helper()
 	r.s.runSchedule(cash.ReconcileScheduleName, time.Now().UTC().Truncate(time.Hour))
 	var page map[string]any
-	waitFor(r.t, 3*stepBudget, "lần đối chiếu đêm", func() bool {
+	waitForAPI(r.t, 3*stepBudget, "lần đối chiếu đêm", func() bool {
 		page = r.mustCall(http.MethodGet, "/api/v1/cod/reconcile-findings", nil, http.StatusOK)
 		return page["runId"] != nil
 	})

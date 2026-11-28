@@ -119,7 +119,7 @@ func TestM3Chaos_StatementBatchRestart(t *testing.T) {
 	time.Sleep(time.Second)
 	proxy.SetDown(false)
 	testkit.MakeDueSoon(t, r.s.owner) // lệnh đọc tệp not_sent sau lỗi database: không chờ lịch thử lại
-	head := r.waitStatement(id, "matched", 12*stepBudget)
+	head := r.statementAfterOutage(id, 18*stepBudget)
 	if head["lineCount"] != float64(lines) {
 		t.Fatalf("bảng kê sau khi chạy lại = %v, muốn %d dòng", head, lines)
 	}
@@ -224,4 +224,42 @@ func (r *orderRun) fakeParcels() int {
 		r.t.Fatalf("hãng giả /health = %d %s", status, body)
 	}
 	return h.Parcels
+}
+
+// parseKind là lệnh đọc tệp bảng kê của cash (statement.ParseKind; gói nội bộ của cash).
+const parseKind = "command.cash.statement_parse"
+
+// statementAfterOutage chờ bảng kê id matched sau khi database của worker vừa ngắt (Task 527). Lần ghi kết quả của lệnh
+// đọc tệp có thể rơi đúng lúc ngắt: lệnh còn running tới hết giữ chỗ của worker (90 s, queue.defaultLease) rồi
+// in_doubt, và cmd/crm tra lại in_doubt bằng lịch mỗi commands.ResolveInDoubtEvery (stack e2e không chạy lịch đó). Mỗi
+// vòng làm đúng hai việc ấy theo giờ của database, tua nhanh như workercrash_test: lệnh running đã quá một lần chạy
+// (25 s, ParseKind: giữ chỗ còn dưới 65 s) thì hết giữ chỗ ngay (worker quét → in_doubt); lệnh in_doubt thì
+// ResolveInDoubt (Lookup: chưa parsed → chạy lại, dòng đã ghi bỏ qua). Hỏi API theo nhịp waitForAPI.
+func (r *orderRun) statementAfterOutage(id string, budget time.Duration) map[string]any {
+	r.t.Helper()
+	var head map[string]any
+	r.t.Cleanup(func() {
+		if r.t.Failed() {
+			r.t.Logf("bảng kê cuối cùng thấy: %v; lệnh đọc tệp in_doubt: %d, running: %d, pending: %d", head,
+				r.s.count(`SELECT count(*) FROM platform.jobs WHERE kind = $1 AND status = 'in_doubt'`, parseKind),
+				r.s.count(`SELECT count(*) FROM platform.jobs WHERE kind = $1 AND status = 'running'`, parseKind),
+				r.s.count(`SELECT count(*) FROM platform.jobs WHERE kind = $1 AND status = 'pending'`, parseKind))
+		}
+	})
+	waitForAPI(r.t, budget, "bảng kê matched sau khi database về", func() bool {
+		if _, err := r.s.owner.Pool.Exec(r.t.Context(), `UPDATE platform.jobs SET lease_until = now() - interval '1 second'
+			WHERE kind = $1 AND status = 'running' AND lease_until < now() + interval '65 seconds'`, parseKind); err != nil {
+			r.t.Fatalf("hết giữ chỗ lệnh đọc tệp: %v", err)
+		}
+		if r.s.count(`SELECT count(*) FROM platform.jobs WHERE kind = $1 AND status = $2`, parseKind,
+			queue.StatusInDoubt) > 0 {
+			if _, _, _, err := commands.ResolveInDoubt(r.t.Context(), r.s.app, r.s.cmds, 10); err != nil {
+				r.t.Fatalf("tra lại lệnh in_doubt: %v", err)
+			}
+		}
+		got := r.mustCall(http.MethodGet, "/api/v1/cod-statements/"+id+"?limit=1", nil, http.StatusOK)
+		head, _ = got["statement"].(map[string]any)
+		return head["status"] == "matched"
+	})
+	return head
 }

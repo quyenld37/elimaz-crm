@@ -98,12 +98,16 @@ func (q *Queries) CallbackTaskView(ctx context.Context, id uuid.UUID) (CallbackT
 
 const countOpenCallbacks = `-- name: CountOpenCallbacks :one
 SELECT count(*)::int AS n
-FROM (SELECT 1 FROM fulfillment.callback_tasks c WHERE c.status IN ('open', 'in_progress') LIMIT 1000) t
+FROM (SELECT 1 FROM fulfillment.callback_tasks c
+      WHERE c.status IN ('open', 'in_progress')
+        AND (SELECT s.seller_id FROM fulfillment.shipments s
+             WHERE s.tenant_id = c.tenant_id AND s.id = c.shipment_id) = $1::uuid
+      LIMIT 1000) t
 `
 
-// Số việc gọi lại còn mở (open, in_progress), đếm tối đa 1.000 (đếm có trần).
-func (q *Queries) CountOpenCallbacks(ctx context.Context) (int32, error) {
-	row := q.db.QueryRow(ctx, countOpenCallbacks)
+// Số việc gọi lại còn mở (open, in_progress) của người bán seller_id, đếm tối đa 1.000 (đếm có trần).
+func (q *Queries) CountOpenCallbacks(ctx context.Context, sellerID uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countOpenCallbacks, sellerID)
 	var n int32
 	err := row.Scan(&n)
 	return n, err
@@ -144,12 +148,14 @@ WITH page AS (
     SELECT c.id
     FROM fulfillment.callback_tasks c
     WHERE c.status = ANY ($1::text[])
-      AND ($2::timestamptz IS NULL OR c.due_at < $2::timestamptz)
-      AND ($3::uuid IS NULL OR c.assignee_id = $3::uuid)
-      AND ($4::timestamptz IS NULL
-           OR (c.due_at, c.id) > ($4::timestamptz, $5::uuid))
+      AND (SELECT s.seller_id FROM fulfillment.shipments s
+           WHERE s.tenant_id = c.tenant_id AND s.id = c.shipment_id) = $2::uuid
+      AND ($3::timestamptz IS NULL OR c.due_at < $3::timestamptz)
+      AND ($4::uuid IS NULL OR c.assignee_id = $4::uuid)
+      AND ($5::timestamptz IS NULL
+           OR (c.due_at, c.id) > ($5::timestamptz, $6::uuid))
     ORDER BY c.due_at, c.id
-    LIMIT $6::int
+    LIMIT $7::int
 )
 SELECT c.id, c.shipment_id, c.order_id, o.code AS order_code, o.customer_id,
        s.carrier_key, s.tracking_code, c.attempt_no, c.failed_reason, c.failed_at, c.due_at, c.status, c.outcome,
@@ -163,6 +169,7 @@ ORDER BY c.due_at, c.id
 
 type ListCallbackTasksParams struct {
 	Statuses   []string
+	SellerID   uuid.UUID
 	DueBefore  pgtype.Timestamptz
 	AssigneeID pgtype.UUID
 	AfterAt    pgtype.Timestamptz
@@ -194,12 +201,15 @@ type ListCallbackTasksRow struct {
 // address_change_requests; callback_task_logs chỉ chèn.
 // Một trang việc gọi lại có trạng thái thuộc statuses, hạn sớm nhất trước (due_at, id): việc còn mở quá hạn có
 // due_at < now nên tự đứng trước việc chưa tới hạn. due_before: chỉ việc có hạn trước mốc đó; assignee_id: chỉ việc
-// giao cho người đó; after_at/after_id: con trỏ trang trước; lim = cỡ trang + 1. Chọn trang trên riêng callback_tasks
-// (index callback_tasks_status_due) rồi mới nối vận đơn, đơn cho đúng các dòng của trang. Tên khách do bên gọi đọc qua
-// public API của customer (fulfillment không gọi customer).
+// giao cho người đó; seller_id: chỉ việc của vận đơn của người bán đó (ADR-29, Task 527); after_at/after_id: con trỏ
+// trang trước; lim = cỡ trang + 1. Chọn trang trên callback_tasks (index callback_tasks_status_due); người bán đọc
+// bằng câu con vô hướng theo khóa chính của vận đơn (không bị làm phẳng thành hash join quét cả shipments), rồi mới
+// nối đơn cho đúng các dòng của trang. Tên khách do bên gọi đọc qua public API của customer (fulfillment không gọi
+// customer).
 func (q *Queries) ListCallbackTasks(ctx context.Context, arg ListCallbackTasksParams) ([]ListCallbackTasksRow, error) {
 	rows, err := q.db.Query(ctx, listCallbackTasks,
 		arg.Statuses,
+		arg.SellerID,
 		arg.DueBefore,
 		arg.AssigneeID,
 		arg.AfterAt,

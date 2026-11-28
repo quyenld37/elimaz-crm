@@ -37,6 +37,11 @@ func (h *handler) CreateLabelBatch(ctx context.Context, req *gen.CreateLabelBatc
 	}
 	out, err := h.refusableWrite(ctx, http.StatusAccepted, isShipmentRefusal, "in nhãn",
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
+			for _, id := range req.ShipmentIds {
+				if err := sellerShipment(ctx, tx, id); err != nil {
+					return nil, err
+				}
+			}
 			res, err := svc.CreateLabelBatch(ctx, tx, req.ShipmentIds, fulfillment.Actor{TenantID: u.TenantID, UserID: u.UserID},
 				shipAuthorize(u, permPrint, fulfillment.ErrNotFound))
 			if err != nil {
@@ -78,6 +83,9 @@ func (h *handler) GetLabelBatch(ctx context.Context, params gen.GetLabelBatchPar
 	var v fulfillment.LabelBatchView
 	if err := h.inventoryRead(ctx, func(tx pgx.Tx, u identity.AuthUser) error {
 		var err error
+		if err := sellerOwns(ctx, tx, fulfillment.ScopeLabelBatch, params.ID); err != nil {
+			return err
+		}
 		v, err = svc.LabelBatch(ctx, tx, params.ID, shipAuthorize(u, permPrint, fulfillment.ErrNotFound))
 		return err //nolint:wrapcheck // sentinel của fulfillment
 	}); err != nil {

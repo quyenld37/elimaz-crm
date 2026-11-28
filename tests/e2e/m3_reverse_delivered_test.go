@@ -21,7 +21,7 @@ func (r *orderRun) deliveredRun(code string) (v uuid.UUID, orderID, shipmentID, 
 		map[string]any{"carrierAccountId": r.s.shop.Account}, http.StatusAccepted)["id"])
 	tracking = r.awaitingTracking(shipmentID)
 	r.advance(tracking, "picked_up")
-	waitFor(r.t, stepBudget, "vận đơn shipping", func() bool {
+	waitForAPI(r.t, stepBudget, "vận đơn shipping", func() bool {
 		return r.mustCall(http.MethodGet, "/api/v1/shipments/"+shipmentID, nil, http.StatusOK)["status"] == "shipping"
 	})
 	r.advance(tracking, "delivered")
@@ -33,7 +33,7 @@ func (r *orderRun) deliveredRun(code string) (v uuid.UUID, orderID, shipmentID, 
 // deliveredHolding chờ đơn orderID delivered và sổ COD của vận đơn shipmentID có hãng đang giữ cod.
 func (r *orderRun) deliveredHolding(orderID, shipmentID string, cod int64) {
 	r.t.Helper()
-	waitFor(r.t, stepBudget, "đơn delivered, COD hãng giữ", func() bool {
+	waitForAPI(r.t, stepBudget, "đơn delivered, COD hãng giữ", func() bool {
 		o := r.mustCall(http.MethodGet, "/api/v1/orders/"+orderID, nil, http.StatusOK)
 		return o["status"] == "delivered" && r.cod(shipmentID)["carrier_holding"] == cod
 	})
@@ -43,7 +43,7 @@ func (r *orderRun) deliveredHolding(orderID, shipmentID string, cod int64) {
 func (r *orderRun) awaitingTracking(shipmentID string) string {
 	r.t.Helper()
 	var tracking string
-	waitFor(r.t, stepBudget, "vận đơn awaiting_pickup", func() bool {
+	waitForAPI(r.t, stepBudget, "vận đơn awaiting_pickup", func() bool {
 		got := r.mustCall(http.MethodGet, "/api/v1/shipments/"+shipmentID, nil, http.StatusOK)
 		tracking = str(got["trackingCode"])
 		return got["status"] == "awaiting_pickup" && tracking != ""
@@ -56,7 +56,7 @@ func (r *orderRun) awaitingTracking(shipmentID string) string {
 func (r *orderRun) reversedIs(v uuid.UUID, orderID, shipmentID string) {
 	r.t.Helper()
 	zero := map[string]int64{"to_collect": 0, "carrier_holding": 0, "shop_received": 0, "carrier_fee": 0, "sales_clearing": 0}
-	waitFor(r.t, stepBudget, "vận đơn returning, đơn confirmed, sổ COD về 0", func() bool {
+	waitForAPI(r.t, stepBudget, "vận đơn returning, đơn confirmed, sổ COD về 0", func() bool {
 		sh := r.mustCall(http.MethodGet, "/api/v1/shipments/"+shipmentID, nil, http.StatusOK)
 		o := r.mustCall(http.MethodGet, "/api/v1/orders/"+orderID, nil, http.StatusOK)
 		c := r.cod(shipmentID)
@@ -97,7 +97,7 @@ func (r *orderRun) receiveReturn(orderID, shipmentID string) {
 	r.mustCall(http.MethodPost, "/api/v1/returns/"+id+"/receive", map[string]any{
 		"version": version, "lines": []map[string]any{{"orderItemId": item, "condition": "sellable"}},
 	}, http.StatusOK)
-	waitFor(r.t, stepBudget, "đơn returned", func() bool {
+	waitForAPI(r.t, stepBudget, "đơn returned", func() bool {
 		return r.mustCall(http.MethodGet, "/api/v1/orders/"+orderID, nil, http.StatusOK)["status"] == "returned"
 	})
 }

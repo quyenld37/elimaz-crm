@@ -56,8 +56,8 @@ func TestM3ListPlans_Large(t *testing.T) {
 		{"dòng bảng kê", "cash/statements", "listStatementLines", []any{statement, nil, int32(0), int32(51)}},
 		{"dòng bảng kê lệch", "cash/statements", "listStatementLines", []any{statement, "amount_mismatch", int32(0), int32(51)}},
 		{"nghĩa vụ hoàn", "cash/refunds", "listRefundObligations", []any{"open", nil, int32(51)}},
-		{"gọi lại mở", "fulfillment/callbacks", "listCallbackTasks", []any{[]string{"open", "in_progress"}, nil, nil, nil, nil, int32(51)}},
-		{"gọi lại tới hạn", "fulfillment/callbacks", "listCallbackTasks", []any{[]string{"open"}, time.Now(), nil, nil, nil, int32(51)}},
+		{"gọi lại mở", "fulfillment/callbacks", "listCallbackTasks", []any{[]string{"open", "in_progress"}, seed.Own(), nil, nil, nil, nil, int32(51)}},
+		{"gọi lại tới hạn", "fulfillment/callbacks", "listCallbackTasks", []any{[]string{"open"}, seed.Own(), time.Now(), nil, nil, nil, int32(51)}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

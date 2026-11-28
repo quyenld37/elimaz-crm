@@ -94,14 +94,16 @@ JOIN fulfillment.shipments s ON s.tenant_id = x.tenant_id AND s.id = x.shipment_
 JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
 JOIN ord.orders_v o ON o.tenant_id = s.tenant_id AND o.id = s.order_id
 WHERE x.status = 'open'
-  AND ($1::bool OR a.warehouse_id = ANY ($2::uuid[]))
-  AND ($3::timestamptz IS NULL
-       OR (x.created_at, x.id) > ($3::timestamptz, $4::uuid))
+  AND s.seller_id = $1
+  AND ($2::bool OR a.warehouse_id = ANY ($3::uuid[]))
+  AND ($4::timestamptz IS NULL
+       OR (x.created_at, x.id) > ($4::timestamptz, $5::uuid))
 ORDER BY x.created_at, x.id
-LIMIT $5::int
+LIMIT $6::int
 `
 
 type ListOpenAnomaliesParams struct {
+	SellerID      uuid.UUID
 	AllWarehouses bool
 	WarehouseIds  []uuid.UUID
 	AfterAt       pgtype.Timestamptz
@@ -119,10 +121,11 @@ type ListOpenAnomaliesRow struct {
 	CreatedAt  time.Time
 }
 
-// Một trang việc "Cần xem" (anomaly mở) trong phạm vi kho, cũ nhất trước (created_at, id); con trỏ như
+// Một trang việc "Cần xem" (anomaly mở) của người bán seller_id trong phạm vi kho, cũ nhất trước (created_at, id); con trỏ như
 // ListStuckShipments. detail chỉ mang mã, trạng thái, số tiền.
 func (q *Queries) ListOpenAnomalies(ctx context.Context, arg ListOpenAnomaliesParams) ([]ListOpenAnomaliesRow, error) {
 	rows, err := q.db.Query(ctx, listOpenAnomalies,
+		arg.SellerID,
 		arg.AllWarehouses,
 		arg.WarehouseIds,
 		arg.AfterAt,
@@ -163,17 +166,19 @@ FROM fulfillment.shipments s
 JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
 JOIN ord.orders_v o ON o.tenant_id = s.tenant_id AND o.id = s.order_id
 WHERE s.stuck_since IS NOT NULL
+  AND s.seller_id = $1
   AND s.status IN ('creating', 'awaiting_pickup', 'shipping', 'delivery_failed', 'returning', 'cancel_requested')
-  AND ($1::text IS NULL OR s.status = $1::text)
-  AND ($2::uuid IS NULL OR s.carrier_account_id = $2::uuid)
-  AND ($3::bool OR a.warehouse_id = ANY ($4::uuid[]))
-  AND ($5::timestamptz IS NULL
-       OR (s.stuck_since, s.id) > ($5::timestamptz, $6::uuid))
+  AND ($2::text IS NULL OR s.status = $2::text)
+  AND ($3::uuid IS NULL OR s.carrier_account_id = $3::uuid)
+  AND ($4::bool OR a.warehouse_id = ANY ($5::uuid[]))
+  AND ($6::timestamptz IS NULL
+       OR (s.stuck_since, s.id) > ($6::timestamptz, $7::uuid))
 ORDER BY s.stuck_since, s.id
-LIMIT $7::int
+LIMIT $8::int
 `
 
 type ListStuckShipmentsParams struct {
+	SellerID      uuid.UUID
 	Status        pgtype.Text
 	AccountID     pgtype.UUID
 	AllWarehouses bool
@@ -199,10 +204,11 @@ type ListStuckShipmentsRow struct {
 	LastSyncError      pgtype.Text
 }
 
-// Một trang đơn kẹt (vận đơn mở có stuck_since) trong phạm vi kho, kẹt lâu nhất trước (stuck_since, id); lọc trạng thái,
+// Một trang đơn kẹt (vận đơn mở có stuck_since) của người bán seller_id trong phạm vi kho, kẹt lâu nhất trước (stuck_since, id); lọc trạng thái,
 // tài khoản hãng; after_at/after_id: con trỏ trang trước. lim = cỡ trang + 1 (bên gọi biết còn trang sau).
 func (q *Queries) ListStuckShipments(ctx context.Context, arg ListStuckShipmentsParams) ([]ListStuckShipmentsRow, error) {
 	rows, err := q.db.Query(ctx, listStuckShipments,
+		arg.SellerID,
 		arg.Status,
 		arg.AccountID,
 		arg.AllWarehouses,
@@ -312,32 +318,33 @@ SELECT
     (SELECT count(*) FROM fulfillment.shipment_anomalies x
      JOIN fulfillment.shipments s ON s.tenant_id = x.tenant_id AND s.id = x.shipment_id
      JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
-     WHERE x.status = 'open'
-       AND ($1::bool OR a.warehouse_id = ANY ($2::uuid[]))) AS review,
+     WHERE x.status = 'open' AND s.seller_id = $1::uuid
+       AND ($2::bool OR a.warehouse_id = ANY ($3::uuid[]))) AS review,
     (SELECT count(*) FROM fulfillment.shipments s
      JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
-     WHERE s.stuck_since IS NOT NULL
+     WHERE s.stuck_since IS NOT NULL AND s.seller_id = $1::uuid
        AND s.status IN ('creating', 'awaiting_pickup', 'shipping', 'delivery_failed', 'returning', 'cancel_requested')
-       AND ($1::bool OR a.warehouse_id = ANY ($2::uuid[]))) AS stuck,
+       AND ($2::bool OR a.warehouse_id = ANY ($3::uuid[]))) AS stuck,
     (SELECT count(*) FROM fulfillment.callback_tasks c
      JOIN fulfillment.shipments s ON s.tenant_id = c.tenant_id AND s.id = c.shipment_id
      JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
-     WHERE c.status IN ('open', 'in_progress')
-       AND ($1::bool OR a.warehouse_id = ANY ($2::uuid[]))) AS callbacks_open,
+     WHERE c.status IN ('open', 'in_progress') AND s.seller_id = $1::uuid
+       AND ($2::bool OR a.warehouse_id = ANY ($3::uuid[]))) AS callbacks_open,
     (SELECT count(*) FROM fulfillment.callback_tasks c
      JOIN fulfillment.shipments s ON s.tenant_id = c.tenant_id AND s.id = c.shipment_id
      JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
-     WHERE c.status IN ('open', 'in_progress') AND c.due_at < $3::timestamptz
-       AND ($1::bool OR a.warehouse_id = ANY ($2::uuid[])))
+     WHERE c.status IN ('open', 'in_progress') AND s.seller_id = $1::uuid AND c.due_at < $4::timestamptz
+       AND ($2::bool OR a.warehouse_id = ANY ($3::uuid[])))
         AS callbacks_overdue,
     (SELECT count(*) FROM fulfillment.shipment_anomalies x
      JOIN fulfillment.shipments s ON s.tenant_id = x.tenant_id AND s.id = x.shipment_id
      JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
-     WHERE x.status = 'open' AND x.kind = ANY ($4::text[])
-       AND ($1::bool OR a.warehouse_id = ANY ($2::uuid[]))) AS in_doubt
+     WHERE x.status = 'open' AND s.seller_id = $1::uuid AND x.kind = ANY ($5::text[])
+       AND ($2::bool OR a.warehouse_id = ANY ($3::uuid[]))) AS in_doubt
 `
 
 type ReviewCountsParams struct {
+	SellerID      uuid.UUID
 	AllWarehouses bool
 	WarehouseIds  []uuid.UUID
 	Now           time.Time
@@ -352,11 +359,12 @@ type ReviewCountsRow struct {
 	InDoubt          int64
 }
 
-// Số đếm của các danh sách vận hành trong phạm vi kho: anomaly mở, vận đơn mở kẹt, việc gọi lại mở (open, in_progress),
+// Số đếm của các danh sách vận hành của người bán seller_id trong phạm vi kho: anomaly mở, vận đơn mở kẹt, việc gọi lại mở (open, in_progress),
 // trong đó quá hạn (due_at < now), anomaly "không rõ" mở (loại thuộc in_doubt_kinds: lists.InDoubtKinds). Mỗi số đi
 // từ tập nhỏ (anomaly mở, vận đơn có stuck_since, việc gọi lại mở) qua index rồi mới nối vận đơn, tài khoản hãng.
 func (q *Queries) ReviewCounts(ctx context.Context, arg ReviewCountsParams) (ReviewCountsRow, error) {
 	row := q.db.QueryRow(ctx, reviewCounts,
+		arg.SellerID,
 		arg.AllWarehouses,
 		arg.WarehouseIds,
 		arg.Now,

@@ -21,6 +21,9 @@ import (
 func (h *handler) SyncShipment(ctx context.Context, params gen.SyncShipmentParams) (gen.SyncShipmentRes, error) {
 	out, err := h.accountWrite(ctx, http.StatusAccepted, "tra lại vận đơn",
 		func(tx pgx.Tx, s *fulfillment.Service, u identity.AuthUser, a fulfillment.Actor) (any, error) {
+			if err := sellerShipment(ctx, tx, params.ID); err != nil {
+				return nil, err
+			}
 			sh, err := fulfillment.Get(ctx, tx, params.ID)
 			if err != nil {
 				return nil, err //nolint:wrapcheck // sentinel của fulfillment

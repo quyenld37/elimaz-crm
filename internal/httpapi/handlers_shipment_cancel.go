@@ -31,7 +31,7 @@ func (h *handler) CancelShipment(ctx context.Context, req *gen.CancelShipmentReq
 	}
 	reason := logging.ScrubText(req.Reason)
 	checked := req.CarrierChecked.Or(false)
-	out, err := h.refusableWrite(ctx, http.StatusOK, isShipmentRefusal, "hủy vận đơn",
+	out, err := h.sellerShipmentWrite(ctx, http.StatusOK, isShipmentRefusal, "hủy vận đơn", params.ID,
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
 			v, err := svc.RequestCancel(ctx, tx, params.ID, fulfillment.CancelInput{
 				Intent: "replace", Reason: reason, CarrierChecked: checked,

@@ -48,6 +48,9 @@ func (h *handler) CreateShipment(ctx context.Context, req *gen.CreateShipmentReq
 	}
 	out, err := h.refusableWrite(ctx, statusCreated, isShipmentRefusal, "tạo vận đơn",
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
+			if err := sellerOrder(ctx, tx, params.ID, fulfillment.ErrOrderNotFound); err != nil {
+				return nil, err
+			}
 			v, err := svc.Ship(ctx, tx, shipInput(params.ID, req, u), orderActor(u))
 			if err != nil {
 				return nil, err //nolint:wrapcheck // sentinel của fulfillment
@@ -93,6 +96,9 @@ func (h *handler) GetShipment(ctx context.Context, params gen.GetShipmentParams)
 	}
 	var v fulfillment.ShipmentView
 	if err := h.inventoryRead(ctx, func(tx pgx.Tx, u identity.AuthUser) (err error) {
+		if err := sellerShipment(ctx, tx, params.ID); err != nil {
+			return err
+		}
 		if v, err = svc.ShipmentView(ctx, tx, params.ID); err != nil {
 			return err //nolint:wrapcheck // sentinel của fulfillment
 		}

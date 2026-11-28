@@ -43,6 +43,9 @@ func (h *handler) PreviewCodAdjustment(ctx context.Context, req *gen.CodAdjustme
 	}
 	out, err := h.refusableWrite(ctx, http.StatusOK, isAdjustRefusal, "xem trước điều chỉnh COD",
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
+			if err := sellerShipmentCOD(ctx, tx, req.ShipmentId); err != nil {
+				return nil, err
+			}
 			p, err := h.d.Cash.PreviewCODAdjustment(ctx, tx, adjustInput(req.ShipmentId, string(req.Mode),
 				req.ReversesTransferId, req.From, req.To, req.Amount, req.Reason, u.UserID))
 			if err != nil {
@@ -80,6 +83,9 @@ func (h *handler) CreateCodAdjustment(ctx context.Context, req *gen.CreateCodAdj
 	}
 	out, err := h.refusableWrite(ctx, http.StatusCreated, isAdjustRefusal, "ghi điều chỉnh COD",
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
+			if err := sellerShipmentCOD(ctx, tx, req.ShipmentId); err != nil {
+				return nil, err
+			}
 			in := adjustInput(req.ShipmentId, string(req.Mode), req.ReversesTransferId, req.From, req.To, req.Amount,
 				req.Reason, u.UserID)
 			t, err := h.d.Cash.CreateCODAdjustment(ctx, tx, in, req.Token)

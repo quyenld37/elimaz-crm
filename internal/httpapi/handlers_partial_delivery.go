@@ -34,7 +34,7 @@ func (h *handler) RecordPartialDelivery(ctx context.Context, req *gen.RecordPart
 		audited[i] = map[string]any{"orderItemId": it.OrderItemId.String(), "deliveredQty": it.DeliveredQty}
 	}
 	in := fulfillment.PartialInput{Lines: lines, CODCollected: int64(req.CodCollected), Reason: reason}
-	out, err := h.refusableWrite(ctx, http.StatusOK, isShipmentRefusal, "ghi giao một phần",
+	out, err := h.sellerShipmentWrite(ctx, http.StatusOK, isShipmentRefusal, "ghi giao một phần", params.ID,
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
 			r, err := svc.RecordPartialDelivery(ctx, tx, params.ID, in, orderActor(u))
 			if err != nil {

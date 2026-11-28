@@ -5,13 +5,17 @@
 -- name: ListCallbackTasks :many
 -- Một trang việc gọi lại có trạng thái thuộc statuses, hạn sớm nhất trước (due_at, id): việc còn mở quá hạn có
 -- due_at < now nên tự đứng trước việc chưa tới hạn. due_before: chỉ việc có hạn trước mốc đó; assignee_id: chỉ việc
--- giao cho người đó; after_at/after_id: con trỏ trang trước; lim = cỡ trang + 1. Chọn trang trên riêng callback_tasks
--- (index callback_tasks_status_due) rồi mới nối vận đơn, đơn cho đúng các dòng của trang. Tên khách do bên gọi đọc qua
--- public API của customer (fulfillment không gọi customer).
+-- giao cho người đó; seller_id: chỉ việc của vận đơn của người bán đó (ADR-29, Task 527); after_at/after_id: con trỏ
+-- trang trước; lim = cỡ trang + 1. Chọn trang trên callback_tasks (index callback_tasks_status_due); người bán đọc
+-- bằng câu con vô hướng theo khóa chính của vận đơn (không bị làm phẳng thành hash join quét cả shipments), rồi mới
+-- nối đơn cho đúng các dòng của trang. Tên khách do bên gọi đọc qua public API của customer (fulfillment không gọi
+-- customer).
 WITH page AS (
     SELECT c.id
     FROM fulfillment.callback_tasks c
     WHERE c.status = ANY (sqlc.arg(statuses)::text[])
+      AND (SELECT s.seller_id FROM fulfillment.shipments s
+           WHERE s.tenant_id = c.tenant_id AND s.id = c.shipment_id) = sqlc.arg(seller_id)::uuid
       AND (sqlc.narg(due_before)::timestamptz IS NULL OR c.due_at < sqlc.narg(due_before)::timestamptz)
       AND (sqlc.narg(assignee_id)::uuid IS NULL OR c.assignee_id = sqlc.narg(assignee_id)::uuid)
       AND (sqlc.narg(after_at)::timestamptz IS NULL
@@ -29,9 +33,13 @@ JOIN ord.orders_v o ON o.tenant_id = c.tenant_id AND o.id = c.order_id
 ORDER BY c.due_at, c.id;
 
 -- name: CountOpenCallbacks :one
--- Số việc gọi lại còn mở (open, in_progress), đếm tối đa 1.000 (đếm có trần).
+-- Số việc gọi lại còn mở (open, in_progress) của người bán seller_id, đếm tối đa 1.000 (đếm có trần).
 SELECT count(*)::int AS n
-FROM (SELECT 1 FROM fulfillment.callback_tasks c WHERE c.status IN ('open', 'in_progress') LIMIT 1000) t;
+FROM (SELECT 1 FROM fulfillment.callback_tasks c
+      WHERE c.status IN ('open', 'in_progress')
+        AND (SELECT s.seller_id FROM fulfillment.shipments s
+             WHERE s.tenant_id = c.tenant_id AND s.id = c.shipment_id) = sqlc.arg(seller_id)::uuid
+      LIMIT 1000) t;
 
 -- name: CallbackTaskShipment :one
 -- Vận đơn của việc gọi lại id (đọc không khóa: bên gọi khóa đơn, vận đơn rồi khóa việc và đọc lại).

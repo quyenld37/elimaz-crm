@@ -37,7 +37,7 @@ func (h *handler) RequestAddressChange(ctx context.Context, req *gen.RequestAddr
 		},
 		Note: req.Note.Or(""),
 	}
-	out, err := h.refusableWrite(ctx, http.StatusCreated, isAddressChangeRefusal, "yêu cầu đổi địa chỉ",
+	out, err := h.sellerShipmentWrite(ctx, http.StatusCreated, isAddressChangeRefusal, "yêu cầu đổi địa chỉ", params.ID,
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
 			in.Authorize = shipAuthorize(u, permShip, nil)
 			c, err := svc.RequestAddressChange(ctx, tx, params.ID, in, orderActor(u))
@@ -67,6 +67,9 @@ func (h *handler) ResolveAddressChange(ctx context.Context, req *gen.ResolveAddr
 	out, err := h.refusableWrite(ctx, http.StatusOK, isAddressChangeRefusal, "xác nhận đổi địa chỉ",
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
 			in.Authorize = shipAuthorize(u, permShip, nil)
+			if err := sellerOwns(ctx, tx, fulfillment.ScopeAddressChange, params.ID); err != nil {
+				return nil, err
+			}
 			r, err := svc.ResolveAddressChange(ctx, tx, params.ID, in, orderActor(u))
 			if err != nil {
 				return nil, err //nolint:wrapcheck // sentinel của fulfillment, order
@@ -93,12 +96,9 @@ func (h *handler) ResolveAddressChange(ctx context.Context, req *gen.ResolveAddr
 func (h *handler) ListShipmentAddressChanges(ctx context.Context, params gen.ListShipmentAddressChangesParams) (gen.ListShipmentAddressChangesRes, error) {
 	var open []fulfillment.AddressChange
 	if err := h.inventoryRead(ctx, func(tx pgx.Tx, u identity.AuthUser) error {
-		s, err := fulfillment.Get(ctx, tx, params.ID)
+		s, err := readableShipment(ctx, tx, u, params.ID)
 		if err != nil {
-			return err //nolint:wrapcheck // sentinel của fulfillment
-		}
-		if canAt(u, s.WarehouseID, permShipRead) != nil {
-			return fulfillment.ErrNotFound
+			return err
 		}
 		open, err = fulfillment.OpenAddressChanges(ctx, tx, s)
 		return err //nolint:wrapcheck // fulfillment đã bọc
