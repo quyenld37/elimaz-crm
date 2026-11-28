@@ -45,6 +45,9 @@ type importRowInput struct {
 	addr     *AddressInput
 	tags     []string
 	note     string
+	// Chỉ lần chuyển từ hệ cũ (Task 542): SĐT phụ (cùng khách) và mã khách cũ; đường Excel để trống.
+	morePhones []logging.Phone
+	legacyID   int64
 }
 
 // parseImportRow kiểm một dòng tệp: trả dữ liệu đã chuẩn hóa, hoặc lỗi đầu tiên của dòng (theo thứ tự cột). Ô xlsx

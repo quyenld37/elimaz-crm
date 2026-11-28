@@ -1125,6 +1125,22 @@ type CustomerFeedback struct {
 	Version    int32
 }
 
+type CustomerLegacyCustomer struct {
+	TenantID   uuid.UUID
+	LegacyID   int64
+	CustomerID uuid.UUID
+	CreatedAt  time.Time
+}
+
+type CustomerLegacyReview struct {
+	TenantID           uuid.UUID
+	LegacyID           int64
+	Reason             string
+	RelatedCustomerIds []uuid.UUID
+	CreatedAt          time.Time
+	ResolvedAt         pgtype.Timestamptz
+}
+
 type FulfillmentAddressChangeRequest struct {
 	ID          uuid.UUID
 	TenantID    uuid.UUID

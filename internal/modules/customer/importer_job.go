@@ -359,7 +359,7 @@ func (i *Importer) writeRows(ctx context.Context, tx pgx.Tx, rows []xlsx.Row, ce
 		return batchResult{}, err
 	}
 	for _, in := range fresh {
-		created, err := i.importRow(ctx, tx, in, tags, a, now)
+		_, created, err := i.importRow(ctx, tx, in, tags, a, now)
 		switch {
 		case err != nil:
 			return batchResult{}, err
@@ -402,15 +402,16 @@ func ensureTags(ctx context.Context, q *store.Queries, rows []importRowInput) (m
 
 // importRow tạo một khách từ dòng in trong savepoint: hồ sơ (lead), danh tính phone nguồn import, địa chỉ mặc định,
 // nhãn, ghi chú, sự kiện customer.created. Không audit, không báo hiệu từng khách. SĐT vừa bị chiếm (giao dịch song
-// song) → lùi savepoint, trả false.
+// song) hay mã khách cũ vừa được ghi (lượt chuyển song song) → lùi savepoint, trả false. Trả mã khách vừa tạo.
+// Khách chuyển từ hệ cũ có thêm SĐT phụ (SĐT đã có chủ thì bỏ qua) và dòng đối chiếu mã cũ.
 func (i *Importer) importRow(ctx context.Context, tx pgx.Tx, in importRowInput, tags map[string]uuid.UUID, a Actor,
 	now time.Time,
-) (bool, error) {
-	err := db.Savepoint(ctx, tx, func(sp pgx.Tx) error {
-		id, err := uuid.NewV7()
-		if err != nil {
-			return fmt.Errorf("sinh mã khách: %w", err)
-		}
+) (uuid.UUID, bool, error) {
+	id, err := uuid.NewV7()
+	if err != nil {
+		return uuid.Nil, false, fmt.Errorf("sinh mã khách: %w", err)
+	}
+	err = db.Savepoint(ctx, tx, func(sp pgx.Tx) error {
 		q := store.New(sp)
 		row, err := q.InsertCustomerProfile(ctx, store.InsertCustomerProfileParams{
 			ID: id, FullName: in.name, NameSearch: NormalizeName(in.name), Lifecycle: string(LifecycleLead),
@@ -429,6 +430,9 @@ func (i *Importer) importRow(ctx context.Context, tx pgx.Tx, in importRowInput, 
 		if err := importExtras(ctx, q, id, in, tags, a, now); err != nil {
 			return err
 		}
+		if err := importLegacy(ctx, sp, q, id, in, a); err != nil {
+			return err
+		}
 		if _, _, err := i.o.Writer.Events.Emit(ctx, sp, i.o.Writer.Queue, events.Event{
 			TenantID: row.TenantID, AggregateType: aggregateCustomer, AggregateID: id.String(), Seq: row.Version,
 			Topic: TopicCustomerCreated, Payload: Created{CustomerID: id, Version: row.Version},
@@ -438,12 +442,12 @@ func (i *Importer) importRow(ctx context.Context, tx pgx.Tx, in importRowInput, 
 		return nil
 	})
 	switch {
-	case errors.Is(err, errPhoneTaken):
-		return false, nil
+	case errors.Is(err, errPhoneTaken), errors.Is(err, errLegacyTaken):
+		return uuid.Nil, false, nil
 	case err != nil:
-		return false, err //nolint:wrapcheck // lỗi bên trong đã bọc; lỗi savepoint do db bọc
+		return uuid.Nil, false, err //nolint:wrapcheck // lỗi bên trong đã bọc; lỗi savepoint do db bọc
 	}
-	return true, nil
+	return id, true, nil
 }
 
 // importExtras ghi địa chỉ mặc định, nhãn, ghi chú của khách id vừa tạo từ dòng in.
