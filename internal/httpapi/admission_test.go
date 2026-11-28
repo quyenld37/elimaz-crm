@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -195,6 +196,33 @@ func TestFlashAdmission_RateLimits(t *testing.T) {
 	}
 	if e.gate.admitCalls != int(e.calls.Load()) {
 		t.Fatalf("Admit %d lần, handler %d lần", e.gate.admitCalls, e.calls.Load())
+	}
+}
+
+// Task 525: khóa giới hạn theo từng khách, không chung — 200 khách khác SĐT, khác IP (như e2e flash: 093…, 10.20.x.y)
+// mỗi người dùng đủ 2 lượt của mình đều qua; lượt thứ 3 của mỗi người bị 429 too_fast mà không làm khách khác bị chặn.
+func TestFlashAdmission_LimitsPerSubject(t *testing.T) {
+	t.Parallel()
+	e := newAdmitEnv(t)
+	const n = 200
+	body := func(i int) string {
+		return flashBody(fmt.Sprintf("09%08d", 30000000+i), fmt.Sprintf("10.20.%d.%d", i/256, i%256))
+	}
+	for round := range 2 {
+		for i := range n {
+			if rec := e.post(t, body(i), ""); rec.Code != http.StatusOK {
+				t.Fatalf("khách %d lượt %d: %d %s", i, round+1, rec.Code, rec.Body.String())
+			}
+		}
+	}
+	for i := range n {
+		rec := e.post(t, body(i), "")
+		if rec.Code != http.StatusTooManyRequests || errCode(t, rec) != codeTooFast {
+			t.Fatalf("khách %d lượt 3: %d %s, muốn 429 too_fast", i, rec.Code, rec.Body.String())
+		}
+	}
+	if got := e.calls.Load(); got != 2*n {
+		t.Fatalf("handler chạy %d lần, muốn %d", got, 2*n)
 	}
 }
 
