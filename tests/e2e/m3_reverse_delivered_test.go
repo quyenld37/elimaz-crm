@@ -25,12 +25,18 @@ func (r *orderRun) deliveredRun(code string) (v uuid.UUID, orderID, shipmentID, 
 		return r.mustCall(http.MethodGet, "/api/v1/shipments/"+shipmentID, nil, http.StatusOK)["status"] == "shipping"
 	})
 	r.advance(tracking, "delivered")
-	waitFor(r.t, stepBudget, "đơn delivered, COD hãng giữ", func() bool {
-		o := r.mustCall(http.MethodGet, "/api/v1/orders/"+orderID, nil, http.StatusOK)
-		return o["status"] == "delivered" && r.cod(shipmentID)["carrier_holding"] == 280000
-	})
+	r.deliveredHolding(orderID, shipmentID, 280000)
 	r.stockIs(v, stock{onHand: 4, available: 4})
 	return v, orderID, shipmentID, tracking
+}
+
+// deliveredHolding chờ đơn orderID delivered và sổ COD của vận đơn shipmentID có hãng đang giữ cod.
+func (r *orderRun) deliveredHolding(orderID, shipmentID string, cod int64) {
+	r.t.Helper()
+	waitFor(r.t, stepBudget, "đơn delivered, COD hãng giữ", func() bool {
+		o := r.mustCall(http.MethodGet, "/api/v1/orders/"+orderID, nil, http.StatusOK)
+		return o["status"] == "delivered" && r.cod(shipmentID)["carrier_holding"] == cod
+	})
 }
 
 // awaitingTracking chờ vận đơn shipmentID sang awaiting_pickup có mã hãng; trả mã hãng.

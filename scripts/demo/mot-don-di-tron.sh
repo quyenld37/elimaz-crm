@@ -14,6 +14,8 @@
 #   FAKECARRIER_URL  hãng giả (mặc định http://127.0.0.1:4194; trang /admin chỉ nghe máy nội bộ)
 #   PRODUCT_CODE     mã mẫu (mặc định DEMO<giờ phút giây>)
 #   WAIT_SECONDS     hạn chờ mỗi bước sau commit (mặc định 10)
+#   PROVINCE_CODE, WARD_CODE  mã tỉnh, phường của địa chỉ giao (mặc định 79, 26734: hãng giả có cùng mã; tenant phải
+#                    có hai mã đã khớp cho hãng giả trong carrier_locations, xem syncCarrierLocations)
 #
 # Cần: bash, curl, jq. Không in SĐT, địa chỉ, thẻ.
 set -euo pipefail
@@ -27,6 +29,8 @@ fc="${FAKECARRIER_URL:-http://127.0.0.1:4194}"
 fc="${fc%/}"
 code="${PRODUCT_CODE:-DEMO$(date +%H%M%S)}"
 wait_s="${WAIT_SECONDS:-10}"
+province="${PROVINCE_CODE:-79}"
+ward="${WARD_CODE:-26734}"
 
 for c in curl jq; do
   command -v "$c" >/dev/null || { echo "thiếu lệnh $c" >&2; exit 2; }
@@ -123,8 +127,8 @@ doc="$(api POST "/api/v1/inventory/documents/${doc_id}/post" "$(jq -nc --argjson
 done_step "phiếu $(jq -r .code <<<"$doc") $(jq -r .status <<<"$doc"), available $(available)"
 
 step "3. Lên đơn 2 cái, ship 30000"
-order="$(api POST /api/v1/orders "$(jq -nc --arg var "$variant" '{customer:{fullName:"Khách thử"},
-  items:[{variantId:$var,qty:2}],shipAddress:{name:"Khách thử",phone:"+84900000000",line:"Địa chỉ thử"},shippingFee:30000}')" 201)"
+order="$(api POST /api/v1/orders "$(jq -nc --arg var "$variant" --arg province "$province" --arg ward "$ward" '{customer:{fullName:"Khách thử"},
+  items:[{variantId:$var,qty:2}],shipAddress:{name:"Khách thử",phone:"+84900000000",line:"Địa chỉ thử",provinceCode:$province,wardCode:$ward},shippingFee:30000}')" 201)"
 order_id="$(jq -r .id <<<"$order")"
 done_step "đơn $(jq -r .code <<<"$order") $(jq -r .status <<<"$order"), grandTotal $(jq -r .grandTotal <<<"$order"), available $(available)"
 

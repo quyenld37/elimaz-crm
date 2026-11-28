@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -491,25 +490,10 @@ type explainCase struct {
 func (e *shipEnv) requireNoSeqScan(file string, cases ...explainCase) {
 	e.t.Helper()
 	for _, c := range cases {
-		nodes, err := testkit.ExplainAsApp(e.t.Context(), e.staff.App, e.tenant, storeSQLIn(e.t, file, c.name), c.args...)
+		nodes, err := testkit.ExplainAsApp(e.t.Context(), e.staff.App, e.tenant, testkit.StoreQuery(e.t, "internal/store/"+file+".sql.go", c.name), c.args...)
 		if err != nil {
 			e.t.Fatalf("%s: %v", c.name, err)
 		}
 		testkit.RequireNoSeqScan(e.t, nodes)
 	}
-}
-
-// storeSQLIn đọc hằng câu SQL name do sqlc sinh trong internal/store/<file>.sql.go (chuỗi thô giữa hai dấu `).
-func storeSQLIn(t *testing.T, file, name string) string {
-	t.Helper()
-	src, err := os.ReadFile("internal/store/" + file + ".sql.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, rest, ok := strings.Cut(string(src), "const "+name+" = `")
-	sql, _, closed := strings.Cut(rest, "`")
-	if !ok || !closed {
-		t.Fatalf("không thấy hằng %s", name)
-	}
-	return sql
 }

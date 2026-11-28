@@ -55,7 +55,7 @@ on:
         default: "false"
         type: string
       loadtest:
-        description: "bài thử tải: live | chaos (M4, Task 180), m2 (Task 88: make perf-m2), kèm :<thời lượng> khi chạy khói (vd live:1m); rỗng: không chạy"
+        description: "bài thử tải: live | chaos (M4, Task 180), m2 (Task 88: make perf-m2), carrier (M3, Task 139: webhook hãng), kèm :<thời lượng> khi chạy khói (vd live:1m); rỗng: không chạy"
         required: false
         default: ""
         type: string
@@ -254,6 +254,18 @@ jobs:
             rc=${PIPESTATUS[0]}
             out=$(ls -d loadtest/out/m2-* | tail -1)
             title="Thử tải M2"
+          elif [ "$MODE" = carrier ]; then
+            # Task 139: bài thử tải webhook hãng M3; chạy khói (có thời lượng) thì số vận đơn = 20 tin/giây × giây / 6.
+            case "$SPEC" in *:*)
+              n=${DURATION%[smh]}; case ${DURATION#"$n"} in s) secs=$n ;; m) secs=$((n * 60)) ;; *) secs=$((n * 3600)) ;; esac
+              export SHIPMENTS=$((secs * 20 / 6)) ;;
+            esac
+            set +e # bài đỏ vẫn ghi bảng chấm vào tóm tắt
+            loadtest/carrier_run.sh 2>&1 | tee loadtest.log
+            rc=${PIPESTATUS[0]}
+            set -e
+            out=$(ls -d loadtest/out/carrier-* | tail -1)
+            title="Thử tải M3 (webhook hãng)"
           else
             loadtest/fb_run.sh "$MODE" 2>&1 | tee loadtest.log
             rc=${PIPESTATUS[0]}
@@ -262,6 +274,7 @@ jobs:
           fi
           { echo "### $title: $SPEC"; cat "$out/report.md" 2>/dev/null || tail -60 loadtest.log; } >> "$GITHUB_STEP_SUMMARY"
           for f in chaos.log chaos.csv live.csv k6-live.txt k6-staff.txt k6-search.txt k6-orders.txt k6-orders.log seedperf.log db-size.txt; do [ -f "$out/$f" ] && { echo "== $f"; cat "$out/$f"; }; done
+          for f in k6.txt loadkit.log fakecarrier.log; do [ -f "$out/$f" ] && { echo "== $f"; tail -100 "$out/$f"; }; done
           if [ "$rc" != 0 ]; then for r in ingest api worker; do [ -f "$out/$r.log" ] || continue; echo "== $r.log (đuôi)"; grep -v webcache "$out/$r.log" | tail -30; done; fi
           exit "$rc"
 

@@ -16,6 +16,7 @@
 # Task 180: CRM_CI_LOADTEST=live|chaos[:<thời lượng>] chạy thêm job loadtest (bài thử tải M4, loadtest/fb_run.sh) ở máy
 # đã chọn; thường đi cùng tệp gói rỗng và CRM_CI_STATIC=false. Bảng chấm nằm trong tóm tắt của run. Task 88:
 # CRM_CI_LOADTEST=m2[:<thời lượng>] chạy bài thử tải M2 (make perf-m2: tìm khách trên 1 triệu khách, lên đơn 10×).
+# Task 139: CRM_CI_LOADTEST=carrier[:<thời lượng>] chạy bài thử tải webhook hãng M3 (loadtest/carrier_run.sh) thay bài M4.
 # Task 499: CRM_CI_E2E=1 chạy thêm job e2e (go test -race ./tests/e2e/... trên compose dev đủ profile) và console-e2e
 # (Playwright) ở máy đã chọn (mặc định 0: lượt của task không chạy e2e). Không nhận vps (hai job đó bỏ qua ở vps: xanh giả).
 # Không đổi nhánh nào: commit tạm dựng bằng git commit-tree, đẩy -f lên refs/heads/ci/<nhãn>, xóa khi xong (cả khi lỗi).
@@ -33,8 +34,8 @@ case $runner in
   *) echo "CRM_CI_RUNNER=$runner không phải máy từ xa (github, blacksmith, ubicloud, vps)" >&2; exit 2 ;;
 esac
 case $loadtest in
-  ""|live|chaos|m2|live:[0-9]*[smh]|chaos:[0-9]*[smh]|m2:[0-9]*[smh]) ;;
-  *) echo "CRM_CI_LOADTEST=$loadtest không phải live|chaos|m2[:<thời lượng>]" >&2; exit 2 ;;
+  ""|live|chaos|m2|carrier|live:[0-9]*[smh]|chaos:[0-9]*[smh]|m2:[0-9]*[smh]|carrier:[0-9]*[smh]) ;;
+  *) echo "CRM_CI_LOADTEST=$loadtest không phải live|chaos|m2|carrier[:<thời lượng>]" >&2; exit 2 ;;
 esac
 case ${CRM_CI_E2E:-0} in
   1) e2e=true ;;
