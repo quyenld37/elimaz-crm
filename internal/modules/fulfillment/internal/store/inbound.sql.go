@@ -35,6 +35,23 @@ func (q *Queries) InboundAccountByRouteKey(ctx context.Context, routeKey string)
 	return i, err
 }
 
+const inboundAccountHasPending = `-- name: InboundAccountHasPending :one
+SELECT EXISTS (
+    SELECT 1 FROM fulfillment.shipments
+    WHERE carrier_account_id = $1 AND tracking_code IS NULL
+      AND status NOT IN ('cancelled', 'delivered', 'returned')
+)
+`
+
+// Tài khoản hãng có vận đơn đang chờ mã hãng (chưa có tracking_code, chưa hủy hay kết thúc) không: tín hiệu lạ có thể
+// là của vận đơn đó (VC10), chờ thử lại thay vì ghi "ngoài hệ thống" (Task 265). Index shipments_account_tracking.
+func (q *Queries) InboundAccountHasPending(ctx context.Context, carrierAccountID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, inboundAccountHasPending, carrierAccountID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const inboundShipmentByCode = `-- name: InboundShipmentByCode :one
 SELECT id
 FROM fulfillment.shipments

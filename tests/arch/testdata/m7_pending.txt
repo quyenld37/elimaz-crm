@@ -9,7 +9,6 @@ checkOpeningStocktake
 incrementStocktakeLine
 createStocktakeCountImport
 getStocktakeCountImport
-listUnmatchedCarrierEvents
 getT2Report
 goLivePage
 pageBackToReadOnly
