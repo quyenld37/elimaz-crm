@@ -56,7 +56,7 @@ Lệnh chung (gọi tắt `VT`): `cd console && npx vitest run <tệp>`. Không 
 | "Còn N dòng chưa đếm" lấy từ máy chủ; Đăng khóa khi còn | `OpeningStocktakePage.test.tsx` "tiến độ lấy từ máy chủ…", "còn 7 mã chưa đếm → nút Đăng khóa…"; `openingRules.test.ts` `postBlockedReason` | như trên | "405 / 412 mã", "Còn 7 mã chưa đếm", nút `disabled` kèm lý do; đủ mã → hộp xác nhận 412 mã, 8.214 cái, một `POST …/post` có khóa |
 | Kết quả kiểm hiện mã lệch | `OpeningStocktakePage.test.tsx` mục F (3 ca) | như trên | Khớp / Lệch 2 mã (bảng Mã, Đếm, Sổ, Tồn) / Sổ khớp (changedSince) |
 | 409 `legacy_return_exists` hiện liên kết | `LegacyReturn.test.tsx` "409 legacy_return_exists…" | `VT src/screens/inventory/legacy` | "Kiện VTP12345678 đã nhập rồi.", giờ và người nhập từ `getLegacyReturn`, liên kết `#kien-<id>` |
-| Hàng hoàn cũ: chuẩn hóa mã, quét, tình trạng, kết quả hai phiếu, danh sách theo ngày | `LegacyReturn.test.tsx` (11 ca), `legacyRules.test.ts` (13 ca và một bảng ca) | như trên | body đúng `{warehouseId, reference:"VTP12345678", note, lines}`; liên kết phiếu nhập và phiếu chuyển hàng lỗi; "3 kiện · 10 cái (1 hỏng) trong 2 ngày"; rỗng; lỗi tải |
+| Hàng hoàn cũ: chuẩn hóa mã, quét, tình trạng, kết quả hai phiếu, danh sách theo ngày | `LegacyReturn.test.tsx` (12 ca), `legacyRules.test.ts` (14 ca, kể cả một bảng ca) | như trên | body đúng `{warehouseId, reference:"VTP12345678", note, lines}`; liên kết phiếu nhập và phiếu chuyển hàng lỗi; "3 kiện · 10 cái (1 hỏng) trong 2 ngày"; rỗng; lỗi tải |
 | Nút "Mở sổ kho này" (HV01) và đăng ký route (HV01, HV02) | `Stocktake.test.tsx` ca mới; `route.test.tsx` | `VT src/screens/inventory` | link `/kho/mo-so?kho=<id>` chỉ khi có quyền mở sổ kho đó; 3 route mới, 2 ẩn khỏi menu |
 | Mọi mã lỗi có câu tiếng Việt, lint cấm any/as/fetch | `app/errors.test.ts`, `lint-guard.test.ts`, `app/screens.test.tsx` | `VT src/app/errors.test.ts src/lint-guard.test.ts src/app/screens.test.tsx` | `Test Files 23 passed, Tests 288 passed` (inventory + app, sau khi gom mã lặp); toàn bộ console `185 files, 2006 tests passed` sau khi thêm hai trường tùy chọn vào `screenTestkit` |
 | Kiểu và lint | — | `cd console && npx tsc --noEmit`; `npx eslint src/screens/inventory src/app/screenTestkit.tsx e2e/mo-so-hang-hoan.phone.spec.ts` | 0 lỗi |
@@ -92,4 +92,4 @@ Lệnh chung (gọi tắt `VT`): `cd console && npx vitest run <tệp>`. Không 
 ## Reviewer
 
 Kết luận: ĐẠT (reviewer, bản đã gộp main 1086279f; ci-task xanh từ xa, run 46132261679).
-Không có phát hiện ảnh hưởng tính đúng. Ghi chú đã sửa: số ca LegacyReturn/legacyRules, mục Ảnh hưởng thêm `screenTestkit.tsx`. Còn lại: chạy spec e2e viết sẵn ở 360 px trước khi đóng M7; `PERM_OPENING` khai hai nơi (trùng nhỏ).
+Không có phát hiện ảnh hưởng tính đúng. Ghi chú đã sửa: số ca, mục Ảnh hưởng thêm `screenTestkit.tsx`. Còn lại: chạy spec e2e viết sẵn ở 360 px trước khi đóng M7; `PERM_OPENING` khai hai nơi (trùng nhỏ).
