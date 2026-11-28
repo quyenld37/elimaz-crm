@@ -59,8 +59,28 @@ func (s *Seed) Bulk(n int, rnd *rand.Rand, from, to time.Time) {
 	}
 	own := s.Own()
 	s.exec("chèn đơn hàng loạt", func(ctx context.Context, tx pgx.Tx) error { return s.insertBulk(ctx, tx, c, own, wh, cust) })
+	s.analyzeFully()
+}
+
+// analyzeFully chạy ANALYZE bốn bảng với default_statistics_target 2000 (mẫu 600.000 dòng ≥ cỡ mọi bảng của Bulk 100.000
+// đơn, nên thống kê là của cả bảng chứ không phải một mẫu ngẫu nhiên). Mẫu mặc định (30.000 dòng) đổi từ lần chạy này
+// sang lần khác, ước lượng số dòng của khoảng ngày đổi theo, và kế hoạch của nhánh giao thành công khi thì Nested Loop
+// khi thì Hash Join + Seq Scan đơn: test EXPLAIN chập chờn (Task 526).
+func (s *Seed) analyzeFully() {
+	s.t.Helper()
+	ctx := s.t.Context()
+	conn, err := s.owner.Pool.Acquire(ctx)
+	if err != nil {
+		s.t.Fatalf("reportseed: lấy kết nối ANALYZE: %v", err)
+	}
+	defer conn.Release()
+	// Đặt rồi trả lại giá trị trong chính kết nối này: kết nối về pool không mang theo thiết lập.
+	if _, err := conn.Exec(ctx, "SET default_statistics_target = 2000"); err != nil {
+		s.t.Fatalf("reportseed: SET default_statistics_target: %v", err)
+	}
+	defer func() { _, _ = conn.Exec(context.WithoutCancel(ctx), "RESET default_statistics_target") }()
 	for _, tbl := range []string{"ord.orders", "ord.order_items", "ord.order_status_history", "fulfillment.shipments"} {
-		if _, err := s.owner.Pool.Exec(s.t.Context(), "ANALYZE "+tbl); err != nil {
+		if _, err := conn.Exec(ctx, "ANALYZE "+tbl); err != nil {
 			s.t.Fatalf("reportseed: ANALYZE %s: %v", tbl, err)
 		}
 	}
