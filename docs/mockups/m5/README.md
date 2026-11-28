@@ -69,19 +69,19 @@ Theo luật "Behaviour changes need own OK" và bảng "Việc cần chủ shop 
 | HV23 | Nhận đơn web | Tạm dừng/mở lại nhận đơn là màn riêng "Nhận đơn web" (nhóm Website), tách khỏi hãng giao hàng. | Chung trang "Vận hành website" với hãng giao hàng. | OK chủ shop 21/11 (chat) |
 | HV24 | Nhật ký | Chỉ hiện tên trường đổi, không hiện nội dung (lý do, tên, mức giảm); người làm có thể là nhân viên, khóa dịch vụ của website, hệ thống; lọc người và khoảng ngày, không có ô tìm chữ; xem thêm theo con trỏ. | Hiện "Lý do: …", tên chiến dịch, mức giảm; ô tìm; phân trang số. | OK chủ shop 21/11 (chat) |
 | HV25 | Nhật ký | Nhật ký cũ của admin không chuyển vào CRM (QĐ38), chỉ giữ bản xuất CSV. | — | OK chủ shop 21/11 (chat) |
-| HV26 | Menu | Mục mới "Flash sale" trong nhóm Khuyến mãi (màn Đợt flash sale, đợt 2). | Không có (admin không có flash sale). | chưa |
-| HV27 | Flash sale | Bấm **Lên lịch** là số suất bị giữ khỏi bán thường ngay (lên đơn, chat, website không bán vào phần này), không đợi tới giờ mở; hộp xác nhận nêu số suất giữ và "bán thường còn" của từng mã (QĐ8, QĐ31). | Không có (admin không có flash sale). | chưa |
-| HV28 | Flash sale | Thiếu hàng thì không giữ món nào, báo một bảng mọi mã thiếu (cần, có thể bán, thiếu); một biến thể không nằm trong hai đợt chồng giờ. | Không có (admin không có flash sale). | chưa |
-| HV29 | Flash sale | Sau khi lên lịch chỉ còn **Thêm suất** và **Đóng sớm**: không sửa món, giá, giờ; đợt đã đóng chỉ xem, không mở lại. | Không có (admin không có flash sale). | chưa |
-| HV30 | Flash sale | Đóng sớm: suất còn trống trả về bán thường ngay; khách đang giữ suất vẫn hoàn tất trong hạn giữ, ai hết hạn thì suất về bán thường (FS17). | Không có (admin không có flash sale). | chưa |
-| HV31 | Flash sale | Mặc định mỗi món: mỗi khách 1 (1–10), giữ suất 10 phút (5–30), giá flash phải thấp hơn giá bán thường; mỗi lượt mua là một đơn riêng một món, không vào giỏ chung, không dùng mã giảm giá (QĐ6, QĐ24). | Không có (admin không có flash sale). | chưa |
+| HV26 | Menu | Mục mới "Flash sale" trong nhóm Khuyến mãi (màn Đợt flash sale, đợt 2). | Không có (admin không có flash sale). | Claude chốt thay chủ shop 27/11; màn code ở Task 206 (28/11) |
+| HV27 | Flash sale | Bấm **Lên lịch** là số suất bị giữ khỏi bán thường ngay (lên đơn, chat, website không bán vào phần này), không đợi tới giờ mở; hộp xác nhận nêu số suất giữ và "bán thường còn" của từng mã (QĐ8, QĐ31). | Không có (admin không có flash sale). | Claude chốt thay chủ shop 27/11; màn code ở Task 206 (28/11) |
+| HV28 | Flash sale | Thiếu hàng thì không giữ món nào, báo một bảng mọi mã thiếu (cần, có thể bán, thiếu); một biến thể không nằm trong hai đợt chồng giờ. | Không có (admin không có flash sale). | Claude chốt thay chủ shop 27/11; màn code ở Task 206 (28/11) |
+| HV29 | Flash sale | Sau khi lên lịch chỉ còn **Thêm suất** và **Đóng sớm**: không sửa món, giá, giờ; đợt đã đóng chỉ xem, không mở lại. | Không có (admin không có flash sale). | Claude chốt thay chủ shop 27/11; màn code ở Task 206 (28/11) |
+| HV30 | Flash sale | Đóng sớm: suất còn trống trả về bán thường ngay; khách đang giữ suất vẫn hoàn tất trong hạn giữ, ai hết hạn thì suất về bán thường (FS17). | Không có (admin không có flash sale). | Claude chốt thay chủ shop 27/11; màn code ở Task 206 (28/11) |
+| HV31 | Flash sale | Mặc định mỗi món: mỗi khách 1 (1–10), giữ suất 10 phút (5–30), giá flash phải thấp hơn giá bán thường; mỗi lượt mua là một đơn riêng một món, không vào giỏ chung, không dùng mã giảm giá (QĐ6, QĐ24). | Không có (admin không có flash sale). | Claude chốt thay chủ shop 27/11; màn code ở Task 206 (28/11) |
 
 ## Kết luận duyệt (Điểm dừng B, Q-X8)
 
 | Màn | Kết luận | Người chốt | Ngày |
 |---|---|---|---|
 | (1)–(11) | Chờ điều phối viên duyệt | — | — |
-| (12) Đợt flash sale (Task 514) | Chờ điều phối viên duyệt | — | — |
+| (12) Đợt flash sale (Task 514) | Chốt: HV26–HV31 như mockup Task 514; màn code ở Task 206 (có chênh lệch ghi ở `docs/tasks/task-206.md`, mục Khác kế hoạch) | Claude chốt thay chủ shop | 27/11/2026 |
 | (13) Thứ tự biến thể (Task 513) | Chờ điều phối viên duyệt (phiên task tự soát theo hệ thiết kế, làm tiếp theo Q-X8) | — | — |
 
 Điều phối viên ghi kết luận từng màn ở bảng trên (chốt / sửa gì); chủ shop ghi OK từng dòng HV. Không bắt đầu Task 207–209, 458–462 cho màn chưa chốt.

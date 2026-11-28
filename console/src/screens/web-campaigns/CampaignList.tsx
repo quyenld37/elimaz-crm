@@ -9,6 +9,7 @@ import { listWebCampaigns, type WebCampaign, type WebCampaignPage, type WebCampa
 import { errorMessage, unwrap } from "../../app/errors";
 import { queryKey } from "../../app/queryClient";
 import { SEARCH_DELAY_MS, useDebounced } from "../inventory/Balances";
+import { ActCell, ActLink } from "../../shared/ActCell";
 import { MoreBar } from "../ma-giam-gia/MoreBar";
 import { CAMPAIGN_TOPIC, reloadCampaigns, storeCampaign, usePerms } from "./campaignData";
 import { DeleteDialog, StateDialog, type StateMode } from "./CampaignDialogs";
@@ -65,28 +66,26 @@ function Row(o: { c: WebCampaign; canManage: boolean; onAction: (a: RowAction, c
       <td data-label="Trạng thái">
         <span className={chip.className}>{chip.label}</span>
       </td>
-      <td className="c-act">
-        <div className="row">
-          {rowActions(c, o.canManage).map((a) =>
-            a === "edit" ? (
-              <Link key={a} className="btn btn-quiet" to={`/khuyen-mai/chien-dich/${c.id}`}>
-                {ACTION_TEXT[a]}
-              </Link>
-            ) : (
-              <button
-                key={a}
-                type="button"
-                className="btn btn-quiet"
-                onClick={() => {
-                  o.onAction(a, c);
-                }}
-              >
-                {ACTION_TEXT[a]}
-              </button>
-            ),
-          )}
-        </div>
-      </td>
+      <ActCell>
+        {rowActions(c, o.canManage).map((a) =>
+          a === "edit" ? (
+            <ActLink key={a} to={`/khuyen-mai/chien-dich/${c.id}`}>
+              {ACTION_TEXT[a]}
+            </ActLink>
+          ) : (
+            <button
+              key={a}
+              type="button"
+              className="btn btn-quiet"
+              onClick={() => {
+                o.onAction(a, c);
+              }}
+            >
+              {ACTION_TEXT[a]}
+            </button>
+          ),
+        )}
+      </ActCell>
     </tr>
   );
 }
