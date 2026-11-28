@@ -89,14 +89,23 @@ func ManualAccount(t testing.TB, tx pgx.Tx, seller, warehouse uuid.UUID, key, re
 // tenancy.WithTenant của tenant của Shop), tác nhân userID; sự kiện ghi vào sổ rỗng (không consumer nào).
 func (s *Shop) Order(ctx context.Context, tx pgx.Tx, seller, userID uuid.UUID, shippingFee int64, items ...order.ItemInput,
 ) (order.Order, error) {
-	c, err := customer.Create(ctx, tx, "Chị Lan")
+	return s.OrderTo(ctx, tx, seller, userID, shippingFee,
+		order.ShipAddress{Name: "Chị Lan", Phone: logging.Phone("0901234567"), Line: "12 Lê Lợi, Q1"}, items...)
+}
+
+// OrderTo như Order với địa chỉ giao addr (khách mới tên người nhận của addr): đơn cần địa chỉ đã khớp mã địa giới của
+// hãng (hãng giả thật của e2e, Task M3-48).
+func (s *Shop) OrderTo(ctx context.Context, tx pgx.Tx, seller, userID uuid.UUID, shippingFee int64, addr order.ShipAddress,
+	items ...order.ItemInput,
+) (order.Order, error) {
+	c, err := customer.Create(ctx, tx, addr.Name)
 	if err != nil {
 		return order.Order{}, fmt.Errorf("shiptest: tạo khách: %w", err)
 	}
 	w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{}}
 	o, err := w.CreateManual(ctx, tx, order.CreateManualInput{
 		IdempotencyKey: uuid.New(), SellerID: seller, CustomerID: c, ShippingFee: shippingFee, Items: items,
-		ShipAddress: order.ShipAddress{Name: "Chị Lan", Phone: logging.Phone("0901234567"), Line: "12 Lê Lợi, Q1"},
+		ShipAddress: addr,
 	}, order.Actor{TenantID: s.Tenant, UserID: userID})
 	if err != nil {
 		return order.Order{}, fmt.Errorf("shiptest: tạo đơn: %w", err)

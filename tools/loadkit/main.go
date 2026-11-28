@@ -14,6 +14,10 @@
 //	loadkit fbstats -db <chủ bảng> -fixture fb.json -run R -from T [-graph <máy giả>]   một dòng JSON số đo
 //	loadkit fbreport -mode fb|fbchaos -live F -staff F -sse F -series F …   chấm ngưỡng M4; KHÔNG ĐẠT thì thoát 1
 //
+// Bộ thử tải webhook hãng M3 (kế hoạch M3 Task M3-48, loadtest/carrier_run.sh):
+//
+//	loadkit carrierseed -db <chủ bảng> -api <gốc> -tokens F -n 3000 -out carrier.json   tài khoản hãng giả, n vận đơn
+//
 // Chỉ cho máy dev và máy thử: không bao giờ chạy với database production.
 package main
 
@@ -40,7 +44,7 @@ import (
 	"elimaz.com.vn/crm/internal/testkit/loadstats"
 )
 
-var errUsage = errors.New("cách dùng: loadkit seed|access|sse|stats|report|fbseed|fbend|fbstats|fbreport [cờ]")
+var errUsage = errors.New("cách dùng: loadkit seed|access|sse|stats|report|fbseed|fbend|fbstats|fbreport|carrierseed [cờ]")
 
 // errFailed: report có tiêu chí KHÔNG ĐẠT (thoát 1, bảng vẫn in ra).
 var errFailed = errors.New("có tiêu chí không đạt")
@@ -82,6 +86,8 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		return cmdFBStats(ctx, fs, args[1:])
 	case "fbreport":
 		return cmdFBReport(fs, args[1:])
+	case "carrierseed":
+		return cmdCarrierSeed(ctx, fs, args[1:], logger)
 	}
 	return errUsage
 }

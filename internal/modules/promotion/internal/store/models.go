@@ -28,6 +28,13 @@ type CashCodLedgerEntry struct {
 	ShipmentID uuid.UUID
 }
 
+type CashCodOpenHolding struct {
+	TenantID       uuid.UUID
+	ShipmentID     uuid.UUID
+	CarrierHolding int64
+	UpdatedAt      time.Time
+}
+
 type CashCodStatement struct {
 	ID               uuid.UUID
 	TenantID         uuid.UUID

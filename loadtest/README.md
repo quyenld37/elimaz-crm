@@ -122,3 +122,47 @@ gửi là đúng thiết kế, CH18); mọi tiêu chí "đúng một lần", "kh
 - Mọi nhân viên là owner phạm vi toàn shop (mỗi client SSE nhận báo hiệu của cả hai Page): nặng hơn kế hoạch "mỗi người
   một phạm vi Page".
 - Máy Meta giả không phải Meta: độ trễ, giới hạn tốc độ, cách cắt luồng thật đo ở Task 181 (E4).
+
+# Bộ thử tải M3 — webhook hãng vận chuyển (kế hoạch M3 Task M3-48, ADR-42)
+
+Đo đường webhook hãng → lệnh tra (máy giả trả trong 200 ms) → vận đơn đổi trạng thái ở 10× ca hiện tại: 2.000
+đơn/ngày × khoảng 6 tin hãng mỗi vận đơn, dồn đỉnh 20 tin/giây trong 15 phút. Kết quả ghi vào `docs/do-luong/thu-tai-m3.md`.
+
+## Chạy
+
+Máy Mac không chạy tải nặng: bài chạy ở bể từ xa (job `loadtest` của `.github/workflows/test-remote.yml`):
+
+```sh
+CRM_CI_STATIC=false CRM_CI_LOADTEST=carrier    scripts/ci/remote-test.sh <tree|commit> <base> <tệp gói rỗng>
+CRM_CI_STATIC=false CRM_CI_LOADTEST=carrier:1m scripts/ci/remote-test.sh …   # chạy khói 1 phút (200 vận đơn)
+```
+
+Trên máy có compose dev riêng: `make db-up` rồi `loadtest/carrier_run.sh` (biến ở đầu tệp; `DURATION`, `SHIPMENTS` cho
+chạy khói, `SHIPMENTS` = `RATE` × giây / 6).
+
+## Tải gồm gì
+
+| Phần | Ở đâu | Làm gì |
+|---|---|---|
+| Dữ liệu | `loadkit carrierseed` | Tài khoản hãng giả fake-1 có tuyến webhook, mã địa giới đã khớp, `SHIPMENTS` đơn 1 cái qua API, mỗi đơn gửi hãng qua API (lệnh tạo của worker gửi máy giả thật) tới khi đủ vận đơn chờ thu gom |
+| Hãng giả | `tools/fakecarrier` | `FAKECARRIER_TRACK_DELAY=200ms`: mọi lần tra trả sau 200 ms; không tự gửi webhook |
+| Tin hãng | `k6/carrier_webhooks.js` | Lượt i đổi vận đơn i mod N sang bước kế tiếp ở trang quản trị của máy giả (lấy hàng → đang chuyển → đang giao → giao thất bại → đang giao → thành công), rồi gửi một webhook có chữ ký tới `/hooks/fake/<route>` |
+| Chấm | `carrier_run.sh` | SQL nối webhook của lượt (`eventId = lt.<run>.<mã hãng>.<lần đổi>`) với sự kiện vận đơn CRM ghi (`<trạng thái>:<lần đổi>`) |
+
+## Ngưỡng và cách đo
+
+| Tiêu chí | Ngưỡng | Đo bằng |
+|---|---|---|
+| Nhận webhook | p95 < 300 ms | k6 `webhook_ms` |
+| Webhook khác 200 | 0 | k6 `webhook_bad` (và `advance_bad`: trang quản trị máy giả lỗi) |
+| Webhook tới vận đơn đổi trạng thái (gồm lệnh tra 200 ms) | p95 < 5 s | `shipment_events.recorded_at` − `sentAt` của webhook, đồng hồ của cùng máy |
+| Mỗi tin được áp | đã áp = đã gửi | số webhook của lượt có sự kiện vận đơn cùng khóa |
+| Deadlock | không tăng | `pg_stat_database.deadlocks` đầu, cuối |
+| `tx_retry_exhausted` | 0 | `platform.metrics_minute` từ lúc bắt đầu |
+| Việc dead | không tăng | `platform.jobs` |
+
+## Giới hạn
+
+- Số đo ở bể GitHub (4 vCPU, PostgreSQL trong cùng máy) là số đo tạm; tiêu chí chính thức đo lại trên server thử trước
+  khi chạy thật (kế hoạch M3 Task 140 Điểm dừng C).
+- Bài không đo lại `heavy.js` của M0 (bài đó dựng image Docker riêng); xem `docs/do-luong/thu-tai-m3.md`.

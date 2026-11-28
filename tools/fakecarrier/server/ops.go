@@ -33,7 +33,7 @@ func (s *Server) routesM3(mux *http.ServeMux) {
 	})))
 	mux.Handle("POST /v1/quote", s.auth(opQuote, s.withMode(opQuote, s.quote)))
 	mux.Handle("POST /v1/parcels/{tracking}/cancel", s.auth(opCancel, s.withMode(opCancel, s.cancel)))
-	mux.Handle("GET /v1/parcels/{tracking}/events", s.auth(opTrack, s.withMode(opTrack, s.events)))
+	mux.Handle("GET /v1/parcels/{tracking}/events", s.auth(opTrack, s.slowTrack(s.withMode(opTrack, s.events))))
 	mux.Handle("POST /v1/labels", s.auth(opLabels, s.withMode(opLabels, s.labels)))
 	mux.Handle("POST /v1/parcels/{tracking}/address", s.auth(opAddress, s.withMode(opAddress, s.updateAddress)))
 	mux.Handle("POST /v1/parcels/{tracking}/redeliver", s.auth(opRedeliver, s.withMode(opRedeliver, s.redeliver)))

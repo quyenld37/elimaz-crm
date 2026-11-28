@@ -6,7 +6,8 @@
 // Biến môi trường: PORT (mặc định 4194), FAKECARRIER_WEBHOOK_SECRET (≥ 32 ký tự; mặc định là chuỗi dev công khai),
 // FAKECARRIER_WEBHOOK_URL (rỗng: không gửi webhook), FAKECARRIER_DATA (mặc định /tmp/fakecarrier.json; "-" chỉ trong
 // bộ nhớ), FAKECARRIER_QUOTE_FEE (số nguyên đồng > 0: báo đúng một phí cố định cho mọi kiện, dùng cho e2e website;
-// rỗng: theo công thức).
+// rỗng: theo công thức), FAKECARRIER_TRACK_DELAY (thời lượng Go như 200ms: chờ trước khi trả mỗi lần tra kiện, cho bài
+// thử tải webhook hãng; rỗng: trả ngay).
 package main
 
 import (
@@ -48,6 +49,7 @@ type config struct {
 	dataPath   string
 	hang       time.Duration
 	quoteFee   int64
+	trackDelay time.Duration
 }
 
 func loadConfig(getenv func(string) string) (config, error) {
@@ -71,6 +73,13 @@ func loadConfig(getenv func(string) string) (config, error) {
 			return c, fmt.Errorf("FAKECARRIER_QUOTE_FEE %q phải là số nguyên đồng > 0", v) //nolint:err113 // lỗi cấu hình một lần
 		}
 		c.quoteFee = fee
+	}
+	if v := getenv("FAKECARRIER_TRACK_DELAY"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil || d < 0 {
+			return c, fmt.Errorf("FAKECARRIER_TRACK_DELAY %q phải là thời lượng ≥ 0 (vd 200ms)", v) //nolint:err113 // lỗi cấu hình một lần
+		}
+		c.trackDelay = d
 	}
 	switch v := getenv("FAKECARRIER_DATA"); v {
 	case "":
@@ -113,7 +122,7 @@ func run(ctx context.Context, getenv func(string) string, logger *slog.Logger) e
 	}
 	h := server.New(server.Options{
 		Store: st, Secret: cfg.secret, WebhookURL: cfg.webhookURL, Hang: cfg.hang, HTTPClient: &http.Client{}, Logger: logger,
-		QuoteFee: cfg.quoteFee,
+		QuoteFee: cfg.quoteFee, TrackDelay: cfg.trackDelay,
 	})
 	srv := &http.Server{Handler: h, ReadHeaderTimeout: readTimeout}
 	errCh := make(chan error, 1)

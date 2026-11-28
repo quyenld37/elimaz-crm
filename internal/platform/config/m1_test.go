@@ -285,3 +285,26 @@ func TestExportObjectTTLMatchesBootstrap(t *testing.T) {
 		}
 	}
 }
+
+// Vai trò api cũng đọc hãng giả (Task M3-48, thử tải webhook hãng): "Gửi hãng", báo phí ở api kiểm khả năng của adapter
+// hãng (fulfillment.Service.Ship); không đọc FAKECARRIER_URL thì tài khoản hãng giả luôn 409 carrier_account_unavailable.
+// Thiếu bí mật vẫn lỗi như worker, ingest; production vẫn cấm.
+func TestLoadAPIReadsFakeCarrier(t *testing.T) {
+	cfg, err := config.Load(config.RoleAPI, env(with(apiEnv(),
+		"FAKECARRIER_URL", "http://127.0.0.1:4194", "FAKECARRIER_WEBHOOK_SECRET", secret32)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.FakeCarrierURL != "http://127.0.0.1:4194" || cfg.FakeCarrierWebhookSecret != secret32 {
+		t.Fatalf("api không đọc hãng giả: %q", cfg.FakeCarrierURL)
+	}
+	if _, err := config.Load(config.RoleAPI, env(with(apiEnv(), "FAKECARRIER_URL", "http://127.0.0.1:4194"))); err == nil ||
+		!strings.Contains(err.Error(), "FAKECARRIER_WEBHOOK_SECRET") {
+		t.Fatalf("api hãng giả thiếu bí mật phải lỗi, nhận %v", err)
+	}
+	if _, err := config.Load(config.RoleAPI, env(with(apiEnv(), "CRM_ENV", "production",
+		"FAKECARRIER_URL", "http://127.0.0.1:4194", "FAKECARRIER_WEBHOOK_SECRET", secret32))); err == nil ||
+		!strings.Contains(err.Error(), "FAKECARRIER_URL") {
+		t.Fatalf("api production có hãng giả phải lỗi, nhận %v", err)
+	}
+}

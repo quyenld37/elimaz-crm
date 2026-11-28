@@ -154,6 +154,26 @@ func (c apiClient) call(ctx context.Context, method, path string, body, out any,
 	return nil
 }
 
+// openLoadShop mở database bằng chủ bảng, đọc tenant thử (loadkit seed đã dựng) và dựng cửa hàng của nó (seedShop);
+// trả pool (bên gọi đóng), tenant, kho. Lỗi sau khi mở: pool đã đóng.
+func openLoadShop(ctx context.Context, dbURL string) (*db.DB, uuid.UUID, uuid.UUID, error) {
+	owner, err := openOwner(ctx, dbURL)
+	if err != nil {
+		return nil, uuid.Nil, uuid.Nil, err
+	}
+	tenantID, err := tenancy.SeedTenant(ctx, owner, loadTenantName)
+	if err != nil {
+		owner.Pool.Close()
+		return nil, uuid.Nil, uuid.Nil, fmt.Errorf("đọc tenant thử: %w", err)
+	}
+	wh, err := seedShop(ctx, owner, tenantID)
+	if err != nil {
+		owner.Pool.Close()
+		return nil, uuid.Nil, uuid.Nil, err
+	}
+	return owner, tenantID, wh, nil
+}
+
 // seedShop (chủ bảng) dựng người bán ELIMAZ, kho MAIN và cài đặt đơn mặc định của tenant (như `crm seed-dev`); trả kho.
 func seedShop(ctx context.Context, owner *db.DB, tenantID uuid.UUID) (uuid.UUID, error) {
 	var wh uuid.UUID
@@ -379,19 +399,11 @@ func cmdFBSeed(ctx context.Context, fs *flag.FlagSet, args []string, logger *slo
 		return fmt.Errorf("%w: thiếu -out hoặc -tokens", errUsage)
 	}
 	o.Graph = *graph
-	owner, err := openOwner(ctx, *dbURL)
+	owner, tenantID, wh, err := openLoadShop(ctx, *dbURL)
 	if err != nil {
 		return err
 	}
 	defer owner.Pool.Close()
-	tenantID, err := tenancy.SeedTenant(ctx, owner, loadTenantName)
-	if err != nil {
-		return fmt.Errorf("đọc tenant thử: %w", err)
-	}
-	wh, err := seedShop(ctx, owner, tenantID)
-	if err != nil {
-		return err
-	}
 	tok, err := firstToken(*tokens)
 	if err != nil {
 		return err

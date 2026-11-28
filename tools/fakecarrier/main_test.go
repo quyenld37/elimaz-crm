@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"testing"
+	"time"
 )
 
 // Cấu hình: bí mật ngắn bị từ chối; "-" chỉ trong bộ nhớ; mặc định cổng 4194.
@@ -27,6 +28,17 @@ func TestLoadConfig(t *testing.T) {
 	for _, v := range []string{"0", "-1", "3e4", "x"} {
 		if _, err := loadConfig(env(map[string]string{"FAKECARRIER_QUOTE_FEE": v})); err == nil {
 			t.Errorf("FAKECARRIER_QUOTE_FEE=%q mà không lỗi", v)
+		}
+	}
+	if c.trackDelay != 0 {
+		t.Fatalf("mặc định chờ tra = %v, muốn 0", c.trackDelay)
+	}
+	if c, err := loadConfig(env(map[string]string{"FAKECARRIER_TRACK_DELAY": "200ms"})); err != nil || c.trackDelay != 200*time.Millisecond {
+		t.Fatalf("FAKECARRIER_TRACK_DELAY=200ms = %v %v", c.trackDelay, err)
+	}
+	for _, v := range []string{"-1s", "x", "200"} {
+		if _, err := loadConfig(env(map[string]string{"FAKECARRIER_TRACK_DELAY": v})); err == nil {
+			t.Errorf("FAKECARRIER_TRACK_DELAY=%q mà không lỗi", v)
 		}
 	}
 }

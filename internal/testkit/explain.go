@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/internal/platform/tenancy"
 )
 
 // errNoAutoExplain: kế hoạch có Function Scan (thân hàm, ví dụ hàm SECURITY DEFINER, không hiện trong EXPLAIN) mà
@@ -118,7 +120,64 @@ func ExplainAsApp(ctx context.Context, appDB *db.DB, tenantID uuid.UUID, sql str
 // planNode là một nút của kế hoạch JSON của PostgreSQL (chỉ phần cần).
 type planNode struct {
 	NodeType string     `json:"Node Type"`
+	Relation string     `json:"Relation Name"`
 	Plans    []planNode `json:"Plans"`
+}
+
+// seqScanned thêm vào out các bảng trong tables bị Seq Scan ở p hay nút con (mỗi bảng một lần).
+func (p planNode) seqScanned(tables, out []string) []string {
+	if p.NodeType == "Seq Scan" && slices.Contains(tables, p.Relation) && !slices.Contains(out, p.Relation) {
+		out = append(out, p.Relation)
+	}
+	for _, c := range p.Plans {
+		out = c.seqScanned(tables, out)
+	}
+	return out
+}
+
+// SeqScanTables chạy EXPLAIN (ANALYZE, FORMAT JSON) của sql với args bằng crm_app (appDB) trong ngữ cảnh tenantID; trả
+// các bảng (tên không schema) trong tables bị Seq Scan và thời gian chạy của câu (ms). Dùng cho test kế hoạch trên dữ
+// liệu lớn khi Seq Scan trên bảng nhỏ là kế hoạch đúng (chỉ đòi không quét bảng lớn). Câu thật sự chạy: chỉ câu đọc.
+//
+// Khi nào không dùng: câu gọi hàm SECURITY DEFINER (kế hoạch bên trong hàm không hiện ở đây: ExplainAsApp với
+// EnableAutoExplain); đòi không Seq Scan trên mọi bảng (ExplainAsApp với RequireNoSeqScan).
+func SeqScanTables(ctx context.Context, appDB *db.DB, tenantID uuid.UUID, tables []string, sql string, args ...any) ([]string, float64, error) {
+	var raw []byte
+	if err := tenancy.WithTenant(ctx, appDB, tenantID, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, "EXPLAIN (ANALYZE, FORMAT JSON, COSTS OFF, TIMING OFF) "+sql, args...).Scan(&raw)
+	}); err != nil {
+		return nil, 0, fmt.Errorf("testkit: EXPLAIN: %w", err)
+	}
+	var top []struct {
+		Plan planNode `json:"Plan"`
+		Ms   float64  `json:"Execution Time"`
+	}
+	if err := json.Unmarshal(raw, &top); err != nil {
+		return nil, 0, fmt.Errorf("testkit: đọc kế hoạch JSON: %w", err)
+	}
+	var out []string
+	var ms float64
+	for _, p := range top {
+		out = p.Plan.seqScanned(tables, out)
+		ms += p.Ms
+	}
+	return out, ms, nil
+}
+
+// StoreQuery đọc hằng câu name do sqlc sinh trong tệp Go file (đường dẫn từ thư mục của gói đang test, ví dụ
+// "internal/store/lists.sql.go"; chuỗi thô giữa hai dấu `), để EXPLAIN đúng câu ứng dụng chạy. Không có hằng → test đỏ.
+func StoreQuery(t testing.TB, file, name string) string {
+	t.Helper()
+	src, err := os.ReadFile(file) //nolint:gosec // G304: tệp mã sinh trong repo do test đặt
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, rest, ok := strings.Cut(string(src), "const "+name+" = `")
+	sql, _, closed := strings.Cut(rest, "`")
+	if !ok || !closed {
+		t.Fatalf("testkit: không thấy hằng %s trong %s", name, file)
+	}
+	return sql
 }
 
 func (p planNode) appendTypes(out []string) []string {

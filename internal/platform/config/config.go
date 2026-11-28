@@ -103,7 +103,7 @@ type Config struct {
 	// và cảnh báo.
 	ImageRetryMax time.Duration
 
-	// Hãng vận chuyển giả (ingest, worker), chỉ ngoài production (Q2). Có FakeCarrierURL thì bí mật bắt buộc, ≥ 32 ký tự.
+	// Hãng vận chuyển giả (ingest, api, worker), chỉ ngoài production (Q2). Có FakeCarrierURL thì bí mật bắt buộc, ≥ 32 ký tự.
 	FakeCarrierURL           string
 	FakeCarrierWebhookSecret string
 	// FakeChatWebhookSecret là bí mật chữ ký webhook của kênh nhắn tin giả fakechat (FAKECHAT_WEBHOOK_SECRET, ≥ 32 ký tự
@@ -291,7 +291,6 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 		cfg.Port = r.integer("PORT", 4191, 1, 65535)
 		cfg.SpoolDir = r.required("SPOOL_DIR")
 		cfg.SelftestWebhookSecret = r.secret("SELFTEST_WEBHOOK_SECRET")
-		r.fakeCarrier(&cfg)
 		cfg.CarrierWebhookSecrets = r.carrierWebhookSecrets()
 	case RoleAPI:
 		cfg.Port = r.integer("PORT", 4190, 1, 65535)
@@ -328,10 +327,12 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 		if r.optional("S3_IMAGER_ENDPOINT") != "" {
 			cfg.S3ImagerEndpoint = r.httpURL("S3_IMAGER_ENDPOINT")
 		}
-		r.fakeCarrier(&cfg)
 		cfg.FieldEncKeys = r.fieldEncKeys()
 	}
 	if role != RoleMigrate {
+		// Hãng giả ở ingest (nguồn webhook), worker (lệnh) và api ("Gửi hãng", báo phí kiểm khả năng của adapter ngay ở
+		// api; Task M3-48: thiếu thì tài khoản hãng giả luôn carrier_account_unavailable).
+		r.fakeCarrier(&cfg)
 		r.m4(&cfg)
 		r.report(&cfg)
 	}
