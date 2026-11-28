@@ -604,18 +604,18 @@ func TestListStatements(t *testing.T) {
 		}
 		return items, next
 	}
-	p1, next := list(cash.StatementListFilter{Limit: 1})
+	p1, next := list(cash.StatementListFilter{SellerID: e.shop.Seller, Limit: 1})
 	if len(p1) != 1 || p1[0].ID != b.ID || next == nil || *next != b.ID {
 		t.Fatalf("trang 1: %+v next %v", p1, next)
 	}
-	if p2, next := list(cash.StatementListFilter{Limit: 1, Before: next}); len(p2) != 1 || p2[0].ID != a.ID || next != nil {
+	if p2, next := list(cash.StatementListFilter{SellerID: e.shop.Seller, Limit: 1, Before: next}); len(p2) != 1 || p2[0].ID != a.ID || next != nil {
 		t.Fatalf("trang 2: %+v next %v", p2, next)
 	}
-	if got, _ := list(cash.StatementListFilter{Limit: 10, Status: statement.StatusParsed}); len(got) != 1 || got[0].ID != a.ID {
+	if got, _ := list(cash.StatementListFilter{SellerID: e.shop.Seller, Limit: 10, Status: statement.StatusParsed}); len(got) != 1 || got[0].ID != a.ID {
 		t.Errorf("lọc parsed: %+v", got)
 	}
 	acc := e.shop.PartnerAccount
-	if got, _ := list(cash.StatementListFilter{Limit: 10, CarrierAccountID: &acc}); len(got) != 0 {
+	if got, _ := list(cash.StatementListFilter{SellerID: e.shop.Seller, Limit: 10, CarrierAccountID: &acc}); len(got) != 0 {
 		t.Errorf("lọc tài khoản khác: %+v", got)
 	}
 }

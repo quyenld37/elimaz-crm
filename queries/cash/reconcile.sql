@@ -93,10 +93,13 @@ ORDER BY ran_at DESC, id DESC
 LIMIT 1;
 
 -- name: ListRunFindings :many
--- Phát hiện của lần chạy theo mã tăng dần, sau mã @after (uuid 0: từ đầu), tối đa @lim.
-SELECT id, kind, shipment_id, detail, created_at
-FROM cash.reconcile_findings
-WHERE run_id = @run_id
-  AND id > @after
-ORDER BY id
+-- Phát hiện của lần chạy theo mã tăng dần, sau mã @after (uuid 0: từ đầu), tối đa @lim. Phát hiện gắn vận đơn chỉ khi
+-- vận đơn của người bán @seller_id (ADR-29); phát hiện cấp tenant (không vận đơn) luôn có (QĐ-531-2).
+SELECT f.id, f.kind, f.shipment_id, f.detail, f.created_at
+FROM cash.reconcile_findings f
+WHERE f.run_id = @run_id
+  AND (f.shipment_id IS NULL
+    OR (SELECT s.seller_id FROM fulfillment.shipments_v s WHERE s.id = f.shipment_id) = @seller_id)
+  AND f.id > @after
+ORDER BY f.id
 LIMIT @lim;

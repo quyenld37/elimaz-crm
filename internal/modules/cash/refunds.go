@@ -185,9 +185,9 @@ func (s *Service) WaiveRefund(ctx context.Context, tx pgx.Tx, _ uuid.UUID, oblig
 	return getObligation(ctx, q, obligationID)
 }
 
-// ListRefundObligations đọc nghĩa vụ mới nhất trước, lọc status (rỗng: mọi trạng thái; khác open, paid, waived →
+// ListRefundObligations đọc nghĩa vụ của đơn của người bán seller (ADR-29) mới nhất trước, lọc status (rỗng: mọi trạng thái; khác open, paid, waived →
 // ErrInvalidInput), limit dòng sau mã before; next là mã của dòng cuối khi còn trang sau.
-func (*Service) ListRefundObligations(ctx context.Context, tx pgx.Tx, status string, before *uuid.UUID, limit int) (
+func (*Service) ListRefundObligations(ctx context.Context, tx pgx.Tx, seller uuid.UUID, status string, before *uuid.UUID, limit int) (
 	items []RefundObligation, next *uuid.UUID, err error,
 ) {
 	st := pgtype.Text{String: status, Valid: status != ""}
@@ -198,7 +198,7 @@ func (*Service) ListRefundObligations(ctx context.Context, tx pgx.Tx, status str
 	}
 	limit = min(max(limit, 1), maxListLimit)
 	rows, err := store.New(tx).ListRefundObligations(ctx, store.ListRefundObligationsParams{
-		Status: st, Before: db.NullUUID(before), Lim: int32(limit + 1),
+		SellerID: seller, Status: st, Before: db.NullUUID(before), Lim: int32(limit + 1),
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("đọc nghĩa vụ hoàn: %w", err)

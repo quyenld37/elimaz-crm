@@ -68,7 +68,7 @@ func page(t *testing.T, e *codtest.Env, id *uuid.UUID) cash.ReconcileFindingPage
 	var p cash.ReconcileFindingPage
 	e.MustApp(func(tx pgx.Tx) error {
 		var err error
-		p, err = e.Mod.Service.ListReconcileFindings(t.Context(), tx, id, nil, 200)
+		p, err = e.Mod.Service.ListReconcileFindings(t.Context(), tx, e.Shop.Seller, id, nil, 200)
 		return err //nolint:wrapcheck // test
 	})
 	return p
@@ -348,7 +348,7 @@ func TestNightly_ScheduleAndEmptyList(t *testing.T) {
 		t.Errorf("chưa chạy: %+v", p)
 	}
 	err := e.App(func(tx pgx.Tx) error {
-		_, err := e.Mod.Service.ListReconcileFindings(t.Context(), tx, ptr(uuid.New()), nil, 0)
+		_, err := e.Mod.Service.ListReconcileFindings(t.Context(), tx, e.Shop.Seller, ptr(uuid.New()), nil, 0)
 		return err //nolint:wrapcheck // test
 	})
 	if !errors.Is(err, cash.ErrReconcileRunNotFound) {

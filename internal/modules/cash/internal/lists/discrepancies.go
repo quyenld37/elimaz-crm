@@ -41,10 +41,10 @@ type Discrepancy struct {
 	Expected, Diff                   *int64
 }
 
-// Discrepancies đọc tối đa limit mục mới nhất trước, sau mã mục before (nil: trang đầu).
-func Discrepancies(ctx context.Context, tx pgx.Tx, before *uuid.UUID, limit int) ([]Discrepancy, error) {
+// Discrepancies đọc tối đa limit mục của người bán seller mới nhất trước, sau mã mục before (nil: trang đầu).
+func Discrepancies(ctx context.Context, tx pgx.Tx, seller uuid.UUID, before *uuid.UUID, limit int) ([]Discrepancy, error) {
 	rows, err := store.New(tx).ListDiscrepancies(ctx, store.ListDiscrepanciesParams{
-		BeforeID: db.NullUUID(before), Lim: int32(min(max(limit, 1), maxLimit)),
+		SellerID: seller, BeforeID: db.NullUUID(before), Lim: int32(min(max(limit, 1), maxLimit)),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("đọc lệch đối soát: %w", err)

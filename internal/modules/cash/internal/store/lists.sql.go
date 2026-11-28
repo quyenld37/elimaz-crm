@@ -30,11 +30,12 @@ FROM ((SELECT 'statement_line'::text AS kind, l.id AS item_id, l.statement_id::u
       LEFT JOIN fulfillment.shipments_v s ON s.id = l.shipment_id
       LEFT JOIN ord.orders_v o ON o.id = s.order_id
       WHERE l.match_status IN ('duplicate', 'external', 'amount_mismatch')
+        AND (SELECT a.seller_id FROM fulfillment.carrier_accounts_v a WHERE a.id = st.carrier_account_id) = $1
         AND (l.match_status <> 'amount_mismatch'
           OR EXISTS (SELECT 1 FROM cash.cod_open_holdings h WHERE h.shipment_id = l.shipment_id))
-        AND ($1::uuid IS NULL OR l.id < $1::uuid)
+        AND ($2::uuid IS NULL OR l.id < $2::uuid)
       ORDER BY l.id DESC
-      LIMIT $2)
+      LIMIT $3)
       UNION ALL
       (SELECT 'open_remainder', b.shipment_id, NULL, NULL, b.shipment_id, o.id, o.code, s.carrier_key, s.tracking_code,
              s.cod_amount,
@@ -42,7 +43,8 @@ FROM ((SELECT 'statement_line'::text AS kind, l.id AS item_id, l.statement_id::u
       FROM cash.cod_open_holdings b
       JOIN fulfillment.shipments_v s ON s.id = b.shipment_id
       LEFT JOIN ord.orders_v o ON o.id = s.order_id
-      WHERE EXISTS (SELECT 1
+      WHERE s.seller_id = $1
+        AND EXISTS (SELECT 1
                     FROM cash.cod_transfers t
                     WHERE t.shipment_id = b.shipment_id
                       AND t.kind = 'remitted'
@@ -52,25 +54,27 @@ FROM ((SELECT 'statement_line'::text AS kind, l.id AS item_id, l.statement_id::u
                         JOIN cash.cod_statements mst ON mst.id = ml.statement_id AND mst.status = 'confirmed'
                         WHERE ml.shipment_id = b.shipment_id
                           AND ml.match_status = 'amount_mismatch')
-        AND ($1::uuid IS NULL OR b.shipment_id < $1::uuid)
+        AND ($2::uuid IS NULL OR b.shipment_id < $2::uuid)
       ORDER BY b.shipment_id DESC
-      LIMIT $2)
+      LIMIT $3)
       UNION ALL
       (SELECT 'remitted_then_returned', f.id, NULL, NULL, f.shipment_id, o.id, o.code, s.carrier_key, s.tracking_code,
              s.cod_amount, NULL,
              NULL, NULL
       FROM cash.reconcile_findings f
-      LEFT JOIN fulfillment.shipments_v s ON s.id = f.shipment_id
+      JOIN fulfillment.shipments_v s ON s.id = f.shipment_id
       LEFT JOIN ord.orders_v o ON o.id = s.order_id
       WHERE f.kind = 'remitted_then_returned'
-        AND ($1::uuid IS NULL OR f.id < $1::uuid)
+        AND s.seller_id = $1
+        AND ($2::uuid IS NULL OR f.id < $2::uuid)
       ORDER BY f.id DESC
-      LIMIT $2)) d
+      LIMIT $3)) d
 ORDER BY item_id DESC
-LIMIT $2
+LIMIT $3
 `
 
 type ListDiscrepanciesParams struct {
+	SellerID uuid.UUID
 	BeforeID pgtype.UUID
 	Lim      int32
 }
@@ -98,9 +102,11 @@ type ListDiscrepanciesRow struct {
 // remitted_then_returned. Mới nhất trước theo mã mục (uuidv7); trang sau bắt đầu sau mã mục cuối. Số dư khác 0 đọc ở
 // cash.cod_open_holdings; mỗi nhánh tự lọc trang và lấy tối đa @lim mục theo index của nó rồi mới hợp (Task M3-48: không
 // cộng sổ, không quét vận đơn của mọi mục).
+// Chỉ mục của người bán @seller_id (ADR-29): dòng bảng kê theo tài khoản hãng của bảng kê (cả dòng ngoài hệ thống, không
+// vận đơn; câu con theo khóa chính), mục khác theo người bán của vận đơn.
 // Cột không có ở một loại mục: mã rỗng (uuid toàn 0), số 0, chuỗi rỗng (bên đọc bỏ qua).
 func (q *Queries) ListDiscrepancies(ctx context.Context, arg ListDiscrepanciesParams) ([]ListDiscrepanciesRow, error) {
-	rows, err := q.db.Query(ctx, listDiscrepancies, arg.BeforeID, arg.Lim)
+	rows, err := q.db.Query(ctx, listDiscrepancies, arg.SellerID, arg.BeforeID, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -140,17 +146,19 @@ FROM cash.cod_open_holdings b
 JOIN fulfillment.shipments_v s ON s.id = b.shipment_id
 JOIN ord.orders_v o ON o.id = s.order_id
 WHERE b.carrier_holding > 0
+  AND s.seller_id = $1
   AND s.status = 'delivered'
-  AND s.delivered_at < $1::timestamptz
-  AND ($2::uuid IS NULL OR b.shipment_id > $2::uuid)
+  AND s.delivered_at < $2::timestamptz
+  AND ($3::uuid IS NULL OR b.shipment_id > $3::uuid)
 ORDER BY b.shipment_id
-LIMIT $3
+LIMIT $4
 `
 
 type ListOverdueParams struct {
-	Cutoff  time.Time
-	AfterID pgtype.UUID
-	Lim     int32
+	SellerID uuid.UUID
+	Cutoff   time.Time
+	AfterID  pgtype.UUID
+	Lim      int32
 }
 
 type ListOverdueRow struct {
@@ -165,9 +173,14 @@ type ListOverdueRow struct {
 
 // Vận đơn delivered trước cutoff (now − CODOverdueDays) còn carrier_holding > 0 (hãng chưa trả tiền), theo mã vận đơn
 // tăng dần; trang sau bắt đầu sau mã vận đơn cuối. Đi từ cash.cod_open_holdings (chỉ vận đơn còn số dư, Task M3-48)
-// thay vì cộng sổ của mọi vận đơn đã giao.
+// thay vì cộng sổ của mọi vận đơn đã giao. Chỉ vận đơn của người bán @seller_id (ADR-29).
 func (q *Queries) ListOverdue(ctx context.Context, arg ListOverdueParams) ([]ListOverdueRow, error) {
-	rows, err := q.db.Query(ctx, listOverdue, arg.Cutoff, arg.AfterID, arg.Lim)
+	rows, err := q.db.Query(ctx, listOverdue,
+		arg.SellerID,
+		arg.Cutoff,
+		arg.AfterID,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}

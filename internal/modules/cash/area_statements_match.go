@@ -206,11 +206,12 @@ const (
 	DiscrepancyRemittedThenReturned = lists.KindRemittedThenReturned
 )
 
-// ListDiscrepancies đọc "Lệch đối soát" (mới nhất trước, limit mục sau mã mục before) trong tx của tenant; next là mã
-// mục cuối khi còn trang sau.
-func (*Service) ListDiscrepancies(ctx context.Context, tx pgx.Tx, before *uuid.UUID, limit int) (items []Discrepancy, next *uuid.UUID, err error) {
+// ListDiscrepancies đọc "Lệch đối soát" của người bán seller (ADR-29; mới nhất trước, limit mục sau mã mục before) trong
+// tx của tenant; next là mã mục cuối khi còn trang sau.
+func (*Service) ListDiscrepancies(ctx context.Context, tx pgx.Tx, seller uuid.UUID, before *uuid.UUID, limit int,
+) (items []Discrepancy, next *uuid.UUID, err error) {
 	limit = max(limit, 1)
-	items, err = lists.Discrepancies(ctx, tx, before, limit+1)
+	items, err = lists.Discrepancies(ctx, tx, seller, before, limit+1)
 	if err != nil {
 		return nil, nil, err //nolint:wrapcheck // lists đã bọc
 	}
@@ -221,15 +222,16 @@ func (*Service) ListDiscrepancies(ctx context.Context, tx pgx.Tx, before *uuid.U
 	return items, next, nil
 }
 
-// ListOverdue đọc "Quá hạn chưa có tiền" trong tx của tenant: vận đơn giao xong trước Now − CODOverdueDays (cài đặt
+// ListOverdue đọc "Quá hạn chưa có tiền" trong tx của tenant: vận đơn của người bán seller (ADR-29) giao xong trước Now − CODOverdueDays (cài đặt
 // vận chuyển) còn carrier_holding > 0, theo mã vận đơn sau after; next là mã vận đơn cuối khi còn trang sau.
-func (s *Service) ListOverdue(ctx context.Context, tx pgx.Tx, after *uuid.UUID, limit int) (items []Overdue, next *uuid.UUID, err error) {
+func (s *Service) ListOverdue(ctx context.Context, tx pgx.Tx, seller uuid.UUID, after *uuid.UUID, limit int,
+) (items []Overdue, next *uuid.UUID, err error) {
 	set, _, err := fulfillment.LoadSettings(ctx, tx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("đọc số ngày quá hạn COD: %w", err)
 	}
 	limit = max(limit, 1)
-	items, err = lists.OverdueList(ctx, tx, s.d.Now(), set.CODOverdueDays, after, limit+1)
+	items, err = lists.OverdueList(ctx, tx, seller, s.d.Now(), set.CODOverdueDays, after, limit+1)
 	if err != nil {
 		return nil, nil, err //nolint:wrapcheck // lists đã bọc
 	}

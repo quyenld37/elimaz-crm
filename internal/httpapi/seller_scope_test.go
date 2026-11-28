@@ -13,6 +13,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit/shiptest"
@@ -27,6 +28,8 @@ type sellerEnv struct {
 	*orderAPIEnv
 	ship  *shiptest.Shop
 	owner uuid.UUID
+	// files: kho tệp của server, module tiền (nhập bảng kê, Task 531); nil khi env không cần.
+	files *files.MemStore
 }
 
 // sellerShip là một vận đơn của một người bán cùng đơn và việc con của nó.
@@ -112,7 +115,7 @@ func TestShipmentRoutes_OtherSellerNotFound(t *testing.T) {
 	own, other := e.shipmentOf(e.shop.Seller), e.shipmentOf(e.shop.Partner)
 	sh, o, k := other.shipment.String(), other.order.String(), other.kids
 	reason := `"reason":"Khách nhờ kiểm lại"`
-	cases := []struct{ method, path, body string }{
+	cases := []sellerCall{
 		{http.MethodGet, "/api/v1/shipments/" + sh, ""},
 		{http.MethodGet, "/api/v1/shipments/" + sh + "/events", ""},
 		{http.MethodGet, "/api/v1/shipments/" + sh + "/address-changes", ""},
@@ -138,25 +141,19 @@ func TestShipmentRoutes_OtherSellerNotFound(t *testing.T) {
 		{http.MethodGet, "/api/v1/label-batches/" + k.LabelBatch.String(), ""},
 		{http.MethodPost, "/api/v1/label-batches", `{"shipmentIds":["` + sh + `"]}`},
 		{http.MethodGet, "/api/v1/orders/" + o + "/shipments", ""},
+		{http.MethodGet, "/api/v1/picking-list?shipmentIds=" + sh, ""},
+		{http.MethodGet, "/api/v1/picking-list?shipmentIds=" + own.shipment.String() + "&shipmentIds=" + sh, ""},
 		{http.MethodPost, "/api/v1/orders/" + o + "/shipments", `{"carrierAccountId":"` + e.ship.PartnerAccount.String() + `"}`},
 		{http.MethodPost, "/api/v1/cod/adjustments/preview", `{"shipmentId":"` + sh + `","mode":"move","from":"carrier_holding",` +
 			`"to":"shop_received","amount":1000,` + reason + `}`},
 		{http.MethodPost, "/api/v1/cod/adjustments", `{"shipmentId":"` + sh + `","mode":"move","from":"carrier_holding",` +
 			`"to":"shop_received","amount":1000,"token":"x",` + reason + `}`},
 	}
-	before := e.snapshot(other)
-	for i, c := range cases {
-		code, body := e.send(i, c.method, c.path, c.body)
-		if code != http.StatusNotFound || !strings.Contains(body, `"error":"not_found"`) {
-			t.Errorf("%s %s của người bán khác = %d %s, muốn 404 not_found", c.method, c.path, code, body)
-		}
-	}
-	if after := e.snapshot(other); after != before {
-		t.Errorf("dữ liệu của người bán khác đổi: trước %s, sau %s", before, after)
-	}
+	e.expectNotFound(0, cases, func() string { return e.snapshot(other) })
 	for _, p := range []string{
 		"/api/v1/shipments/" + own.shipment.String(), "/api/v1/shipments/" + own.shipment.String() + "/events",
 		"/api/v1/orders/" + own.order.String() + "/shipments", "/api/v1/label-batches/" + own.kids.LabelBatch.String(),
+		"/api/v1/picking-list?shipmentIds=" + own.shipment.String(),
 	} {
 		if code, body := e.send(0, http.MethodGet, p, ""); code != http.StatusOK {
 			t.Errorf("đối chứng GET %s của người bán mặc định = %d %s, muốn 200", p, code, body)
@@ -164,12 +161,39 @@ func TestShipmentRoutes_OtherSellerNotFound(t *testing.T) {
 	}
 }
 
-// snapshot: trạng thái, version của vận đơn và việc con, số vận đơn của đơn, số lô nhãn, số dòng sổ COD, audit.
-func (e *sellerEnv) snapshot(s sellerShip) string {
+// sellerCall là một lời gọi API trên dữ liệu của người bán khác.
+type sellerCall struct{ method, path, body string }
+
+// expectNotFound gọi từng ca (khóa chống trùng đánh số từ key) → muốn 404 not_found; state (chụp dữ liệu của người bán
+// khác) không đổi sau mọi ca.
+func (e *sellerEnv) expectNotFound(key int, cases []sellerCall, state func() string) {
+	e.t.Helper()
+	before := state()
+	for i, c := range cases {
+		code, body := e.send(key+i, c.method, c.path, c.body)
+		if code != http.StatusNotFound || !strings.Contains(body, `"error":"not_found"`) {
+			e.t.Errorf("%s %s của người bán khác = %d %s, muốn 404 not_found", c.method, c.path, code, body)
+		}
+	}
+	if after := state(); after != before {
+		e.t.Errorf("dữ liệu của người bán khác đổi: trước %s, sau %s", before, after)
+	}
+}
+
+// scalar đọc một giá trị text của câu q (chủ bảng, trong tenant).
+func (e *sellerEnv) scalar(q string, args ...any) string {
 	e.t.Helper()
 	var out string
 	e.staff.Exec(e.t, e.shop.Tenant, func(tx pgx.Tx) error {
-		return tx.QueryRow(e.t.Context(), `SELECT concat_ws('|',
+		return tx.QueryRow(e.t.Context(), q, args...).Scan(&out) //nolint:wrapcheck // test
+	})
+	return out
+}
+
+// snapshot: trạng thái, version của vận đơn và việc con, số vận đơn của đơn, số lô nhãn, số dòng sổ COD, audit.
+func (e *sellerEnv) snapshot(s sellerShip) string {
+	e.t.Helper()
+	return e.scalar(`SELECT concat_ws('|',
 			(SELECT status || ':' || version FROM fulfillment.shipments WHERE id = $1),
 			(SELECT status || ':' || version || ':' || coalesce(assignee_id::text, '') FROM fulfillment.callback_tasks WHERE id = $2),
 			(SELECT status FROM fulfillment.shipment_anomalies WHERE id = $3),
@@ -178,9 +202,7 @@ func (e *sellerEnv) snapshot(s sellerShip) string {
 			(SELECT count(*) FROM fulfillment.label_batches),
 			(SELECT count(*) FROM cash.cod_ledger_entries WHERE shipment_id = $1),
 			(SELECT count(*) FROM identity.audit_logs))`,
-			s.shipment, s.kids.Callback, s.kids.Anomaly, s.kids.AddressChange, s.order).Scan(&out)
-	})
-	return out
+		s.shipment, s.kids.Callback, s.kids.Anomaly, s.kids.AddressChange, s.order)
 }
 
 // TestShipmentLists_OtherSellerHidden: danh sách đơn kẹt, cần xem (cả số đếm), việc gọi lại (cả số việc mở) chỉ có
@@ -210,5 +232,24 @@ func TestShipmentLists_OtherSellerHidden(t *testing.T) {
 		if c.count != "" && !strings.Contains(body, c.count) {
 			t.Errorf("%s: số đếm muốn %s (chỉ người bán mặc định): %s", c.path, c.count, body)
 		}
+	}
+}
+
+// TestAgedReservations_OtherSellerHidden: giữ hàng quá hạn (Task 531) chỉ có giữ hàng của đơn của người bán mặc định.
+func TestAgedReservations_OtherSellerHidden(t *testing.T) {
+	t.Parallel()
+	e := newSellerEnv(t)
+	own, other := e.shipmentOf(e.shop.Seller), e.shipmentOf(e.shop.Partner)
+	e.staff.Exec(t, e.shop.Tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(t.Context(), `UPDATE inventory.stock_reservations SET state_changed_at = now() - interval '400 days'
+			WHERE state IN ('held', 'in_transit')`)
+		return err //nolint:wrapcheck // test
+	})
+	code, body := e.send(0, http.MethodGet, "/api/v1/inventory/aged-reservations", "")
+	if code != http.StatusOK || !strings.Contains(body, `"orderId":"`+own.order.String()+`"`) {
+		t.Fatalf("giữ hàng quá hạn = %d %s, muốn có đơn %s của người bán mặc định", code, body, own.order)
+	}
+	if strings.Contains(body, other.order.String()) {
+		t.Errorf("giữ hàng quá hạn có đơn %s của người bán khác: %s", other.order, body)
 	}
 }

@@ -105,7 +105,8 @@ func (h *handler) GetLabelBatch(ctx context.Context, params gen.GetLabelBatchPar
 }
 
 // GetPickingList (GET /api/v1/picking-list?shipmentIds=, fulfillment.print ở kho của đơn của mọi vận đơn): dòng hàng
-// gộp theo SKU và danh sách đơn; không tên, SĐT, địa chỉ người nhận. Mã lạ hay thiếu phạm vi → 404.
+// gộp theo SKU và danh sách đơn; không tên, SĐT, địa chỉ người nhận. Mã lạ, vận đơn của người bán khác người bán mặc
+// định (ADR-29, Task 531) hay thiếu phạm vi → 404.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) GetPickingList(ctx context.Context, params gen.GetPickingListParams) (gen.GetPickingListRes, error) {
@@ -114,20 +115,9 @@ func (h *handler) GetPickingList(ctx context.Context, params gen.GetPickingListP
 		ids[id] = true
 	}
 	var pl queries.PickingList
-	if err := h.inventoryRead(ctx, func(tx pgx.Tx, u identity.AuthUser) error {
-		var err error
-		if pl, err = queries.Picking(ctx, tx, params.ShipmentIds); err != nil {
-			return err //nolint:wrapcheck // bọc ở dưới
-		}
-		if len(pl.Orders) != len(ids) {
-			return fulfillment.ErrNotFound
-		}
-		for _, o := range pl.Orders {
-			if canAt(u, o.WarehouseID, permPrint) != nil {
-				return fulfillment.ErrNotFound
-			}
-		}
-		return nil
+	if err := h.inventoryRead(ctx, func(tx pgx.Tx, u identity.AuthUser) (err error) {
+		pl, err = pickingFor(ctx, tx, u, ids, params.ShipmentIds)
+		return err
 	}); err != nil {
 		return nil, fmt.Errorf("đọc phiếu nhặt hàng: %w", err)
 	}
@@ -152,6 +142,30 @@ func (h *handler) GetPickingList(ctx context.Context, params gen.GetPickingListP
 		out.Orders = append(out.Orders, po)
 	}
 	return out, nil
+}
+
+// pickingFor đọc phiếu nhặt hàng của shipmentIds (ids: tập mã không trùng) trong tx: mọi vận đơn của người bán mặc định
+// (sellerShipment), có thật và ở kho người gọi có fulfillment.print; thiếu một điều kiện → fulfillment.ErrNotFound.
+func pickingFor(ctx context.Context, tx pgx.Tx, u identity.AuthUser, ids map[uuid.UUID]bool, shipmentIds []uuid.UUID,
+) (queries.PickingList, error) {
+	for id := range ids {
+		if err := sellerShipment(ctx, tx, id); err != nil {
+			return queries.PickingList{}, err
+		}
+	}
+	pl, err := queries.Picking(ctx, tx, shipmentIds)
+	if err != nil {
+		return queries.PickingList{}, err //nolint:wrapcheck // bọc ở bên gọi
+	}
+	if len(pl.Orders) != len(ids) {
+		return queries.PickingList{}, fulfillment.ErrNotFound
+	}
+	for _, o := range pl.Orders {
+		if canAt(u, o.WarehouseID, permPrint) != nil {
+			return queries.PickingList{}, fulfillment.ErrNotFound
+		}
+	}
+	return pl, nil
 }
 
 // SetPackingStatus (POST /api/v1/orders/packing, fulfillment.pack ở kho của mọi đơn): đưa các đơn của người bán mặc

@@ -47,15 +47,15 @@ func TestM3ListPlans_Large(t *testing.T) {
 		name, file, query string
 		args              []any
 	}{
-		{"lệch đối soát", "cash/lists", "listDiscrepancies", []any{nil, int32(51)}},
-		{"lệch đối soát trang sau", "cash/lists", "listDiscrepancies", []any{uuid.Max, int32(51)}},
-		{"quá hạn chưa có tiền", "cash/lists", "listOverdue", []any{time.Now().AddDate(0, 0, -7), nil, int32(51)}},
-		{"quá hạn trang sau", "cash/lists", "listOverdue", []any{time.Now().AddDate(0, 0, -7), uuid.Nil, int32(51)}},
-		{"bảng kê", "cash/statements", "listStatements", []any{nil, nil, nil, int32(51)}},
-		{"bảng kê theo tài khoản", "cash/statements", "listStatements", []any{"confirmed", account, nil, int32(51)}},
+		{"lệch đối soát", "cash/lists", "listDiscrepancies", []any{seed.Own(), nil, int32(51)}},
+		{"lệch đối soát trang sau", "cash/lists", "listDiscrepancies", []any{seed.Own(), uuid.Max, int32(51)}},
+		{"quá hạn chưa có tiền", "cash/lists", "listOverdue", []any{seed.Own(), time.Now().AddDate(0, 0, -7), nil, int32(51)}},
+		{"quá hạn trang sau", "cash/lists", "listOverdue", []any{seed.Own(), time.Now().AddDate(0, 0, -7), uuid.Nil, int32(51)}},
+		{"bảng kê", "cash/statements", "listStatements", []any{seed.Own(), nil, nil, nil, int32(51)}},
+		{"bảng kê theo tài khoản", "cash/statements", "listStatements", []any{seed.Own(), "confirmed", account, nil, int32(51)}},
 		{"dòng bảng kê", "cash/statements", "listStatementLines", []any{statement, nil, int32(0), int32(51)}},
 		{"dòng bảng kê lệch", "cash/statements", "listStatementLines", []any{statement, "amount_mismatch", int32(0), int32(51)}},
-		{"nghĩa vụ hoàn", "cash/refunds", "listRefundObligations", []any{"open", nil, int32(51)}},
+		{"nghĩa vụ hoàn", "cash/refunds", "listRefundObligations", []any{seed.Own(), "open", nil, int32(51)}},
 		{"gọi lại mở", "fulfillment/callbacks", "listCallbackTasks", []any{[]string{"open", "in_progress"}, seed.Own(), nil, nil, nil, nil, int32(51)}},
 		{"gọi lại tới hạn", "fulfillment/callbacks", "listCallbackTasks", []any{[]string{"open"}, seed.Own(), time.Now(), nil, nil, nil, int32(51)}},
 	}

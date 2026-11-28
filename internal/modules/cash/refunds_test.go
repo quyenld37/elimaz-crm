@@ -48,7 +48,7 @@ func (e *payEnv) obligations(id uuid.UUID) []cash.RefundObligation {
 	e.t.Helper()
 	var out []cash.RefundObligation
 	if err := e.app(func(tx pgx.Tx) error {
-		all, _, err := e.svc.ListRefundObligations(e.t.Context(), tx, "", nil, 100)
+		all, _, err := e.svc.ListRefundObligations(e.t.Context(), tx, e.seller, "", nil, 100)
 		for _, r := range all {
 			if r.OrderID == id {
 				out = append(out, r)
@@ -133,7 +133,7 @@ func checkCancelOpened(t *testing.T, e *payEnv, o order.Order, ob cash.RefundObl
 	}
 	var open []cash.RefundObligation
 	if err := e.app(func(tx pgx.Tx) (err error) {
-		open, _, err = e.svc.ListRefundObligations(t.Context(), tx, cash.RefundOpen, nil, 100)
+		open, _, err = e.svc.ListRefundObligations(t.Context(), tx, e.seller, cash.RefundOpen, nil, 100)
 		return err //nolint:wrapcheck // test
 	}); err != nil || len(open) != 1 || open[0].ID != ob.ID {
 		t.Errorf("danh sách mở: %+v %v", open, err)

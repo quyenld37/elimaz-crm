@@ -155,6 +155,8 @@ func Get(ctx context.Context, tx pgx.Tx, id uuid.UUID) (Statement, error) {
 // ListFilter lọc danh sách bảng kê: trạng thái, tài khoản hãng (rỗng: không lọc); Before là id của dòng cuối trang
 // trước (nil: trang đầu).
 type ListFilter struct {
+	// SellerID: chỉ bảng kê của tài khoản hãng của người bán này (ADR-29; bắt buộc, uuid.Nil không khớp bảng kê nào).
+	SellerID         uuid.UUID
 	Status           string
 	CarrierAccountID *uuid.UUID
 	Before           *uuid.UUID
@@ -164,7 +166,7 @@ type ListFilter struct {
 // List đọc bảng kê mới nhất trước theo f.
 func List(ctx context.Context, tx pgx.Tx, f ListFilter) ([]Statement, error) {
 	rows, err := store.New(tx).ListStatements(ctx, store.ListStatementsParams{
-		Status: optText(f.Status), CarrierAccountID: db.NullUUID(f.CarrierAccountID), BeforeID: db.NullUUID(f.Before),
+		SellerID: f.SellerID, Status: optText(f.Status), CarrierAccountID: db.NullUUID(f.CarrierAccountID), BeforeID: db.NullUUID(f.Before),
 		Lim: int32(min(max(f.Limit, 1), 1000)),
 	})
 	if err != nil {

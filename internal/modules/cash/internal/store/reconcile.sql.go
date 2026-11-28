@@ -104,18 +104,21 @@ func (q *Queries) LedgerTotal(ctx context.Context) (int64, error) {
 }
 
 const listRunFindings = `-- name: ListRunFindings :many
-SELECT id, kind, shipment_id, detail, created_at
-FROM cash.reconcile_findings
-WHERE run_id = $1
-  AND id > $2
-ORDER BY id
-LIMIT $3
+SELECT f.id, f.kind, f.shipment_id, f.detail, f.created_at
+FROM cash.reconcile_findings f
+WHERE f.run_id = $1
+  AND (f.shipment_id IS NULL
+    OR (SELECT s.seller_id FROM fulfillment.shipments_v s WHERE s.id = f.shipment_id) = $2)
+  AND f.id > $3
+ORDER BY f.id
+LIMIT $4
 `
 
 type ListRunFindingsParams struct {
-	RunID pgtype.UUID
-	After uuid.UUID
-	Lim   int32
+	RunID    pgtype.UUID
+	SellerID uuid.UUID
+	After    uuid.UUID
+	Lim      int32
 }
 
 type ListRunFindingsRow struct {
@@ -126,9 +129,15 @@ type ListRunFindingsRow struct {
 	CreatedAt  time.Time
 }
 
-// Phát hiện của lần chạy theo mã tăng dần, sau mã @after (uuid 0: từ đầu), tối đa @lim.
+// Phát hiện của lần chạy theo mã tăng dần, sau mã @after (uuid 0: từ đầu), tối đa @lim. Phát hiện gắn vận đơn chỉ khi
+// vận đơn của người bán @seller_id (ADR-29); phát hiện cấp tenant (không vận đơn) luôn có (QĐ-531-2).
 func (q *Queries) ListRunFindings(ctx context.Context, arg ListRunFindingsParams) ([]ListRunFindingsRow, error) {
-	rows, err := q.db.Query(ctx, listRunFindings, arg.RunID, arg.After, arg.Lim)
+	rows, err := q.db.Query(ctx, listRunFindings,
+		arg.RunID,
+		arg.SellerID,
+		arg.After,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}

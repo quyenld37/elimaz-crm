@@ -21,11 +21,12 @@ type Overdue struct {
 	Days                                int32
 }
 
-// OverdueList đọc tối đa limit vận đơn delivered trước now − days ngày còn carrier_holding > 0, theo mã vận đơn tăng
+// OverdueList đọc tối đa limit vận đơn của người bán seller delivered trước now − days ngày còn carrier_holding > 0, theo mã vận đơn tăng
 // dần sau mã after (nil: trang đầu).
-func OverdueList(ctx context.Context, tx pgx.Tx, now time.Time, days int, after *uuid.UUID, limit int) ([]Overdue, error) {
+func OverdueList(ctx context.Context, tx pgx.Tx, seller uuid.UUID, now time.Time, days int, after *uuid.UUID, limit int,
+) ([]Overdue, error) {
 	rows, err := store.New(tx).ListOverdue(ctx, store.ListOverdueParams{
-		Cutoff: now.UTC().Add(-time.Duration(days) * day), AfterID: db.NullUUID(after),
+		SellerID: seller, Cutoff: now.UTC().Add(-time.Duration(days) * day), AfterID: db.NullUUID(after),
 		Lim: int32(min(max(limit, 1), maxLimit)),
 	})
 	if err != nil {

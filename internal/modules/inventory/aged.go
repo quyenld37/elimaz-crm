@@ -69,9 +69,11 @@ func ParseAgedCursor(s string) (AgedCursor, error) {
 // AgedPage là trang cần đọc: State rỗng là cả held và in_transit, hoặc đúng StateHeld, StateInTransit; After: trang
 // sau (nil: trang đầu); Limit ≤ 0 → 50, tối đa 100.
 type AgedPage struct {
-	State string
-	After *AgedCursor
-	Limit int
+	// SellerID: chỉ giữ hàng của hàng của người bán này (ADR-29, Task 531; bắt buộc, uuid.Nil không khớp dòng nào).
+	SellerID uuid.UUID
+	State    string
+	After    *AgedCursor
+	Limit    int
 }
 
 // AgedReservations trả một trang giữ hàng quá hạn tại now, trong tx của bên gọi (tenancy.WithTenant): dòng held có
@@ -97,6 +99,7 @@ func AgedReservations(ctx context.Context, tx pgx.Tx, now time.Time, heldDays, t
 	p := store.AgedReservationsParams{
 		HeldBefore: now.Add(-time.Duration(heldDays) * day), TransitBefore: now.Add(-time.Duration(transitDays) * day),
 		AllWarehouses: warehouseIDs == nil, WarehouseIds: warehouseIDs, AfterAt: farPast, Lim: int32(limit + 1),
+		SellerID: page.SellerID,
 	}
 	if p.WarehouseIds == nil {
 		p.WarehouseIds = []uuid.UUID{}

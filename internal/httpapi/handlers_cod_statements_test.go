@@ -12,6 +12,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/platform/commands"
+	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
@@ -35,23 +36,29 @@ func (e *m3Env) shopAccount() uuid.UUID {
 // uploadStatement tải body lên tenant của e (mục đích cod_statement) như kế toán và trả mã tệp.
 func (e *m3Env) uploadStatement(name string, body []byte) uuid.UUID {
 	e.t.Helper()
+	return uploadCSV(e.t, e.staff.App, e.files, e.tenant, name, body)
+}
+
+// uploadCSV tải body (text/csv, mục đích cod_statement) lên tenant qua kho tệp store và trả mã tệp đã tải xong.
+func uploadCSV(t *testing.T, app *db.DB, store *files.MemStore, tenant uuid.UUID, name string, body []byte) uuid.UUID {
+	t.Helper()
 	var f files.File
-	if err := tenancy.WithTenant(e.t.Context(), e.staff.App, e.tenant, func(tx pgx.Tx) error {
+	if err := tenancy.WithTenant(t.Context(), app, tenant, func(tx pgx.Tx) error {
 		var err error
-		f, _, err = files.CreateUpload(e.t.Context(), tx, e.files, files.UploadInput{
-			TenantID: e.tenant, Purpose: cash.StatementPurposeKey, FileName: name, ContentType: "text/csv",
+		f, _, err = files.CreateUpload(t.Context(), tx, store, files.UploadInput{
+			TenantID: tenant, Purpose: cash.StatementPurposeKey, FileName: name, ContentType: "text/csv",
 			SizeBytes: int64(len(body)),
 		}, uuid.Nil)
 		return err //nolint:wrapcheck // test
 	}); err != nil {
-		e.t.Fatalf("CreateUpload: %v", err)
+		t.Fatalf("CreateUpload: %v", err)
 	}
-	if err := e.files.Put(e.t.Context(), files.BucketTmp, files.TmpKey(e.tenant, f.ID), bytes.NewReader(body),
+	if err := store.Put(t.Context(), files.BucketTmp, files.TmpKey(tenant, f.ID), bytes.NewReader(body),
 		int64(len(body)), "text/csv"); err != nil {
-		e.t.Fatal(err)
+		t.Fatal(err)
 	}
-	if _, err := files.CompleteUpload(e.t.Context(), e.staff.App, e.files, queue.NewQueue(), e.tenant, f.ID); err != nil {
-		e.t.Fatalf("CompleteUpload: %v", err)
+	if _, err := files.CompleteUpload(t.Context(), app, store, queue.NewQueue(), tenant, f.ID); err != nil {
+		t.Fatalf("CompleteUpload: %v", err)
 	}
 	return f.ID
 }

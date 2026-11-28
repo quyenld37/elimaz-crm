@@ -19,7 +19,8 @@ import (
 const permAgedRead = identity.Permission("inventory.aged.read")
 
 // ListAgedReservations (GET /api/v1/inventory/aged-reservations, inventory.aged.read theo kho): giữ hàng held quá
-// AgedDays.Held ngày và in_transit quá AgedDays.InTransit ngày của cài đặt vận chuyển, cũ nhất trước. Không có
+// AgedDays.Held ngày và in_transit quá AgedDays.InTransit ngày của cài đặt vận chuyển, cũ nhất trước; chỉ hàng của người
+// bán mặc định (ADR-29, Task 531). Không có
 // warehouseId → mọi kho người gọi có quyền; có warehouseId ngoài phạm vi → 403. Chỉ đọc: không nhả hàng, không tạo việc.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
@@ -40,6 +41,9 @@ func (h *handler) ListAgedReservations(ctx context.Context, params gen.ListAgedR
 	if err := h.inventoryRead(ctx, func(tx pgx.Tx, u identity.AuthUser) error {
 		whs, err := agedTargets(u, params)
 		if err != nil {
+			return err
+		}
+		if page.SellerID, err = listSeller(ctx, tx); err != nil {
 			return err
 		}
 		s, _, err := fulfillment.LoadSettings(ctx, tx)

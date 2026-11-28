@@ -7,6 +7,8 @@
 -- remitted_then_returned. Mới nhất trước theo mã mục (uuidv7); trang sau bắt đầu sau mã mục cuối. Số dư khác 0 đọc ở
 -- cash.cod_open_holdings; mỗi nhánh tự lọc trang và lấy tối đa @lim mục theo index của nó rồi mới hợp (Task M3-48: không
 -- cộng sổ, không quét vận đơn của mọi mục).
+-- Chỉ mục của người bán @seller_id (ADR-29): dòng bảng kê theo tài khoản hãng của bảng kê (cả dòng ngoài hệ thống, không
+-- vận đơn; câu con theo khóa chính), mục khác theo người bán của vận đơn.
 -- Cột không có ở một loại mục: mã rỗng (uuid toàn 0), số 0, chuỗi rỗng (bên đọc bỏ qua).
 SELECT kind, item_id, coalesce(statement_id, '00000000-0000-0000-0000-000000000000'::uuid)::uuid AS statement_id,
        coalesce(line_no, 0)::int AS line_no, shipment_id, order_id, coalesce(order_code, '')::text AS order_code,
@@ -23,6 +25,7 @@ FROM ((SELECT 'statement_line'::text AS kind, l.id AS item_id, l.statement_id::u
       LEFT JOIN fulfillment.shipments_v s ON s.id = l.shipment_id
       LEFT JOIN ord.orders_v o ON o.id = s.order_id
       WHERE l.match_status IN ('duplicate', 'external', 'amount_mismatch')
+        AND (SELECT a.seller_id FROM fulfillment.carrier_accounts_v a WHERE a.id = st.carrier_account_id) = @seller_id
         AND (l.match_status <> 'amount_mismatch'
           OR EXISTS (SELECT 1 FROM cash.cod_open_holdings h WHERE h.shipment_id = l.shipment_id))
         AND (sqlc.narg(before_id)::uuid IS NULL OR l.id < sqlc.narg(before_id)::uuid)
@@ -35,7 +38,8 @@ FROM ((SELECT 'statement_line'::text AS kind, l.id AS item_id, l.statement_id::u
       FROM cash.cod_open_holdings b
       JOIN fulfillment.shipments_v s ON s.id = b.shipment_id
       LEFT JOIN ord.orders_v o ON o.id = s.order_id
-      WHERE EXISTS (SELECT 1
+      WHERE s.seller_id = @seller_id
+        AND EXISTS (SELECT 1
                     FROM cash.cod_transfers t
                     WHERE t.shipment_id = b.shipment_id
                       AND t.kind = 'remitted'
@@ -53,9 +57,10 @@ FROM ((SELECT 'statement_line'::text AS kind, l.id AS item_id, l.statement_id::u
              s.cod_amount, NULL,
              NULL, NULL
       FROM cash.reconcile_findings f
-      LEFT JOIN fulfillment.shipments_v s ON s.id = f.shipment_id
+      JOIN fulfillment.shipments_v s ON s.id = f.shipment_id
       LEFT JOIN ord.orders_v o ON o.id = s.order_id
       WHERE f.kind = 'remitted_then_returned'
+        AND s.seller_id = @seller_id
         AND (sqlc.narg(before_id)::uuid IS NULL OR f.id < sqlc.narg(before_id)::uuid)
       ORDER BY f.id DESC
       LIMIT @lim)) d
@@ -65,13 +70,14 @@ LIMIT @lim;
 -- name: ListOverdue :many
 -- Vận đơn delivered trước cutoff (now − CODOverdueDays) còn carrier_holding > 0 (hãng chưa trả tiền), theo mã vận đơn
 -- tăng dần; trang sau bắt đầu sau mã vận đơn cuối. Đi từ cash.cod_open_holdings (chỉ vận đơn còn số dư, Task M3-48)
--- thay vì cộng sổ của mọi vận đơn đã giao.
+-- thay vì cộng sổ của mọi vận đơn đã giao. Chỉ vận đơn của người bán @seller_id (ADR-29).
 SELECT s.id, s.order_id, o.code AS order_code, s.carrier_key, s.tracking_code, s.delivered_at::timestamptz AS delivered_at,
        b.carrier_holding
 FROM cash.cod_open_holdings b
 JOIN fulfillment.shipments_v s ON s.id = b.shipment_id
 JOIN ord.orders_v o ON o.id = s.order_id
 WHERE b.carrier_holding > 0
+  AND s.seller_id = @seller_id
   AND s.status = 'delivered'
   AND s.delivered_at < @cutoff::timestamptz
   AND (sqlc.narg(after_id)::uuid IS NULL OR b.shipment_id > sqlc.narg(after_id)::uuid)

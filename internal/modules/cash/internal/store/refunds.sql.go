@@ -93,16 +93,18 @@ const listRefundObligations = `-- name: ListRefundObligations :many
 SELECT r.id, r.tenant_id, r.order_id, r.return_id, r.source, r.amount, r.paid_amount, r.status, r.waive_reason, r.created_at, r.updated_at, r.version, coalesce(o.code, '')::text AS order_code
 FROM cash.refund_obligations r
 LEFT JOIN ord.orders_v o ON o.id = r.order_id
-WHERE ($1::text IS NULL OR r.status = $1::text)
-  AND ($2::uuid IS NULL OR r.id < $2::uuid)
+WHERE (SELECT so.seller_id FROM ord.orders_v so WHERE so.id = r.order_id) = $1
+  AND ($2::text IS NULL OR r.status = $2::text)
+  AND ($3::uuid IS NULL OR r.id < $3::uuid)
 ORDER BY r.id DESC
-LIMIT $3
+LIMIT $4
 `
 
 type ListRefundObligationsParams struct {
-	Status pgtype.Text
-	Before pgtype.UUID
-	Lim    int32
+	SellerID uuid.UUID
+	Status   pgtype.Text
+	Before   pgtype.UUID
+	Lim      int32
 }
 
 type ListRefundObligationsRow struct {
@@ -122,9 +124,14 @@ type ListRefundObligationsRow struct {
 }
 
 // Nghĩa vụ mới nhất trước (mã uuidv7 giảm dần), lọc theo trạng thái (NULL: mọi trạng thái); trang sau bắt đầu sau mã
-// before.
+// before. Chỉ nghĩa vụ của đơn của người bán @seller_id (ADR-29; câu con theo khóa chính của đơn).
 func (q *Queries) ListRefundObligations(ctx context.Context, arg ListRefundObligationsParams) ([]ListRefundObligationsRow, error) {
-	rows, err := q.db.Query(ctx, listRefundObligations, arg.Status, arg.Before, arg.Lim)
+	rows, err := q.db.Query(ctx, listRefundObligations,
+		arg.SellerID,
+		arg.Status,
+		arg.Before,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}

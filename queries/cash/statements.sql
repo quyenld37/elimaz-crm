@@ -30,10 +30,12 @@ WHERE id = @id;
 
 -- name: ListStatements :many
 -- Bảng kê mới nhất trước (id uuidv7 tăng theo thời gian), lọc tùy chọn theo trạng thái, tài khoản hãng; trang sau
--- bắt đầu sau id của dòng cuối trang trước.
+-- bắt đầu sau id của dòng cuối trang trước. Chỉ bảng kê của tài khoản hãng của người bán @seller_id (ADR-29; câu con
+-- theo khóa chính của tài khoản).
 SELECT *
 FROM cash.cod_statements
-WHERE (sqlc.narg(status)::text IS NULL OR status = sqlc.narg(status)::text)
+WHERE (SELECT a.seller_id FROM fulfillment.carrier_accounts_v a WHERE a.id = carrier_account_id) = @seller_id
+  AND (sqlc.narg(status)::text IS NULL OR status = sqlc.narg(status)::text)
   AND (sqlc.narg(carrier_account_id)::uuid IS NULL OR carrier_account_id = sqlc.narg(carrier_account_id)::uuid)
   AND (sqlc.narg(before_id)::uuid IS NULL OR id < sqlc.narg(before_id)::uuid)
 ORDER BY id DESC

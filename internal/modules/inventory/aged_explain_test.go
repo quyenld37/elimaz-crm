@@ -33,6 +33,17 @@ func agedExplainSeed() testkit.Seed {
 		`INSERT INTO catalog.variants (tenant_id, seller_id, product_id, sku, barcode, color, size, price)
 			SELECT p.tenant_id, p.seller_id, p.id, 'AO01-' || g, 'BC' || lpad(g::text, 6, '0'), 'Đỏ', 'S' || g, 100000
 			FROM catalog.products AS p, generate_series(1, 100) AS g`,
+		// Người bán thứ hai có 10.000 biến thể ở kho MAIN (số dư thật lớn hơn nhiều dòng giữ hàng của một trang; Task 531:
+		// câu lọc người bán qua khóa chính của số dư). Mã uuidv7 sau ELIMAZ nên giữ hàng dưới vẫn rơi vào biến thể ELIMAZ.
+		fmt.Sprintf(`INSERT INTO catalog.sellers (id, tenant_id, code, name, kind)
+			VALUES ('%s', current_setting('app.tenant_id')::uuid, 'PARTNER1', 'Đối tác', 'partner')`,
+			testkit.FixedUUID("inventory-aged-explain/partner")),
+		fmt.Sprintf(`INSERT INTO catalog.products (tenant_id, seller_id, code, name, name_search, status)
+			VALUES (current_setting('app.tenant_id')::uuid, '%s', 'DT01', 'Áo đối tác', 'ao doi tac', 'active')`,
+			testkit.FixedUUID("inventory-aged-explain/partner")),
+		`INSERT INTO catalog.variants (tenant_id, seller_id, product_id, sku, barcode, color, size, price)
+			SELECT p.tenant_id, p.seller_id, p.id, 'DT01-' || g, 'DT' || lpad(g::text, 6, '0'), 'Xanh', 'M' || g, 100000
+			FROM catalog.products AS p, generate_series(1, 10000) AS g WHERE p.code = 'DT01'`,
 		`INSERT INTO inventory.stock_balances (tenant_id, variant_id, warehouse_id, seller_id, on_hand)
 			SELECT v.tenant_id, v.id, w.id, v.seller_id, 1000000 FROM catalog.variants AS v, inventory.warehouses AS w`,
 		`INSERT INTO inventory.stock_reservations (tenant_id, variant_id, warehouse_id, quantity, state, state_changed_at)
@@ -91,6 +102,7 @@ func TestAgedReservations_Plan(t *testing.T) {
 			ct := &capturingTx{}
 			if err := tenancy.WithTenant(t.Context(), staff.App, tenant, func(tx pgx.Tx) error {
 				ct.Tx = tx
+				c.page.SellerID = testkit.FixedUUID("inventory-aged-explain/seller")
 				rows, _, err := inventory.AgedReservations(t.Context(), ct, agedNow(), 20, 180, c.whs, c.page)
 				if err == nil && len(rows) == 0 {
 					err = fmt.Errorf("không dòng nào: dữ liệu mẫu phải có dòng quá hạn")

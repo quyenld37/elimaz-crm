@@ -202,9 +202,9 @@ type ReconcileFindingPage struct {
 }
 
 // ListReconcileFindings đọc trong tx của bên gọi (tenancy.WithTenant) các phát hiện của lần chạy runID (nil: lần gần
-// nhất) theo mã tăng dần, sau mã after (nil: từ đầu), tối đa limit (≤ 0: 50; trần 200). Lần chạy không có →
+// nhất) gắn vận đơn của người bán seller hay không gắn vận đơn (cấp tenant; ADR-29, QĐ-531-2) theo mã tăng dần, sau mã after (nil: từ đầu), tối đa limit (≤ 0: 50; trần 200). Lần chạy không có →
 // ErrReconcileRunNotFound; chưa chạy lần nào (runID nil) → trang rỗng, RunID nil.
-func (*Service) ListReconcileFindings(ctx context.Context, tx pgx.Tx, runID, after *uuid.UUID, limit int,
+func (*Service) ListReconcileFindings(ctx context.Context, tx pgx.Tx, seller uuid.UUID, runID, after *uuid.UUID, limit int,
 ) (ReconcileFindingPage, error) {
 	if limit <= 0 {
 		limit = defaultFindingLimit
@@ -225,7 +225,7 @@ func (*Service) ListReconcileFindings(ctx context.Context, tx pgx.Tx, runID, aft
 		from = *after
 	}
 	rows, err := q.ListRunFindings(ctx, store.ListRunFindingsParams{
-		RunID: pgtype.UUID{Bytes: run.ID, Valid: true}, After: from, Lim: int32(limit + 1),
+		RunID: pgtype.UUID{Bytes: run.ID, Valid: true}, SellerID: seller, After: from, Lim: int32(limit + 1),
 	})
 	if err != nil {
 		return ReconcileFindingPage{}, fmt.Errorf("đọc phát hiện đối chiếu: %w", err)

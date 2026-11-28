@@ -367,14 +367,16 @@ func (q *Queries) ListStatementLines(ctx context.Context, arg ListStatementLines
 const listStatements = `-- name: ListStatements :many
 SELECT id, tenant_id, carrier_key, carrier_account_id, file_id, file_sha256, format, period_from, period_to, declared_total, status, parse_error, line_count, imported_by, confirmed_by, confirmed_at, created_at, updated_at, version
 FROM cash.cod_statements
-WHERE ($1::text IS NULL OR status = $1::text)
-  AND ($2::uuid IS NULL OR carrier_account_id = $2::uuid)
-  AND ($3::uuid IS NULL OR id < $3::uuid)
+WHERE (SELECT a.seller_id FROM fulfillment.carrier_accounts_v a WHERE a.id = carrier_account_id) = $1
+  AND ($2::text IS NULL OR status = $2::text)
+  AND ($3::uuid IS NULL OR carrier_account_id = $3::uuid)
+  AND ($4::uuid IS NULL OR id < $4::uuid)
 ORDER BY id DESC
-LIMIT $4
+LIMIT $5
 `
 
 type ListStatementsParams struct {
+	SellerID         uuid.UUID
 	Status           pgtype.Text
 	CarrierAccountID pgtype.UUID
 	BeforeID         pgtype.UUID
@@ -382,9 +384,11 @@ type ListStatementsParams struct {
 }
 
 // Bảng kê mới nhất trước (id uuidv7 tăng theo thời gian), lọc tùy chọn theo trạng thái, tài khoản hãng; trang sau
-// bắt đầu sau id của dòng cuối trang trước.
+// bắt đầu sau id của dòng cuối trang trước. Chỉ bảng kê của tài khoản hãng của người bán @seller_id (ADR-29; câu con
+// theo khóa chính của tài khoản).
 func (q *Queries) ListStatements(ctx context.Context, arg ListStatementsParams) ([]CashCodStatement, error) {
 	rows, err := q.db.Query(ctx, listStatements,
+		arg.SellerID,
 		arg.Status,
 		arg.CarrierAccountID,
 		arg.BeforeID,

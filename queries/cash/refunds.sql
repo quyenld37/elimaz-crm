@@ -53,11 +53,12 @@ WHERE r.id = @id;
 
 -- name: ListRefundObligations :many
 -- Nghĩa vụ mới nhất trước (mã uuidv7 giảm dần), lọc theo trạng thái (NULL: mọi trạng thái); trang sau bắt đầu sau mã
--- before.
+-- before. Chỉ nghĩa vụ của đơn của người bán @seller_id (ADR-29; câu con theo khóa chính của đơn).
 SELECT r.*, coalesce(o.code, '')::text AS order_code
 FROM cash.refund_obligations r
 LEFT JOIN ord.orders_v o ON o.id = r.order_id
-WHERE (sqlc.narg(status)::text IS NULL OR r.status = sqlc.narg(status)::text)
+WHERE (SELECT so.seller_id FROM ord.orders_v so WHERE so.id = r.order_id) = @seller_id
+  AND (sqlc.narg(status)::text IS NULL OR r.status = sqlc.narg(status)::text)
   AND (sqlc.narg(before)::uuid IS NULL OR r.id < sqlc.narg(before)::uuid)
 ORDER BY r.id DESC
 LIMIT @lim;

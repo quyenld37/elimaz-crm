@@ -297,7 +297,7 @@ func (e *flowEnv) discrepanciesBy(page int) []cash.Discrepancy {
 		var next *uuid.UUID
 		e.mustApp(func(tx pgx.Tx) error {
 			var err error
-			items, next, err = e.mod.Service.ListDiscrepancies(e.t.Context(), tx, before, page)
+			items, next, err = e.mod.Service.ListDiscrepancies(e.t.Context(), tx, e.shop.Seller, before, page)
 			return err //nolint:wrapcheck // test
 		})
 		out = append(out, items...)
@@ -480,7 +480,7 @@ func TestListOverdue(t *testing.T) {
 	var items []cash.Overdue
 	e.mustApp(func(tx pgx.Tx) error {
 		var err error
-		items, _, err = e.mod.Service.ListOverdue(t.Context(), tx, nil, 50)
+		items, _, err = e.mod.Service.ListOverdue(t.Context(), tx, e.shop.Seller, nil, 50)
 		return err //nolint:wrapcheck // test
 	})
 	if len(items) != 1 {

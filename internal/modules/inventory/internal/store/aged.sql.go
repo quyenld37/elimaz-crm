@@ -15,17 +15,21 @@ import (
 
 const agedReservations = `-- name: AgedReservations :many
 
-SELECT id, order_item_id, variant_id, warehouse_id, state, quantity, state_changed_at
-FROM inventory.stock_reservations
-WHERE ((state = 'held' AND state_changed_at <= $1::timestamptz)
-       OR (state = 'in_transit' AND state_changed_at <= $2::timestamptz))
-  AND ($3::bool OR warehouse_id = ANY ($4::uuid[]))
-  AND (state_changed_at, id) > ($5::timestamptz, $6::uuid)
-ORDER BY state_changed_at, id
-LIMIT $7::int
+SELECT r.id, r.order_item_id, r.variant_id, r.warehouse_id, r.state, r.quantity, r.state_changed_at
+FROM inventory.stock_reservations r
+WHERE (SELECT b.seller_id
+       FROM inventory.stock_balances b
+       WHERE b.tenant_id = r.tenant_id AND b.variant_id = r.variant_id AND b.warehouse_id = r.warehouse_id) = $1
+  AND ((r.state = 'held' AND r.state_changed_at <= $2::timestamptz)
+       OR (r.state = 'in_transit' AND r.state_changed_at <= $3::timestamptz))
+  AND ($4::bool OR r.warehouse_id = ANY ($5::uuid[]))
+  AND (r.state_changed_at, r.id) > ($6::timestamptz, $7::uuid)
+ORDER BY r.state_changed_at, r.id
+LIMIT $8::int
 `
 
 type AgedReservationsParams struct {
+	SellerID      uuid.UUID
 	HeldBefore    time.Time
 	TransitBefore time.Time
 	AllWarehouses bool
@@ -50,9 +54,11 @@ type AgedReservationsRow struct {
 // thái (BitmapOr), không quét cả bảng.
 // Dòng held từ held_before trở về trước và dòng in_transit từ transit_before trở về trước (bên gọi đặt mốc rất xa
 // trong quá khứ để bỏ một trạng thái), ở các kho warehouse_ids (all_warehouses: mọi kho), sau con trỏ
-// (after_at, after_id), cũ nhất trước.
+// (after_at, after_id), cũ nhất trước. Chỉ hàng của người bán @seller_id (ADR-29, Task 531): người bán của số dư mà dòng
+// giữ (khóa chính của stock_balances, câu con vô hướng: không đổi kế hoạch quét khoảng theo trạng thái).
 func (q *Queries) AgedReservations(ctx context.Context, arg AgedReservationsParams) ([]AgedReservationsRow, error) {
 	rows, err := q.db.Query(ctx, agedReservations,
+		arg.SellerID,
 		arg.HeldBefore,
 		arg.TransitBefore,
 		arg.AllWarehouses,

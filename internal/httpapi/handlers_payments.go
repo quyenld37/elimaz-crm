@@ -43,6 +43,9 @@ func (h *handler) RecordPayment(ctx context.Context, req *gen.RecordPaymentReque
 	}
 	out, err := h.refusableWrite(ctx, http.StatusCreated, isCashRefusal, "ghi phiếu thu",
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
+			if err := sellerOrder(ctx, tx, params.ID, cash.ErrOrderNotFound); err != nil {
+				return nil, err
+			}
 			p, err := h.d.Cash.RecordPayment(ctx, tx, u.TenantID, in, cashActor(u))
 			if err != nil {
 				return nil, err //nolint:wrapcheck // sentinel của cash
@@ -75,6 +78,9 @@ func (h *handler) ListOrderPayments(ctx context.Context, params gen.ListOrderPay
 	}
 	page := &gen.PaymentPage{Items: []gen.Payment{}}
 	err = h.catalogRead(ctx, func(tx pgx.Tx) error {
+		if err := sellerOrder(ctx, tx, params.ID, cash.ErrOrderNotFound); err != nil {
+			return err
+		}
 		items, next, err := h.d.Cash.ListOrderPayments(ctx, tx, params.ID, before, int(params.Limit.Or(defaultPaymentLimit)))
 		if err != nil {
 			return err //nolint:wrapcheck // cash đã bọc
@@ -107,8 +113,8 @@ func (h *handler) ListRefundObligations(ctx context.Context, params gen.ListRefu
 		return nil, err
 	}
 	page := &gen.RefundObligationPage{Items: []gen.RefundObligation{}}
-	err = h.catalogRead(ctx, func(tx pgx.Tx) error {
-		items, next, err := h.d.Cash.ListRefundObligations(ctx, tx, string(params.Status.Or("")), before,
+	err = h.sellerRead(ctx, func(tx pgx.Tx, seller uuid.UUID) error {
+		items, next, err := h.d.Cash.ListRefundObligations(ctx, tx, seller, string(params.Status.Or("")), before,
 			int(params.Limit.Or(defaultPaymentLimit)))
 		if err != nil {
 			return err //nolint:wrapcheck // cash đã bọc
@@ -137,7 +143,7 @@ func (h *handler) PayRefundObligation(ctx context.Context, req *gen.PayRefundObl
 	if h.d.Cash == nil {
 		return nil, errNoCash
 	}
-	out, err := h.refusableWrite(ctx, http.StatusOK, isCashRefusal, "chi hoàn tiền",
+	out, err := h.cashSellerWrite(ctx, http.StatusOK, "chi hoàn tiền", cash.ScopeRefundObligation, params.ID,
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
 			r, err := h.d.Cash.PayRefund(ctx, tx, u.TenantID, params.ID, int64(req.Amount), req.Reference.Or(""), cashActor(u))
 			if err != nil {
@@ -164,7 +170,7 @@ func (h *handler) WaiveRefundObligation(ctx context.Context, req *gen.WaiveRefun
 	if h.d.Cash == nil {
 		return nil, errNoCash
 	}
-	out, err := h.refusableWrite(ctx, http.StatusOK, isCashRefusal, "miễn hoàn tiền",
+	out, err := h.cashSellerWrite(ctx, http.StatusOK, "miễn hoàn tiền", cash.ScopeRefundObligation, params.ID,
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
 			r, err := h.d.Cash.WaiveRefund(ctx, tx, u.TenantID, params.ID, req.Reason, cashActor(u))
 			if err != nil {

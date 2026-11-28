@@ -46,6 +46,7 @@ func (e *invEnv) aged(held, transit int, warehouses []uuid.UUID, p inventory.Age
 	var next *inventory.AgedCursor
 	if err := e.app(func(tx pgx.Tx) error {
 		var err error
+		p.SellerID = e.seller
 		rows, next, err = inventory.AgedReservations(e.t.Context(), tx, agedNow(), held, transit, warehouses, p)
 		return err //nolint:wrapcheck // test
 	}); err != nil {

@@ -133,8 +133,8 @@ func (h *handler) ListReconcileFindings(ctx context.Context, params gen.ListReco
 		after = &id
 	}
 	out := &gen.ReconcileFindingPage{Items: []gen.ReconcileFinding{}}
-	err := h.catalogRead(ctx, func(tx pgx.Tx) error {
-		p, err := h.d.Cash.ListReconcileFindings(ctx, tx, optPtr[uuid.UUID](params.RunId), after,
+	err := h.sellerRead(ctx, func(tx pgx.Tx, seller uuid.UUID) error {
+		p, err := h.d.Cash.ListReconcileFindings(ctx, tx, seller, optPtr[uuid.UUID](params.RunId), after,
 			int(params.Limit.Or(defaultStatementLimit)))
 		if err != nil {
 			return err //nolint:wrapcheck // cash đã bọc

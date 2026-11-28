@@ -56,7 +56,7 @@ func (h *handler) ImportCodStatement(ctx context.Context, req *gen.ImportCodStat
 	if err != nil {
 		return nil, fmt.Errorf("đọc tệp bảng kê: %w", err)
 	}
-	out, err := h.refusableWrite(ctx, http.StatusAccepted, isCashRefusal, "nhập bảng kê COD",
+	out, err := h.cashSellerWrite(ctx, http.StatusAccepted, "nhập bảng kê COD", cash.ScopeCarrierAccount, req.CarrierAccountId,
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
 			st, err := h.d.Cash.ImportStatement(ctx, tx, u.TenantID, file, cash.ImportStatementInput{
 				CarrierAccountID: req.CarrierAccountId, Format: req.Format.Or(""), ImportedBy: u.UserID,
@@ -98,7 +98,8 @@ func (h *handler) ListCodStatements(ctx context.Context, params gen.ListCodState
 		f.Before = &id
 	}
 	page := &gen.CodStatementPage{Items: []gen.CodStatement{}}
-	err := h.catalogRead(ctx, func(tx pgx.Tx) error {
+	err := h.sellerRead(ctx, func(tx pgx.Tx, seller uuid.UUID) error {
+		f.SellerID = seller
 		items, next, err := h.d.Cash.ListStatements(ctx, tx, f)
 		if err != nil {
 			return err //nolint:wrapcheck // cash đã bọc
@@ -140,6 +141,9 @@ func (h *handler) GetCodStatement(ctx context.Context, params gen.GetCodStatemen
 	}
 	var out *gen.CodStatementDetail
 	err := h.catalogRead(ctx, func(tx pgx.Tx) error {
+		if err := cashSellerOwns(ctx, tx, cash.ScopeStatement, params.ID); err != nil {
+			return err
+		}
 		d, err := h.d.Cash.GetStatement(ctx, tx, params.ID, string(params.MatchStatus.Or("")), after,
 			int(params.Limit.Or(defaultStatementLimit)))
 		if err != nil {
@@ -263,7 +267,7 @@ func (h *handler) ConfirmCodStatement(ctx context.Context, req *gen.VersionReque
 	if h.d.Cash == nil {
 		return nil, errNoCash
 	}
-	out, err := h.refusableWrite(ctx, http.StatusOK, isCashRefusal, "chốt bảng kê COD",
+	out, err := h.cashSellerWrite(ctx, http.StatusOK, "chốt bảng kê COD", cash.ScopeStatement, params.ID,
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
 			c, err := h.d.Cash.ConfirmStatement(ctx, tx, u.TenantID, params.ID, req.Version, u.UserID)
 			if err != nil {
@@ -311,8 +315,8 @@ func (h *handler) ListCodDiscrepancies(ctx context.Context, params gen.ListCodDi
 		return nil, err
 	}
 	page := &gen.CodDiscrepancyPage{Items: []gen.CodDiscrepancy{}}
-	err = h.catalogRead(ctx, func(tx pgx.Tx) error {
-		items, next, err := h.d.Cash.ListDiscrepancies(ctx, tx, before, int(params.Limit.Or(defaultStatementLimit)))
+	err = h.sellerRead(ctx, func(tx pgx.Tx, seller uuid.UUID) error {
+		items, next, err := h.d.Cash.ListDiscrepancies(ctx, tx, seller, before, int(params.Limit.Or(defaultStatementLimit)))
 		if err != nil {
 			return err //nolint:wrapcheck // cash đã bọc
 		}
@@ -382,8 +386,8 @@ func (h *handler) ListCodOverdue(ctx context.Context, params gen.ListCodOverdueP
 		return nil, err
 	}
 	page := &gen.CodOverduePage{Items: []gen.CodOverdue{}}
-	err = h.catalogRead(ctx, func(tx pgx.Tx) error {
-		items, next, err := h.d.Cash.ListOverdue(ctx, tx, after, int(params.Limit.Or(defaultStatementLimit)))
+	err = h.sellerRead(ctx, func(tx pgx.Tx, seller uuid.UUID) error {
+		items, next, err := h.d.Cash.ListOverdue(ctx, tx, seller, after, int(params.Limit.Or(defaultStatementLimit)))
 		if err != nil {
 			return err //nolint:wrapcheck // cash đã bọc
 		}
