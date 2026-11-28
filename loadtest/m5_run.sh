@@ -4,6 +4,7 @@
 # flash sale mới; sau bài: chờ chỉ số phút cuối được ghi, crm verify-flash, loadkit m5report chấm ngưỡng.
 #   loadtest/m5_run.sh all                      sáu bài lần lượt
 #   loadtest/m5_run.sh flash_spike,web_read     một số bài
+#   loadtest/m5_run.sh chaos                    hỏng giữa tải (Task 220: CHAOS_STEPS=a,b,c,d,e, CHAOS_DOWN=30)
 #   DURATION=20s loadtest/m5_run.sh flash_spike chạy khói (rút thời lượng phần giữ tải)
 # Bài: flash_spike, flash_per_customer, flash_sustained, flash_abandon, flash_close_with_holds, web_read.
 # Biến (mặc định): CRM_PG_PORT (5442), PG_DB (crm), CRM_S3_PORT (8333), CRM_VALKEY_CACHE_PORT (6390),
@@ -15,6 +16,7 @@
 # (CPU, bộ nhớ của từng vai trò mỗi 15 s), log từng vai trò. Thoát 1 khi có bài KHÔNG ĐẠT.
 set -euo pipefail
 SPEC="${1:?cách dùng: loadtest/m5_run.sh all|<bài>[,<bài>…]}"
+# chaos (Task 220): hỏng giữa tải, không nằm trong `all` (cần compose riêng, dừng Valkey và PostgreSQL).
 ALL=(flash_spike flash_per_customer flash_sustained flash_abandon flash_close_with_holds web_read)
 if [ "$SPEC" = all ]; then
 	TESTS=("${ALL[@]}")
@@ -22,7 +24,7 @@ else
 	IFS=, read -r -a TESTS <<<"$SPEC"
 fi
 for t in "${TESTS[@]}"; do
-	case " ${ALL[*]} " in *" $t "*) ;; *) echo "bài lạ: $t" >&2; exit 2 ;; esac
+	case " ${ALL[*]} chaos " in *" $t "*) ;; *) echo "bài lạ: $t" >&2; exit 2 ;; esac
 done
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -160,6 +162,11 @@ one() {
 } >"$OUT/report.md"
 FAILED=()
 for t in "${TESTS[@]}"; do
+	if [ "$t" = chaos ]; then
+		API="$API" COMPOSE_PROJECT="${COMPOSE_PROJECT:-crm}" ROOT="$ROOT" TOK="$TOK" OWNER_URL="$OWNER_URL" STAMP="$STAMP" \
+			"$ROOT/loadtest/k6/m5/chaos-m5.sh" || FAILED+=("chaos")
+		continue
+	fi
 	one "$t" || FAILED+=("$t")
 done
 {
